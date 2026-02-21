@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1124</width>
+    <height>625</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>10</pointsize>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>Halpha Console</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QFrame" name="mainframe">
+      <property name="minimumSize">
+       <size>
+        <width>503</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QGridLayout" name="leftLayout">
+       <item row="1" column="0">
+        <widget class="QWidget" name="button_bar" native="true">
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QWidget" name="widget_3" native="true">
+            <layout class="QVBoxLayout" name="leftButtonLayout">
+             <item>
+              <widget class="QFrame" name="frame_7">
+               <property name="frameShape">
+                <enum>QFrame::StyledPanel</enum>
+               </property>
+               <property name="frameShadow">
+                <enum>QFrame::Raised</enum>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_9">
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="text">
+                   <string>Output Prefix</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="prefixLineEdit"/>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="wfratio">
+               <property name="text">
+                <string>Get Filt Ratio</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="psfButton">
+               <property name="text">
+                <string>Build PSF</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="widget_4" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_7">
+             <item>
+              <widget class="QPushButton" name="wmark">
+               <property name="text">
+                <string>Find Galaxies</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="wgalid"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="wclear">
+               <property name="text">
+                <string>Clear Canvas</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="cutoutFrame">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
+        <widget class="QWidget" name="cutouts" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>172</height>
+          </size>
+         </property>
+         <layout class="QGridLayout" name="cutoutsLayout"/>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="rightFrame">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="1" column="0" colspan="2">
+        <widget class="QTableWidget" name="tableWidget"/>
+       </item>
+       <item row="0" column="1">
+        <widget class="QWidget" name="rightButtons" native="true">
+         <layout class="QGridLayout" name="gridLayout_4">
+          <item row="0" column="1">
+           <widget class="QFrame" name="frame">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_2">
+             <item alignment="Qt::AlignHCenter">
+              <widget class="QLabel" name="ratioSliderLabel">
+               <property name="text">
+                <string>filter ratio</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="filterRatioLineEdit"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="resetRatioButton">
+               <property name="text">
+                <string>Reset Filter Ratio</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QFrame" name="frame_2">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout">
+             <item alignment="Qt::AlignHCenter">
+              <widget class="QLabel" name="cutoutSliderLabel">
+               <property name="text">
+                <string>cutout size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="cutoutSizeLineEdit"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="resetSizeButton">
+               <property name="text">
+                <string>Reset Cutout Size</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QWidget" name="widget_2" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_3">
+             <item>
+              <widget class="QPushButton" name="makeMaskButton">
+               <property name="text">
+                <string>Make and Edit Mask</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="saveButton">
+               <property name="text">
+                <string>Save Galaxy</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="clearCutoutsButton">
+               <property name="text">
+                <string>Clear Cutouts</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QFrame" name="frame_5">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_6">
+             <item alignment="Qt::AlignHCenter">
+              <widget class="QLabel" name="label_2">
+               <property name="text">
+                <string>Classify Halpha</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="haTypeComboBox">
+               <property name="toolTip">
+                <string>HalphaType</string>
+               </property>
+               <property name="autoFillBackground">
+                <bool>false</bool>
+               </property>
+               <property name="currentText">
+                <string extracomment="Halpha Type"/>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="6" column="0" colspan="2">
+           <widget class="QFrame" name="frame_6">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
+            <layout class="QHBoxLayout" name="horizontalLayout_3">
+             <item>
+              <widget class="QLabel" name="label_3">
+               <property name="text">
+                <string>COMMENTS</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="commentLineEdit"/>
+             </item>
+             <item>
+              <widget class="QComboBox" name="commentComboBox"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="2" column="0" colspan="2">
+           <widget class="QFrame" name="frame_4">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_3">
+             <item row="1" column="0">
+              <widget class="QPushButton" name="galfitAsymButton">
+               <property name="text">
+                <string>galfit 1 + asym</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QPushButton" name="galfitButton">
+               <property name="text">
+                <string>galfit 1 comp R</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QPushButton" name="galfitHaButton">
+               <property name="text">
+                <string>galfit 1 comp Ha</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QPushButton" name="galfit2Button">
+               <property name="text">
+                <string>galfit 2 comp</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QPushButton" name="galfitHaAsymButton">
+               <property name="text">
+                <string>galfit Ha +asym</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QPushButton" name="fitEllipseGalfitButton">
+               <property name="text">
+                <string>Ellip Phot (galfit)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="2">
+              <widget class="QPushButton" name="fitEllipsePhotutilsButton">
+               <property name="text">
+                <string>Ellip Phot (photutils)</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1124</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuSetup">
+    <property name="title">
+     <string>Setup</string>
+    </property>
+    <addaction name="actionR_coadd"/>
+    <addaction name="actionHa_coadd_2"/>
+    <addaction name="actionNSA_catalog_path"/>
+    <addaction name="actionAGC_catalog_path"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit_2"/>
+   </widget>
+   <widget class="QMenu" name="menuHalpha_Filter">
+    <property name="title">
+     <string>Halpha Filter</string>
+    </property>
+    <addaction name="actionhalpha4"/>
+    <addaction name="actionhalpha8"/>
+    <addaction name="actionhalpha12"/>
+    <addaction name="actionhalpha16"/>
+    <addaction name="actioninthalpha"/>
+    <addaction name="actionintha6657"/>
+    <addaction name="actionsienaha"/>
+   </widget>
+   <addaction name="menuSetup"/>
+   <addaction name="menuHalpha_Filter"/>
+  </widget>
+  <action name="action_rcoadd">
+   <property name="text">
+    <string>R-band coadd</string>
+   </property>
+  </action>
+  <action name="action_hacoadd">
+   <property name="text">
+    <string>Halpha coadd</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionsave">
+   <property name="text">
+    <string>save</string>
+   </property>
+  </action>
+  <action name="action_nsapath">
+   <property name="text">
+    <string>set_path</string>
+   </property>
+  </action>
+  <action name="actionha4">
+   <property name="text">
+    <string>ha4</string>
+   </property>
+  </action>
+  <action name="actionha8">
+   <property name="text">
+    <string>ha8</string>
+   </property>
+  </action>
+  <action name="actionha12">
+   <property name="text">
+    <string>ha12</string>
+   </property>
+  </action>
+  <action name="actionha16">
+   <property name="text">
+    <string>ha16</string>
+   </property>
+  </action>
+  <action name="actionR_coadd">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>R coadd path</string>
+   </property>
+   <property name="statusTip">
+    <string>full path of R-band coadded image</string>
+   </property>
+  </action>
+  <action name="actionHa_coadd">
+   <property name="text">
+    <string>Ha coadd path</string>
+   </property>
+   <property name="whatsThis">
+    <string>full path to Halpha coadd image</string>
+   </property>
+  </action>
+  <action name="actionHa_coadd_2">
+   <property name="text">
+    <string>Ha coadd path</string>
+   </property>
+   <property name="statusTip">
+    <string>select Halpha coadded image</string>
+   </property>
+  </action>
+  <action name="actionNSA_catalog_path">
+   <property name="text">
+    <string>NSA catalog path</string>
+   </property>
+  </action>
+  <action name="actionQuit_2">
+   <property name="text">
+    <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionhalpha4">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>halpha4</string>
+   </property>
+  </action>
+  <action name="actionhalpha8">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>halpha8</string>
+   </property>
+  </action>
+  <action name="actionhalpha12">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>halpha12</string>
+   </property>
+  </action>
+  <action name="actionhalpha16">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>halpha16</string>
+   </property>
+  </action>
+  <action name="actionAGC_catalog_path">
+   <property name="text">
+    <string>AGC catalog path</string>
+   </property>
+  </action>
+  <action name="actioninthalpha">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>int-halpha</string>
+   </property>
+  </action>
+  <action name="actionintha6657">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>int-ha6657</string>
+   </property>
+  </action>
+  <action name="actionsienaha">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>siena-halpha</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

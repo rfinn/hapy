@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>515</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>EB Garamond</family>
+    <pointsize>10</pointsize>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QFrame" name="mainframe">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="5" column="3">
+       <widget class="QWidget" name="widget_7" native="true"/>
+      </item>
+      <item row="3" column="3">
+       <widget class="QWidget" name="widget_8" native="true"/>
+      </item>
+      <item row="1" column="3">
+       <widget class="QWidget" name="widget_14" native="true"/>
+      </item>
+      <item row="0" column="3">
+       <widget class="QWidget" name="widget_6" native="true"/>
+      </item>
+      <item row="4" column="3">
+       <widget class="QWidget" name="widget_10" native="true"/>
+      </item>
+      <item row="0" column="0" rowspan="9" colspan="3">
+       <widget class="QFrame" name="cutouts">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QGridLayout" name="cutoutsLayout">
+         <item row="0" column="0">
+          <widget class="QWidget" name="dummyWidget" native="true"/>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="12" column="0">
+       <widget class="QFrame" name="frame">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_3">
+         <item row="6" column="1">
+          <widget class="QLineEdit" name="ReLineEdit"/>
+         </item>
+         <item row="5" column="1">
+          <widget class="QLineEdit" name="magLineEdit"/>
+         </item>
+         <item row="1" column="0" colspan="5">
+          <widget class="QWidget" name="widget_20" native="true">
+           <layout class="QGridLayout" name="gridLayout_5">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_8">
+              <property name="text">
+               <string>INITIAL PARAMETERS</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>mag</string>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="2">
+          <widget class="QLabel" name="label_26">
+           <property name="text">
+            <string>B/A2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="0">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>B/A</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLineEdit" name="xcLineEdit"/>
+         </item>
+         <item row="7" column="3">
+          <widget class="QLineEdit" name="n2LineEdit"/>
+         </item>
+         <item row="7" column="1">
+          <widget class="QLineEdit" name="nLineEdit"/>
+         </item>
+         <item row="5" column="2">
+          <widget class="QLabel" name="label_22">
+           <property name="text">
+            <string>mag2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="3">
+          <widget class="QLineEdit" name="Re2LineEdit"/>
+         </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>PA</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Re</string>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="3">
+          <widget class="QLineEdit" name="BA2LineEdit"/>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>n</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="3">
+          <widget class="QLineEdit" name="PA2LineEdit"/>
+         </item>
+         <item row="8" column="1">
+          <widget class="QLineEdit" name="PALineEdit"/>
+         </item>
+         <item row="9" column="1">
+          <widget class="QLineEdit" name="BALineEdit"/>
+         </item>
+         <item row="5" column="3">
+          <widget class="QLineEdit" name="mag2LineEdit"/>
+         </item>
+         <item row="7" column="2">
+          <widget class="QLabel" name="label_24">
+           <property name="text">
+            <string>n2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="2">
+          <widget class="QLabel" name="label_23">
+           <property name="text">
+            <string>Re2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>xc</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="2">
+          <widget class="QLabel" name="label_25">
+           <property name="text">
+            <string>PA2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>yc</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLineEdit" name="ycLineEdit"/>
+         </item>
+         <item row="3" column="3">
+          <widget class="QLineEdit" name="xc2LineEdit"/>
+         </item>
+         <item row="4" column="3">
+          <widget class="QLineEdit" name="yc2LineEdit"/>
+         </item>
+         <item row="3" column="2">
+          <widget class="QLabel" name="label_34">
+           <property name="text">
+            <string>xc2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="2">
+          <widget class="QLabel" name="label_35">
+           <property name="text">
+            <string>yc2</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="11" column="0">
+       <widget class="QFrame" name="frame_4">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QPushButton" name="runGalfitButton">
+           <property name="text">
+            <string>Run galfit</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="helpButton">
+           <property name="text">
+            <string>Help</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="quitButton">
+           <property name="text">
+            <string>Quit</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QWidget" name="widget" native="true"/>
+      </item>
+      <item row="6" column="3">
+       <widget class="QWidget" name="widget_9" native="true"/>
+      </item>
+      <item row="9" column="0" colspan="3">
+       <widget class="QFrame" name="readoutframe">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QGridLayout" name="readoutGridLayout"/>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QWidget" name="widget_15" native="true"/>
+      </item>
+      <item row="7" column="3">
+       <widget class="QWidget" name="widget_2" native="true"/>
+      </item>
+      <item row="11" column="1" rowspan="2">
+       <widget class="QFrame" name="frame_3">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_4">
+         <item row="12" column="2">
+          <widget class="QLineEdit" name="errorFitLineEdit"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>xc</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" colspan="7">
+          <widget class="QWidget" name="widget_21" native="true">
+           <layout class="QGridLayout" name="gridLayout_6">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_16">
+              <property name="text">
+               <string>FITTED PARAMETERS</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="9" column="2">
+          <widget class="QLineEdit" name="asymLineEdit"/>
+         </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="label_15">
+           <property name="text">
+            <string>B/A</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="2">
+          <widget class="QLineEdit" name="ycFitLineEdit"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>yc</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QLineEdit" name="xcFitLineEdit"/>
+         </item>
+         <item row="4" column="2">
+          <widget class="QLineEdit" name="magFitLineEdit"/>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="label_12">
+           <property name="text">
+            <string>PA</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_11">
+           <property name="text">
+            <string>mag</string>
+           </property>
+          </widget>
+         </item>
+         <item row="12" column="0">
+          <widget class="QLabel" name="label_18">
+           <property name="text">
+            <string>error</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="3">
+          <widget class="QLabel" name="label_31">
+           <property name="text">
+            <string>B/A2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="3">
+          <widget class="QLabel" name="label_28">
+           <property name="text">
+            <string>Re2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="2">
+          <widget class="QLineEdit" name="nFitLineEdit"/>
+         </item>
+         <item row="6" column="3">
+          <widget class="QLabel" name="label_29">
+           <property name="text">
+            <string>n2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="3">
+          <widget class="QLabel" name="label_30">
+           <property name="text">
+            <string>PA2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="2">
+          <widget class="QLineEdit" name="ReFitLineEdit"/>
+         </item>
+         <item row="4" column="3">
+          <widget class="QLabel" name="label_27">
+           <property name="text">
+            <string>mag2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="3">
+          <widget class="QLabel" name="label_21">
+           <property name="text">
+            <string>yc2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="12" column="3">
+          <widget class="QLabel" name="label_19">
+           <property name="text">
+            <string>Chi</string>
+           </property>
+          </widget>
+         </item>
+         <item row="12" column="5">
+          <widget class="QLineEdit" name="chiFitLineEdit"/>
+         </item>
+         <item row="9" column="0">
+          <widget class="QLabel" name="label_32">
+           <property name="text">
+            <string>asym</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="3">
+          <widget class="QLabel" name="label_20">
+           <property name="text">
+            <string>xc2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="5">
+          <widget class="QLineEdit" name="Re2FitLineEdit"/>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_14">
+           <property name="text">
+            <string>Re</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="2">
+          <widget class="QLineEdit" name="BAFitLineEdit"/>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="label_13">
+           <property name="text">
+            <string>n</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="5">
+          <widget class="QLineEdit" name="xc2FitLineEdit"/>
+         </item>
+         <item row="4" column="5">
+          <widget class="QLineEdit" name="mag2FitLineEdit"/>
+         </item>
+         <item row="7" column="5">
+          <widget class="QLineEdit" name="PA2FitLineEdit"/>
+         </item>
+         <item row="3" column="5">
+          <widget class="QLineEdit" name="yc2FitLineEdit"/>
+         </item>
+         <item row="7" column="2">
+          <widget class="QLineEdit" name="PAFitLineEdit"/>
+         </item>
+         <item row="8" column="5">
+          <widget class="QLineEdit" name="BA2FitLineEdit"/>
+         </item>
+         <item row="6" column="5">
+          <widget class="QLineEdit" name="n2FitLineEdit"/>
+         </item>
+         <item row="10" column="0">
+          <widget class="QLabel" name="label_33">
+           <property name="text">
+            <string>aPA</string>
+           </property>
+          </widget>
+         </item>
+         <item row="10" column="2">
+          <widget class="QLineEdit" name="asymPALineEdit"/>
+         </item>
+         <item row="10" column="5">
+          <widget class="QLineEdit" name="skyFitLineEdit"/>
+         </item>
+         <item row="10" column="3">
+          <widget class="QLabel" name="label_17">
+           <property name="text">
+            <string>sky</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="10" column="1">
+       <widget class="QWidget" name="widget_13" native="true"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

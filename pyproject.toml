@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hapy"
+version = "0.1"
+description = "H-alpha image analysis and tools"
+authors = [
+  { name = "Rose Finn", email = "you@example.com" }
+]
+dependencies = [
+  "astropy",
+  "numpy",
+  "matplotlib",
+  "photutils",
+  "scipy",
+]
+
+# Include scripts as console commands
+[project.scripts]
+get_cutouts = "hapy.scripts.get_cutouts:main"
+
+# Package discovery
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["docs*", "test_images*", "inactive*", "to_refactor*"]
+
+# Data files inside packages
+[tool.setuptools.package-data]
+"hapy.hatools" = ["filter_traces/*.fits"]
+"hapy.astromatic" = ["*.ini", "*.param", "default.*"]
