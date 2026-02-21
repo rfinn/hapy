@@ -24,8 +24,8 @@ pip install -e .
 
 This will install the package and make scripts like get_cutouts available as commands.
 
-# Usage
-## Python API
+## Usage
+### Python API
 
 Import modules in Python:
 
@@ -37,7 +37,7 @@ image_set = HalphaImageSet("my_image.fits")
 myfilter = FilterTrace(image_set.h.filter, instrument=image_set.h.instrument)
 ```
 
-## Command-Line Scripts
+### Command-Line Scripts
 
 Example: create cutouts from an image and a catalog:
 
@@ -49,7 +49,7 @@ get_cutouts --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits \
 
 The script will process the image, match objects from the catalog, and generate cutouts for analysis.
 
-# Project Structure
+## Project Structure
 
 ```
 hapy/
