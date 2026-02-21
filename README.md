@@ -6,7 +6,8 @@
 
 - **Hα image processing:** Load, calibrate, and manipulate Hα and associated images.  
 - **Catalog handling:** Match and join astronomical catalogs, select objects, and filter based on criteria.  
-- **PSF tools:** Build point-spread functions from images, for use in fitting software like GALFIT.  
+- **PSF tools:** Build point-spread functions from images, for use in fitting software like GALFIT.
+- **GALFIT tools:** Wrapper functions and gui for running GALFIT.  
 - **Image utilities:** Download images from databases, display images with flexible visualization tools.  
 - **Modular scripts:** Command-line scripts for common tasks such as making cutouts or analyzing images.  
 
