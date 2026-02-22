@@ -5,10 +5,10 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 # import local modules
-from halpha.hatools.catalog import galaxy_catalog
-from halpha.hatools.output_table import create_output_table
+#from hapy.cattools.catalog import GalaxyCatalog
+#from hapy.hatools.output_table import OutputTable
 
-class ImgePanel(QtCore.QObject):#(QtGui.QMainWindow,
+class ImagePanel(QtCore.QObject):#(QtGui.QMainWindow,
     key_pressed = QtCore.pyqtSignal(str)
     def __init__(self,panel_name,ui,logger):
         super(image_panel, self).__init__()

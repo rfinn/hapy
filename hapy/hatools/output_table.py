@@ -2,7 +2,7 @@
 from astropy.table import Table
 from astropy.io import fits
 
-class create_output_table(output_table_view):
+class OutputTable(output_table_view):
     """
     output table that stores all of the measured values for each galaxy in FOV
     """

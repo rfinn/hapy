@@ -71,13 +71,13 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 
 #from maskGui import Ui_maskWindow
-from maskWidget import Ui_Form as Ui_maskWindow
-from halphaCommon import cutout_image, circle_pixels
-
+from hapy.maskgui.maskWidget import Ui_Form as Ui_maskWindow
+from hapy.hagui.cutout_window import CutoutImage
+from hapy.imagetools.imutils import circle_pixels
 # import gaia function to get stars within region
-from get_gaia_stars import gaia_stars_in_rectangle
+from hapy.masktools.gaia import gaia_stars_in_rectangle
 
-import imutils
+import hapy.imagetools.imutils as imutils
 
 try:
     from photutils.segmentation import detect_threshold, detect_sources
@@ -148,17 +148,6 @@ def remove_central_objects(mask, sma=20, BA=1, PA=0, xc=None,yc=None):
     # we could also get all the unique values associated with flag2, and then remove them
     ellipse_params = [xc,yc,sma,BA,phirad]
     return newmask,ellipse_params
-
-def mask_radius_for_mag(mag):
-    """ 
-    function is from legacy pipeline  
-    https://github.com/legacysurvey/legacypipe/blob/6d1a92f8462f4db9360fb1a68ef7d6c252781027/py/legacypipe/reference.py#L314-L319
-    """
-    # Returns a masking radius in degrees for a star of the given magnitude.
-    # Used for Tycho-2 and Gaia stars.
-
-    # This is in degrees, and is from Rongpu in the thread [decam-chatter 12099].
-    return 1630./3600. * 1.396**(-mag)
 
 
 class buildmask():
@@ -285,7 +274,43 @@ class buildmask():
             print("no ellipse params")
             self.ellipseparams = None
         self.update_mask()
+
+
+   def run_photutil(self, snrcut=1.5,npixels=10):
+        ''' 
+        run photutils detect_sources to find objects in fov.  
+        you can specify the snrcut, and only pixels above this value will be counted.
         
+        this also measures the sky noise as the mean of the threshold image
+        '''
+        self.threshold = detect_threshold(self.image, nsigma=snrcut)
+        segment_map = detect_sources(self.image, self.threshold, npixels=npixels)
+        # deblind sources a la source extractor
+        # tried this, and the deblending is REALLY slow
+        # going back to source extractor
+        self.segmentation = deblend_sources(self.image, segment_map,
+                               npixels=10, nlevels=32, contrast=0.001)        
+        self.maskdat = self.segmentation.data
+        #self.cat = source_properties(self.image, self.segmentation)
+        self.cat = SourceCatalog(self.image, self.segmentation)        
+        # get average sky noise per pixel
+        # threshold is the sky noise at the snrcut level, so need to divide by this
+        self.sky_noise = np.mean(self.threshold)/snrcut
+        #self.tbl = self.cat.to_table()
+
+        if self.off_center_flag:
+            print('setting center object to objid ',self.galaxy_id)
+            self.center_object = self.galaxy_id
+        else:
+            distance = np.sqrt((self.cat.xcentroid - self.xc)**2 + (self.cat.ycentroid - self.yc)**2)
+            # save object ID as the row in table with source that is closest to center
+            objIndex = np.arange(len(distance))[(distance == min(distance))][0]
+            # the value in shown in the segmentation image is called 'label'
+            self.center_object = self.cat.label[objIndex]
+
+        self.maskdat[self.maskdat == self.center_object] = 0
+        self.update_mask()
+
     def update_mask(self):
         self.add_user_masks()
         print("starting add_gaia_masks...")
@@ -343,170 +368,7 @@ class buildmask():
                 self.make_gaia_mask()
             else:
                 self.maskdat += self.gaia_mask
-    def get_gaia_stars(self, useastroquery=True):
-        """ 
-        get gaia stars within FOV
 
-        """
-
-        # check to see if gaia table already exists
-        outfile = self.image_name.replace('.fits','_gaia_stars.csv')
-        if os.path.exists(outfile):
-            print(f"reading gaia stars from {outfile}")
-            self.brightstar = Table.read(outfile)
-            #print(self.brightstar.colnames)
-            self.xgaia = self.brightstar['xpixel']
-            self.ygaia = self.brightstar['ypixel']
-
-        else:
-            print(f"running query to get gaia stars")
-            brightstar = gaia_stars_in_rectangle(self.racenter,self.deccenter,self.dydeg+.01,self.dxdeg+.01)
-            try:
-                # get gaia stars within FOV
-                # adding buffer to the search dimensions for bright stars that might be just off FOV
-                brightstar = gaia_stars_in_rectangle(self.racenter,self.deccenter,self.dydeg+.01,self.dxdeg+.01)
-
-                # Check to see if any stars are returned
-                if len(brightstar) > 0:
-                    print("found gaia stars in FOV!")
-                    # get radius from mag-radius relation
-                    mask_radius = mask_radius_for_mag(brightstar['phot_g_mean_mag'])
-                    brightstar.add_column(mask_radius,name='radius')
-
-                    starcoord = SkyCoord(brightstar['ra'],brightstar['dec'],frame='icrs',unit='deg')        
-                    self.xgaia,self.ygaia = self.image_wcs.world_to_pixel(starcoord)
-                    brightstar.add_column(self.xgaia,name='xpixel')
-                    brightstar.add_column(self.ygaia,name='ypixel')                
-
-                    self.brightstar = brightstar
-                else:
-                     self.brightstar = None
-                     self.xgaia = None
-                     self.ygaia = None
-
-            except:
-                print()
-                print('WARNING: error using astroquery to get gaia stars')
-                print()
-                      
-                # read in gaia catalog
-                try:
-                    brightstar = Table.read(self.gaiapath)
-                    # Convert ra,dec to x,y        
-                    starcoord = SkyCoord(brightstar['ra'],brightstar['dec'],frame='icrs',unit='deg')        
-                    x,y = self.image_wcs.world_to_pixel(starcoord)
-
-                    # add buffer to catch bright stars off FOV
-                    buffer = 0.1*self.xmax
-                    flag = (x > -buffer) & (x < self.xmax+buffer) & (y>-buffer) & (y < self.ymax+buffer)
-
-                    # add criteria for proper motion cut
-                    # Hopefully this fix should resolve cases where center of galaxy is masked out as a star...
-                    # changing to make this a SNR > 5 detection, rather than 5 mas min proper motion
-                    pmflag = np.sqrt(brightstar['pmra']**2*brightstar['pmra_ivar'] + brightstar['pmdec']**2*brightstar['pmdec_ivar']) > 5
-
-                    flag = flag & pmflag
-                    if np.sum(flag) > 0:
-                        self.brightstar = brightstar[flag]
-                        self.xgaia = x
-                        self.ygaia = y
-                        brightstar.add_column(self.xgaia,name='xpixel')
-                        brightstar.add_column(self.ygaia,name='ypixel')                
-
-                    else:
-                        self.brightstar = None
-                        self.xgaia = None
-                        self.ygaia = None
-
-
-                except FileNotFoundError:
-                    warnings.warn(f"Can't find the catalog for gaia stars({self.gaiapath}) - running without bright star masks!")
-                    self.add_gaia_stars = False
-                    return
-
-            # Write out resulting file for future use
-            if self.brightstar is not None:
-                outfile = self.image_name.replace('.fits','_gaia_stars.csv')
-                self.brightstar.write(outfile,format='csv')
-            
-
-
-    def make_gaia_mask(self):
-        """
-        mask out bright gaia stars using the legacy dr9 catalog and magnitude-radius relation:  
-        https://github.com/legacysurvey/legacypipe/blob/6d1a92f8462f4db9360fb1a68ef7d6c252781027/py/legacypipe/reference.py#L314-L319
-        """
-
-        self.get_gaia_stars()
-
-        # set up blank
-        self.gaia_mask = np.zeros_like(self.maskdat)
-        
-        if self.brightstar is not None:
-            # add stars to mask according to the magnitude-radius relation
-            mag = self.brightstar['phot_g_mean_mag']
-            xstar = self.xgaia
-            ystar = self.ygaia
-            rad = self.brightstar['radius'] # in degrees
-            
-            # Convert radius to pixels            
-            radpixels = rad/self.pscalex.value
-
-
-            # use the same value for all gaia stars. set this above max value in mask
-            mask_value = np.max(self.maskdat) + 100 
-            print('mask value = ',mask_value)
-            for i in range(len(mag)):
-                # mask stars
-                print(f"star {i}: {xstar[i]:.1f},{ystar[i]:.1f},{radpixels[i]:.1f}")
-                pixel_mask = circle_pixels(float(xstar[i]),float(ystar[i]),float(radpixels[i]),self.xmax,self.ymax)
-                #print(f"number of pixels masked for star {i} = {np.sum(pixel_mask)}")
-                #print('xcursor, ycursor = ',self.xcursor, self.ycursor)
-                #print("\nshape of pixel_mask = ",pixel_mask.shape)
-                #print("\nshape of gaia_mask = ",self.gaia_mask.shape)                
-                self.gaia_mask[pixel_mask] = mask_value*np.ones_like(self.gaia_mask)[pixel_mask]
-
-            # add gaia stars to main mask                
-            self.maskdat = self.maskdat + self.gaia_mask
-        else:
-            print("No bright stars on image - woo hoo!")
-
-    def run_photutil(self, snrcut=1.5,npixels=10):
-        ''' 
-        run photutils detect_sources to find objects in fov.  
-        you can specify the snrcut, and only pixels above this value will be counted.
-        
-        this also measures the sky noise as the mean of the threshold image
-        '''
-        self.threshold = detect_threshold(self.image, nsigma=snrcut)
-        segment_map = detect_sources(self.image, self.threshold, npixels=npixels)
-        # deblind sources a la source extractor
-        # tried this, and the deblending is REALLY slow
-        # going back to source extractor
-        self.segmentation = deblend_sources(self.image, segment_map,
-                               npixels=10, nlevels=32, contrast=0.001)        
-        self.maskdat = self.segmentation.data
-        #self.cat = source_properties(self.image, self.segmentation)
-        self.cat = SourceCatalog(self.image, self.segmentation)        
-        # get average sky noise per pixel
-        # threshold is the sky noise at the snrcut level, so need to divide by this
-        self.sky_noise = np.mean(self.threshold)/snrcut
-        #self.tbl = self.cat.to_table()
-
-        if self.off_center_flag:
-            print('setting center object to objid ',self.galaxy_id)
-            self.center_object = self.galaxy_id
-        else:
-            distance = np.sqrt((self.cat.xcentroid - self.xc)**2 + (self.cat.ycentroid - self.yc)**2)
-            # save object ID as the row in table with source that is closest to center
-            objIndex = np.arange(len(distance))[(distance == min(distance))][0]
-            # the value in shown in the segmentation image is called 'label'
-            self.center_object = self.cat.label[objIndex]
-
-        self.maskdat[self.maskdat == self.center_object] = 0
-        self.update_mask()
-
-    
     def grow_mask(self, size=7):
 
         """
@@ -1218,6 +1080,7 @@ if __name__ == "__main__":
             ui = maskwindow(None, None,image=args.image,haimage=args.haimage,sepath=args.sepath,gaiapath=args.gaiapath,config=args.config,auto=args.auto,objparams=objparams,unmaskellipse=unmaskellipse,snr=args.sesnr,minarea=args.minarea,ngrow=args.ngrow,weightim=args.weightim,weight_threshold=args.weight_thresh)
     else:
         #print('got here 3')
+        MainWindow = QtWidgets.QWidget()
         ui = maskwindow(MainWindow, logger)
     #ui.setupUi(MainWindow)
     #ui.test()

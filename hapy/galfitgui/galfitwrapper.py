@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 
 #from galfitWidget import Ui_Form as Ui_galfitWindow
 from galfitWidgetBD import Ui_Form as Ui_galfitWindow
-from maskwrapper import my_cutout_image
+from hapy.maskgui.maskwrapper import my_cutout_image
 
 import hapy.galfittools.rungalfit as rg
 

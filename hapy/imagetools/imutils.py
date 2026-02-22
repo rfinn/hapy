@@ -174,3 +174,26 @@ def get_image_center_deg(imagename):
     #print("in get_image_center_deg, ra,dec = ",ra,dec)
     return ra,dec
 
+def circle_pixels(xc,yc,r,ximage,yimage):
+    '''
+    GOAL:
+    - return pixel values that lie within a circular aperture within radius r of position (x,y)
+    
+    INPUT:
+    - enter the center xc,yc and radius of circle in pixels
+    - also enter x and y dimensions of parent image
+
+    OUTPUT:
+    - 2D boolean array with dimension the same as the input image
+    - pixel values are true for pixels within circular aperture, false otherwise
+    '''
+
+    # add some checks to make sure numbers make sense
+    # actually, it works even if center is outside image boundaries
+    #if (xc < 0) | (xc > ximage) | (yc < 0) | (yc > yimage):
+    #    print('invalid central coordinates in circle_pixels')
+        
+    rows,cols = np.mgrid[0:yimage,0:ximage]
+    distance = np.sqrt((rows-yc)**2+(cols-xc)**2)
+    pixel_flag = distance < r
+    return pixel_flag
