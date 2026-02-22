@@ -16,9 +16,7 @@
 You can install **hapy** in editable mode for development:
 
 ```bash
-git clone https://github.com/your-username/hapy.git
-cd hapy
-python -m venv venv  # optional, recommended
+git clone [https://github.com/your-username/hapy.git](https://github.com/rfinn/hapy.git)
 source venv/bin/activate
 pip install -e .
 ```
