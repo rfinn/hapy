@@ -13,7 +13,7 @@ pyds9
 import os
 from astropy.io import fits
 
-import rungalfit
+#import rungalfit
 
 
 def parse_galfit_results(galfit_outimage,asymflag=0,ncomp=1,return_keywords=False):

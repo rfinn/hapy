@@ -41,10 +41,10 @@ import matplotlib.pyplot as plt
 from galfitWidgetBD import Ui_Form as Ui_galfitWindow
 from maskwrapper import my_cutout_image
 
-import rungalfit as rg
+import hapy.galfittools.rungalfit as rg
 
 # import imutils to get pixel scale
-import imutils
+import hapy.imagetools.imutils
 
 # add a frame on top to show
 # cutout, mask, model, residual
@@ -529,8 +529,8 @@ class galfitwindow(Ui_galfitWindow, QtCore.QObject):
 
 
         event.accept()
-        
-if __name__ == "__main__":
+
+def main():
     #catalog = '/Users/rfinn/research/NSA/nsa_v0_1_2.fits'
     #gcat = galaxy_catalog(catalog)
     #from halphamain import cutout_image
@@ -546,5 +546,7 @@ if __name__ == "__main__":
 
     MainWindow.show()
     sys.exit(app.exec_())
-
     
+if __name__ == "__main__":
+
+    main()
