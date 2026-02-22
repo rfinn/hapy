@@ -34,8 +34,8 @@ Import modules in Python:
 from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
 
 # Load an image set
-image_set = HalphaImageSet("my_image.fits")
-myfilter = FilterTrace(image_set.h.filter, instrument=image_set.h.instrument)
+image_set = HalphaImageSet(args.rimage, himage, psfdir=args.psfdir)
+image_set.load_coadds()
 ```
 
 ### Command-Line Scripts
