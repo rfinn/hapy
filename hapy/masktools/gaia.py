@@ -98,7 +98,8 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=18, pmsn
 
 def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     """
-    Retrieve Gaia bright stars within the image FOV.
+    Retrieve Gaia bright stars within the image FOV.  
+    Add radius to the returned table using the Legacy Survey magnitude-radius relation.
 
     Parameters
     ----------
@@ -173,7 +174,7 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
 
         print("Found Gaia stars in FOV.")
 
-        # Compute mask radii
+        # Compute mask radii from legacy survey magnitude-radius relation
         mask_radius = mask_radius_for_mag(
             brightstar["phot_g_mean_mag"]
         )
