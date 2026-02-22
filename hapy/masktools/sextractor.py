@@ -43,8 +43,7 @@ def run_sextractor(
     snr_analysis,
     minarea,
     weight_image=None,
-    weight_threshold=1,
-):
+    weight_threshold=1,):
     """
     Run SExtractor and return segmentation array + catalog filename.
     """
