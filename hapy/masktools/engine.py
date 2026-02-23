@@ -8,25 +8,18 @@ from typing import Optional, Sequence, Tuple, List, Union, Callable
 
 import numpy as np
 from astropy.io import fits
-from astropy.wcs import WCS
-
+#from astropy.wcs import WCS
+from astropy import wcs
 from .maskops import (
     remove_central_objects,
     apply_user_masks,
     grow_mask_square,
+    circle_pixels,
 )
-from .gaia import get_gaia_stars_for_image, make_gaia_mask
-from .sextractor import run_sextractor_and_load_segmentation
+from .gaia import get_gaia_stars, make_gaia_mask
+from .sextractor import run_sextractor
 
-
-@dataclass
-class EllipseSpec:
-    """Ellipse in pixel coords."""
-    xc: float
-    yc: float
-    sma_pix: float
-    ba: float
-    pa_deg: float
+from .types import EllipseParams
 
 
 class MaskEngine:
@@ -88,7 +81,7 @@ class MaskEngine:
         self.gaia_mask: Optional[np.ndarray] = None
 
         # ellipse bookkeeping (for GUI to draw)
-        self.ellipse_params: Optional[Union[EllipseSpec, List[EllipseSpec]]] = None
+        self.ellipse_params: Optional[Union[EllipseParams, List[EllipseParams]]] = None
 
         self._load_image()
 
@@ -110,7 +103,9 @@ class MaskEngine:
     # ---------- core image load ----------
     def _load_image(self) -> None:
         self.image, self.header = fits.getdata(self.image_fits, header=True)
-        self.wcs = WCS(self.header)
+        self.wcs = wcs.WCS(self.header)
+        pscale = wcs.utils.proj_plane_pixel_scales(self.wcs)
+        self.pixel_scale_deg = pscale[0]
         self.ymax, self.xmax = self.image.shape
         self.xc = self.xmax / 2.0
         self.yc = self.ymax / 2.0
@@ -122,10 +117,11 @@ class MaskEngine:
         weightim: Optional[str] = None,
         weight_threshold: float = 1.0,
         remove_center_object: bool = True,
-        center_object_id: Optional[int] = None,
-        galaxy_ellipses: Optional[Union[EllipseSpec, Sequence[EllipseSpec]]] = None,
+        center_object_id = None,
+        galaxy_ellipse = None,
         output_prefix: Optional[str] = None,
-    ) 
+        progress_callback=None,   
+    ):
         """
         Run detection (SE for now), optionally remove galaxy, then apply Gaia + user masks.
         Returns maskdat.
@@ -133,54 +129,105 @@ class MaskEngine:
         self._progress(progress_callback, stage="start", fraction=0.0, message="Starting mask build")
 
         self._progress(progress_callback, stage="sextractor", fraction=0.1, message="Running Source Extractor")
-        seg = run_sextractor_and_load_segmentation(
-            image_fits=self.image_fits,
-            sepath=self.sepath,
+      
+        segdata, catname, segmentation = run_sextractor(
+            image_name=self.image_fits,
+            #sepath=self.sepath,
             config=self.config,
             threshold=self.threshold,
             snr=self.snr,
             snr_analysis=self.snr_analysis,
             minarea=self.minarea,
-            weightim=weightim,
+            weight_image=weightim,
             weight_threshold=weight_threshold,
-            verbose=self.verbose,
-            output_prefix=output_prefix,
+            #verbose=self.verbose,
+            #output_prefix=output_prefix,
         )
-        self.maskdat = seg.astype(float)
+        self.maskdat = segdata
+
+        #print("after sextractor", self.maskdat.shape)
  
         self._progress(progress_callback, stage="cleanup", fraction=0.45, message="Applying object removals / user masks")
         # 2) remove center galaxy object(s)
 
         if remove_center_object:
+            print("removing central object")
             self.maskdat, ellipse_params = remove_central_objects(
                 self.maskdat,
-                center_object_id=center_object_id,
-                ellipse_params=galaxy_ellipses,
+                #center_object_id=center_object_id,
+                ellipse_params=galaxy_ellipse,
              )
             self.ellipse_params = ellipse_params
 
-             
+        #print("after remove_center", self.maskdat.shape)
         if self.usr_mask is not None:
             self.maskdat = apply_user_masks(self.maskdat, self.usr_mask)
-
+        #print("after user masks", self.maskdat.shape)
         self._progress(progress_callback, stage="grow", fraction=0.7, message="Growing mask")
         self.maskdat = grow_mask_square(self.maskdat, ngrow=3)
-
-        if self.add_gaia_stars and self.gaiapath is not None:
+        #print("after growing mask", self.maskdat.shape)
+        
+        if self.add_gaia_stars:# and self.gaiapath is not None:
 
             self._progress(progress_callback, stage="gaia", fraction=0.85, message="Adding Gaia stars")
-            stars = get_gaia_stars_for_image(self.image_fits, gaiapath=self.gaiapath)
-            self.gaia_mask = make_gaia_mask(self.image.shape, stars)
+            brightstar, x_pixels, y_pixels = get_gaia_stars(self.image_fits)            
+            self.gaia_mask, star_masks = make_gaia_mask(self.maskdat, x_pixels, y_pixels, self.pixel_scale_deg, gaia_table=brightstar)
+            #print("after gaia", self.maskdat.shape, " and gaia mask shape = ",self.gaia_mask.shape)
             self.maskdat = apply_user_masks(self.maskdat, self.gaia_mask)
- 
+            print("after gaia - add back user masks", self.maskdat.shape)
+        #print("after gaia", self.maskdat.shape)
         self._progress(progress_callback, stage="done", fraction=1.0, message="Mask build complete")
         return self.maskdat
 
+        
+    def grow_mask(self):
+        self.maskdat = grow_mask_square(self.maskdat, ngrow=3)        
+        pass
+
+    def add_circular_mask(self, x: float, y: float, radius_pix: float) -> int:
+        """
+        Add a circular user mask centered at (x, y) with radius in pixels.
+        Returns the integer mask value used.
+        """
+        # lazily create a user mask if you don't already have one
+        if getattr(self, "usr_mask", None) is None:
+            self.usr_mask = np.zeros_like(self.maskdat, dtype=float)
+
+        ymax, xmax = self.maskdat.shape
+
+        # compute boolean pixel mask
+        pixel_mask = circle_pixels(float(x), float(y), float(radius_pix), xmax, ymax)
+
+        # choose next id
+        mask_value = int(np.max(self.maskdat)) + 1
+
+        self.usr_mask[pixel_mask] = mask_value
+        self.maskdat = self.maskdat + self.usr_mask
+        
+        return mask_value
     # ---------- galaxy removal ----------
+    def remove_object(self, objid):
+        """Remove an object from the mask by zeroing all pixels with value obj_id."""
+        if objid == 0:
+            return
+
+        # main mask
+        self.maskdat[self.maskdat == objid] = 0.0
+
+        # user mask bookkeeping (if you keep one)
+        if getattr(self, "usr_mask", None) is not None:
+            self.usr_mask[self.usr_mask == objid] = 0.0
+
+        # optional: keep a list in the engine too
+        if not hasattr(self, "deleted_objects"):
+            self.deleted_objects = []
+        self.deleted_objects.append(int(objid))
+
+    
     def remove_galaxy_from_mask(
         self,
         center_object_id: Optional[int] = None,
-        galaxy_ellipses: Optional[Union[EllipseSpec, Sequence[EllipseSpec]]] = None,
+        galaxy_ellipses: Optional[Union[EllipseParams, Sequence[EllipseParams]]] = None,
     ) -> None:
         """
         Remove the target galaxy from segmentation mask:
@@ -196,7 +243,7 @@ class MaskEngine:
 
         # B) remove anything inside ellipses (good for shredded galaxies)
         if galaxy_ellipses is not None:
-            if isinstance(galaxy_ellipses, EllipseSpec):
+            if isinstance(galaxy_ellipses, EllipseParams):
                 ell_list = [galaxy_ellipses]
             else:
                 ell_list = list(galaxy_ellipses)
@@ -224,7 +271,7 @@ class MaskEngine:
             raise RuntimeError("maskdat is None; run build_initial_mask() first.")
 
         if self.gaia_mask is None:
-            gaia_tbl = get_gaia_stars_for_image(
+            gaia_tbl = get_gaia_stars(
                 image_fits=self.image_fits,
                 gaiapath=self.gaiapath,
                 cache_csv=True,
@@ -291,10 +338,10 @@ class MaskEngine:
         self.apply_user_masks_and_deletions()
 
     # ---------- outputs ----------
-    def write_masks(self, mask_fits: str, inv_mask_fits: Optional[str] = None, overwrite: bool = True) -> None:
+    def write_mask(self, mask_fits: str, inv_mask_fits: Optional[str] = None, overwrite: bool = True) -> None:
         if self.maskdat is None:
             raise RuntimeError("maskdat missing; run build_initial_mask() first.")
-
+        #print("in write_mask, shape = ",self.maskdat.shape)
         fits.writeto(mask_fits, self.maskdat, header=self.header, overwrite=overwrite)
 
         if inv_mask_fits is not None:

@@ -1,55 +1,140 @@
 from PyQt5 import QtCore, QtWidgets
 from astropy.io import fits
 from astropy.wcs import WCS
+import os
+from scipy.stats import scoreatpercentile
+import numpy as np
 
 from .maskWidget import Ui_Form as Ui_maskWindow
-from .cutout_view import my_cutout_image
+from .cutout_view import CutoutPanel
 
 #from hapy.masktools.engine import MaskEngine
-from hapy.masktools.api import MaskEngine
+from hapy.masktools.api import MaskEngine, EllipseParams
+from hapy.imagetools import imutils
+
+from matplotlib import pyplot as plt
+
+class NullLogger:
+    def debug(self, *args, **kwargs): pass
+    def info(self, *args, **kwargs): pass
+    def warning(self, *args, **kwargs): pass
+    def error(self, *args, **kwargs): pass
 
 class MaskWindow(Ui_maskWindow, QtCore.QObject):
     mask_saved = QtCore.pyqtSignal(str)
-    def __init__(self, MainWindow, logger, image=None, haimage=None, sepath=None, gaiapath=None, config=None, threshold=0.005,snr=10,cmap='gist_heat_r',objparams=None,auto=False,unmaskellipse=False,minarea=10,ngrow=3,weightim=None,weight_threshold=None):
+    def __init__(self, MainWindow, logger, image=None, haimage=None, config=None, threshold=0.005,snr=10,cmap='gist_heat_r',objparams=None,auto=False,addgaia=True, unmaskellipse=False,minarea=10,ngrow=3,weightim=None,weight_threshold=None):
         """
 
         ngrow : number of times to run grow when running in auto mode
         """
-
-        self.engine = MaskEngine(
-        image_fits=image,
-        ha_image_fits=haimage,
-        sepath=sepath,
-        gaiapath=gaiapath,
-        config=config,
-        threshold=threshold,
-        snr=snr,
-        minarea=minarea,
-        add_gaia_stars=True,)
-
-        def _progress_cb(stage: str, fraction: float, message: str = None):
-            print(f"[mask] {stage} {fraction:0.2f} {message or ''}".strip())
-            
-        self.engine.build_initial_mask(weightim=weightim, weight_threshold=weight_threshold)
-        self.maskdat = self.engine.maskdat
-
+        if logger is None:
+            logger = NullLogger()
+        self.logger = logger
         
         self.auto = auto
         if MainWindow is None:
             self.auto = True
+
+        #########################################
+        # WINDOW MAGIC
+        #########################################       
+
         if not self.auto:
-            super(maskwindow, self).__init__()
-        
+            self.MainWindow = MainWindow
+            super(MaskWindow, self).__init__()
             self.ui = Ui_maskWindow()
             self.ui.setupUi(MainWindow)
+            QtCore.QTimer.singleShot(0, self._debug_sizes)
+            print("cutouts frameShape:", self.ui.cutouts.frameShape())
+            print("dummyWidget exists?", hasattr(self.ui, "dummyWidget"))
+            if hasattr(self.ui, "dummyWidget"):
+                print("dummyWidget geom:", self.ui.dummyWidget.geometry())
+            print("cutouts geom:", self.ui.cutouts.geometry())
+            # Give the cutouts area (rows 0-7, cols 0-2) the space it needs
+            self.ui.gridLayout_2.setRowStretch(0, 1)
+            self.ui.gridLayout_2.setRowStretch(1, 1)
+            self.ui.gridLayout_2.setRowStretch(2, 1)
+            self.ui.gridLayout_2.setRowStretch(3, 1)
+            self.ui.gridLayout_2.setRowStretch(4, 1)
+            self.ui.gridLayout_2.setRowStretch(5, 1)
+            self.ui.gridLayout_2.setRowStretch(6, 1)
+            self.ui.gridLayout_2.setRowStretch(7, 1)
+
+            #self.ui.gridLayout_2.setColumnStretch(0, 3)
+            #self.ui.gridLayout_2.setColumnStretch(1, 3)
+            #self.ui.gridLayout_2.setColumnStretch(2, 3)
+            #self.ui.gridLayout_2.setColumnStretch(3, 0)            
+
+            # Optional but very effective: keep control area from stealing vertical space
+            self.ui.gridLayout_2.setRowStretch(11, 0)
+
+            # also remove any minimum width those spacer widgets might impose
+            for name in ["widget_6","widget_14","widget_15","widget_8","widget_10","widget_7","widget_9","widget_2","widget_5"]:
+                if hasattr(self.ui, name):
+                    w = getattr(self.ui, name)
+                    w.setMinimumWidth(0)
+                    w.setMaximumWidth(0)
+                    w.hide()
+            # Ensure the cutouts frame itself is allowed to expand
+            self.ui.cutouts.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+            self.ui.cutouts.setMinimumHeight(400)
+
             MainWindow.setWindowTitle('makin a mask...')
             self.MainWindow = MainWindow
+            
+        #########################################
+        # INITIALIZE VARIABLES 
+        #########################################       
+        self.image_name = image
+        self.mask_image = self.image_name.replace('.fits','-mask.fits')
+        self.mask_inv_image=self.image_name.replace('.fits','-inv-mask.fits')
+                                                       
+        self.haimage_name = haimage
+        self.weightim = weightim
+        self.weight_threshold = weight_threshold
+        
+        self.gaia_mask = None
+        self.add_gaia_stars = addgaia
 
+        self.threshold = threshold
+        self.snr = snr
+        self.snr_analysis = snr
+        self.minarea = minarea
+        
+        self.cmap = cmap
+        self.xcursor_old = -99
+        self.xcursor = -99
+        self.mask_size = 20.
 
-            self.logger = logger
-            print("in maskwindow, I get objparams = ",objparams)
-        # define the position of the target galaxy, as well as the shape and size of elliptical region to unmask around galaxy.
-        #print("inside maskwrapper.init, objparams = ",objparams)
+        if config is None:
+            config = 'default.sex.HDI.mask'
+        
+        # create name for output mask file
+
+        self.remove_center_object_flag = True
+
+        # don't think I need this anymore - holdover from prior structure
+        ## read in image and define center coords
+
+        #self.ymax,self.xmax = self.image.shape
+        #self.xc = self.xmax/2.
+        #self.yc = self.ymax/2.
+        #self.image_wcs = WCS()
+        #self.pscalex,self.pscaley = self.image_wcs.proj_plane_pixel_scales() # appears to be degrees/pixel
+        
+        # get image dimensions in deg,deg
+        #self.dxdeg,self.dydeg = imutils.get_image_size_deg(self.image_name)
+        
+
+        # Get coord of image center.  will use when getting gaia stars
+        #self.racenter,self.deccenter = imutils.get_image_center_deg(self.image_name)                
+
+        ###################################################
+        
+
+        #########################################
+        # INITIALIZE VARIABLES 
+        #########################################       
         if objparams is not None:
             self.objra = objparams[0]
             self.objdec = objparams[1]
@@ -57,14 +142,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             self.objBA = objparams[3]
             self.objPA = objparams[4]
 
-        else:
-            self.objra  = None  
-            self.objdec = None  
-            self.objsma = None  
-            self.objBA  = None  
-            self.objPA  = None
-
-        if (self.objsma is not None): # unmask central elliptical region around object
+            # unmask central elliptical region around object
             # get wcs from mask image
             wcs = WCS(fits.getheader(image))
             
@@ -75,73 +153,28 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             # convert sma to pixels using pixel scale from mask wcs
             self.pixel_scale = wcs.pixel_scale_matrix[1][1]
             self.objsma_pixels = self.objsma/(self.pixel_scale*3600)
+            print("Found ellipse parameters !\n")
+            self.ellipseparams = EllipseParams(
+                xc = self.xpixel, 
+                yc = self.ypixel,
+                sma_pix = self.objsma_pixels,
+                ba = self.objBA,
+                pa_deg= self.objPA)
+        else:
+            print("DID NOT FIND ellipse parameters !\n")
+            self.ellipseparams = None
+            self.objra  = None  
+            self.objdec = None  
+            self.objsma = None  
+            self.objBA  = None  
+            self.objPA  = None
             
 
-        self.weightim = weightim
-        self.weight_threshold = weight_threshold
-        ###  The lines below are for testing purposes
-        ###  and should be removed before release.
-        #if image is None:
-        #    image='MKW8-18216-R.fits'
-        #if haimage == None:
-        #    haimage='MKW8-18216-CS.fits'
-        if sepath is None:
-            sepath=os.getenv('HOME')+'/github/halphagui/astromatic/'
-        if gaiapath is None:
-            gaiapath = os.getenv("HOME")+'/research/legacy/gaia-mask-dr9.virgo.fits'
-
-        if config is None:
-            config='default.sex.HDI.mask'
-        self.image_name = image
-        self.haimage_name = haimage
-        print(self.image_name)
-        print(self.haimage_name)
-        print(sepath)
-        self.sepath = sepath
-        self.gaiapath = gaiapath
-        self.gaia_mask = None
-        self.add_gaia_stars = True        
-        self.config = config
-        self.threshold = threshold
-        self.snr = snr
-        self.snr_analysis = snr
-        self.minarea = minarea
-        self.cmap = cmap
-        self.xcursor_old = -99
-        self.xcursor = -99
-        self.mask_size = 20.
-        # create name for output mask file
-        t = self.image_name.split('.fit')
-        self.mask_image=t[0]+'-mask.fits'
-        self.mask_inv_image=t[0]+'-inv-mask.fits'
-        #print('saving mask image as: ',self.mask_image)
-
-        self.remove_center_object_flag = True
-        
-        # read in image and define center coords
-        self.image, self.imheader = fits.getdata(self.image_name,header = True)
-        self.ymax,self.xmax = self.image.shape
-        self.xc = self.xmax/2.
-        self.yc = self.ymax/2.
-        self.image_wcs = WCS(self.imheader)
-        self.pscalex,self.pscaley = self.image_wcs.proj_plane_pixel_scales() # appears to be degrees/pixel
-        
-        # get image dimensions in deg,deg
-        self.dxdeg,self.dydeg = imutils.get_image_size_deg(self.image_name)
-        
-
-        # Get coord of image center.  will use when getting gaia stars
-        self.racenter,self.deccenter = imutils.get_image_center_deg(self.image_name)                
-
-
-        self.v1,self.v2=scoreatpercentile(self.image,[5.,99.5])
-        self.adjust_mask = True
-        self.figure_size = (10,5)
         self.mask_size = 20. # side of square to mask out when user clicks on a pixel
 
         # set up array to store the user-created object masks
-
-        self.usr_mask = np.zeros_like(self.image)
+        # don't do this here - do it in engine!
+        #self.usr_mask = np.zeros_like(self.image)
         #print(self.image.shape, self.usr_mask.shape)
         # set off center flag as false by default
         self.off_center_flag = False
@@ -150,39 +183,97 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
         self.deleted_objects = []
 
-        if not self.auto:
-            self.add_cutout_frames()
 
-        # time how long it takes to run SE
-        self.runse_flag = True
-        runphot = False
-        if self.runse_flag:
-            self.link_files()
-            t_0 = timeit.default_timer()        
-            self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
-            self.remove_center_object()
-            #self.remove_central_objects(xc=self.xpixels,yc=self.ypixels)
-            t_1 = timeit.default_timer()
-            #print("HELLO!!!")
-            print(f"\ntime to run se: {round((t_1-t_0),3)} sec\n")
-        if runphot:
-            self.usephot = True
-            t_1 = timeit.default_timer()
-            self.run_photutil()
-            t_2 = timeit.default_timer()
-            print(f"\ntime to run photutils: {round((t_2-t_1),3)} sec\n")
-        #self.update_mask()
-        if self.auto:
-            for i in range(int(ngrow)):
-                # grow mask 7x when running in auto mode
-                self.grow_mask()
+        #########################################        
+        # START YOUR ENGINE!
+        # initialize and build first-pass mask
+        #########################################        
+        self.engine = MaskEngine(
+            image_fits=image,
+            ha_image_fits=haimage,
+            config=config,
+            threshold=threshold,
+            snr=snr,
+            minarea=minarea,
+            add_gaia_stars=True,
+        )
+
+        def _progress_cb(stage, fraction, message=None):
+            print(f"[mask] {stage} {fraction:0.2f} {message or ''}".strip())
+        
+
+        # IMPORTANT: pass progress_callback, and only build once
+        self.maskdat = self.engine.build_initial_mask(
+            weightim=weightim,
+            weight_threshold=weight_threshold,
+            progress_callback=_progress_cb,
+            galaxy_ellipse = self.ellipseparams,
+        )
+        
+
+        self.engine.write_mask(self.mask_image)
+        
+        #self.show_mask_mpl()
+
+        #########################################        
+        # ADD CUTOUT PANELS TO GUI
+        #########################################        
+        
+
+        self.add_cutout_frames()
+        
+        #print("rcutout exists?", hasattr(self, "rcutout"))
+        #print("maskcutout exists?", hasattr(self, "maskcutout"))
+        #if hasattr(self, "rcutout"):
+        #    print("rcutout parent:", self.rcutout.parent())
+
+        #print("cutouts frame size:", self.ui.cutoutsLayout.parentWidget().size())
+        #print("rcutout widget size:", self.rcutout.widget.size())
+        #print("maskcutout widget size:", self.maskcutout.widget.size())
+        QtCore.QTimer.singleShot(0, self.display_cutouts)
+        #self.display_cutouts()
+        self.connect_buttons()
+        frame = self.ui.cutoutsLayout.parentWidget()   # the QFrame that contains the grid
+        frame.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        frame.setMinimumHeight(200)  # pick something reasonable
+
+        # make the grid stretch properly
+        self.ui.cutoutsLayout.setColumnStretch(0, 1)
+        self.ui.cutoutsLayout.setColumnStretch(1, 1)
+        self.ui.cutoutsLayout.setColumnStretch(2, 1)
+        self.ui.cutoutsLayout.setRowStretch(1, 1) 
+    def runse(self):
+        """
+        Legacy button name: 'Run SE'.
+        New behavior: rebuild mask using the headless engine and refresh displays.
+        """
+        def _progress_cb(stage, fraction, message=None):
+            print(f"[mask] {stage} {fraction:0.2f} {message or ''}".strip())
+
+        # Update engine settings from current GUI state
+        self.engine.threshold = self.threshold
+        self.engine.snr = self.snr
+        self.engine.snr_analysis = getattr(self, "snr_analysis", self.snr)
+        self.engine.minarea = self.minarea
+        self.engine.config = self.config
+
+        # Rebuild the mask
+        self.maskdat = self.engine.build_initial_mask(
+            weightim=self.weightim,
+            weight_threshold=self.weight_threshold,
+            progress_callback=_progress_cb,
+        )
+
+        # Write mask file so the cutout viewer can load it
+        self.engine.maskdat = self.maskdat
+        self.engine.write_mask(self.mask_image)
+
+        # Refresh displays
         try:
-            self.show_mask_mpl()
-        except TypeError:
-            print("WARNING: could not display mask")
-        if not self.auto:
-            self.display_cutouts()
-            self.connect_buttons()
+            self.display_mask()
+        except Exception as e:
+            print("WARNING: display_mask failed:", e)
+
             
     def connect_buttons(self):
         #self.ui.msaveButton.clicked.connect(self.write_mask)
@@ -198,75 +289,127 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
     def close_window(self):
         print('click red x to close window')
         #sys.exit()
+    def _make_panel_label(self, text,fontsize):
+        label = QtWidgets.QLabel(text)
+
+        font = label.font()
+        font.setPointSize(fontsize)
+        font.setBold(True)
+        label.setFont(font)
+
+        label.setAlignment(QtCore.Qt.AlignCenter)
+
+        # Let it expand horizontally but stay compact vertically
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed
+        )
+
+        return label        
     def add_cutout_frames(self):
+
+        self.ui.cutoutsLayout.addWidget(self._make_panel_label("r-band",16), 0, 0)
+        self.ui.cutoutsLayout.addWidget(self._make_panel_label("CS Halpha",16), 0, 1)
+        self.ui.cutoutsLayout.addWidget(self._make_panel_label("Mask",16), 0, 2)
+
+        self.rcutout = CutoutPanel(self.ui.cutoutsLayout,self.ui, self.logger, grid_pos=[1, 0, 4, 1])
+        self.hacutout = CutoutPanel(self.ui.cutoutsLayout,self.ui, self.logger, grid_pos=[1, 1, 4, 1])
+        self.maskcutout = CutoutPanel(self.ui.cutoutsLayout,self.ui, self.logger, grid_pos=[1, 2, 4, 1])
+        
+        self.maskcutout.key_pressed.connect(self.key_press_func)
+        self.rcutout.key_pressed.connect(self.key_press_func)
+        self.hacutout.key_pressed.connect(self.key_press_func)
+
+        """
+        # remove placeholder widget that collides with our grid
+        if hasattr(self.ui, "dummyWidget") and self.ui.dummyWidget is not None:
+            self.ui.cutoutsLayout.removeWidget(self.ui.dummyWidget)
+            self.ui.dummyWidget.setParent(None)
+            self.ui.dummyWidget.deleteLater()
+            self.ui.dummyWidget = None
         # r-band cutout
         a = QtWidgets.QLabel('r-band')
         self.ui.cutoutsLayout.addWidget(a, 0, 0, 1, 1)
+        
         a = QtWidgets.QLabel('CS Halpha')
         self.ui.cutoutsLayout.addWidget(a, 0, 1, 1, 1)
+        
         a = QtWidgets.QLabel('Mask')
         self.ui.cutoutsLayout.addWidget(a, 0, 2, 1, 1)
 
         #self.ui.cutoutsLayout.addWidget(self.cutout, row, col, drow, dcol)
-        self.rcutout = my_cutout_image(self.ui.cutoutsLayout,self.ui, self.logger, 1, 0, 4, 1)
-        self.hacutout = my_cutout_image(self.ui.cutoutsLayout,self.ui, self.logger, 1, 1, 4, 1)
-        self.maskcutout = my_cutout_image(self.ui.cutoutsLayout,self.ui, self.logger,1, 2, 4, 1)
+
+        print("rcutout.widget parent:", self.rcutout.widget.parent())
+        print("cutoutsLayout parent:", self.ui.cutoutsLayout.parentWidget())
+
+
         #self.maskcutout.mouse_clicked.connect(self.add_object)
+
+
 
         # this allows the user to press editing keys in any of the 3 image panels
         # not just in the mask panel
         self.maskcutout.key_pressed.connect(self.key_press_func)
         self.rcutout.key_pressed.connect(self.key_press_func)
         self.hacutout.key_pressed.connect(self.key_press_func)
-
+        self.ui.cutoutsLayout.setRowStretch(1, 1)
+        self.ui.cutoutsLayout.setColumnStretch(0, 1)
+        self.ui.cutoutsLayout.setColumnStretch(1, 1)
+        self.ui.cutoutsLayout.setColumnStretch(2, 1)
+        """
+        
     def display_cutouts(self):
         self.rcutout.load_file(self.image_name)
         self.rcutout.fitsimage.set_autocut_params('stddev')
+
+        
         if self.haimage_name is not None:
             self.hacutout.load_file(self.haimage_name)
         self.display_mask()
+        print("loading r:", self.image_name)
+        print("loading ha:", self.haimage_name)
+        print("loading mask:", self.mask_image)
+
+        try:
+            self.rcutout.fitsimage.zoom_fit()
+            self.rcutout.fitsimage.redraw(whence=0)
+
+            self.maskcutout.fitsimage.zoom_fit()
+            self.maskcutout.fitsimage.redraw(whence=0)
+
+            if self.haimage_name:
+                self.hacutout.fitsimage.zoom_fit()
+                self.hacutout.fitsimage.redraw(whence=0)
+        except Exception as e:
+            print("redraw failed:", e)
+
+        print("cutouts frame size:", self.ui.cutouts.size())
     def display_mask(self):
         self.maskcutout.load_file(self.mask_image)
         self.draw_central_ellipse()
-    def show_mask(self):
-        if self.nods9 & (not self.auto):
-            plt.close('all')
-            self.fig = plt.figure(1,figsize=self.figure_size)
-            plt.clf()
-            plt.subplots_adjust(hspace=0,wspace=0)
-            plt.subplot(1,2,1)
-            plt.imshow(self.image,cmap='gray_r',vmin=self.v1,vmax=self.v2,origin='lower')
-            plt.title('image')
-            plt.subplot(1,2,2)
-            #plt.imshow(maskdat,cmap='gray_r',origin='lower')
-            plt.imshow(self.maskdat,cmap=self.cmap,origin='lower')
-            plt.title('mask')
-            plt.gca().set_yticks(())
-            #plt.draw()
-            #plt.show(block=False)
-            self.draw_central_ellipse()
     def draw_central_ellipse(self, color='cyan'): # MVC - view
         # mark r24
         markcolor=color#, 'yellow', 'cyan']
         markwidth=1
-        #print('inside draw_ellipse_results')
+
         image_frames = [self.rcutout,self.hacutout,self.maskcutout]
         if self.ellipseparams is None:
             print("")
             print("no parameters found for central ellipse")
             print()
             return
-        xc,yc,r,BA,PA = self.ellipseparams
-        #print("just checking - adding ellipse drawing ",self.ellipseparams)
+        xc,yc = self.ellipseparams.xc, self.ellipseparams.yc
+        r = self.ellipseparams.sma_pix
+        BA = self.ellipseparams.ba
+        PA = self.ellipseparams.pa_deg
+
         objlist = []
         for i,im in enumerate(image_frames):
-            obj =im.dc.Ellipse(xc,yc,r,r*BA, rot_deg = np.degrees(PA), color=markcolor,linewidth=markwidth)
+            obj =im.dc.Ellipse(xc,yc,r,r*BA, rot_deg = PA, color=markcolor,linewidth=markwidth)
 
             objlist.append(obj)
             self.markhltag = im.canvas.add(im.dc.CompoundObject(*objlist))
             im.fitsimage.redraw()
-            #print("did you see anything???")
-        # mark R17 in halpha image
 
     def key_press_func(self,text):
         key, x, y = text.split(',')
@@ -331,42 +474,30 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         print('adding pixels to the mask')
         # mask out a rectangle around click
         # size is given by mask_size
-        xmin = int(self.xcursor) - int(0.5*self.mask_size)
-        ymin = int(self.ycursor) - int(0.5*self.mask_size)
-        xmax = int(self.xcursor) + int(0.5*self.mask_size)
-        ymax = int(self.ycursor) + int(0.5*self.mask_size)
-        
-        # make sure cursor click is not outside of the image
-        if ((self.xcursor >= self.xmax) or (self.xcursor <= 0) or (self.ycursor >= self.ymax) or (self.ycursor <= 0)):
-            print('you clicked outside the image area')
-            return
-        
-        # make sure mask dimensions are not outside of the image
-        xmin = max(0,xmin)
-        xmax = min(self.xmax,xmax)
-        ymin = max(0,ymin)
-        ymax = min(self.ymax,ymax)
 
-        #print('xcursor, ycursor = ',self.xcursor, self.ycursor)
-        mask_value = np.max(self.maskdat) + 1
-        #print(xmin,xmax,ymin,ymax,self.mask_size)
-        self.usr_mask[ymin:ymax,xmin:xmax] = mask_value*np.ones([ymax-ymin,xmax-xmin])
-        self.maskdat = self.maskdat + self.usr_mask
-        self.save_mask()
-        print('added mask object '+str(mask_value))
+        mask_value = self.engine.add_box_mask(self.xcursor, self.ycursor, self.mask_size)
+
+
+
+        if mask_value == 0:
+            print("you clicked outside the image area")
+            return
+
+        self.maskdat = self.engine.maskdat
+        self.save_mask()         # should call engine.write_mask()
+        print(f"added mask object {mask_value}")
+
 
     def add_circ_object(self):
         print('adding circular obj to the mask, with radius = ',self.mask_size)
         # mask out a rectangle around click
         # size is given by mask_size
-        pixel_mask = circle_pixels(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.),self.xmax,self.ymax)
 
-        #print('xcursor, ycursor = ',self.xcursor, self.ycursor)
-        mask_value = int(np.max(self.maskdat)) + 1
-        #print(f"adding circular mask with value {mask_value}"
-        #print(xmin,xmax,ymin,ymax,self.mask_size)
-        self.usr_mask[pixel_mask] = mask_value*np.ones_like(self.usr_mask)[pixel_mask]
-        self.maskdat = self.maskdat + self.usr_mask
+        
+        #pixel_mask = circle_pixels(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.),self.xmax,self.ymax)
+
+        mask_value = self.engine.add_circular_mask(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.))
+
         self.save_mask()
         print(f'added mask object {mask_value}')
         
@@ -375,22 +506,16 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         this will remove masked pixels near the cursor
 
         '''
-        #objID = int(input('enter pixel value to remove object in mask'))
-        xmin = int(self.xcursor) - int(0.5*self.mask_size)
-        ymin = int(self.ycursor) - int(0.5*self.mask_size)
-        xmax = int(self.xcursor) + int(0.5*self.mask_size)
-        ymax = int(self.ycursor) + int(0.5*self.mask_size)
+        objID = int(objID)
+ 
+        self.engine.remove_object(objID)
 
-        if objID == 0:
-            return
-        else:
-            self.maskdat[self.maskdat == objID] = 0.
-            self.deleted_objects.append(objID)
+        # keep GUI view in sync (optional if you always read from engine)
+        self.maskdat = self.engine.maskdat
 
-            # remove object from user mask
-            self.usr_mask[self.usr_mask == objID] = 0
-        self.save_mask()
+        self.save_mask()      # should call engine.write_mask()
         self.display_mask()
+        
     def set_threshold(self,t):
         '''
         adjust threshold used in SE deblending
@@ -449,23 +574,97 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
     def save_mask(self):
         #super(maskwindow,self).mask_saved(event)
         print('saving mask: ',self.mask_image)
-        fits.writeto(self.mask_image, self.maskdat, header = self.imheader, overwrite=True)
+
+        # engin handles writing mask
+        self.engine.write_mask(self.mask_image)
+
         if not self.auto:
             self.mask_saved.emit(self.mask_image)
             self.display_mask()
-        
-            #print(self.mask_image)
-            self.mask_saved.emit(self.mask_image)
-
 
     def edit_mask(self):
-        if self.runse_flag:
-            self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
-        else:
-            self.run_photutil()
-        while self.adjust_mask:    
-            self.show_mask()
-            self.print_menu()
-            fits.writeto(self.mask_image,self.maskdat,header = self.imheader,overwrite=True)
-            self.mask_saved.emit(self.mask_image)
+        """
+        Legacy method from the old non-event-driven workflow.
+
+        In the Qt GUI, we don't run a blocking edit loop.
+        Use the interactive key commands (c/b/r/g/w/q) instead.
+        """
+        print("edit_mask() is deprecated in the Qt GUI. Use the interactive window + 'w' to save.")
             
+    def _debug_sizes(self):
+        print()
+        #print("AFTER SHOW - Form size:", self.MainWindow.size() if hasattr(self, "MainWindow") else "n/a")
+        #print("AFTER SHOW - cutouts geom:", self.ui.cutouts.geometry(), "size:", self.ui.cutouts.size())
+        #print("AFTER SHOW - cutoutsLayout count:", self.ui.cutoutsLayout.count())
+
+
+    def grow_mask(self):
+        """
+        Grow the current mask using the engine's grow method.
+        """
+        print("Growing mask from GUI...")
+
+        # 1. Call engine grow
+        self.engine.grow_mask()
+
+        # 2. Update maskdat from engine
+        self.maskdat = self.engine.maskdat
+
+        # 3. Write updated mask to disk
+        self.engine.write_mask(self.mask_image)
+
+        # 4. Refresh GUI display
+        if not self.auto:
+            self.display_mask()
+        
+    def show_mask_mpl(self):
+        # plot mpl figure
+        # this was for debugging purposes
+        self.image, self.imheader = fits.getdata(self.image_name,header = True)        
+        print("plotting mask and central ellipse")
+        self.v1,self.v2=scoreatpercentile(self.image,[5.,99.5])
+        self.adjust_mask = True
+        self.figure_size = (10,5)
+        
+        self.fig = plt.figure(1,figsize=self.figure_size)
+        plt.clf()
+        plt.subplots_adjust(hspace=0,wspace=0)
+        plt.subplot(1,2,1)
+        plt.imshow(self.image,cmap='gray_r',vmin=self.v1,vmax=self.v2,origin='lower')
+        plt.title('image')
+        plt.subplot(1,2,2)
+        #plt.imshow(maskdat,cmap='gray_r',origin='lower')
+        plt.imshow(self.maskdat,cmap=self.cmap,origin='lower',vmin=np.min(self.maskdat),vmax=np.max(self.maskdat))
+        plt.title('mask')
+        plt.gca().set_yticks(())
+        #plt.draw()
+        #plt.show(block=False)
+        #print("in show_mask_mpl: objsma = ",self.objsma)        
+        try:
+            
+            if hasattr(self.objsma, "__len__"):
+                #print("working with multiple galaxies")
+                # add ellipse for each galaxy if there is more than one
+                for e in self.ellipseparams:
+                    xc,yc,r,BA,PA = e
+                    PAdeg = np.degrees(PA)
+                    #print(f"BA={BA},PA={PAdeg} deg")        
+                    #print("just checking - adding ellipse drawing ",self.ellipseparams)
+                    ellip = patches.Ellipse((xc,yc),2*r,2*r*BA,angle=PAdeg,alpha=.2)
+                    plt.gca().add_patch(ellip)
+            else:
+                xc,yc,r,BA,PA = self.ellipseparams
+                PAdeg = np.degrees(PA)
+                #print(f"BA={BA},PA={PAdeg} deg")        
+                #print("just checking - adding ellipse drawing ",self.ellipseparams)
+                ellip = patches.Ellipse((xc,yc),r,r*BA,angle=PAdeg,alpha=.2)
+                plt.gca().add_patch(ellip)
+
+        except:
+            print("problem plotting ellipse with mask")
+        # outfile
+        outfile = self.mask_image.replace('.fits','.png')
+        plt.savefig(outfile)
+        
+        #plt.show()
+        

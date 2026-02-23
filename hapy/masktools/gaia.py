@@ -2,13 +2,16 @@ import numpy as np
 from astroquery.gaia import Gaia
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.io import fits
+from astropy.wcs import WCS
 
 import os
 import warnings
 from astropy.table import Table
 
 import numpy as np
-from .geometry import circle_pixels  # wherever it lives
+from hapy.imagetools.imutils import get_image_size_deg, get_image_center_deg
+from hapy.masktools.maskops import circle_pixels
 
 def mask_radius_for_mag(mag):
     """ 
@@ -23,7 +26,7 @@ def mask_radius_for_mag(mag):
 
 
 
-def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=18, pmsnrcut=5):
+def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pmsnrcut=5):
     """
     Get Gaia stars within a circular aperture.
     started by ChatGPT, rewritten by Rose Finn :)
@@ -85,7 +88,9 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=18, pmsn
         stars = result[selected_columns]
 
     # Require SNR > 5 in proper motion
-    keepflag = np.sqrt((stars['pmra']/stars['pmra_error'])**2 + (stars['pmdec']/stars['pmdec_error'])**2) > 5
+    #keepflag = np.sqrt((stars['pmra']/stars['pmra_error'])**2 + (stars['pmdec']/stars['pmdec_error'])**2) > 5
+
+    keepflag = np.ones(len(stars),'bool')
 
     # Cut by min/max magnitude, if they are provided
     if maxmag is not None:
@@ -150,107 +155,51 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     yc = ymax/2.
     image_wcs = WCS(imheader)
     # get image dimensions in deg,deg
-    dxdeg,dydeg = imutils.get_image_size_deg(image_name)
+    dxdeg,dydeg = get_image_size_deg(image_name)
     # Get coord of image center.  will use when getting gaia stars
-    racenter,deccenter = imutils.get_image_center_deg(image_name)                
+    racenter,deccenter = get_image_center_deg(image_name) 
 
 
     
     # -------------------------------------------------
     # 2 Try astroquery rectangle search
     # -------------------------------------------------
-    try:
-        print("Querying Gaia via astroquery...")
-        brightstar = gaia_stars_in_rectangle(
-            racenter,
-            deccenter,
-            dydeg + 0.01,
-            dxdeg + 0.01,
-        )
 
-        if len(brightstar) == 0:
-            print("No Gaia stars found in FOV.")
-            return None, None, None
+    print("Querying Gaia via astroquery...")
+    brightstar = gaia_stars_in_rectangle(
+        racenter,
+        deccenter,
+        dydeg + 0.01,
+        dxdeg + 0.01,
+    )
 
-        print("Found Gaia stars in FOV.")
+    if len(brightstar) == 0:
+        print("No Gaia stars found in FOV.")
+        return None, None, None
 
-        # Compute mask radii from legacy survey magnitude-radius relation
-        mask_radius = mask_radius_for_mag(
-            brightstar["phot_g_mean_mag"]
-        )
-        brightstar["radius"] = mask_radius
+    print("Found Gaia stars in FOV.")
 
-        # Convert to pixel coords
-        starcoord = SkyCoord(
-            brightstar["ra"],
-            brightstar["dec"],
-            frame="icrs",
-            unit="deg",
-        )
+    # Compute mask radii from legacy survey magnitude-radius relation
+    mask_radius = mask_radius_for_mag(
+        brightstar["phot_g_mean_mag"]
+    )
+    brightstar["radius"] = mask_radius
 
-        xpix, ypix = image_wcs.world_to_pixel(starcoord)
+    # Convert to pixel coords
+    starcoord = SkyCoord(
+        brightstar["ra"],
+        brightstar["dec"],
+        frame="icrs",
+        unit="deg",
+    )
 
-        brightstar["xpixel"] = xpix
-        brightstar["ypixel"] = ypix
+    xpix, ypix = image_wcs.world_to_pixel(starcoord)
 
-    # -------------------------------------------------
-    # 3 Fallback to local Gaia catalog
-    # -------------------------------------------------
-    except:
-        print("WARNING: astroquery Gaia query failed.")
-        print(e)
+    brightstar["xpixel"] = xpix
+    brightstar["ypixel"] = ypix
 
-        if gaiapath is None:
-            warnings.warn(
-                "No Gaia catalog available — running without bright star masks."
-            )
-            return None, None, None
 
-        try:
-            brightstar = Table.read(gaiapath)
-
-            starcoord = SkyCoord(
-                brightstar["ra"],
-                brightstar["dec"],
-                frame="icrs",
-                unit="deg",
-            )
-
-            xpix, ypix = image_wcs.world_to_pixel(starcoord)
-
-            buffer = 0.1 * xmax
-            in_bounds = (
-                (xpix > -buffer)
-                & (xpix < xmax + buffer)
-                & (ypix > -buffer)
-                & (ypix < ymax + buffer)
-            )
-
-            # Proper motion SNR cut
-            pmflag = np.sqrt(
-                brightstar["pmra"] ** 2
-                * brightstar["pmra_ivar"]
-                + brightstar["pmdec"] ** 2
-                * brightstar["pmdec_ivar"]
-            ) > 5
-
-            flag = in_bounds & pmflag
-
-            if np.sum(flag) == 0:
-                return None, None, None
-
-            brightstar = brightstar[flag]
-            xpix = xpix[flag]
-            ypix = ypix[flag]
-
-            brightstar["xpixel"] = xpix
-            brightstar["ypixel"] = ypix
-
-        except FileNotFoundError:
-            warnings.warn(
-                f"Cannot find Gaia catalog at {gaiapath}."
-            )
-            return None, None, None
+ 
 
     # -------------------------------------------------
     # 4 Cache result
@@ -265,10 +214,10 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
 
 def make_gaia_mask(
     mask_array,
-    gaia_table = None,
     x_pixels,
     y_pixels,
-    pixel_scale_deg, ):
+    pixel_scale_deg,
+    gaia_table=None,):
     """
     Create a Gaia bright-star mask using a magnitude-radius relation.
     

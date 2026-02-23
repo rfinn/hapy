@@ -64,7 +64,7 @@ class CutoutPanel(QtCore.QObject):
         readout_layout,
         logger,
         grid_pos: Tuple[int, int, int, int],
-        readout_pos: Tuple[int, int, int, int],
+        readout_pos = None,
         autocut_params: str = "stddev",
         enable_drawing: bool = True,
     ):
@@ -90,11 +90,12 @@ class CutoutPanel(QtCore.QObject):
 
         r, c, rs, cs = grid_pos
         parent_layout.addWidget(self.widget, r, c, rs, cs)
-
+        self.widget.show()
         # ---- Readout label ----
         self.readout = QtWidgets.QLabel("")
-        rr, rc, rrs, rcs = readout_pos
-        readout_layout.addWidget(self.readout, rr, rc, rrs, rcs)
+        # commenting for now
+        #rr, rc, rrs, rcs = readout_pos
+        #readout_layout.addWidget(self.readout, rr, rc, rrs, rcs)
 
         # ---- Callbacks ----
         self.fitsimage.set_callback("none-move", self._cursor_cb)
@@ -105,6 +106,7 @@ class CutoutPanel(QtCore.QObject):
         self.canvas = None
         self.drawtypes = []
 
+        enable_drawing = True
         if enable_drawing:
             canvas = self.dc.DrawingCanvas()
             canvas.enable_draw(True)
@@ -129,11 +131,16 @@ class CutoutPanel(QtCore.QObject):
         """Load a FITS file into the viewer."""
         image = load_data(filepath, logger=self.logger)
         self.fitsimage.set_image(image)
-
+        # Force display update
+        self.fitsimage.zoom_fit()
+        self.fitsimage.redraw(whence=0)
+        
     def load_data(self, image_array) -> None:
         """Load a numpy array into the viewer."""
         self.fitsimage.set_data(image_array)
-
+        self.fitsimage.zoom_fit()
+        self.fitsimage.redraw(whence=0)
+        
     def set_autocut_params(self, autocut_params: str) -> None:
         self._autocut_params = autocut_params
         self.fitsimage.set_autocut_params(autocut_params)

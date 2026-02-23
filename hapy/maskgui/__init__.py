@@ -1,2 +1,2 @@
 # hapy/maskgui/__init__.py
-from .window import MaskWindow
+from .mask_window import MaskWindow

@@ -2,6 +2,11 @@ import os
 import subprocess
 from pathlib import Path
 
+from pathlib import Path
+
+# hapy/masktools/sextractor.py → parents[1] = hapy/
+HAPY_DIR = Path(__file__).resolve().parents[1]
+ASTROMATIC_DIR = HAPY_DIR / "astromatic"
 
 SEXTRACTOR_FILES = [
     "default.sex.HDI.mask",
@@ -11,24 +16,31 @@ SEXTRACTOR_FILES = [
 ]
 
 
-def link_sextractor_files(sepath, workdir="."):
+def link_sextractor_files(workdir="."):
     """Create symbolic links to required SExtractor config files."""
+    workdir = Path(workdir)
+
     for fname in SEXTRACTOR_FILES:
-        src = Path(sepath) / fname
-        dst = Path(workdir) / fname
+        src = ASTROMATIC_DIR / fname
+        dst = workdir / fname
+
+        if not src.exists():
+            raise FileNotFoundError(f"Missing SExtractor file: {src}")
 
         if dst.exists() or dst.is_symlink():
             dst.unlink()
 
         dst.symlink_to(src)
 
-
 def clean_sextractor_links(workdir="."):
     """Remove SExtractor symbolic links."""
+    workdir = Path(workdir)
+
     for fname in SEXTRACTOR_FILES:
-        path = Path(workdir) / fname
+        path = workdir / fname
         if path.exists() or path.is_symlink():
             path.unlink()
+            
 
 
 import numpy as np
@@ -47,14 +59,23 @@ def run_sextractor(
     """
     Run SExtractor and return segmentation array + catalog filename.
     """
+    # Resolve config path safely
+    config_path = Path(config)
+    if not config_path.is_file():
+        config_path = ASTROMATIC_DIR / config
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"SExtractor config not found: {config_path}")
 
     catname = image_name.replace(".fits", ".cat")
     segmentation = image_name.replace(".fits", "-segmentation.fits")
-
+    
+    link_sextractor_files()
+    
     cmd = [
         "sex",
         image_name,
-        "-c", config,
+        "-c", str(config_path),
         "-CATALOG_NAME", catname,
         "-CATALOG_TYPE", "FITS_1.0",
         "-DEBLEND_MINCONT", str(threshold),
@@ -76,8 +97,11 @@ def run_sextractor(
 
     segdata = fits.getdata(segmentation)
 
+    clean_sextractor_links()
+    
     return segdata, catname, segmentation
-
+ 
+ 
 
 def read_se_catalog(catname, xc=None, yc=None):
     """
