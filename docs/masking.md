@@ -1,0 +1,198 @@
+# Masking Workflow
+
+The `hapy.masktools` package provides tools for constructing and editing segmentation masks for optical imaging data. Masks are typically used to:
+
+* Remove foreground stars
+* Remove background galaxies
+* Exclude artifacts
+* Isolate a target galaxy for photometric analysis
+
+The masking system is structured to clearly separate:
+
+* **MaskEngine** — core masking logic and state management
+* **maskops** — pixel-level geometry and mask utilities
+* **maskgui** — interactive Qt-based GUI for visualization and editing
+
+---
+
+# Overview of the Masking Pipeline
+
+When building an initial mask, the following steps are performed:
+
+1. **Run Source Extractor**
+   Sources are detected and a segmentation map is generated.
+
+2. **Remove central object (optional)**
+   If a target galaxy is specified, its segmentation region can be removed or preserved.
+
+3. **Grow masked regions**
+   Masked areas can be expanded to ensure full coverage of detected objects.
+
+4. **Add Gaia star masks (optional)**
+   Bright stars may be masked using Gaia catalog information.
+
+5. **Write mask to disk**
+   The output mask is written as:
+
+   ```
+   <image>-mask.fits
+   ```
+
+The resulting mask is a 2D FITS image with integer values:
+
+* `0` → unmasked pixel
+* `> 0` → masked object ID
+
+Each object in the segmentation map receives a unique integer identifier.
+
+---
+
+# Running the Mask GUI
+
+An example script is provided:
+
+```
+scripts/run_maskgui.py
+```
+
+To launch the interactive GUI:
+
+```bash
+python scripts/run_maskgui.py
+```
+
+Modify the script to point to your FITS image:
+
+```python
+testim = "/path/to/image.fits"
+```
+
+When launched, the GUI:
+
+* Builds the initial mask using `MaskEngine`
+* Displays three synchronized panels:
+
+  * r-band image
+  * Hα image (optional)
+  * Mask
+* Allows interactive editing of the mask
+
+---
+
+# Interactive Editing
+
+Click on any image panel, then use the following keyboard shortcuts:
+
+| Key | Action                      |
+| --- | --------------------------- |
+| `r` | Remove object under cursor  |
+| `c` | Add circular mask at cursor |
+| `b` | Add square mask at cursor   |
+| `g` | Grow masked regions         |
+| `w` | Write mask to FITS file     |
+| `h` | Print help menu             |
+| `q` | Quit the GUI                |
+
+Edits are applied immediately in memory.
+Press `w` to write the updated mask to disk.
+
+---
+
+# Programmatic Usage (No GUI)
+
+The masking engine can be used independently of the GUI:
+
+```python
+from hapy.masktools.api import MaskEngine
+
+engine = MaskEngine(
+    image_fits="image.fits",
+    sepath="sex",
+    config="default.sex.HDI.mask",
+    threshold=0.005,
+    snr=10,
+    minarea=5,
+)
+
+mask = engine.build_initial_mask()
+engine.write_mask("image-mask.fits")
+```
+
+This allows batch processing or integration into larger analysis pipelines.
+
+---
+
+# Core Components
+
+## MaskEngine
+
+`MaskEngine` is responsible for:
+
+* Running Source Extractor
+* Managing mask state (`maskdat`)
+* Adding and removing objects
+* Growing masked regions
+* Writing FITS output
+
+The engine owns all mask data and should be treated as the authoritative source of mask state.
+
+---
+
+## maskops
+
+The `maskops` module contains pure functions for pixel-level mask operations, such as:
+
+* Generating circular masks
+* Applying box masks
+* Growing masks
+* Geometry utilities
+
+These functions do not depend on Qt or GUI components.
+
+---
+
+## maskgui
+
+The GUI provides:
+
+* Image display using Ginga
+* Interactive editing
+* Keyboard-driven mask operations
+* Visualization of the central galaxy ellipse (if provided)
+
+The GUI does not implement masking logic directly. All mask modifications are delegated to `MaskEngine`.
+
+---
+
+# Architecture Philosophy
+
+The masking system follows a simple Model–View–Controller pattern:
+
+```
+MaskWindow (GUI)
+    ↓
+MaskEngine (mask logic + state)
+    ↓
+maskops (pure geometry functions)
+```
+
+This separation allows:
+
+* Batch masking without the GUI
+* Interactive editing
+* Easier testing of core logic
+* Cleaner long-term maintenance
+
+---
+
+# Dependencies
+
+The masking tools require:
+
+* PyQt5
+* Ginga
+* Astropy
+* NumPy
+* Source Extractor (installed separately)
+
+---
