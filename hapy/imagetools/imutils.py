@@ -108,6 +108,37 @@ def subtract_median_sky(data,getstd=False,getmedian=True,subtract=True):
         return data
 
 """
+
+
+
+def get_pixel_scale_chatgpt(wcs):
+    """
+    Compute pixel scale from WCS header.
+    Assumes square pixels.
+    """
+    # cdelt in degrees, convert to arcsec
+    if wcs.wcs.has_cd():
+        cd = wcs.wcs.cd
+        scale = np.sqrt(np.abs(cd[0,0]*cd[1,1] - cd[0,1]*cd[1,0])) * 3600.0
+    else:
+        scale = np.abs(wcs.wcs.cdelt[0]) * 3600.0
+    return scale
+
+
+#def get_pixel_scale(header):
+#    hwcs = WCS(header)
+#    pixelscale = None
+#    try:
+#        pixelscale = get_pixel_scale_chatgpt(hwcs)
+#    except:
+#        try:
+#            pixelscale = np.abs(float(header['CD1_1']))*3600. # convert deg/pix to arcsec/pixel
+#        except KeyError:
+#            pixelscale = np.abs(float(header['PC1_1']))*3600. # Siena pipeline from astronometry.net
+#    return pixelscale
+
+
+
 def get_pixel_scale(imheader):
     ''' takes in image header and returns the pixel scale in arcsec  '''
     from astropy.wcs import WCS
@@ -173,4 +204,6 @@ def get_image_center_deg(imagename):
     ra,dec = radec[0]
     #print("in get_image_center_deg, ra,dec = ",ra,dec)
     return ra,dec
+
+
 
