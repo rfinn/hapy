@@ -472,49 +472,40 @@ class galfitwindow(Ui_galfitWindow, QtCore.QObject):
         OUTPUT: 1Comp file of output from galfit, header for the output file
 
         '''
+        res = rg.parse_galfit_results_dc(self.output_image, ncomp=self.ncomp, asymflag=self.asym)
 
+        c1 = res.component(0)
+        self.xc, self.xc_err = c1.xc.value, c1.xc.error
+        self.yc, self.yc_err = c1.yc.value, c1.yc.error
+        self.mag, self.mag_err = c1.mag.value, c1.mag.error
+        self.re, self.re_err = c1.re.value, c1.re.error
+        self.nsersic, self.nsersic_err = c1.n.value, c1.n.error
+        self.BA, self.BA_err = c1.ar.value, c1.ar.error
+        self.PA, self.PA_err = c1.pa.value, c1.pa.error
 
-        t = rg.parse_galfit_results(self.output_image, ncomp = self.ncomp, asymflag=self.asym)
-        if printflag:
-            self.galfit.print_galfit_results(self.output_image)
-        self.galfit_results = t
-        print(t)
-        # for 1 comp fit
-        # header_keywords=['1_XC','1_YC','1_MAG','1_RE','1_N','1_AR','1_PA','2_SKY','ERROR','CHI2NU']
-        # for 2 component fit
-        # header_keywords=['1_XC','1_YC','1_MAG','1_RE','1_N','1_AR','1_PA','2_XC','2_YC','2_MAG','2_RE','2_N','2_AR','2_PA','3_SKY','CHI2NU']
-        self.xc, self.xc_err = t[0]
-        self.yc, self.yc_err = t[1]
-        self.mag, self.mag_err = t[2]
-        self.re, self.re_err = t[3]
-        self.nsersic, self.nsersic_err = t[4]
-        self.BA, self.BA_err = t[5]
-        self.PA, self.PA_err = t[6]
-        if self.asym:
-            self.sky, self.sky_err = t[7]
-            self.asymmetry, self.asymmetry_err = t[8]
-            self.asymmetry_PA, self.asymmetry_PA_err = t[9]
-            self.error = t[10]
-            self.chi2nu = t[11]
-            i_next = 12
+        if res.sky is not None:
+            self.sky, self.sky_err = res.sky.value, res.sky.error
         else:
-            i_next = 7
-            self.sky, self.sky_err = t[i_next]
-            self.error = t[i_next+1]
-            self.chi2nu = t[i_next+2]
+            self.sky, self.sky_err = 0.0, 0.0
+
+        self.error = res.error
+        self.chi2nu = res.chi2nu
+
+        if self.asym and res.asymmetry is not None:
+            self.asymmetry, self.asymmetry_err = res.asymmetry.f1.value, res.asymmetry.f1.error
+            self.asymmetry_PA, self.asymmetry_PA_err = res.asymmetry.f1pa.value, res.asymmetry.f1pa.error
 
         if self.ncomp == 2:
-            self.xc2, self.xc2_err = t[7]
-            self.yc2, self.yc2_err = t[8]
-            self.mag2, self.mag2_err = t[9]
-            self.re2, self.re2_err = t[10]
-            self.nsersic2, self.nsersic2_err = t[11]
-            self.BA2, self.BA2_err = t[12]
-            self.PA2, self.PA2_err = t[13]
-            self.sky, self.sky_err = t[14]
-            self.error = t[15]
-            self.chi2nu = t[16]
-
+            c2 = res.component(1)
+            self.xc2, self.xc2_err = c2.xc.value, c2.xc.error
+            self.yc2, self.yc2_err = c2.yc.value, c2.yc.error
+            self.mag2, self.mag2_err = c2.mag.value, c2.mag.error
+            self.re2, self.re2_err = c2.re.value, c2.re.error
+            self.nsersic2, self.nsersic2_err = c2.n.value, c2.n.error
+            self.BA2, self.BA2_err = c2.ar.value, c2.ar.error
+            self.PA2, self.PA2_err = c2.pa.value, c2.pa.error
+    
+ 
 
     def display_results(self):
         self.model_data = fits.getdata(self.output_image,2)

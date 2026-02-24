@@ -15,67 +15,219 @@ from astropy.io import fits
 
 #import rungalfit
 
+from __future__ import annotations
 
-def parse_galfit_results(galfit_outimage,asymflag=0,ncomp=1,return_keywords=False):
-    numerical_error_flag=0
+from dataclasses import dataclass, field
+from typing import Optional, List, Tuple, Dict
+from astropy.io import fits
+
+
+@dataclass(frozen=True)
+class FitParam:
+    """ A fitted value with an uncertainty """
+    value: float
+    error: float = 0.0
+
+    def as_tuple(self) -> Tuple[float, float]:
+        return (self.value, self.error)
+
+@dataclass(frozen=True)
+class ComponentResult:
+    """ Results for a single-component model (e.g. sersic) """
+    xc: FitParam
+    yc: FitParam
+    mag: FitParam
+    re: FitParam
+    n: FitParam
+    ar: FitParam
+    pa: FitParam
+    numerical_error_flag: int = 0
+
+@dataclass(frozen=True)
+class AsymmetryResult:
+    """ Fourier mode 1 asymmetry, if enabled """
+    f1: FitParam
+    f1pa: FitParam
+
+@dataclass(frozen=True)
+class GalfitResult:
+    """ Full parsed GALFIT results """
+    components: List[ComponentResult]
+    sky: Optional[FitParam] = None
+    chi2nu: Optional[float] = None
+    error: Optional[str] = None
+    asymmetry: Optional[AsymmetryResult] = None
+
+    # helpers
+    @property
+    def ncomp(self) -> int:
+        retun len(self.components)
+
+    def component(self, i: int = 0) -> ComponentResult:
+        return self.components[i]
+
+
+def _parse_fitparam_from_header_value(raw) -> Tuple[FitParam, int]:
+    """
+    Parse a GALFIT header value into FitParam.
+    Returns (FitParam, numerical_error_flag_increment).
+    """
+    numerical_flag = 0
+    s = str(raw).strip()
+
+    # Fixed parameters are often written like [12.34]
+    if "[" in s and "]" in s:
+        s = s.replace("[", "").replace("]", "").strip()
+        try:
+            return FitParam(float(s), 0.0), 0
+        except ValueError:
+            # fall through
+            pass
+
+    # Typical case: "12.34 +/- 0.56"
+    if "+/-" in s:
+        left, right = [t.strip() for t in s.split("+/-", 1)]
+
+        # Numerical issues flagged with "*"
+        if "*" in left or "*" in right:
+            numerical_flag = 1
+            left = left.replace("*", "")
+            right = right.replace("*", "")
+
+        return FitParam(float(left), float(right)), numerical_flag
+
+    # Sometimes CHI2NU is a raw float string, and ERROR can be a string.
+    # We'll let callers special-case those.
+    try:
+        return FitParam(float(s), 0.0), 0
+    except ValueError:
+        return FitParam(float("nan"), 0.0), 0
+
+
+
+def parse_galfit_results_dc(
+    galfit_outimage: str,
+    ncomp: int = 1,
+    asymflag: bool = False,
+) -> GalfitResult:
+    """
+    Parse GALFIT output FITS into a GalfitResult dataclass.
+
+    Assumes GALFIT writes fitted params into extension 2 header with keys like:
+      1_XC, 1_YC, 1_MAG, 1_RE, 1_N, 1_AR, 1_PA, (n+1)_SKY, CHI2NU, ERROR
+    and if asymflag:
+      1_F1, 1_F1PA (often in component 1)
+    """
+    hdr = fits.getheader(galfit_outimage, 2)
+
+    components: List[ComponentResult] = []
+    asymmetry: Optional[AsymmetryResult] = None
+
+    for ci in range(1, ncomp + 1):
+        numerical_error_flag = 0
+
+        def g(key: str) -> FitParam:
+            nonlocal numerical_error_flag
+            fp, inc = _parse_fitparam_from_header_value(hdr[key])
+            numerical_error_flag = max(numerical_error_flag, inc)
+            return fp
+
+        comp = ComponentResult(
+            xc=g(f"{ci}_XC"),
+            yc=g(f"{ci}_YC"),
+            mag=g(f"{ci}_MAG"),
+            re=g(f"{ci}_RE"),
+            n=g(f"{ci}_N"),
+            ar=g(f"{ci}_AR"),
+            pa=g(f"{ci}_PA"),
+            numerical_error_flag=numerical_error_flag,
+        )
+        components.append(comp)
+
+    # Sky is usually component ncomp+1 in your legacy scheme, e.g. 2_SKY for 1comp, 3_SKY for 2comp
+    sky_key = f"{ncomp + 1}_SKY"
+    sky: Optional[FitParam] = None
+    if sky_key in hdr:
+        sky, _ = _parse_fitparam_from_header_value(hdr[sky_key])
+
+    # Asymmetry Fourier mode is usually stored on component 1 keys 1_F1 and 1_F1PA
     if asymflag:
-        header_keywords=['1_XC','1_YC','1_MAG','1_RE','1_N','1_AR','1_PA','2_SKY','1_F1','1_F1PA','ERROR','CHI2NU']
-    else:
-        header_keywords=['1_XC','1_YC','1_MAG','1_RE','1_N','1_AR','1_PA','2_SKY']
-    if ncomp > 1:
-        # TODO - update to accommodate variable ncomp,
-        # do something like:
-        # s=['a','b','c']
-        # out = []
-        # for j in range(1,ncomp+1):
-        #   out += [f'{x}_{j}' for x in s]
-        header_keywords = []
-        fields = ['XC','YC','MAG','RE','N','AR','PA']
-    else:
-        fields = None
-        
-    fit_parameters=[]
-    working_dir=os.getcwd()+'/'
-    image_header = fits.getheader(galfit_outimage,2)
-    for i in range(ncomp):
-        if fields is not None:
-            header_keywords=[f'{i+1}_{f}' for f in fields]
-        
-        for hkey in header_keywords:
-            s=str(image_header[hkey])
-            #print hkey
-            if s.find('[') > -1:
-                s=s.replace('[','')
-                s=s.replace(']','')
-                t=s.split('+/-')
-                values=(float(t[0]),0.)# fit and error
-            else:
-                t=s.split('+/-')
-                try:
-                    values=(float(t[0]),float(t[1]))# fit and error
-                except ValueError:
-                    # look for * in the string, which indicates numerical problem
-                    if t[0].find('*') > -1:
-                        numerical_error_flag=1
-                        t[0]=t[0].replace('*','')
-                        t[1]=t[1].replace('*','')
-                        values=(float(t[0]),float(t[1]))# fit and error
-                except IndexError: # for CHI2NU
-                    chi2nu=float(t[0])
-                    continue
-            fit_parameters.append(values)
-        # need to track numerical error flag for each galaxy
-        fit_parameters.append(numerical_error_flag)
-        header_keywords.append('NUMERICAL_ERROR_FLAG')
-    #fit_parameters.append(image_header[f'{ncomp+1}_SKY'])
-    fit_parameters.append(image_header['CHI2NU'])
-    header_keywords.append('CHI2NU')
-    print("in rungalfit.parse_galfit_results, header_keywords = ",header_keywords)
-    print("in rungalfit.parse_galfit_results, fit_parameters = ", fit_parameters)
+        if "1_F1" in hdr and "1_F1PA" in hdr:
+            f1, _ = _parse_fitparam_from_header_value(hdr["1_F1"])
+            f1pa, _ = _parse_fitparam_from_header_value(hdr["1_F1PA"])
+            asymmetry = AsymmetryResult(f1=f1, f1pa=f1pa)
+
+    # CHI2NU often appears as a float string
+    chi2nu = None
+    if "CHI2NU" in hdr:
+        try:
+            chi2nu = float(str(hdr["CHI2NU"]).split()[0])
+        except Exception:
+            chi2nu = None
+
+    # ERROR can be stringy; keep raw
+    err = None
+    if "ERROR" in hdr:
+        err = str(hdr["ERROR"]).strip()
+
+    return GalfitResult(
+        components=components,
+        sky=sky,
+        chi2nu=chi2nu,
+        error=err,
+        asymmetry=asymmetry,
+    )
+
+
+
+def parse_galfit_results(galfit_outimage, asymflag=0, ncomp=1, return_keywords=False):
+    """
+    Backwards-compatible wrapper around parse_galfit_results_dc.
+
+    Returns:
+      - fit_parameters: list where each component contributes 7 FitParam tuples,
+        then NUMERICAL_ERROR_FLAG (int), then SKY FitParam tuple, maybe asym terms,
+        ERROR (string), CHI2NU (float)
+      - header_keywords: parallel list of labels (optional)
+    """
+    res = parse_galfit_results_dc(galfit_outimage, ncomp=ncomp, asymflag=bool(asymflag))
+
+    fit_parameters = []
+    header_keywords = []
+
+    # components
+    fields = ["XC", "YC", "MAG", "RE", "N", "AR", "PA"]
+    for i, c in enumerate(res.components, start=1):
+        for f in fields:
+            fp = getattr(c, f.lower() if f != "AR" else "ar")
+            fit_parameters.append(fp.as_tuple())
+            header_keywords.append(f"{i}_{f}")
+        fit_parameters.append(c.numerical_error_flag)
+        header_keywords.append("NUMERICAL_ERROR_FLAG")
+
+    # sky
+    if res.sky is not None:
+        fit_parameters.append(res.sky.as_tuple())
+        header_keywords.append(f"{ncomp+1}_SKY")
+
+    # asymmetry (if requested)
+    if bool(asymflag) and res.asymmetry is not None:
+        fit_parameters.append(res.asymmetry.f1.as_tuple())
+        header_keywords.append("1_F1")
+        fit_parameters.append(res.asymmetry.f1pa.as_tuple())
+        header_keywords.append("1_F1PA")
+
+    # ERROR and CHI2NU
+    fit_parameters.append(res.error if res.error is not None else "")
+    header_keywords.append("ERROR")
+    fit_parameters.append(res.chi2nu if res.chi2nu is not None else float("nan"))
+    header_keywords.append("CHI2NU")
+
     if return_keywords:
         return fit_parameters, header_keywords
-    else:
-        return fit_parameters
+    return fit_parameters
+
+
 
 
 class galfit:
@@ -383,8 +535,32 @@ class galfit:
 
     def print_params(self):
         print('CURRENT INPUTS: \n mag = %5.2f %i \n Re = %5.2f %i \n n = %5.2f %i\n B/A = %5.2f %i \n PA = %5.2f %i \n fitall = %i \n fitcenter = %i \n'%(self.mag,self.fitmag,self.rad,self.fitrad,self.nsersic,self.fitn,self.BA,self.fitBA,self.PA,self.fitPA,self.fitallflag,self.fitcenter))
-                                
-    def print_galfit_results(self,image):
+
+
+    def print_galfit_results(self, image):
+        res = parse_galfit_results_dc(image, ncomp=self.ncomp, asymflag=self.asymmetry)
+        for i, c in enumerate(res.components, start=1):
+            print(f"Component {i}:")
+            print(f"  XC  {c.xc.value:8.2f} +/- {c.xc.error:6.2f}")
+            print(f"  YC  {c.yc.value:8.2f} +/- {c.yc.error:6.2f}")
+            print(f"  MAG {c.mag.value:8.2f} +/- {c.mag.error:6.2f}")
+            print(f"  RE  {c.re.value:8.2f} +/- {c.re.error:6.2f}")
+            print(f"  N   {c.n.value:8.2f} +/- {c.n.error:6.2f}")
+            print(f"  AR  {c.ar.value:8.2f} +/- {c.ar.error:6.2f}")
+            print(f"  PA  {c.pa.value:8.2f} +/- {c.pa.error:6.2f}")
+            print(f"  NUMERR {c.numerical_error_flag}")
+
+        if res.sky is not None:
+            print(f"Sky: {res.sky.value:.4g} +/- {res.sky.error:.4g}")
+        if res.asymmetry is not None:
+            print(f"F1: {res.asymmetry.f1.value:.4g} +/- {res.asymmetry.f1.error:.4g}")
+            print(f"F1PA: {res.asymmetry.f1pa.value:.4g} +/- {res.asymmetry.f1pa.error:.4g}")
+
+        print(f"ERROR: {res.error}")
+        print(f"CHI2NU: {res.chi2nu}")
+
+        
+    def print_galfit_results_old(self,image):
         t, header_keywords = parse_galfit_results(image, ncomp=self.ncomp, asymflag=self.asymmetry, return_keywords=True)
 
         #if self.asymmetry:
