@@ -1,30 +1,4 @@
-# Ellipse Photometry in HAPY
 
-## Overview
-
-The `hapy.ellipse` package implements elliptical/isophotal photometry for R-band and continuum-subtracted images, optionally using masks produced by `hapy.masktools`. It is intended to run either:
-
-- headless via the CLI (`python -m hapy.scripts.run_photometry ...`)
-- from higher-level workflows (e.g., a future `HaSession` pipeline)
-- with optional structural/morphology measurements
-
-The design goal is to keep photometry logic separate from:
-- image download/plotting utilities (`hapy.imagetools`)
-- mask generation (`hapy.masktools`)
-- GALFIT modeling (`hapy.galfittools`)
-
----
-
-## Main entry point
-
-```python
-from hapy.ellipse.photometry import run_ellipse_photometry
-
-You’re right — I accidentally made that whole section look like something you should paste verbatim, and the “end of the md” didn’t clearly close out as a single copyable block.
-
-Here’s a clean version: **one copy/paste-ready `docs/ellipse.md`**, and everything after that is just normal chat commentary (not part of the file).
-
-````markdown
 # Ellipse Photometry in HAPY
 
 ## Overview
