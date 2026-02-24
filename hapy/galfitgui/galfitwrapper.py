@@ -39,12 +39,12 @@ import matplotlib.pyplot as plt
 
 #from galfitWidget import Ui_Form as Ui_galfitWindow
 from galfitWidgetBD import Ui_Form as Ui_galfitWindow
-from hapy.maskgui.maskwrapper import my_cutout_image
+from hapy.maskgui.maskwrapper import CutoutImage
 
 import hapy.galfittools.rungalfit as rg
 
 # import imutils to get pixel scale
-import hapy.imagetools.imutils
+import hapy.imagetools import imutils
 
 # add a frame on top to show
 # cutout, mask, model, residual
@@ -245,9 +245,9 @@ class galfitwindow(Ui_galfitWindow, QtCore.QObject):
 
         # gui stuff
         # set up image frames for image, model, and residual
-        self.cutout_frame = my_cutout_image(self.ui.cutoutsLayout,self.ui, self.logger, 1, 0, 4, 1,autocut_params='sttdev')
-        self.model_frame = my_cutout_image(self.ui.cutoutsLayout,self.ui, self.logger, 1, 1, 4, 1)
-        self.residual_frame = my_cutout_image(self.ui.cutoutsLayout,self.ui, self.logger,1, 2, 4, 1)
+        self.cutout_frame = CutoutImage(self.ui.cutoutsLayout,self.ui, self.logger, 1, 0, 4, 1,autocut_params='sttdev')
+        self.model_frame = CutoutImage(self.ui.cutoutsLayout,self.ui, self.logger, 1, 1, 4, 1)
+        self.residual_frame = CutoutImage(self.ui.cutoutsLayout,self.ui, self.logger,1, 2, 4, 1)
 
         # connect key press function to each of the image frames
         # so that the user can call them with cursor over any image, including mainframe

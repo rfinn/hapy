@@ -436,3 +436,24 @@ class galfit:
     def add_constraint_file(self):
         self.constraintflag=not(self.constraintflag)
         
+
+def run_galfit_headless(
+    image,
+    mask_image=None,
+    sigma_image=None,
+    psf_image=None,
+    psf_oversampling=1,
+    fit_box=None,                # (xmin, xmax, ymin, ymax)
+    convolution_size=None,
+    magzp=25.0,
+    pscale=None,
+    ncomp=1,
+    asym=False,
+    init=None,                   # list of component guesses
+    fit_flags=None,              # which params to fit
+    cwd=None,
+    verbose=False,
+):
+    """
+    Returns dict: {"out_fits": ..., "out_txt": ..., "log": ..., "results": parsed_dict}
+    """
