@@ -398,7 +398,7 @@ class EllipsePhotometry():
             try:
                 print("running statmorph - please be patient...")
                 print()
-                self.run_statmorph()
+                self.run_statmorph(save_figs=True)
                 self.statmorph_flag = True
             except:
                 self.statmorph_flag = False            
@@ -824,7 +824,7 @@ class EllipsePhotometry():
         # turn the segmentation image into a boolean mask
 
 
-    def run_statmorph(self, save_figs: bool = True):
+    def run_statmorph(self, save_figs = True):
         try:
             from hapy.hatools.morphology import run_statmorph_for_photometry
         except ImportError as e:

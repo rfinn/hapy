@@ -4,10 +4,10 @@ How to run:
 from hapy/test_images
 
 First, run with no convolution:
-python ~/github/hapy/scripts/test_rungalfit.py --image VFID2507-UGC08693-HDI-20170523-p007-R.fits --mask_image VFID2507-UGC08693-HDI-20170523-p007-R-mask.fits --convflag 0
+python ~/github/hapy/tests/test_rungalfit.py --image VFID2507-UGC08693-HDI-20170523-p007-R.fits --mask_image VFID2507-UGC08693-HDI-20170523-p007-R-mask.fits --convflag 0
 
 Second, run with convolution:
-python ~/github/hapy/scripts/test_rungalfit.py --image VFID2507-UGC08693-HDI-20170523-p007-R.fits --mask_image VFID2507-UGC08693-HDI-20170523-p007-R-mask.fits --psf_image VF-206.122+35.178-HDI-20170523-p007-R-psf.fits --convflag 1
+python ~/github/hapy/tests/test_rungalfit.py --image VFID2507-UGC08693-HDI-20170523-p007-R.fits --mask_image VFID2507-UGC08693-HDI-20170523-p007-R-mask.fits --psf_image VF-206.122+35.178-HDI-20170523-p007-R-psf.fits --convflag 1
 
 
 """
@@ -88,7 +88,9 @@ def main():
 
     result = rg.run_and_parse()
 
-
+    print()
+    print("PRINTING GALFIT RESULT")
+    print(result)
 
 
 if __name__ == "__main__":

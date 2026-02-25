@@ -32,6 +32,13 @@ for d in cutouts/*/; do
   echo "${d}${b}"
 done | parallel -j 8 python scripts/run_analysis.py --root {} --make-mask --galfit
 ```
+
+
+TESTING:
+
+python ~/github/hapy/scripts/run_analysis.py --root cutouts/<tag>/<tag> --make-mask --galfit --convflag 1
+
+cat cutouts/<tag>/<tag>-results.ecsv
 """
 
 import argparse
@@ -43,6 +50,7 @@ from astropy.wcs import WCS
 
 import json
 
+import time
 
 from hapy.ellipse.photometry import run_ellipse_photometry
 from hapy.galfittools.rungalfit import RunGalfit
@@ -50,6 +58,15 @@ from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.masktools.api import MaskEngine, EllipseParams
 from hapy.hatools.results import write_result_row_ecsv
 
+
+def _default_sex_config() -> str:
+    # hapy/astromatic/default.sex.HDI.mask (adjust if package name differs)
+    try:
+        with resources.as_file(resources.files("hapy.astromatic") / "default.sex.HDI.mask") as p:
+            return str(p)
+    except Exception:
+        # fallback relative to repo
+        return str(Path(__file__).resolve().parents[1] / "hapy" / "astromatic" / "default.sex.HDI.mask")
 
 def _pick_one(pattern: str) -> str | None:
     hits = sorted(glob.glob(pattern))
@@ -112,7 +129,8 @@ def main():
     p.add_argument("--make-mask", action="store_true", help="Build/write mask before photometry/galfit")
     p.add_argument("--sepath", default="sex")
     p.add_argument("--gaiapath", default=None)
-    p.add_argument("--sex-config", dest="sex_config", default=None, help="e.g. default.sex.HDI.mask")
+    p.add_argument("--sex-config", dest="sex_config", default=_default_sex_config(), help="SExtractor config file path (default: hapy/astromatic/default.sex.HDI.mask)")
+    
     p.add_argument("--threshold", type=float, default=0.005)
     p.add_argument("--snr", type=float, default=10.0)
     p.add_argument("--minarea", type=int, default=5)
@@ -149,7 +167,7 @@ def main():
     if r_fits is None:
         raise FileNotFoundError(f"Could not find R-band FITS for root: {root}")
 
-    cs_fits = args.cs_fits or _pick_one(root + "*-CS.fits") or _pick_one(root + "*-cs.fits")
+    cs_fits = args.cs_fits or _pick_one(root + "*-CS-ZP.fits") or _pick_one(root + "*-cs.fits") or _pick_one(root + "*-cs.fits")
     mask_fits = args.mask_fits or _pick_one(root + "*-mask.fits")
     sigma_image = args.sigma_image or _pick_one(root + "*-sigma.fits") or _pick_one(root + "*-rms.fits")
     psf_image = args.psf_image or _pick_one(root + "*-psf.fits")
@@ -169,8 +187,25 @@ def main():
         phot_ok=False,
         galfit_ok=False,
     )
+
+
+    row["STAGE"] = "init"
+    row["STATUS"] = "running"
+    row["MASK_SEC"] = 0.0
+    row["PHOT_SEC"] = 0.0
+    row["GALFIT_SEC"] = 0.0
+    row["TOTAL_SEC"] = 0.0
+
+    t0_total = time.perf_counter()
     
     if args.make_mask:
+
+        if args.sex_config is None:
+            raise ValueError("--sex-config must be set when --make-mask is used")
+        
+        row["STAGE"] = "mask"
+        t0 = time.perf_counter()
+
         # choose output mask name if not provided/found
         mask_out = mask_fits or (root + "-mask.fits")
 
@@ -223,6 +258,13 @@ def main():
                 "--sma-arcsec/--ba/--pa-deg."
             )
 
+        row["objid"] = objid
+        row["ra"] = ra
+        row["dec"] = dec
+        row["sma_arcsec"] = sma_arcsec
+        row["ba"] = ba
+        row["pa_deg"] = pa_deg        
+
         # --- Convert to pixels ---
         sma_pix = sma_arcsec / pixscale
 
@@ -253,12 +295,19 @@ def main():
         engine.write_mask(mask_out)
         mask_fits = mask_out
 
+
+
         row["mask_ok"] = True
         row["mask_fits"] = str(mask_fits)
+
+        row["MASK_SEC"] = time.perf_counter() - t0
+        row["mask_ok"] = True
         write_result_row_ecsv(results_path, row)
 
 
-        
+    row["STAGE"] = "phot"
+    t0 = time.perf_counter()
+    
     e = run_ellipse_photometry(
         r_fits=r_fits,
         cs_fits=cs_fits,
@@ -274,7 +323,9 @@ def main():
 
 
     # ---- photometry summary (scalar-only; arrays stay in the photometry table files) ----
+    row["PHOT_SEC"] = time.perf_counter() - t0    
     row["phot_ok"] = True
+
 
     # Core ellipse / detection-derived quantities
     for outk, attr in [
@@ -361,6 +412,8 @@ def main():
         e.draw_phot_results_mpl()
 
     if args.galfit:
+        row["STAGE"] = "galfit"
+        t0 = time.perf_counter()
         galname = root  # no .fits; matches your test
         pscale = get_pixel_scale_from_filename(r_fits)
 
@@ -405,8 +458,64 @@ def main():
             first_time=1,
         )
         rg.set_sky(args.sky)
-        rg.run_and_parse()
+        res = rg.run_and_parse()
+
+        row["GALFIT_SEC"] = time.perf_counter() - t0
         row["galfit_ok"] = True
+        
+        # component 1
+        row["GAL_XC"] = _scalar(res.comp1.xc)
+        row["GAL_XC_ERR"] = _scalar(res.comp1.xc_err)
+        row["GAL_YC"] = _scalar(res.comp1.yc)
+        row["GAL_YC_ERR"] = _scalar(res.comp1.yc_err)
+
+        row["GAL_MAG"] = _scalar(res.comp1.mag)
+        row["GAL_MAG_ERR"] = _scalar(res.comp1.mag_err)
+        row["GAL_RE"] = _scalar(res.comp1.re)
+        row["GAL_RE_ERR"] = _scalar(res.comp1.re_err)
+        row["GAL_N"] = _scalar(res.comp1.n)
+        row["GAL_N_ERR"] = _scalar(res.comp1.n_err)
+        row["GAL_BA"] = _scalar(res.comp1.ba)
+        row["GAL_BA_ERR"] = _scalar(res.comp1.ba_err)
+        row["GAL_PA"] = _scalar(res.comp1.pa)
+        row["GAL_PA_ERR"] = _scalar(res.comp1.pa_err)
+
+        row["GAL_SKY"] = _scalar(res.sky)
+        row["GAL_SKY_ERR"] = _scalar(res.sky_err)
+        row["GAL_CHISQ"] = _scalar(res.chi2nu)
+        row["GAL_NUMERR"] = _scalar(res.comp1.numerical_error_flag)
+        row["GALFIT_ERROR"] = _scalar(res.error)
+
+
+        
         write_result_row_ecsv(results_path, row)
+    row["TOTAL_SEC"] = time.perf_counter() - t0_total
+    row["STAGE"] = "done"
+    row["STATUS"] = "ok"
+
+    write_result_row_ecsv(results_path, row)
+    print(f"Wrote results: {results_path}")
+    return results_path
+
+def check_table(results_table):
+    # checking table
+    print()
+    print("CHECKING OUTPUT TABLE")
+    print()
+    from astropy.table import Table
+    t = Table.read(results_table, format="ascii.ecsv")
+    print(t.dtype)
+    print(t[0])
+
+    t.write("tmp.ecsv", format="ascii.ecsv", overwrite=True)
+    t2 = Table.read("tmp.ecsv", format="ascii.ecsv")
+    assert t.colnames == t2.colnames
+
+    for c in ["ELLIP_MASKED_FRACTION", "SM_R_FLAG", "SM_H_FLAG"]:
+        print(c, t[c].dtype, t[c][0])
+        
 if __name__ == "__main__":
-    main()
+    results_table = main()
+
+    # checking table - comment after check
+    #check_table(results_table)

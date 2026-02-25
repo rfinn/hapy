@@ -84,13 +84,13 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pm
     try:
         stars = result[selected_columns]
     except KeyError:
-        selected_columns = ['SOURCE_ID', 'ra', 'dec', 'phot_g_mean_mag', 'phot_bp_mean_mag', 'phot_rp_mean_mag', 'pmra', 'pmdec', 'pmra_error', 'pmdec_error']
+        selected_columns = ['SOURCE_ID', 'ra', 'dec', 'phot_g_mean_mag', 'phot_bp_mean_mag', 'phot_rp_mean_mag', 'pmra', 'pmdec', 'pmra_error', 'pmdec_error', 'parallax', 'parallax_error', 'ruwe']
         stars = result[selected_columns]
 
     # Require SNR > 5 in proper motion
     #keepflag = np.sqrt((stars['pmra']/stars['pmra_error'])**2 + (stars['pmdec']/stars['pmdec_error'])**2) > 5
-
-    keepflag = np.ones(len(stars),'bool')
+    keepflag = gaia_foreground_filter(stars)
+    #keepflag = np.ones(len(stars),'bool')
 
     # Cut by min/max magnitude, if they are provided
     if maxmag is not None:
@@ -101,6 +101,44 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pm
     return stars[keepflag]
 
 
+
+def gaia_foreground_filter(tab, pm_snr_min=5.0, plx_snr_min=5.0, ruwe_max=1.4, phot_g_max=20):
+    """
+    Return boolean mask selecting likely MW foreground stars.
+    Keeps sources with significant proper motion OR significant parallax,
+    and (optionally) reasonable RUWE.
+    """
+    pmra = np.array(tab["pmra"])
+    pmdec = np.array(tab["pmdec"])
+    pmra_err = np.array(tab["pmra_error"])
+    pmdec_err = np.array(tab["pmdec_error"])
+
+    pmag = np.array(tab["phot_g_mean_mag"])
+
+    
+    # total PM and approximate error
+    pm = np.sqrt(pmra**2 + pmdec**2)
+    pm_err = np.sqrt(pmra_err**2 + pmdec_err**2)
+    pm_snr = pm / np.where(pm_err > 0, pm_err, np.nan)
+
+    motion_ok = (pm_snr >= pm_snr_min) & (pmag < phot_g_max)
+    motion_ok &= np.isfinite(pm_snr)
+    if "parallax" in tab.colnames:
+        plx = np.array(tab["parallax"])
+        plx_err = np.array(tab["parallax_error"])
+        plx_snr = np.abs(plx) / np.where(plx_err > 0, plx_err, np.nan)
+
+        # allow either significant pm or significant parallax
+        motion_ok = (pm_snr >= pm_snr_min) | (plx_snr >= plx_snr_min)
+        motion_ok &= np.isfinite(pm_snr) | np.isfinite(plx_snr)
+    if "ruwe" in tab.colnames:
+        ruwe = np.array(tab["ruwe"])
+        motion_ok &= (ruwe < ruwe_max)
+
+    # drop NaNs safely
+
+
+    return motion_ok
 def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     """
     Retrieve Gaia bright stars within the image FOV.  
@@ -138,6 +176,10 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     if use_cache and os.path.exists(outfile):
         print(f"Reading Gaia stars from {outfile}")
         brightstar = Table.read(outfile)
+
+        # filter out foreground stars
+        keepflag =  gaia_foreground_filter(brighstar)
+        brightstar = brightstar[keepflag]
         return brightstar, brightstar["xpixel"], brightstar["ypixel"]
 
 
