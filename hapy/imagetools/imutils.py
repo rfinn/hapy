@@ -138,6 +138,13 @@ def get_pixel_scale_chatgpt(wcs):
 #    return pixelscale
 
 
+def get_pixel_scale_from_filename(filename):
+    ''' takes in image header and returns the pixel scale in arcsec  '''
+
+    header = fits.getheader(filename)
+    pscale = get_pixel_scale(header)
+
+    return pscale
 
 def get_pixel_scale(imheader):
     ''' takes in image header and returns the pixel scale in arcsec  '''

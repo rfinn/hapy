@@ -4,13 +4,19 @@
 
 
 USAGE:
-python ~/github/halphagui/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --virgo
+python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo 
 """
 from astropy.io import fits
-from astropy.table import Table
+#from astropy.table import Table
 import numpy as np
 from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
+from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
+from pathlib import Path
+from astropy.table import Table
 
+import getpass
+from datetime import datetime
+import json
 
 def main(args=None):
 
@@ -19,14 +25,21 @@ def main(args=None):
     parser = argparse.ArgumentParser(description ='create psf image from image that contains stars')
 
     #parser.add_argument('--table-path', dest = 'tablepath', default = '/Users/rfinn/github/Virgo/tables/', help = 'path to github/Virgo/tables')
-    parser.add_argument('--rimage',dest = 'rimage', help='r-band image name')
+    parser.add_argument('--rimage', help='r-band image name')
     
-    parser.add_argument('--psfdir',dest = 'psfdir', help='set to coadd directory')
-    parser.add_argument('--catalog',dest = 'catalog', help='full path to galaxy catalog to use for cutouts.  ')    
-    parser.add_argument('--agc',dest='agc', default=False, action='store_true', help='set this if using agc catalog')
-    parser.add_argument('--virgo',dest='virgo', default=False, action='store_true', help='set this if using virgo catalog')
+    parser.add_argument('--psfdir', help='set to coadd directory')
+    parser.add_argument('--catalog',
+                            help='full path to galaxy catalog to use for cutouts.  ')
+    parser.add_argument('--outdir',  default='cutouts',
+                            help='base output directory for cutouts (default: cutouts)')
+    parser.add_argument(
+    "--scheme",
+    choices=["generic", "virgo", "agc"],
+    default="generic",
+    help="Filename parsing scheme for coadd images.")
+   
     parser.add_argument('--maxcorrection',dest='maxcorrection', default=3, help='maximum filter correction for galaxies in FOV.  default is 3, so galaxies whose redshift falls where filter transmission < 33 percent will be skipped.')        
-    parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
+    #parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
     
     args = parser.parse_args()
 
@@ -42,29 +55,32 @@ def main(args=None):
 
     ###################################################    
     # get galaxy catalog
-    ###################################################    
-    gcat = GalaxyCatalog(args.catalog,nsa=False,agc=args.agc,virgo=args.virgo,sizecat=None, verbose=False)
+    ###################################################
+    agcflag = args.scheme == 'agc'
+    virgoflag = args.scheme == 'virgo'
+    gcat = GalaxyCatalog(args.catalog,nsa=False,agc=agcflag,virgo=virgoflag,sizecat=None, verbose=False)
 
     
-    gcat.galaxies_in_fov(image_set.h.wcs,zmin=None,zmax=None,image_name=himage, agcflag=args.agc,virgoflag=args.virgo)
+    gcat.galaxies_in_fov(image_set.h.wcs,zmin=None,zmax=None,image_name=himage, agcflag=agcflag,virgoflag=virgoflag)
 
     ###################################################
     # get redshift from filter trace module
     ###################################################    
-    if args.virgo:
-        redshift = gcat.cat['vr']/3.e5
-    if args.agc:
-        redshift = gcat.cat['vopt']/3.e5
-        flag = gcat.cat['vopt'] == 0
-        redshift[flag] = gcat.cat['v21'][flag]/3.e5
-    redshift = redshift[gcat.keepflag] # redshifts for gals in FOV
-    
-    myfilter = FilterTrace(image_set.h.filter, instrument=image_set.h.instrument)
-    corrections = myfilter.get_trans_correction(redshift,outfile=None)
-    
-    filter_keepflag = corrections < args.maxcorrection # this is a crazy big cut, but we can adjust with halphagui
-    
-    gcat.keepflag[gcat.keepflag] = filter_keepflag
+
+
+    #redshift_full, galid_full = get_survey_vectors(gcat, args.scheme)
+    #redshift = None if redshift_full is None else redshift_full[gcat.keepflag]
+    #galid = np.asarray(galid_full)[gcat.keepflag]
+
+
+    redshift_full, galid_full = get_survey_vectors(gcat, args.scheme)
+    redshift = None if redshift_full is None else redshift_full[gcat.keepflag]
+
+    if redshift is not None:
+        myfilter = FilterTrace(image_set.h.filter, instrument=image_set.h.instrument)
+        corrections = myfilter.get_trans_correction(redshift,outfile=None)
+        filter_keepflag = corrections < args.maxcorrection # this is a crazy big cut, but we can adjust with halphagui
+        gcat.keepflag[gcat.keepflag] = filter_keepflag
 
     print(f"number of galaxies in FOV = {np.sum(gcat.keepflag)}")
     
@@ -75,12 +91,63 @@ def main(args=None):
     gdec = gcat.DEC[gcat.keepflag]
     gradius = gcat.radius_arcsec[gcat.keepflag]
     gBA = gcat.BA[gcat.keepflag]
-    gPA = gcat.PA[gcat.keepflag]    
-    #print("gra = ",gra)
+    gPA = gcat.PA[gcat.keepflag]
+    galid = np.asarray(galid_full)[gcat.keepflag]
 
+    rows = []
+    tokens = parse_coadd_name(args.rimage, scheme=args.scheme)
+    outbase = Path(args.outdir)
+    outbase.mkdir(parents=True, exist_ok=True)
+    #tokens = parse_coadd_name(args.rimage, scheme=args.scheme)
     for i in range(len(gra)):
-        print(f"ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}")
+        
 
+        rootname = build_cutout_name(tokens, galid[i], args.outdir)
+
+
+        # Write mask ellipse params for downstream masking
+        cutdir = Path(rootname).parent
+        params_path = cutdir / "mask_params.json"
+        if not params_path.exists():
+            params = dict(
+                objid=str(galid[i]),
+                ra=float(gra[i]),
+                dec=float(gdec[i]),
+                sma_arcsec=float(gradius[i]),   # semi-major = radius
+                ba=float(gBA[i]),
+                pa_deg=float(gPA[i]),
+            )
+            params_path.write_text(json.dumps(params, indent=2))
+
+        # commenting the next line for testing
+        image_set.get_cutout_all_filters(gra[i], gdec[i], 2*gradius[i], rootname)
+        # parent pixel position
+        x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
+        #print(f"{rootname}: ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}, x={x:.1f}, y={y:.1f}")
+        rows.append(dict(
+        objid=str(galid[i]),
+        parent_rimage=Path(args.rimage).name,
+        parent_haimage=Path(himage).name if himage is not None else None,
+        telescope=tokens.get("telescope"),
+        dateobs=tokens.get("dateobs"),
+        pointing=tokens.get("pointing"),
+        ra=float(gra[i]),
+        dec=float(gdec[i]),
+        size_arcsec=float(2 * gradius[i]),
+        cutout_root=str(rootname),
+        x_parent=float(x),
+        y_parent=float(y),
+            ))
+    tab = Table(rows=rows)
+
+    user = getpass.getuser()
+    #ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d")
+
+    stem = Path(rootname).stem
+    summary_path = Path(args.outdir) / f"cutouts_summary-{stem}-{user}-{ts}.fits"
+    tab.write(summary_path, overwrite=True)
+    print(f"Wrote summary table: {summary_path}")
 if __name__ == '__main__':
 
 

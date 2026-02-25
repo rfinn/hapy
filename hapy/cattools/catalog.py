@@ -49,8 +49,20 @@ from astropy.coordinates import SkyCoord
 #from astropy.coordinates import ICRS, FK5
 #import astropy.units as u
 
-class GalaxyCatalog():
+
+import re
+
+def _safe(s):
     """
+    Make string safe for filenames.
+    Keeps: letters, numbers, ., _, -
+    Replaces everything else with _
+    """
+    s = str(s).strip().replace(" ", "")
+    return re.sub(r"[^A-Za-z0-9._+\-]+", "_", s)
+
+class GalaxyCatalog():
+    """ 
     A container for galaxy catalog operations.
 
     Parameters
@@ -80,12 +92,21 @@ class GalaxyCatalog():
 
     def __init__(self,catalog,nsa=False,agc=False,virgo=False,sizecat=None, verbose=False):
         self.cat = Table.read(catalog)
+        
         #self.cat = Table(self.cat)
         self.catalog_name = catalog
         self.agcflag = agc
         self.nsaflag = nsa
         self.virgoflag = virgo
-
+        
+        if self.agcflag:
+            scheme = "agc"
+        elif self.virgoflag:
+            scheme = "virgo"
+        else:
+            scheme = "generic"
+        self.ensure_objid(scheme=scheme)
+        
         self.verbose = verbose
         if self.agcflag:
             self.check_ra_colname()
@@ -96,6 +117,8 @@ class GalaxyCatalog():
             self.sizecat = sizecat
         else:
             self.sizecat = None
+
+
     def check_ra_colname(self):
         """
         GOAL:
@@ -123,7 +146,38 @@ class GalaxyCatalog():
             #print(self.cat.colnames)
             self.cat.rename_column('radeg','RA')
             self.cat.rename_column('decdeg','DEC')            
-            
+
+    def ensure_objid(self, scheme: str = "generic"):
+        """
+        Ensure self.cat has an 'objid' column.
+        - virgo: VFID-NEDname (or VFID alone if NEDname missing)
+        - agc: AGCnr
+        - generic: existing objid if present, else row index
+        """
+        if "objid" in self.cat.colnames:
+            return
+
+        n = len(self.cat)
+
+        if scheme == "virgo":
+            if "VFID" in self.cat.colnames and "NEDname" in self.cat.colnames:
+                self.cat["objid"] = [f"{_safe(v)}-{_safe(name)}"
+                                         for v, name in zip(self.cat["VFID"], self.cat["NEDname"])]
+                #self.cat["objid"] = [f"{v}-{n}" for v, n in zip(self.cat["VFID"], self.cat["NEDname"])]
+                return
+            if "VFID" in self.cat.colnames:
+                self.cat["objid"] = [str(v) for v in self.cat["VFID"]]
+                return
+
+        if scheme == "agc":
+            if "AGCnr" in self.cat.colnames:
+                self.cat["objid"] = [str(x) for x in self.cat["AGCnr"]]
+                return
+
+        # generic fallback
+        self.cat["objid"] = [str(i) for i in range(n)]
+
+    
     def galaxies_in_fov(self,wcs,zmin=None,zmax=None,image_name = None,weight_image=None, agcflag=None,virgoflag=None):
         """
         GOAL: get galaxies in FOV

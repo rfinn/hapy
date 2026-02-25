@@ -41,10 +41,10 @@ import matplotlib.pyplot as plt
 from galfitWidgetBD import Ui_Form as Ui_galfitWindow
 from hapy.maskgui.maskwrapper import CutoutImage
 
-import hapy.galfittools.rungalfit as rg
+import hapy.galfittools.RunGalfit as rg
 
 # import imutils to get pixel scale
-import hapy.imagetools import imutils
+from hapy.imagetools import imutils
 
 # add a frame on top to show
 # cutout, mask, model, residual

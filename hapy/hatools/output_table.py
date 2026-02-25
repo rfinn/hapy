@@ -2,6 +2,9 @@
 from astropy.table import Table
 from astropy.io import fits
 
+from astropy.table import Table, Column
+
+
 class OutputTable(output_table_view):
     """
     output table that stores all of the measured values for each galaxy in FOV
@@ -100,7 +103,7 @@ class OutputTable(output_table_view):
         if not self.nogui:
             self.update_gui_table()
                 
-    def read_table():
+    def read_table(self):
         ''' read in output from previous run, if it exists'''
         self.table = Table(fits.getdata(self.output_table))
         self.gredshift = self.table['REDSHIFT']
@@ -734,3 +737,23 @@ class OutputTable(output_table_view):
                 self.table['DATE-OBS'] = dateobs
         self.table.write(self.output_table, format='fits', overwrite=True)
 
+    def set_galfit_r_row(self, i: int, res):
+        """Write a GalfitResult into the per-galaxy row i (R-band)."""
+        self.table["GAL_XC"][i] = res.comp1.xc
+        self.table["GAL_XC_ERR"][i] = res.comp1.xc_err
+        self.table["GAL_YC"][i] = res.comp1.yc
+        self.table["GAL_YC_ERR"][i] = res.comp1.yc_err
+        self.table["GAL_MAG"][i] = res.comp1.mag
+        self.table["GAL_MAG_ERR"][i] = res.comp1.mag_err
+        self.table["GAL_RE"][i] = res.comp1.re
+        self.table["GAL_RE_ERR"][i] = res.comp1.re_err
+        self.table["GAL_N"][i] = res.comp1.n
+        self.table["GAL_N_ERR"][i] = res.comp1.n_err
+        self.table["GAL_BA"][i] = res.comp1.ba
+        self.table["GAL_BA_ERR"][i] = res.comp1.ba_err
+        self.table["GAL_PA"][i] = res.comp1.pa
+        self.table["GAL_PA_ERR"][i] = res.comp1.pa_err
+
+        self.table["GAL_SKY"][i] = res.sky
+        # If you want SKY_ERR, add a column and store res.sky_err
+        self.table["GAL_CHISQ"][i] = res.chi2nu

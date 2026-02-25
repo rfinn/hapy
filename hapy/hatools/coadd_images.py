@@ -1,10 +1,18 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.nddata.utils import Cutout2D
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+
+
 import os
 import numpy as np
 
-from . import utils
+
+
+
+#from . import utils
+from hapy.imagetools.imutils import get_pixel_scale
 
 instruments = ['BOK','INT','HDI','MOS']
 
@@ -43,7 +51,7 @@ class CoaddImage:
         self.header = fits.getheader(self.image_file)
         self.data = fits.getdata(self.image_file)
         self.wcs = WCS(self.header)
-        self.pixelscale = utils.get_pixel_scale(self.header)
+        self.pixelscale = get_pixel_scale(self.header)
         if self.verbose:
             print(f"Loaded image {self.image_file} with shape {self.data.shape} and pixel scale {self.pixelscale:.3f} arcsec/pix")
 
@@ -81,7 +89,10 @@ class CoaddImage:
                 break
     def get_filter(self):
         self.filter = self.header['FILTER']
+    def get_target(self):
+        self.target = self.target['OBJECT']
 
+        
     def make_cutout(self, ra, dec, size_arcsec, output_name=None):
         """
         Create a cutout centered act (ra, dec) with size in arcsec.
@@ -91,15 +102,18 @@ class CoaddImage:
 
         # convert size from arcsec to pixels
         size_pix = int(size_arcsec / self.pixelscale)
-        position = (ra, dec)
-
-        cutout = Cutout2D(self.data, position=position, size=size_pix, wcs=self.wcs)
+        #position = (ra, dec)
+        position = SkyCoord(ra=ra*u.deg, dec=dec*u.deg, frame="icrs")
+        cutout = Cutout2D(self.data, position=position, size=(size_pix,size_pix), wcs=self.wcs)
 
         if output_name is None:
             base = os.path.basename(self.image_file).replace('.fits', '')
             output_name = f"{base}-cutout.fits"
-
-        outheader = cutout.wcs.to_header()
+            
+        outheader = self.header.copy()
+        outheader.update(cutout.wcs.to_header())
+        #outheader = cutout.wcs.to_header()
+        
         if self.psf_image_name is not None:
             outheader.set('PSFIMAGE',self.psf_image_name)
 
@@ -145,12 +159,12 @@ class HalphaImageSet:
         self.h.get_filter()    
 
 
-    def get_all_cutouts(self, ra, dec, size_arcsec, rootname):
+    def get_cutout_all_filters(self, ra, dec, size_arcsec, rootname):
         
-        t = self.r.make_cutout(self, ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")
-        t = self.h.make_cutout(self, ra, dec, size_arcsec, output_name=f"{rootname}-Ha.fits")
+        t = self.r.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")
+        t = self.h.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-Ha.fits")
         if self.cs_flag:
-            t = self.cs.make_cutout(self, ra, dec, size_arcsec, output_name=f"{rootname}-CS-ZP.fits")            
+            t = self.cs.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-CS-ZP.fits")            
     
     
 

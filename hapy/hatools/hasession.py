@@ -3,126 +3,6 @@ import os
 
 from hapy.masktools.api import MaskEngine  # adjust import if needed
 
-
-class HaSession:
-    """
-    Headless Halpha processing session.
-
-    Goal: provide a non-interactive pipeline that can also be called by the GUI.
-    """
-
-    def __init__(self, args, sepath=None):
-        self.args = args
-
-        # flags
-        self.auto = bool(getattr(args, "auto", False))
-        self.verbose = bool(getattr(args, "verbose", False))
-        self.virgo = bool(getattr(args, "virgo", False))
-        self.uat = bool(getattr(args, "uat", False))
-        self.nebula = bool(getattr(args, "nebula", False))
-        self.laptop = bool(getattr(args, "laptop", False))
-        self.draco = bool(getattr(args, "draco", False))
-        self.testing = bool(getattr(args, "testing", False))
-
-        # inputs
-        self.rcoadd_fname = getattr(args, "rimage", None)
-        self.hacoadd_fname = getattr(args, "haimage", None)
-        self.cscoadd_fname = getattr(args, "csimage", None)
-        self.filter = getattr(args, "filter", None)
-        self.prefix = getattr(args, "prefix", None)
-
-        # paths
-        self.sepath = sepath or (os.getenv("HOME") + "/github/halphagui/astromatic/")
-        self.psfdirectory = getattr(args, "psfdir", None) or os.getcwd()
-        self.tabledir = getattr(args, "tabledir", None)
-
-        # per-galaxy / runtime state
-        self.igal = None
-        self.bad_galaxy = False
-
-        # these will be filled later by your existing catalog logic
-        self.gximage = []           # list of galaxies in FOV
-        self.radius_arcsec = None   # per galaxy radius array
-        self.BA = None              # per galaxy BA array
-        self.PA = None              # per galaxy PA array
-        self.defcat = None          # default catalog object with .cat['RA'], .cat['DEC']
-
-        # filenames created during processing
-        self.cutout_name_r = None
-        self.cutout_name_ha = None
-
-    # ------------------------
-    # Top-level pipeline
-    # ------------------------
-    def auto_run(self):
-        """
-        Run the full pipeline headlessly.
-        This is basically your existing hafunctions.auto_run(), moved here.
-        """
-        # These calls are placeholders—hook them to your existing implementations:
-        self.read_rcoadd()
-        self.read_hacoadd()
-
-        if self.filter is not None:
-            self.set_hafilter(self.filter)
-
-        self.get_filter_ratio()
-        self.subtract_images(overwrite=True)
-        self.build_psf()
-        self.find_galaxies()
-
-        self.write_fits_table()
-
-        if self.verbose:
-            print(f"starting processing of each galaxy: {len(self.gximage)}")
-
-        for i in range(len(self.gximage)):
-            self.igal = i
-            self.auto_gal()
-            self.write_fits_table()
-
-            if self.verbose:
-                print(f"Finished galaxy {i+1}/{len(self.gximage)}")
-
-    def auto_gal(self):
-        """
-        Process one galaxy headlessly.
-        Replaces the old maskwindow(None, None, ...) call with MaskEngine.
-        """
-        self.bad_galaxy = False
-
-        self.get_galaxy_cutout()
-        if self.bad_galaxy:
-            if self.verbose:
-                print(f"Skipping galaxy {self.igal}: bad cutout/sky stats")
-            return
-
-        # --- Build objparams / ellipse for masking ---
-        # This matches what you had:
-        ra = float(self.defcat.cat["RA"][self.igal])
-        dec = float(self.defcat.cat["DEC"][self.igal])
-
-        mask_scalefactor = 1.0  # keep your existing value if different
-        sma_arcsec = float(mask_scalefactor * self.radius_arcsec[self.igal])
-        ba = float(self.BA[self.igal])
-        pa_deg = float(self.PA[self.igal] + 90)  # your convention
-
-        # Old code used list: [RA, DEC, SMA_arcsec, BA, PA_deg]
-        galaxy_ellipse = [ra, dec, sma_arcsec, ba, pa_deg]
-
-        if self.verbose:
-            print("Building mask headlessly for", self.cutout_name_r)
-
-        # Continue your pipeline here:
-        # - run galfit
-        # - galfit_ellip_phot
-        # - photutils_ellip_phot
-        # Keep those methods in HaSession and call them:
-        self.run_galfit(ncomp=1, ha=False)
-        self.galfit_ellip_phot()
-        self.photutils_ellip_phot()
-
-
         
 class HaSession:
     def __init__(self, args, sepath=None):
@@ -291,13 +171,9 @@ class HaSession:
         self.photutils_ellip_phot()
         
             
-    # ------------------------
-    # Stubs to connect to your existing methods
-    # ------------------------
-    def read_rcoadd(self): raise NotImplementedError
-    def read_hacoadd(self): raise NotImplementedError
-    def set_hafilter(self, f): raise NotImplementedError
-    def get_filter_ratio(self): raise NotImplementedError
+
+
+        
     def subtract_images(self, overwrite=False): raise NotImplementedError
     def build_psf(self): raise NotImplementedError
     def find_galaxies(self): raise NotImplementedError

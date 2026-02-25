@@ -47,6 +47,9 @@ from hapy.imagetools import imutils
 
 from hapy.hatools import morphology as morph
 
+# This overwrites the photutils task
+from .adapters import EllipseGeometry as adapters_EllipseGeometry
+#import .adapters
 
 ## filter information
 ## from https://www.noao.edu/kpno/mosaic/filters/
@@ -207,6 +210,7 @@ class EllipsePhotometry():
         #
         # self.image2_flag is True is image2 is provided
         if image2 is not None:
+            print("running in two image mode")
             self.image2_name = image2
             self.image2,self.header2 = fits.getdata(image2, header=True)
             self.image2_flag = True
@@ -217,6 +221,7 @@ class EllipsePhotometry():
             self.header2 = None
         self.image2_filter = image2_filter
         self.filter_ratio = filter_ratio
+
         # will use the gain to calculate the noise in the image
         try:
             self.gain = self.header['GAIN']
@@ -381,9 +386,10 @@ class EllipsePhotometry():
             self.asym2 = -99
             self.asym2_err = -99
         #self.run_statmorph()
-        self.statmorph_flag = False
+
+        print("runStatmorphFlag = ",runStatmorphFlag)
         if runStatmorphFlag:
-            #print("running statmorph - please be patient...")
+            print("running statmorph - please be patient...")
             #self.run_statmorph()
             #self.statmorph_flag = True
 
@@ -1737,6 +1743,7 @@ def run_ellipse_photometry(
         objra=objra,
         objdec=objdec,
         fixcenter=fixcenter,
+        
     )
 
     e.run_for_gui(runStatmorphFlag=run_statmorph)

@@ -5,7 +5,7 @@ python ~/github/hapy/scripts/run_photometry.py --r VFID2507-UGC08693-HDI-2017052
 """
 
 import argparse
-from hapy.hatools.ellipse_phot import run_ellipse_photometry
+from hapy.ellipse.photometry import run_ellipse_photometry
 
 def main():
     p = argparse.ArgumentParser(description="Run elliptical photometry (headless)")
@@ -22,6 +22,7 @@ def main():
 
     args = p.parse_args()
 
+    print("input statmorph = ",args.statmorph)
     e = run_ellipse_photometry(
         r_fits=args.r_fits,
         cs_fits=args.cs_fits,
@@ -31,14 +32,25 @@ def main():
         objra=args.objra,
         objdec=args.objdec,
         fixcenter=args.fixcenter,
-        run_statmorph=args.statmorph,
         write_prefix=args.prefix,
+        run_statmorph=args.statmorph
     )
 
     # make plot of profiles
     e.plot_fancy_profiles()
     e.draw_phot_results_mpl()
-    
 
+    # for building tables
+    print("EllipsePhotometry ATTRIBUTES")
+    print(type(e), e.__dict__.keys())    
+
+    if args.statmorph:
+        print()
+        print('STATMORPH IMAGE 1 ATTRIBUTES')
+        print(type(e.morph),e.morph.__dict__.keys())
+
+        print()
+        print('STATMORPH IMAGE 2 ATTRIBUTES')        
+        print(type(e.morph2),e.morph2.__dict__.keys())        
 if __name__ == "__main__":
     main()
