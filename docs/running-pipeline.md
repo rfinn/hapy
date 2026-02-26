@@ -18,7 +18,9 @@ find cutouts -mindepth 1 -maxdepth 1 -type d > cutout_list.txt
 parallel -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {} :::: cutout_list.txt
 ```
 
-parallel -eta -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {}   --make-mask --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit :::: cutout_list.txt
+```
+parallel -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {}   --make-mask --psf-dir . --statmorph --image2-filter 4 --galfit :::: cutout_list.txt
+```
 
 ### With Logging and Failure Continuation
 

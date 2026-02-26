@@ -28,6 +28,7 @@ def main(args=None):
     parser.add_argument('--rimage', help='r-band image name')
     
     parser.add_argument('--psfdir', help='set to coadd directory')
+    parser.add_argument('--cutout_scale',type=float, default=2, help='multiplicative scale factor for increasing the size of cutout images')    
     parser.add_argument('--catalog',
                             help='full path to galaxy catalog to use for cutouts.  ')
     parser.add_argument('--outdir',  default='cutouts',
@@ -129,7 +130,7 @@ def main(args=None):
             params_path.write_text(json.dumps(params, indent=2))
 
         # commenting the next line for testing
-        image_set.get_cutout_all_filters(gra[i], gdec[i], 2*gradius[i], rootname)
+        image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname)
         # parent pixel position
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
         #print(f"{rootname}: ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}, x={x:.1f}, y={y:.1f}")
