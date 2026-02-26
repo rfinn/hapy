@@ -60,7 +60,7 @@ dwavelength = {'4':80.48,'8':81.33,'12':82.95,'16':81.1,'R':1511.3,'r':1475.17,'
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 
-def _fraction_masked_pixels(cat, idx):
+def _fraction_unmasked_pixels(cat, idx):
     """
     Return (n_total, n_unmasked, frac_unmasked) for the object's segment pixels.
     """
@@ -75,6 +75,26 @@ def _fraction_masked_pixels(cat, idx):
     return n_total, n_unmasked, frac_unmasked
 
 
+
+
+def compute_sky_stats(data, mask=None):
+    """
+    Compute robust sky mean and RMS using sigma clipping.
+    Ignores masked pixels if mask provided.
+    """
+    if mask is not None:
+        good = mask == 0
+        sample = data[good]
+    else:
+        sample = data
+
+    mean, median, std = sigma_clipped_stats(
+        sample,
+        sigma=3.0,
+        maxiters=5
+    )
+
+    return float(median), float(std)
 def get_M20(catalog,objectIndex):
     """ 
     calculate M20 according to Lotz+2004 for central object only
@@ -415,11 +435,11 @@ class EllipsePhotometry():
                     self.statmorph_flag2 = False            
                     print("WARNING: problem running statmorph on image 2")
 
-            
+        self.get_sky_noise()
         print("writing tables")
         self.write_phot_tables()
         self.write_phot_fits_tables()
-        self.get_sky_noise()
+
 
         print()
         print("finished with photutils")
@@ -502,31 +522,57 @@ class EllipsePhotometry():
         # I already compute sky sigma and store it in header
         # should look for that and use that as a threshold if it's available
 
+        self.sky = np.nan
+        self.sky_noise = np.nan
+        self.sky2 = np.nan
+        self.sky_noise2 = np.nan
+        
         try:
             
             skystd = self.header['SKYSTD']
             self.sky_noise = skystd
             self.sky = self.header['SKYMED']
+
         except KeyError:
-            print("WARNING: SKYSTD not found in ",self.image_name)
-            self.sky_noise = np.nan
+            print("WARNING: SKYSTD not found — computing via sigma clipping")
+
+            if self.mask_flag:
+                sample = self.image[~self.boolmask]
+            else:
+                sample = self.image
+
+            mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
+
+            self.sky = float(median)
+            self.sky_noise = float(std)
 
         # get the value for halpha
-        try:
-            if self.header2 is not None:
+        if self.header2 is not None:
+            try:
+            
                 self.sky_noise2 = self.header2['SKYSTD']
-                self.sky2 = self.header['SKYMED']
-            else:
-                print("WARNING: SKYSTD not found in ",self.image2_name)
-                self.sky_noise2 = np.nan
-                self.sky2 = np.nan
-        except KeyError:
-            print("WARNING: SKYSTD not found in ",self.image2_name)
-            self.sky_noise2 = np.nan
+                self.sky2 = self.header2['SKYMED']
+ 
+
+            except KeyError:
+                print("WARNING: SKYSTD not found — computing via sigma clipping")
+
+                if self.mask_flag:
+                    sample = self.image2[~self.boolmask]
+                else:
+                    sample = self.image2
+
+                mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
+
+                self.sky2 = float(median)
+                self.sky_noise2 = float(std)
+        else:
             self.sky2 = np.nan
-        
+            self.sky_noise2 = np.nan
+
+                
         if self.mask_flag:
-            if self.sky_noise is not np.nan:
+            if np.isfinite(self.sky_noise):
                 self.threshold = self.sky_noise
             else:
                 self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
@@ -537,7 +583,7 @@ class EllipsePhotometry():
                 # measure halpha properties using same segmentation image
                 self.cat2 = SourceCatalog(self.image2, self.segmentation, mask=self.boolmask)
         else:
-            if self.sky_noise is not np.nan:
+            if np.isfinite(self.sky_noise):
                 self.threshold = self.sky_noise
             else:
             
@@ -685,12 +731,16 @@ class EllipsePhotometry():
     def get_all_frac_masked_pixels(self):
         # as a kludge, I am going to set all objects' masked fraction equal to this value
         # in the end, I will only keep the value for the central object...
-        ntotal,nmasked,frac_masked = _fraction_masked_pixels(self.cat,self.objectIndex)
+        ntotal,nunmasked,frac_unmasked = _fraction_unmasked_pixels(self.cat,self.objectIndex)
+        frac_masked = 1.0 - frac_unmasked
         allfmasked = frac_masked*np.ones(len(self.cat))
         self.cat.add_extra_property('MASKEDFRAC',allfmasked)
-        self.masked_fraction = allfmasked
+
+        
+        self.masked_fraction = frac_masked
         self.pixel_area = ntotal
-        self.masked_pixel_area = ntotal - nmasked
+        self.masked_pixel_area = ntotal - nunmasked
+        
     def get_sky_noise(self):
         '''
         * get the noise in image1 and image2 
@@ -706,6 +756,18 @@ class EllipsePhotometry():
         #    threshold = detect_threshold(self.image, nsigma=snrcut)
 
         # add sky noise to image 1 header
+
+        if not hasattr(self, "sky_noise"):
+            self.sky_noise = np.nan
+        if not hasattr(self, "sky"):
+            self.sky = np.nan
+        if not hasattr(self, "sky_noise2"):
+            self.sky_noise2 = np.nan
+        if not hasattr(self, "sky2"):
+            self.sky2 = np.nan
+
+        print("DEBUG uconv1,uconv2,pixscale:", self.uconversion1, self.uconversion2, self.pixel_scale)
+        print("DEBUG sky_noise ADU:", self.sky_noise, self.sky_noise2)
         
         sky_noise_erg = self.sky_noise*self.uconversion1/self.pixel_scale**2
 
@@ -715,22 +777,17 @@ class EllipsePhotometry():
         except AttributeError:
             print("Warning, self.sky not found, setting to zero")
             self.sky = 0
-        self.header.set('SKYNOISE','{:.3e}'.format(self.sky_noise),'sky noise in ADU')        
+        self.header.set('SKYSTD','{:.3e}'.format(self.sky_noise),'sky noise in ADU')        
         self.header.set('SKYERR','{:.3e}'.format(sky_noise_erg),'sky noise in erg/s/cm^2/arcsec^2')
         # save files
         fits.writeto(self.image_name,self.image,header=self.header,overwrite=True)
         self.im1_skynoise = sky_noise_erg
         # get sky noise for image 2
-        if self.image2 is not None:
-            sky_noise_erg2 = self.sky_noise2*self.uconversion2/self.pixel_scale**2
-            self.header2.set('PHOT_SKY','{:.3e}'.format(self.sky2),'sky in ADU')
-            self.header2.set('SKYNOISE','{:.3e}'.format(self.sky_noise2),'sky noise in ADU')        
-            self.header2.set('SKYERR','{:.3e}'.format(sky_noise_erg2),'sky noise in erg/s/cm^2/arcsec^2')
-            fits.writeto(self.image2_name,self.image2,header=self.header2,overwrite=True)
+        if self.image2 is not None and np.isfinite(self.sky_noise2):
             try:
                 sky_noise_erg2 = self.sky_noise2*self.uconversion2/self.pixel_scale**2
                 self.header2.set('PHOT_SKY','{:.3e}'.format(self.sky2),'sky in ADU')
-                self.header2.set('SKYNOISE','{:.3e}'.format(self.sky_noise2),'sky noise in ADU')        
+                self.header2.set('SKYSTD','{:.3e}'.format(self.sky_noise2),'sky noise in ADU')        
                 self.header2.set('SKYERR','{:.3e}'.format(sky_noise_erg2),'sky noise in erg/s/cm^2/arcsec^2')
                 fits.writeto(self.image2_name,self.image2,header=self.header2,overwrite=True)
             

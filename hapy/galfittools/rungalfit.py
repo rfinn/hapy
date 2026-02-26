@@ -238,7 +238,10 @@ class RunGalfit:
         #print('***%%%%%%%%%%%%%%%%%')
 
         
-
+    def disable_convolution(self):
+        self.convflag = False
+    def enable_convolution(self):
+        self.convflag = True
     def create_output_names(self):
         if self.asymmetry:
             output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-asym.fits'
@@ -291,7 +294,7 @@ class RunGalfit:
         self.fitrad=fitrad
         self.fitBA=fitBA
         self.fitPA=fitPA
-        print('inside rungalfit, fitBA = ',self.fitBA)
+        #print('inside rungalfit, fitBA = ',self.fitBA)
 
         if first_time:
             self.xobj0=xobj

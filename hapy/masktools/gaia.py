@@ -178,7 +178,7 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
         brightstar = Table.read(outfile)
 
         # filter out foreground stars
-        keepflag =  gaia_foreground_filter(brighstar)
+        keepflag =  gaia_foreground_filter(brightstar)
         brightstar = brightstar[keepflag]
         return brightstar, brightstar["xpixel"], brightstar["ypixel"]
 

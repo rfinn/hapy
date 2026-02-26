@@ -39,6 +39,17 @@ TESTING:
 python ~/github/hapy/scripts/run_analysis.py --root cutouts/<tag>/<tag> --make-mask --galfit --convflag 1
 
 cat cutouts/<tag>/<tag>-results.ecsv
+
+
+from coadds directory where you just made cutouts:
+
+python ~/github/hapy/scripts/run_analysis.py --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --convflag 0 --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
+
+To make use of --cutout-dir instead of --root:
+
+python ~/github/hapy/scripts/run_analysis.py --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --convflag 0 --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
+
+
 """
 
 import argparse
@@ -106,10 +117,96 @@ def _scalar(v):
         return float(v)
     except Exception:
         return str(v)
+
+def _get(e, name, default=None):
+    return getattr(e, name, default)
+
+def _finite(x):
+    try:
+        return np.isfinite(x)
+    except Exception:
+        return False
+
+
+def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0):
+    """
+    init: dict with xobj,yobj,mag,rad,nsersic,BA,PA, first_time
+    returns: (res, meta)
+    """
+    if do_conv:
+        rg.enable_convolution()
+        stage = "CV"
+    else:
+        if hasattr(rg, "disable_convolution"):
+            rg.disable_convolution()
+        stage = "NC"
+
+    def unstable(res):
+        if _scalar(res.error) != 0: return True
+        if _scalar(res.comp1.numerical_error_flag) != 0: return True
+        if _scalar(res.chi2nu) > 5: return True
+        if _scalar(res.comp1.re) <= 0: return True
+        n = _scalar(res.comp1.n)
+        if n > n_hi: return True
+        ba = _scalar(res.comp1.ba)
+        if ba <= 0.05 or ba > 1.0: return True
+        return False
+
+    rg.set_sersic_params(
+        xobj=init["xobj"], yobj=init["yobj"],
+        mag=init["mag"], rad=init["rad"],
+        nsersic=init["nsersic"], BA=init["BA"], PA=init["PA"],
+        fitmag=1, fitcenter=1, fitrad=1, fitBA=1, fitPA=1, fitn=1,
+        first_time=init.get("first_time", 0),
+    )
+    rg.set_sky(args.sky)
+    res = rg.run_and_parse()
+
+    meta = {"stage": stage, "rerun_fixed_n": False, "unstable": False}
+
+    # rerun if high n
+    if _scalar(res.comp1.n) > n_hi:
+        meta["rerun_fixed_n"] = True
+        rg.set_sersic_params(
+            xobj=_scalar(res.comp1.xc), yobj=_scalar(res.comp1.yc),
+            mag=_scalar(res.comp1.mag), rad=_scalar(res.comp1.re),
+            nsersic=4.0, BA=_scalar(res.comp1.ba), PA=_scalar(res.comp1.pa),
+            fitmag=1, fitcenter=1, fitrad=1, fitBA=1, fitPA=1, fitn=0,
+            first_time=0,
+        )
+        rg.set_sky(args.sky)
+        res = rg.run_and_parse()
+
+    meta["unstable"] = unstable(res)
+    return res, meta
+
+def _store_galfit(row, res, prefix):
+    row[f"{prefix}XC"] = _scalar(res.comp1.xc)
+    row[f"{prefix}XC_ERR"] = _scalar(res.comp1.xc_err)
+    row[f"{prefix}YC"] = _scalar(res.comp1.yc)
+    row[f"{prefix}YC_ERR"] = _scalar(res.comp1.yc_err)
+
+    row[f"{prefix}MAG"] = _scalar(res.comp1.mag)
+    row[f"{prefix}MAG_ERR"] = _scalar(res.comp1.mag_err)
+    row[f"{prefix}RE"] = _scalar(res.comp1.re)
+    row[f"{prefix}RE_ERR"] = _scalar(res.comp1.re_err)
+    row[f"{prefix}N"] = _scalar(res.comp1.n)
+    row[f"{prefix}N_ERR"] = _scalar(res.comp1.n_err)
+    row[f"{prefix}BA"] = _scalar(res.comp1.ba)
+    row[f"{prefix}BA_ERR"] = _scalar(res.comp1.ba_err)
+    row[f"{prefix}PA"] = _scalar(res.comp1.pa)
+    row[f"{prefix}PA_ERR"] = _scalar(res.comp1.pa_err)
+
+    row[f"{prefix}SKY"] = _scalar(res.sky)
+    row[f"{prefix}SKY_ERR"] = _scalar(res.sky_err)
+    row[f"{prefix}CHISQ"] = _scalar(res.chi2nu)
+    row[f"{prefix}NUMERR"] = _scalar(res.comp1.numerical_error_flag)
+    row[f"{prefix}ERROR"] = _scalar(res.error)
     
 def main():
     p = argparse.ArgumentParser(description="Run headless analysis on one galaxy cutout set")
-    p.add_argument("--root", required=True, help="Cutout root prefix (no extension)")
+    p.add_argument("--root", required=True, help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
+    p.add_argument("--cutout-dir", default=None, help="Cutout directory containing the root basename (optional).  Example --cutout-dir VFID3084-NGC3512-HDI-20200226-p012.  This will construct the root filename as cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.")    
     p.add_argument("--r", dest="r_fits", default=None, help="Override R-band FITS path")
     p.add_argument("--cs", dest="cs_fits", default=None, help="Override CS FITS path")
     p.add_argument("--mask", dest="mask_fits", default=None, help="Override mask FITS path")
@@ -152,6 +249,23 @@ def main():
     
     args = p.parse_args()
 
+    if args.cutout_dir is not None:
+        d = Path(args.cutout_dir)
+        # allow passing either "cutouts/<tag>" or "<tag>"
+        if not d.exists():
+            d = Path("cutouts") / d
+        if not d.exists():
+            raise FileNotFoundError(f"cutout dir not found: {args.cutout_dir}")
+        args.root = str(d / d.name)   # matches your current convention
+    else:
+        # if user passed cutouts/<tag>/<tag>, collapse to cutouts/<tag>/<tag>
+        rp = Path(args.root)
+        if rp.parent.name == rp.name:
+            args.root = str(rp)  # already canonical
+        elif (rp.parent / rp.parent.name) == rp:
+            args.root = str(rp)  # already canonical
+        # otherwise leave as-is
+    
     root = args.root
     root_base = Path(root).name
     prefix = args.prefix or root_base
@@ -261,9 +375,18 @@ def main():
         row["objid"] = objid
         row["ra"] = ra
         row["dec"] = dec
-        row["sma_arcsec"] = sma_arcsec
-        row["ba"] = ba
-        row["pa_deg"] = pa_deg        
+
+        # --- Store the initial ellipse used as input to masking
+        row["ELL0_SMA_ARCSEC"] = sma_arcsec
+        row["ELL0_BA"] = ba
+        row["ELL0_PA_DEG"] = pa_deg
+        row["ELL0_XC"] = xc
+        row["ELL0_YC"] = yc
+        row["ELL0_SOURCE"] = "mask_params.json" if params_path.exists() else "args"
+
+        #row["sma_arcsec"] = sma_arcsec
+        #row["ba"] = ba
+        #row["pa_deg"] = pa_deg        
 
         # --- Convert to pixels ---
         sma_pix = sma_arcsec / pixscale
@@ -326,21 +449,20 @@ def main():
     row["PHOT_SEC"] = time.perf_counter() - t0    
     row["phot_ok"] = True
 
-
-    # Core ellipse / detection-derived quantities
+    # ---- core ellipse / detection-derived quantities
     for outk, attr in [
         ("ELLIP_XCENTROID", "xcenter"),
         ("ELLIP_YCENTROID", "ycenter"),
-        ("ELLIP_SMA_GUESS_PIX", "sma"),
-        ("ELLIP_B_GUESS_PIX", "b"),
-        ("ELLIP_EPS_GUESS", "eps"),
-        ("ELLIP_THETA_GUESS_RAD", "theta"),
+        ("ELLIP_SMA_PIX", "sma"),
+        ("ELLIP_B_PIX", "b"),
+        ("ELLIP_EPS", "eps"),
+        ("ELLIP_THETA_RAD", "theta"),
         ("ELLIP_GINI_DET", "gini"),
         ("ELLIP_SOURCE_SUM", "source_sum"),
-        ("ELLIP_MASKED_FRACTION", "masked_fraction"),
         ("R_FWHM", "fwhm"),
-        ("R_SKYNOISE", "sky_noise"),
-        ("R_SKY", "sky"),
+        ("R_SKYSTD_ADU", "sky_noise"),
+        ("R_SKYMED_ADU", "sky"),
+        ("R_SKYERR", "im1_skynoise"),
         ("M20_R", "M20_1"),
         ("ASYM_R", "asym"),
         ("ASYM_R_ERR", "asym_err"),
@@ -350,12 +472,22 @@ def main():
         except Exception:
             pass
 
+    # Write masked_fraction as JSON (don’t use _scalar)
+    try:
+        mf = getattr(e, "masked_fraction", None)
+        if mf is not None:
+            row["ELLIP_MASKED_FRACTION"] = json.dumps(mf)
+    except Exception:
+        pass
+
+
     # If image2 exists (e.g., continuum-sub / HA), capture analogous scalars
     try:
-        if getattr(e, "image2_flag", False):
+        if getattr(e, "image2", None) is not None:
             for outk, attr in [
-                ("H_SKYNOISE", "sky_noise2"),
-                ("H_SKY", "sky2"),
+                ("H_SKYSTD_ADU", "sky_noise2"),
+                ("H_SKYMED_ADU", "sky2"),
+                ("H_SKYERR", "im2_skynoise"),
                 ("M20_H", "M20_2"),
                 ("ASYM_H", "asym2"),
                 ("ASYM_H_ERR", "asym2_err"),
@@ -365,6 +497,47 @@ def main():
                 except Exception:
                     pass
     except Exception:
+        pass
+
+
+    # compute difference between input ellipse and photutils ellipse
+    def _angle_diff_deg(a, b):
+        d = (a - b + 90.0) % 180.0 - 90.0
+        return abs(d)
+
+    try:
+        phot_xc = float(row["ELLIP_XCENTROID"])
+        phot_yc = float(row["ELLIP_YCENTROID"])
+        phot_sma_pix = float(row["ELLIP_SMA_PIX"])
+        phot_ba = 1.0 - float(row["ELLIP_EPS"])
+        phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+
+        dx = phot_xc - float(row["ELL0_XC"])
+        dy = phot_yc - float(row["ELL0_YC"])
+        dc = float(np.hypot(dx, dy))
+
+        dba = abs(phot_ba - float(row["ELL0_BA"]))
+        dpa = _angle_diff_deg(phot_pa_deg, float(row["ELL0_PA_DEG"]))
+
+        row["ELL_DC_PX"] = dc
+        row["ELL_DBA"] = float(dba)
+        row["ELL_DPA_DEG"] = float(dpa)
+
+        # size ratio: prefer arcsec if pixscale known, else pixels
+        if "pixscale" in locals() and pixscale:
+            phot_sma_arcsec = phot_sma_pix * float(pixscale)
+            row["ELL_SMA_RATIO"] = phot_sma_arcsec / float(row["ELL0_SMA_ARCSEC"])
+        else:
+            # fallback: compare in pixels if you have ELL0_SMA_ARCSEC only -> skip ratio
+            row["ELL_SMA_RATIO"] = np.nan
+
+        sma_ratio = row["ELL_SMA_RATIO"]
+        row["ELL_MISMATCH"] = bool(
+            (dc > 5.0) or (dba > 0.2) or (dpa > 25.0) or
+            (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
+            )
+    except Exception:
+        # if any missing keys, just don't set mismatch fields
         pass
 
     # ---- statmorph (best-effort; only a few key fields to start) ----
@@ -422,9 +595,11 @@ def main():
         xminfit, xmaxfit = 1, nx
         yminfit, ymaxfit = 1, ny
 
+        
         magzp = args.magzp if args.magzp is not None else float(hdr.get("PHOTZP", 25.0))
         convflag = bool(args.convflag)
 
+        
         rg = RunGalfit(
             galname=galname,
             image=r_fits,
@@ -445,47 +620,32 @@ def main():
             asym=False,
         )
 
-        xc = nx / 2
-        yc = ny / 2
-        rg.set_sersic_params(
-            xobj=xc, yobj=yc,
-            mag=15.0,
-            rad=10.0,
-            nsersic=2.0,
-            BA=0.7,
-            PA=0.0,
-            fitmag=1, fitcenter=1, fitrad=1, fitBA=1, fitPA=1, fitn=1,
-            first_time=1,
-        )
-        rg.set_sky(args.sky)
-        res = rg.run_and_parse()
+        t0 = time.perf_counter()
+
+        #xc = nx / 2
+        #yc = ny / 2
+        init0 = dict(xobj=xc, yobj=yc, mag=15.0, rad=10.0, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
+
+        # --- No convolution ---
+        res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False)
+        _store_galfit(row, res_nc, "GAL_")
+        row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
+        row["GAL_NC_OK"] = not meta_nc["unstable"]
+
+        # --- Convolution (init from NC) ---
+        init_cv = dict(
+            xobj=_scalar(res_nc.comp1.xc), yobj=_scalar(res_nc.comp1.yc),
+            mag=_scalar(res_nc.comp1.mag), rad=_scalar(res_nc.comp1.re),
+            nsersic=_scalar(res_nc.comp1.n), BA=_scalar(res_nc.comp1.ba), PA=_scalar(res_nc.comp1.pa),
+            first_time=0,
+            )
+        res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True)
+        _store_galfit(row, res_cv, "GAL_C")
+        row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
+        row["GAL_CV_OK"] = not meta_cv["unstable"]
 
         row["GALFIT_SEC"] = time.perf_counter() - t0
-        row["galfit_ok"] = True
-        
-        # component 1
-        row["GAL_XC"] = _scalar(res.comp1.xc)
-        row["GAL_XC_ERR"] = _scalar(res.comp1.xc_err)
-        row["GAL_YC"] = _scalar(res.comp1.yc)
-        row["GAL_YC_ERR"] = _scalar(res.comp1.yc_err)
-
-        row["GAL_MAG"] = _scalar(res.comp1.mag)
-        row["GAL_MAG_ERR"] = _scalar(res.comp1.mag_err)
-        row["GAL_RE"] = _scalar(res.comp1.re)
-        row["GAL_RE_ERR"] = _scalar(res.comp1.re_err)
-        row["GAL_N"] = _scalar(res.comp1.n)
-        row["GAL_N_ERR"] = _scalar(res.comp1.n_err)
-        row["GAL_BA"] = _scalar(res.comp1.ba)
-        row["GAL_BA_ERR"] = _scalar(res.comp1.ba_err)
-        row["GAL_PA"] = _scalar(res.comp1.pa)
-        row["GAL_PA_ERR"] = _scalar(res.comp1.pa_err)
-
-        row["GAL_SKY"] = _scalar(res.sky)
-        row["GAL_SKY_ERR"] = _scalar(res.sky_err)
-        row["GAL_CHISQ"] = _scalar(res.chi2nu)
-        row["GAL_NUMERR"] = _scalar(res.comp1.numerical_error_flag)
-        row["GALFIT_ERROR"] = _scalar(res.error)
-
+        row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
 
         
         write_result_row_ecsv(results_path, row)
