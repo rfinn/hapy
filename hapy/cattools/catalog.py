@@ -360,9 +360,9 @@ class GalaxyCatalog():
         self.BA = np.ones(len(self.radius_arcsec))
         self.PA = np.zeros(len(self.radius_arcsec))
         
-        self.BA[~noradius_flag] = self.agc.cat['b'][~noradius_flag]/self.agc.cat['a'][~noradius_flag]
+        self.BA[~noradius_flag] = self.cat['b'][~noradius_flag]/self.cat['a'][~noradius_flag]
 
-        self.PA[~noradius_flag] = self.agc.cat['posang'][~noradius_flag]
+        self.PA[~noradius_flag] = self.cat['posang'][~noradius_flag]
         
         self.RA = self.cat['RA']
         self.DEC = self.cat['DEC']        
