@@ -40,7 +40,7 @@ def main():
     r_data, r_hdr = fits.getdata(r_fits, header=True)
     m_data = fits.getdata(mask_fits)
 
-    params_path = args.params or Path(root).parent / "mask_params.json"
+    params_path = args.params or Path(root).parent / "metadata.json"
     params = json.loads(Path(params_path).read_text())
 
     # world → pixel

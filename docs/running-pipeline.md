@@ -33,7 +33,7 @@ parallel -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {} :::: 
 ```
 
 ```
-parallel -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {}   --make-mask --psf-dir . --statmorph --image2-filter 4 --galfit :::: cutout_list.txt
+parallel -eta -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {}   --make-mask --psf-dir . --statmorph --image2-filter 4 --galfit :::: cutout_list.txt
 ```
 
 ### With Logging and Failure Continuation

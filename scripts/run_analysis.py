@@ -383,7 +383,7 @@ def main():
     p.add_argument("--statmorph", action="store_true")
 
     p.add_argument("--prefix", default=None, help="Output prefix tag (default: root basename)")
-    p.add_argument("--no-plots", action="store_true", help="Skip profile/diagnostic plots")
+    p.add_argument("--no-plots", dest="no_plots", action="store_true", help="Skip profile/diagnostic plots")
 
     # MASK
     p.add_argument("--make-mask", action="store_true", help="Build/write mask before photometry/galfit")
@@ -394,7 +394,7 @@ def main():
     p.add_argument("--threshold", type=float, default=0.005)
     p.add_argument("--snr", type=float, default=10.0)
     p.add_argument("--minarea", type=int, default=5)
-    p.add_argument("--no-gaia", action="store_true", help="Disable Gaia star masking")
+    p.add_argument("--no-gaia", dest="no_gaia", action="store_true", help="Disable Gaia star masking")
     p.add_argument("--pixscale", type=float, default=None, help="Override pixel scale (arcsec/pix)")
     p.add_argument("--sma-arcsec", type=float, default=None, help="Ellipse semi-major axis in arcsec (optional)")
     p.add_argument("--ba", type=float, default=None, help="Ellipse b/a (optional)")
