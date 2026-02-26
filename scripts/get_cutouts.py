@@ -107,15 +107,24 @@ def main(args=None):
 
         # Write mask ellipse params for downstream masking
         cutdir = Path(rootname).parent
-        params_path = cutdir / "mask_params.json"
+        params_path = cutdir / "metadata.json"
         if not params_path.exists():
             params = dict(
                 objid=str(galid[i]),
+                tag=Path(rootname).name,          # e.g., VFID3084-NGC3512-HDI-20200226-p012
+                root=str(rootname),              # full cutout root path
                 ra=float(gra[i]),
                 dec=float(gdec[i]),
                 sma_arcsec=float(gradius[i]),   # semi-major = radius
                 ba=float(gBA[i]),
                 pa_deg=float(gPA[i]),
+                telescope=tokens.get("telescope"),
+                dateobs=tokens.get("dateobs"),
+                pointing=tokens.get("pointing"),
+                scheme=args.scheme,
+                parent_rimage=Path(args.rimage).name,
+                parent_haimage=Path(himage).name if himage else None,
+
             )
             params_path.write_text(json.dumps(params, indent=2))
 

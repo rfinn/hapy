@@ -55,12 +55,14 @@ python ~/github/hapy/scripts/run_analysis.py --cutout-dir cutouts/VFID3084-NGC35
 import argparse
 from pathlib import Path
 import glob
+import sys
 
+import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 
 import json
-
+import re
 import time
 
 from hapy.ellipse.photometry import run_ellipse_photometry
@@ -127,7 +129,14 @@ def _finite(x):
     except Exception:
         return False
 
-
+def resolve_psf_path(psfdir, parent_rimage):
+    """Return PSF path derived from parent R coadd filename, or None."""
+    if not psfdir or not parent_rimage:
+        return None
+    psf_name = str(parent_rimage).replace(".fits", "-psf.fits")
+    psf_path = Path(psfdir) / psf_name
+    return psf_path if psf_path.exists() else None
+    
 def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0):
     """
     init: dict with xobj,yobj,mag,rad,nsersic,BA,PA, first_time
@@ -202,10 +211,164 @@ def _store_galfit(row, res, prefix):
     row[f"{prefix}CHISQ"] = _scalar(res.chi2nu)
     row[f"{prefix}NUMERR"] = _scalar(res.comp1.numerical_error_flag)
     row[f"{prefix}ERROR"] = _scalar(res.error)
+
+def initialize_result_row():
+    """Return a fully populated results-row dict with frozen schema."""
+
+    row = {}
+
+    for k in [
+        "TELESCOPE",
+        "DATEOBS",
+        "POINTING",
+        "SCHEME",
+        "PARENT_RIMAGE",
+        "PARENT_HAIMAGE",
+    ]:
+        row[k] = ""
+
+    # ---------- virgo identifiers ----------
+    row["VFID"] = ""      # e.g., "VFID3084"
+    row["GALNAME"] = ""   # e.g., "NGC3512" (optional but handy)
+
     
+    # ---------- identity ----------
+    for k in [
+        "objid", "tag", "root",
+        "r_fits", "cs_fits", "mask_fits",
+        "psf_fits", "sigma_fits", "scheme"
+    ]:
+        row[k] = ""
+        
+    row["psf_ok"] = False
+
+    row["PSF_SOURCE"] = ""   # "cli" | "psf_dir" | ""
+    
+    # ---------- pipeline status ----------
+    for k in ["mask_ok", "phot_ok", "galfit_ok"]:
+        row[k] = False
+
+    for k in ["STAGE", "STATUS"]:
+        row[k] = ""
+
+    for k in ["MASK_SEC", "PHOT_SEC", "GALFIT_SEC", "TOTAL_SEC"]:
+        row[k] = np.nan
+
+    # ---------- coordinates ----------
+    row["ra"] = np.nan
+    row["dec"] = np.nan
+
+    # ---------- ELL0 ----------
+    for k in [
+        "ELL0_SMA_ARCSEC", "ELL0_BA", "ELL0_PA_DEG",
+        "ELL0_XC", "ELL0_YC"
+    ]:
+        row[k] = np.nan
+    row["ELL0_SOURCE"] = ""
+
+    # ---------- ellipse ----------
+    for k in [
+        "ELLIP_XCENTROID", "ELLIP_YCENTROID",
+        "ELLIP_SMA_PIX", "ELLIP_B_PIX",
+        "ELLIP_EPS", "ELLIP_THETA_RAD",
+        "ELLIP_GINI_DET", "ELLIP_SOURCE_SUM"
+    ]:
+        row[k] = np.nan
+
+    row["ELLIP_MASKED_FRACTION"] = ""
+
+    # ---------- R band ----------
+    for k in [
+        "R_FWHM", "R_SKYSTD_ADU", "R_SKYMED_ADU",
+        "R_SKYSTD_PHYS", "R_M20", "R_ASYM", "R_ASYM_ERR"
+    ]:
+        row[k] = np.nan
+
+    # ---------- H band ----------
+    for k in [
+        "H_SKYSTD_ADU", "H_SKYMED_ADU",
+        "H_SKYSTD_PHYS", "H_M20", "H_ASYM", "H_ASYM_ERR"
+    ]:
+        row[k] = np.nan
+
+    # ---------- mismatch ----------
+    for k in ["ELL_DC_PX", "ELL_DBA", "ELL_DPA_DEG", "ELL_SMA_RATIO"]:
+        row[k] = np.nan
+    row["ELL_MISMATCH"] = False
+
+    # ---------- statmorph ----------
+    sm_suffixes = [
+        "XCENTROID", "YCENTROID", "GINI", "M20",
+        "C", "A", "S",
+        "RPETRO_ELLIP", "RHALF_ELLIP",
+        "R20", "R50", "R80"
+    ]
+
+    for band in ["R", "H"]:
+        for s in sm_suffixes:
+            row[f"{band}_SM_{s}"] = np.nan
+        row[f"{band}_SM_FLAG"] = False
+
+    # ---------- GALFIT NC ----------
+    for k in [
+        "GAL_XC", "GAL_XC_ERR",
+        "GAL_YC", "GAL_YC_ERR",
+        "GAL_MAG", "GAL_MAG_ERR",
+        "GAL_RE", "GAL_RE_ERR",
+        "GAL_N", "GAL_N_ERR",
+        "GAL_BA", "GAL_BA_ERR",
+        "GAL_PA", "GAL_PA_ERR",
+        "GAL_SKY", "GAL_SKY_ERR",
+        "GAL_CHISQ"
+    ]:
+        row[k] = np.nan
+
+    for k in ["GAL_NUMERR", "GAL_ERROR"]:
+        row[k] = 0
+
+    row["GAL_NC_RERUN_FIXEDN"] = False
+    row["GAL_NC_OK"] = False
+
+    # ---------- GALFIT CV ----------
+    for k in [
+        "GAL_CXC", "GAL_CXC_ERR",
+        "GAL_CYC", "GAL_CYC_ERR",
+        "GAL_CMAG", "GAL_CMAG_ERR",
+        "GAL_CRE", "GAL_CRE_ERR",
+        "GAL_CN", "GAL_CN_ERR",
+        "GAL_CBA", "GAL_CBA_ERR",
+        "GAL_CPA", "GAL_CPA_ERR",
+        "GAL_CSKY", "GAL_CSKY_ERR",
+        "GAL_CCHISQ"
+    ]:
+        row[k] = np.nan
+
+    for k in ["GAL_CNUMERR", "GAL_CERROR"]:
+        row[k] = 0
+
+    row["GAL_CV_RERUN_FIXEDN"] = False
+    row["GAL_CV_OK"] = False
+
+    return row
+
+def pick_psf_path_and_source(args, params):
+    psf_image = getattr(args, "psf_image", None)
+    if psf_image:
+        p = Path(psf_image)
+        return (str(p), "cli") if p.exists() else (None, "cli_missing")
+
+    psfdir = getattr(args, "psf_dir", None) or getattr(args, "psfdir", None)
+    parent = params.get("parent_rimage", "")
+    if psfdir and parent:
+        name = str(parent).replace(".fits", "-psf.fits")
+        p = Path(psfdir) / name
+        return (str(p), "psf_dir") if p.exists() else (None, "psf_dir_missing")
+
+    return None, ""
+
 def main():
     p = argparse.ArgumentParser(description="Run headless analysis on one galaxy cutout set")
-    p.add_argument("--root", required=True, help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
+    p.add_argument("--root", help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
     p.add_argument("--cutout-dir", default=None, help="Cutout directory containing the root basename (optional).  Example --cutout-dir VFID3084-NGC3512-HDI-20200226-p012.  This will construct the root filename as cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.")    
     p.add_argument("--r", dest="r_fits", default=None, help="Override R-band FITS path")
     p.add_argument("--cs", dest="cs_fits", default=None, help="Override CS FITS path")
@@ -240,7 +403,8 @@ def main():
     # GALFIT
     p.add_argument("--galfit", action="store_true", help="Run GALFIT after photometry")
     p.add_argument("--sigma-image", dest="sigma_image", default=None, help="Override sigma/RMS image (optional)")
-    p.add_argument("--psf-image", dest="psf_image", default=None, help="Override PSF image (optional)")
+    p.add_argument("--psf-dir", dest="psf_dir", default=None, help="Directory containing PSF image.  Assumes the PSF image in the r-band coadd image (from metadata.json) rfilename.replace('.fits','-psf.fits')")    
+    p.add_argument("--psf-image", dest="psf_image", default=None, help="Override PSF image in metadata.json (optional)")
     p.add_argument("--psf-oversampling", type=int, default=2)
     p.add_argument("--convflag", type=int, default=1, help="1 convolve with PSF, 0 otherwise")
     p.add_argument("--ncomp", type=int, default=1, choices=[1, 2])
@@ -287,31 +451,119 @@ def main():
     psf_image = args.psf_image or _pick_one(root + "*-psf.fits")
 
 
-    row = dict(
-        objid=tag,                # you can replace with params["objid"] if you prefer
-        tag=tag,
-        root=str(root),
-        r_fits=str(r_fits),
-        cs_fits=str(cs_fits) if cs_fits else "",
-        mask_fits=str(mask_fits) if mask_fits else "",
-        psf_fits=str(psf_image) if psf_image else "",
-        sigma_fits=str(sigma_image) if sigma_image else "",
-        scheme="",                # optional: pass in from CLI if you want
-        mask_ok=False,
-        phot_ok=False,
-        galfit_ok=False,
-    )
 
-
+            
+    row = initialize_result_row()
+    row["root"] = str(root)
+    row["tag"] = Path(root).name
     row["STAGE"] = "init"
     row["STATUS"] = "running"
     row["MASK_SEC"] = 0.0
     row["PHOT_SEC"] = 0.0
     row["GALFIT_SEC"] = 0.0
     row["TOTAL_SEC"] = 0.0
+    
+    # pixel scale
+    pixscale = args.pixscale
+    if pixscale is None:
+        pixscale = get_pixel_scale_from_filename(r_fits)
+
+
+    # --- Load cutout image for WCS + shape ---
+    data, hdr = fits.getdata(r_fits, header=True)
+    ny, nx = data.shape
+    wcs = WCS(hdr)
+
+    # Default center = image center
+    xc = nx / 2.0
+    yc = ny / 2.0
+
+
+
+
+
+
+
 
     t0_total = time.perf_counter()
+
+    params_path = Path(root).parent / "metadata.json"
+
+    if not params_path.exists():
+        raise RuntimeError(
+            f"metadata.json not found for root {root}. "
+            "Cutouts may be outdated or improperly generated."
+        )
     
+    params = json.loads(params_path.read_text())
+    row["TELESCOPE"] = params.get("telescope", "")
+    row["DATEOBS"]   = params.get("dateobs", "")
+    row["POINTING"]  = params.get("pointing", "")
+    row["SCHEME"]    = params.get("scheme", "")
+    row["PARENT_RIMAGE"]  = params.get("parent_rimage", "")
+    row["PARENT_HAIMAGE"] = params.get("parent_haimage", "")
+
+
+    # --- Get ellipse parameters ---    
+    sma_arcsec = float(params["sma_arcsec"])
+    ba = float(params["ba"])
+    pa_deg = float(params["pa_deg"])
+    #xc = float(params["xc"])
+    #yc = float(params["yc"])    
+
+    # Try WCS-based centering using stored RA/DEC
+    ra = params.get("ra", None)
+    dec = params.get("dec", None)
+    objid = params.get("objid", Path(root).name)
+
+    row["ra"] = ra
+    row["dec"] = dec
+    row["objid"] = objid
+
+    if ra is not None and dec is not None:
+        try:
+            xw, yw = wcs.world_to_pixel_values(float(ra), float(dec))
+            if np.isfinite(xw) and np.isfinite(yw):
+                xc, yc = float(xw), float(yw)
+        except Exception:
+            pass
+
+    # -- let use input an ellipse geometry that is different from what is in metadata.json
+    if args.sma_arcsec is not None and args.ba is not None and args.pa_deg is not None:
+        sma_arcsec = float(args.sma_arcsec)
+        ba = float(args.ba)
+        pa_deg = float(args.pa_deg)
+
+
+    objid = row.get("objid", "") or ""
+
+    # VFID is the survey ID prefix for Virgo objects: "VFID####"
+    m = re.match(r"^(VFID\d+)", objid)
+    if m:
+        row["VFID"] = m.group(1)
+
+    # Optional: split out the NED name part from "VFID####-NEDname"
+    if "-" in objid:
+        row["GALNAME"] = objid.split("-", 1)[1]
+
+    # --- Store the initial ellipse used as input to masking
+    row["ELL0_SMA_ARCSEC"] = sma_arcsec
+    row["ELL0_BA"] = ba
+    row["ELL0_PA_DEG"] = pa_deg
+    row["ELL0_XC"] = xc
+    row["ELL0_YC"] = yc
+    row["ELL0_SOURCE"] = "metadata.json" if params_path.exists() else "args"
+
+
+    # --- Construct the name of the psf image
+    psf_path, psf_source = pick_psf_path_and_source(args, params)
+    row["psf_fits"] = str(psf_path) if psf_path else ""
+    row["psf_ok"] = bool(psf_path)
+    row["PSF_SOURCE"] = psf_source
+    psf_ok = row["psf_ok"]
+
+    print("TESTING: psf_path = ",psf_path)
+    #sys.exit()
     if args.make_mask:
 
         if args.sex_config is None:
@@ -323,66 +575,10 @@ def main():
         # choose output mask name if not provided/found
         mask_out = mask_fits or (root + "-mask.fits")
 
-        # pixel scale
-        pixscale = args.pixscale
-        if pixscale is None:
-            pixscale = get_pixel_scale_from_filename(r_fits)
 
 
-        # --- Load cutout image for WCS + shape ---
-        data, hdr = fits.getdata(r_fits, header=True)
-        ny, nx = data.shape
-        wcs = WCS(hdr)
 
-        # Default center = image center
-        xc = nx / 2.0
-        yc = ny / 2.0
 
-        # --- Get ellipse parameters ---
-        params_path = Path(root).parent / "mask_params.json"
-
-        if params_path.exists():
-            params = json.loads(params_path.read_text())
-
-            sma_arcsec = float(params["sma_arcsec"])
-            ba = float(params["ba"])
-            pa_deg = float(params["pa_deg"])
-
-            # Try WCS-based centering using stored RA/DEC
-            ra = params.get("ra", None)
-            dec = params.get("dec", None)
-            objid = params.get("objid", Path(root).name)
-            
-            if ra is not None and dec is not None:
-                try:
-                    xw, yw = wcs.world_to_pixel_values(float(ra), float(dec))
-                    if np.isfinite(xw) and np.isfinite(yw):
-                        xc, yc = float(xw), float(yw)
-                except Exception:
-                    pass
-
-        elif args.sma_arcsec is not None and args.ba is not None and args.pa_deg is not None:
-            sma_arcsec = float(args.sma_arcsec)
-            ba = float(args.ba)
-            pa_deg = float(args.pa_deg)
-
-        else:
-            raise ValueError(
-                "Masking requires ellipse params. Provide mask_params.json or "
-                "--sma-arcsec/--ba/--pa-deg."
-            )
-
-        row["objid"] = objid
-        row["ra"] = ra
-        row["dec"] = dec
-
-        # --- Store the initial ellipse used as input to masking
-        row["ELL0_SMA_ARCSEC"] = sma_arcsec
-        row["ELL0_BA"] = ba
-        row["ELL0_PA_DEG"] = pa_deg
-        row["ELL0_XC"] = xc
-        row["ELL0_YC"] = yc
-        row["ELL0_SOURCE"] = "mask_params.json" if params_path.exists() else "args"
 
         #row["sma_arcsec"] = sma_arcsec
         #row["ba"] = ba
@@ -444,13 +640,12 @@ def main():
         write_prefix=prefix,
     )
 
-
     # ---- photometry summary (scalar-only; arrays stay in the photometry table files) ----
-    row["PHOT_SEC"] = time.perf_counter() - t0    
+    row["PHOT_SEC"] = _scalar(time.perf_counter() - t0)
     row["phot_ok"] = True
 
-    # ---- core ellipse / detection-derived quantities
-    for outk, attr in [
+    # ---- core ellipse / detection-derived quantities ----
+    FIELDS = [
         ("ELLIP_XCENTROID", "xcenter"),
         ("ELLIP_YCENTROID", "ycenter"),
         ("ELLIP_SMA_PIX", "sma"),
@@ -462,43 +657,45 @@ def main():
         ("R_FWHM", "fwhm"),
         ("R_SKYSTD_ADU", "sky_noise"),
         ("R_SKYMED_ADU", "sky"),
-        ("R_SKYERR", "im1_skynoise"),
-        ("M20_R", "M20_1"),
-        ("ASYM_R", "asym"),
-        ("ASYM_R_ERR", "asym_err"),
-    ]:
+        ("R_SKYSTD_PHYS", "im1_skynoise"),
+        ("R_M20", "M20_1"),
+        ("R_ASYM", "asym"),
+        ("R_ASYM_ERR", "asym_err"),
+        ]
+
+
+    for outk, attr in FIELDS:
+        v = getattr(e, attr, None)
+        sv = _scalar(v)
+        if sv is not None:
+            row[outk] = sv  # leave as np.nan if missing/array/etc.
+                
+    # JSON field (stable schema)
+    mf = getattr(e, "masked_fraction", None)
+    if mf is not None:
         try:
-            row[outk] = _scalar(getattr(e, attr))
-        except Exception:
-            pass
-
-    # Write masked_fraction as JSON (don’t use _scalar)
-    try:
-        mf = getattr(e, "masked_fraction", None)
-        if mf is not None:
             row["ELLIP_MASKED_FRACTION"] = json.dumps(mf)
-    except Exception:
-        pass
-
+        except TypeError:
+            # if mf contains numpy types etc.
+            row["ELLIP_MASKED_FRACTION"] = json.dumps(mf, default=_scalar)
+        
 
     # If image2 exists (e.g., continuum-sub / HA), capture analogous scalars
-    try:
-        if getattr(e, "image2", None) is not None:
-            for outk, attr in [
+    FIELDS2 = [
                 ("H_SKYSTD_ADU", "sky_noise2"),
                 ("H_SKYMED_ADU", "sky2"),
-                ("H_SKYERR", "im2_skynoise"),
-                ("M20_H", "M20_2"),
-                ("ASYM_H", "asym2"),
-                ("ASYM_H_ERR", "asym2_err"),
-            ]:
-                try:
-                    row[outk] = _scalar(getattr(e, attr))
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                ("H_SKYSTD_PHYS", "im2_skynoise"),
+                ("H_M20", "M20_2"),
+                ("H_ASYM", "asym2"),
+                ("H_ASYM_ERR", "asym2_err"),
+            ]
 
+    if getattr(e, "image2", None) is not None:
+        for outk, attr in FIELDS2:
+            v = getattr(e, attr, None)
+            sv = _scalar(v)
+            if sv is not None:
+                row[outk] = sv
 
     # compute difference between input ellipse and photutils ellipse
     def _angle_diff_deg(a, b):
@@ -565,14 +762,14 @@ def main():
                 pass
 
     try:
-        _pull_statmorph("SM_R", getattr(e, "morph", None))
-        row["SM_R_FLAG"] = _scalar(getattr(e, "statmorph_flag", None))
+        _pull_statmorph("R_SM", getattr(e, "morph", None))
+        row["R_SM_FLAG"] = _scalar(getattr(e, "statmorph_flag", None))
     except Exception:
         pass
 
     try:
-        _pull_statmorph("SM_H", getattr(e, "morph2", None))
-        row["SM_H_FLAG"] = _scalar(getattr(e, "statmorph_flag2", None))
+        _pull_statmorph("H_SM", getattr(e, "morph2", None))
+        row["H_SM_FLAG"] = _scalar(getattr(e, "statmorph_flag2", None))
     except Exception:
         pass
 
@@ -604,7 +801,7 @@ def main():
             galname=galname,
             image=r_fits,
             sigma_image=sigma_image,
-            psf_image=psf_image,
+            psf_image=str(psf_path),
             psf_oversampling=args.psf_oversampling,
             mask_image=mask_fits,
             xminfit=xminfit,
@@ -632,20 +829,21 @@ def main():
         row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
         row["GAL_NC_OK"] = not meta_nc["unstable"]
 
-        # --- Convolution (init from NC) ---
-        init_cv = dict(
-            xobj=_scalar(res_nc.comp1.xc), yobj=_scalar(res_nc.comp1.yc),
-            mag=_scalar(res_nc.comp1.mag), rad=_scalar(res_nc.comp1.re),
-            nsersic=_scalar(res_nc.comp1.n), BA=_scalar(res_nc.comp1.ba), PA=_scalar(res_nc.comp1.pa),
-            first_time=0,
-            )
-        res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True)
-        _store_galfit(row, res_cv, "GAL_C")
-        row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
-        row["GAL_CV_OK"] = not meta_cv["unstable"]
+        if psf_ok:
+            # --- Convolution (init from NC) ---
+            init_cv = dict(
+                xobj=_scalar(res_nc.comp1.xc), yobj=_scalar(res_nc.comp1.yc),
+                mag=_scalar(res_nc.comp1.mag), rad=_scalar(res_nc.comp1.re),
+                nsersic=_scalar(res_nc.comp1.n), BA=_scalar(res_nc.comp1.ba), PA=_scalar(res_nc.comp1.pa),
+                first_time=0,
+                )
+            res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True)
+            _store_galfit(row, res_cv, "GAL_C")
+            row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
+            row["GAL_CV_OK"] = not meta_cv["unstable"]
 
-        row["GALFIT_SEC"] = time.perf_counter() - t0
-        row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
+            row["GALFIT_SEC"] = time.perf_counter() - t0
+            row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
 
         
         write_result_row_ecsv(results_path, row)
