@@ -341,12 +341,12 @@ class GalaxyCatalog():
         self.BA[~noradius_flag] = ephot['BA_MOMENT'][~noradius_flag]
         self.PA[~noradius_flag] = ephot['PA_MOMENT'][~noradius_flag]
 
-        # convert SGA position angle to standard astronomy convention
-
+        # convert SGA position angle (CCW from +x axis) to standard astronomy convention
         # Standard internal PA convention:
         # PA_DEG = position angle in degrees, measured CCW from North.
         # Ellipse periodicity: [0, 180)
-        self.PA_DEG = (-self.PA) %180. # ccw from N
+        #self.PA_DEG = (-self.PA) %180. # ccw from N
+        self.PA_DEG = self.PA # ccw from N - PA moment is CCW from N
         
         self.RA = self.cat['RA']
         self.DEC = self.cat['DEC']        
@@ -369,7 +369,7 @@ class GalaxyCatalog():
         
         self.BA[~noradius_flag] = self.cat['b'][~noradius_flag]/self.cat['a'][~noradius_flag]
 
-        self.PA[~noradius_flag] = self.cat['posang'][~noradius_flag]
+        self.PA[~noradius_flag] = self.cat['posang'][~noradius_flag] # seems like agc has a -1 offset relative to what I am expecting
         
         self.RA = self.cat['RA']
         self.DEC = self.cat['DEC']
@@ -381,4 +381,4 @@ class GalaxyCatalog():
         # PA_DEG = position angle in degrees, measured CCW from North.
         # Ellipse periodicity: [0, 180)
         
-        self.PA_DEG = self.PA % 180.0 # ccw from N
+        self.PA_DEG = self.PA#  ccw from N

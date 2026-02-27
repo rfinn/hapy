@@ -10,6 +10,11 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+
+from hapy.imagetools.plotting import display_image
+from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta
+#from hapy.geometry.adapters import pa_ccw_north_to_photutils
+
 """
 USAGE:
 python ~/github/hapy/scripts/plot_mask_diagnostic.py --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012
@@ -17,6 +22,7 @@ python ~/github/hapy/scripts/plot_mask_diagnostic.py --root cutouts/VFID3084-NGC
 """
 
 def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
+    # matplotlib Ellipse needs angle relative to +x axis
     return Ellipse(
         (xc, yc),
         width=2 * sma_pix,
@@ -51,14 +57,17 @@ def main():
     pixscale = float(r_hdr.get("PIXSCALE", 0.426))  # fallback if needed
     sma_pix = params["sma_arcsec"] / pixscale
 
+    theta_photutils = pa_ccw_north_to_photutils_theta(float(params["pa_deg"]))
+    print(f"checking PA angles: pa_deg from metadata = {float(params['pa_deg']):.1f}, theta_photutils = {theta_photutils:.1f}")
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-
-    ax[0].imshow(r_data, origin="lower")
-    ax[0].add_patch(ellipse_patch(xc, yc, sma_pix, params["ba"], params["pa_deg"], edgecolor="cyan", linewidth=2))
+    plt.sca(ax[0])
+    display_image(r_data)
+    #ax[0].imshow(r_data, origin="lower")
+    ax[0].add_patch(ellipse_patch(xc, yc, sma_pix, params["ba"], theta_photutils, edgecolor="cyan", linewidth=2))
     ax[0].set_title("R Image")
 
     ax[1].imshow(m_data, origin="lower")
-    ax[1].add_patch(ellipse_patch(xc, yc, sma_pix, params["ba"], params["pa_deg"], edgecolor="cyan", linewidth=2))
+    ax[1].add_patch(ellipse_patch(xc, yc, sma_pix, params["ba"], theta_photutils, edgecolor="cyan", linewidth=2))
     ax[1].set_title("Mask")
 
     plt.tight_layout()

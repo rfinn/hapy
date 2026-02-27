@@ -70,7 +70,7 @@ from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.masktools.api import MaskEngine, EllipseParams
 from hapy.hatools.results import write_result_row_ecsv
-
+from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta
 
 def _default_sex_config() -> str:
     # hapy/astromatic/default.sex.HDI.mask (adjust if package name differs)
@@ -528,7 +528,7 @@ def main():
         except Exception:
             pass
 
-    # -- let use input an ellipse geometry that is different from what is in metadata.json
+    # -- let user input ellipse geometry that is different from what is in metadata.json
     if args.sma_arcsec is not None and args.ba is not None and args.pa_deg is not None:
         sma_arcsec = float(args.sma_arcsec)
         ba = float(args.ba)
@@ -549,7 +549,7 @@ def main():
     # --- Store the initial ellipse used as input to masking
     row["ELL0_SMA_ARCSEC"] = sma_arcsec
     row["ELL0_BA"] = ba
-    row["ELL0_PA_DEG"] = pa_deg # CCW from N
+    row["ELL0_PA_DEG"] = pa_deg # CCW from N, where N is +y axis, and W is +x axis
     row["ELL0_XC"] = xc
     row["ELL0_YC"] = yc
     row["ELL0_SOURCE"] = "metadata.json" if params_path.exists() else "args"
@@ -594,7 +594,7 @@ def main():
             yc=yc,
             sma_pix=sma_pix,
             ba=ba,
-            pa_deg=theta_deg,
+            theta_deg=theta_deg,
         )
         engine = MaskEngine(
             image_fits=r_fits,
