@@ -1,5 +1,6 @@
 ## Make Cutouts
 
+### Running on VFS-Halpha coadds
 ```
 python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
 ```
