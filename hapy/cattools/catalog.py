@@ -340,6 +340,13 @@ class GalaxyCatalog():
         
         self.BA[~noradius_flag] = ephot['BA_MOMENT'][~noradius_flag]
         self.PA[~noradius_flag] = ephot['PA_MOMENT'][~noradius_flag]
+
+        # convert SGA position angle to standard astronomy convention
+
+        # Standard internal PA convention:
+        # PA_DEG = position angle in degrees, measured CCW from North.
+        # Ellipse periodicity: [0, 180)
+        self.PA_DEG = (-self.PA) %180. # ccw from N
         
         self.RA = self.cat['RA']
         self.DEC = self.cat['DEC']        
@@ -365,5 +372,13 @@ class GalaxyCatalog():
         self.PA[~noradius_flag] = self.cat['posang'][~noradius_flag]
         
         self.RA = self.cat['RA']
-        self.DEC = self.cat['DEC']        
+        self.DEC = self.cat['DEC']
+        # keep track of AGC galaxies with no prior shape information
+        # we may want to run photutils on these.
+        self.noradius_flag =noradius_flag
+
+        # Standard internal PA convention:
+        # PA_DEG = position angle in degrees, measured CCW from North.
+        # Ellipse periodicity: [0, 180)
         
+        self.PA_DEG = self.PA % 180.0 # ccw from N

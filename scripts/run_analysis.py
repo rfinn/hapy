@@ -507,7 +507,7 @@ def main():
     # --- Get ellipse parameters ---    
     sma_arcsec = float(params["sma_arcsec"])
     ba = float(params["ba"])
-    pa_deg = float(params["pa_deg"])
+    pa_deg = float(params["pa_deg"]) # CCW from N, from input catalog
     #xc = float(params["xc"])
     #yc = float(params["yc"])    
 
@@ -549,7 +549,7 @@ def main():
     # --- Store the initial ellipse used as input to masking
     row["ELL0_SMA_ARCSEC"] = sma_arcsec
     row["ELL0_BA"] = ba
-    row["ELL0_PA_DEG"] = pa_deg
+    row["ELL0_PA_DEG"] = pa_deg # CCW from N
     row["ELL0_XC"] = xc
     row["ELL0_YC"] = yc
     row["ELL0_SOURCE"] = "metadata.json" if params_path.exists() else "args"
@@ -587,12 +587,14 @@ def main():
         # --- Convert to pixels ---
         sma_pix = sma_arcsec / pixscale
 
+        # convert CCW from N angle to photutils CCW from +x
+        theta_deg = pa_ccw_north_to_photutils_theta(pa_deg)
         galaxy_ellipse = EllipseParams(
             xc=xc,
             yc=yc,
             sma_pix=sma_pix,
             ba=ba,
-            pa_deg=pa_deg,
+            pa_deg=theta_deg,
         )
         engine = MaskEngine(
             image_fits=r_fits,

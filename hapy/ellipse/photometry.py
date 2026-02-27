@@ -46,9 +46,9 @@ from photutils.morphology import gini
 from hapy.imagetools import imutils
 
 from hapy.hatools import morphology as morph
-
+from hapy.geometry.adapters import pa_ccw_north_deg_to_photutils_theta_rad
 # This overwrites the photutils task
-from .adapters import EllipseGeometry as adapters_EllipseGeometry
+from hapy.geometry.adapters import EllipseGeometry as adapters_EllipseGeometry
 #import .adapters
 
 ## filter information
@@ -472,12 +472,11 @@ class EllipsePhotometry():
         #print('THETA inside phot wrapper',THETA, BA)
         self.b = BA*self.sma
         self.eps = 1 - BA
-        #print(self.b,self.eps,self.sma,BA)
-        t = THETA
-        if t < 0:
-            self.theta = np.radians(180. + t)
-        else:
-            self.theta = np.radians(t) # orientation in radians
+
+        # THETA is galfit version - convert to photutils
+        self.theta = pa_deg_ccw_from_north_to_photutils_theta_rad(THETA)
+
+        # replace sith 
         # EllipticalAperture gives rotation angle in radians from +x axis, CCW
         self.aperture = EllipticalAperture(self.position, self.sma, self.b, theta=self.theta)
         # EllipseGeometry using angle in radians, CCW from +x axis
@@ -1066,8 +1065,8 @@ class EllipsePhotometry():
         #self.ycenter = obj.ycentroid.value
 
         if not self.fixcenter:
-            self.xcenter = obj.xcentroid
-            self.ycenter = obj.ycentroid
+            self.xcenter = float(obj.xcentroid)
+            self.ycenter = float(obj.ycentroid)
 
 
         #if self.objra is not None:
@@ -1086,12 +1085,9 @@ class EllipsePhotometry():
         self.sky_centroid = obj.sky_centroid
         # orientation is angle in radians, CCW relative to +x axis
         t = obj.orientation.value
-        #print('inside get_ellipse_guess, orientation = ',obj.orientation)
-        if t < 0: # convert to positive angle wrt +x axis
-            self.theta = np.pi+obj.orientation.to(u.rad).value
-        else:
-            self.theta = obj.orientation.to(u.rad).value # orientation in radians
-        # EllipticalAperture gives rotation angle in radians from +x axis, CCW
+        # orientation: radians CCW from +x axis (photutils-style)
+        theta = float(obj.orientation.to(u.rad).value)
+        self.theta = theta % np.pi
         try:
             self.aperture = EllipticalAperture(self.position, self.sma, self.b, theta=self.theta)
         except ValueError:
@@ -1243,7 +1239,7 @@ class EllipsePhotometry():
         '''
 
         # TODO - update apertures to make use of input apertures
-        index = np.arange(80) # why do we need 80 apertures???
+        index = np.arange(80,4) # why do we need 80 apertures???
         apertures = (index+1)*.5*self.fwhm*(1+(index+1)*.1)
         #apertures = (index+1)*self.fwhm*(1+(index+1)*.1)
         # cut off apertures at edge of image

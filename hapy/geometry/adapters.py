@@ -17,12 +17,6 @@ class EllipseGeometry:
     sky: Optional[float] = None
 
 
-def galfit_pa_to_photutils_pa(pa_galfit_deg: float) -> float:
-    """
-    Convert GALFIT PA (deg CCW from +y) -> photutils PA (deg CCW from +x).
-    """
-    return float((90.0 - pa_galfit_deg) % 360.0)
-
 
 def geometry_from_galfit(
     res: GalfitResult,
@@ -55,10 +49,42 @@ def geometry_from_galfit(
     )
 
 
-def galfit_pa_to_photutils_pa(pa_galfit_deg: float) -> float:
-    # +y -> +x
-    return (90.0 - pa_galfit_deg) % 360.0
+def pa_ccw_north_deg_to_photutils_theta_rad(pa_deg):
+    """
+    Convert standard internal PA convention to photutils theta.
 
-def photutils_pa_to_galfit_pa(pa_phot_deg: float) -> float:
-    # +x -> +y
-    return (90.0 - pa_phot_deg) % 360.0
+    Internal convention:
+      PA_DEG = CCW from North (+y), degrees, periodic over 180 deg.
+
+    Photutils convention:
+      theta = radians CCW from +x axis.
+
+    Assumes image axes: +x=East, +y=North.
+    """
+    if pa_deg is None:
+        return None
+    try:
+        pa = float(pa_deg)
+    except Exception:
+        return None
+    # map to [0, 180)
+    pa = pa % 180.0
+    theta_deg = (90.0 - pa) % 180.0
+    return np.deg2rad(theta_deg)
+
+def pa_ccw_north_to_photutils_theta(pa_deg: float) -> float:
+    """
+    Convert internal PA_DEG (deg CCW from North/+y) to photutils theta (deg CCW from +x).
+    Ellipse angles are 180-deg periodic.
+    """
+    return float((90.0 - pa_deg) % 180.0)
+
+
+def photutils_theta_to_pa_ccw_north(theta_deg: float) -> float:
+    """
+    Convert photutils theta (deg CCW from +x) to internal PA_DEG (deg CCW from North/+y).
+    """
+    return float((90.0 - theta_deg) % 180.0)
+
+
+

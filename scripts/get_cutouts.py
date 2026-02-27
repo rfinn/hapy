@@ -92,7 +92,7 @@ def main(args=None):
     gdec = gcat.DEC[gcat.keepflag]
     gradius = gcat.radius_arcsec[gcat.keepflag]
     gBA = gcat.BA[gcat.keepflag]
-    gPA = gcat.PA[gcat.keepflag]
+    gPA = gcat.PA_DEG[gcat.keepflag]
     galid = np.asarray(galid_full)[gcat.keepflag]
 
     rows = []
