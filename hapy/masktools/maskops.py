@@ -70,7 +70,7 @@ def remove_central_objects(mask, ellipse_params=None):
             yc = ellipse_params.yc
             a = ellipse_params.sma_pix
             b = ellipse_params.ba * a
-            phirad = np.radians(ellipse_params.pa_deg)
+            phirad = np.radians(ellipse_params.theta_deg)
         else:
             # set center of ellipse as the center of the image
             a = None
