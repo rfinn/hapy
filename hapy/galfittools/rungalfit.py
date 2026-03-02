@@ -248,16 +248,19 @@ class RunGalfit:
     def enable_convolution(self):
         self.convflag = True
     def create_output_names(self):
+        self.galfile=str(self.galname)+'-galfit.input.'+str(self.ncomp)+'Comp'            
         if self.asymmetry:
             output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-asym.fits'
+            self.galfile += '-asym'
         elif self.convflag:
-            output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-conv.fits'            
+            output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-conv.fits'
+            self.galfile += '-conv'            
         else:
             output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out.fits'
 
         self.output_image=output_image
         # create galfit input file
-        self.galfile=str(self.galname)+'-galfit.input.'+str(self.ncomp)+'Comp'
+
 
 
     def open_galfit_input(self):
