@@ -818,16 +818,16 @@ def main():
         convflag = bool(args.convflag)
 
         # set convolution box size
-        nconvolution_scale
+        nconvolution_scale = 20
         if params['himage_fwhm_pixels'] is not None:
-            convolution_size = 20 * float(params['himage_fwhm_pixels'])
+            convolution_size = nconvolution_scale * float(params['himage_fwhm_pixels'])
         elif params['rimage_fwhm_arcsec'] is not None:
-            convolution_size = 20 * float(params['rimage_fwhm_arcsec'])
+            convolution_size = nconvolution_scale * float(params['rimage_fwhm_arcsec'])
         else:
             # set to the number of pixels with
             # assume seeing = 2 arcsec, and 0.4"/pixels
             print("no FWHM for in metadata.json - assuming 2 arcsec")
-            convolution_size = 20 * 2/0.4
+            convolution_size = nconvolution_scale * 2/0.4
 
         convolution_size = min(convolution_size, nx)
         rg = RunGalfit(
