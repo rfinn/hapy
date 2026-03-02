@@ -473,8 +473,8 @@ class RunGalfit:
         try:
             proc = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                #stdout=subprocess.PIPE,
+                #stderr=subprocess.PIPE,
                 text=True,
                 check=False,  # we handle returncode ourselves for better logging
             )
@@ -489,7 +489,7 @@ class RunGalfit:
 
         # Save stdout/stderr to a per-run log file (very helpful for CV crashes)
         image_id = f"{self.galname}-"
-        #runlog = Path(f"{image_id}{self.ncomp}Comp-galfit.stdout_stderr.txt")
+        runlog = Path(f"{image_id}{self.ncomp}Comp-galfit.stdout_stderr.txt")
         #try:
         #    runlog.write_text(
         #        "COMMAND:\n"
