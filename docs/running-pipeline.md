@@ -42,6 +42,13 @@ To make use of `--cutout-dir` instead of `--root`:
 python ~/github/hapy/scripts/run_analysis.py --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --convflag 0 --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
 ```
 
+### Make diagnostic plot for a mask
+
+Here is one example of how to create the mask diagnostic plot (we will hard code this into `run_analysis.py` soon...)
+```python
+python ~/github/hapy/scripts/plot_mask_diagnostic.py --root cutouts/VFID1588-NGC5169-HDI-20170523-p023/VFID1588-NGC5169-HDI-20170523-p023
+```
+
 ### Running on a larger sample
 
 ```
@@ -69,3 +76,7 @@ parallel -0 -j 0 --joblog logs/joblog.tsv \
 ```
 
 # Merge Results
+
+```python
+python ~/github/hapy/scripts/merge_results.py --indir cutouts/
+```
