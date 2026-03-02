@@ -1239,7 +1239,7 @@ class EllipsePhotometry():
         '''
 
         # TODO - update apertures to make use of input apertures
-        index = np.arange(80,4) # why do we need 80 apertures???
+        index = np.arange(80) # why do we need 80 apertures???
         apertures = (index+1)*.5*self.fwhm*(1+(index+1)*.1)
         #apertures = (index+1)*self.fwhm*(1+(index+1)*.1)
         # cut off apertures at edge of image
@@ -1322,7 +1322,7 @@ class EllipsePhotometry():
         # first aperture is calculated differently
         self.sb1 = np.zeros(len(self.apertures_a),'f')
         self.sb1_err = np.zeros(len(self.apertures_a),'f')
-
+        print(f"DEBUG: len(apertures_a)={len(self.apertures_a)}, len(flux1)={len(self.flux1)}") 
         self.sb1[0] = self.flux1[0]/self.area[0]
         self.sb1_err[0] = self.get_noise_in_aper(self.flux1[0], self.area[0])/self.area[0]
         # outer apertures need flux from inner aperture subtracted
