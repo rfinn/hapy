@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 
 from hapy.galfittools.results import GalfitResult
-from hapy.hatools.types import EllipseParams
+from hapy.masktools.types import EllipseParams
 
 #@dataclass(frozen=True, slots=True)
 #class EllipseGeometry:
