@@ -878,7 +878,7 @@ def main():
                 row["GALFIT_SEC"] = time.perf_counter() - t0
                 row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
             except Exception as e:
-                logger.exception(f"GALFIT CV failed: {e}")
+                print(f"GALFIT CV failed: {e}")
                 row["GAL_CV_OK"] = False
                 # keep NC results, continue
         
