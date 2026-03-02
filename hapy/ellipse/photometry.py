@@ -48,7 +48,7 @@ from hapy.imagetools import imutils
 from hapy.hatools import morphology as morph
 from hapy.geometry.adapters import pa_ccw_north_deg_to_photutils_theta_rad
 # This overwrites the photutils task
-from hapy.geometry.adapters import EllipseGeometry as adapters_EllipseGeometry
+#from hapy.masktools.types import EllipseParams 
 #import .adapters
 
 ## filter information
