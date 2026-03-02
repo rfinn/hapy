@@ -862,7 +862,7 @@ def main():
         sma_pix = sma_arcsec / pixscale
         rad_init = max(sma_pix, 30)
         
-        init0 = dict(xobj=xc, yobj=yc, mag=15.0, rad=rad_init, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
+        init0 = dict(xobj=xc, yobj=yc, mag=10.0, rad=rad_init, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
 
         # --- No convolution ---
         res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False)
