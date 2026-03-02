@@ -817,7 +817,16 @@ def main():
         magzp = args.magzp if args.magzp is not None else float(hdr.get("PHOTZP", 25.0))
         convflag = bool(args.convflag)
 
-        
+        # set convolution box size
+        if params['himage_fwhm_pixels'] is not None:
+            convolution_size = 5 * float(params['himage_fwhm_pixels'])
+        elif params['rimage_fwhm_arcsec'] is not None:
+            convolution_size = 5 * float(params['rimage_fwhm_arcsec'])
+        else:
+            # set to the number of pixels with
+            # assume seeing = 2 arcsec, and 0.4"/pixels
+            convolution_size = 5 * 2/0.4
+
         rg = RunGalfit(
             galname=galname,
             image=r_fits,
@@ -829,7 +838,7 @@ def main():
             yminfit=yminfit,
             xmaxfit=xmaxfit,
             ymaxfit=ymaxfit,
-            convolution_size=min(nx, ny),
+            convolution_size=convolution_size, # this is the full image
             magzp=magzp,
             pscale=pscale,
             convflag=convflag,

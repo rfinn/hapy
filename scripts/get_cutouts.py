@@ -28,7 +28,8 @@ def main(args=None):
     parser.add_argument('--rimage', help='r-band image name')
     
     parser.add_argument('--psfdir', help='set to coadd directory')
-    parser.add_argument('--cutout_scale',type=float, default=2, help='multiplicative scale factor for increasing the size of cutout images')    
+    parser.add_argument('--cutout_scale',type=float, default=2, help='multiplicative scale factor for increasing the size of cutout images')
+    parser.add_argument('--overwrite_metadata',default=False, action='store_true', help='Set this to overwrite metadata.json.  Will store a *.bak file.')        
     parser.add_argument('--catalog',
                             help='full path to galaxy catalog to use for cutouts.  ')
     parser.add_argument('--outdir',  default='cutouts',
@@ -109,8 +110,7 @@ def main(args=None):
         # Write mask ellipse params for downstream masking
         cutdir = Path(rootname).parent
         params_path = cutdir / "metadata.json"
-        if not params_path.exists():
-            params = dict(
+        params = dict(
                 objid=str(galid[i]),
                 tag=Path(rootname).name,          # e.g., VFID3084-NGC3512-HDI-20200226-p012
                 root=str(rootname),              # full cutout root path
@@ -125,9 +125,21 @@ def main(args=None):
                 scheme=args.scheme,
                 parent_rimage=Path(args.rimage).name,
                 parent_haimage=Path(himage).name if himage else None,
+                hafilter=image_set.h.instrument if himage else None,
+                rimage_psf= image_set.r.psf_image_name,
+                himage_psf= image_set.h.psf_image_name if himage else None,                
+                rimage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.r.fwhm_arcsec is not None else None, 
+                rimage_fwhm_pixel= float(image_set.h.fwhm_pixels) if image_set.r.fwhm_pixels is not None else None,
+                himage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.h.fwhm_arcsec is not None else None, 
+                himage_fwhm_pixel= float(image_set.h.fwhm_pixels) if image_set.h.fwhm_pixels is not None else None,
+                cutout_scale = float(args.cutout_scale),
+                
 
-            )
-            params_path.write_text(json.dumps(params, indent=2))
+        )
+        if params_path.exists() and args.overwrite_metadata:
+            backup = params_path.with_suffix(".json.bak")
+            params_path.replace(backup)
+        params_path.write_text(json.dumps(params, indent=2))
 
         # commenting the next line for testing
         image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname)

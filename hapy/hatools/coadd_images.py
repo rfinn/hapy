@@ -63,9 +63,6 @@ class CoaddImage:
         else:
             self.weight_flag = False
             
-
-
-
     def check_for_psf(self, psfdir=None): # MVC - model
         """
         check for 
@@ -90,7 +87,16 @@ class CoaddImage:
     def get_filter(self):
         self.filter = self.header['FILTER']
     def get_target(self):
-        self.target = self.target['OBJECT']
+        self.target = self.header['OBJECT']
+    def get_fwhm(self):
+        try:
+            self.fwhm_arcsec = float(self.header['SEFWHM'])
+        except KeyError:
+            self.fwhm_arcsec = None
+        try:
+            self.fwhm_pixels = float(self.header['FWHM'])
+        except KeyError:
+            self.fwhm_pixels = None
 
         
     def make_cutout(self, ra, dec, size_arcsec, output_name=None):
@@ -158,7 +164,9 @@ class HalphaImageSet:
         self.h.get_instrument()
         self.h.get_filter()    
 
-
+        # get fwhm if
+        self.r.get_fwhm()
+        self.h.get_fwhm()        
     def get_cutout_all_filters(self, ra, dec, size_arcsec, rootname):
         
         t = self.r.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")
