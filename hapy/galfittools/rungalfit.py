@@ -488,19 +488,19 @@ class RunGalfit:
             return False
 
         # Save stdout/stderr to a per-run log file (very helpful for CV crashes)
-        image_id = f"{self.galname}-"
-        runlog = Path(f"{image_id}{self.ncomp}Comp-galfit.stdout_stderr.txt")
-        try:
-            runlog.write_text(
-                "COMMAND:\n"
-                + " ".join(cmd)
-                + "\n\nSTDOUT:\n"
-                + (proc.stdout or "")
-                + "\n\nSTDERR:\n"
-                + (proc.stderr or "")
-            )
-        except Exception:
-            pass
+        #image_id = f"{self.galname}-"
+        #runlog = Path(f"{image_id}{self.ncomp}Comp-galfit.stdout_stderr.txt")
+        #try:
+        #    runlog.write_text(
+        #        "COMMAND:\n"
+        #        + " ".join(cmd)
+        #        + "\n\nSTDOUT:\n"
+        #        + (proc.stdout or "")
+        #        + "\n\nSTDERR:\n"
+        #        + (proc.stderr or "")
+        #    )
+        #except Exception:
+        #    pass
 
         if proc.returncode != 0:
             print(f"GALFIT failed (returncode={proc.returncode}). See {runlog}")
