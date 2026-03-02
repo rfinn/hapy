@@ -829,7 +829,10 @@ def main():
             print("no FWHM for in metadata.json - assuming 2 arcsec")
             convolution_size = nconvolution_scale * 2/0.4
 
+        
         convolution_size = min(convolution_size, nx)
+        # going back to original convolutionsize
+        convolution_size = min(nx, ny)
         rg = RunGalfit(
             galname=galname,
             image=r_fits,
