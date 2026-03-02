@@ -366,6 +366,23 @@ def pick_psf_path_and_source(args, params):
 
     return None, ""
 
+def check_table(results_table):
+    # checking table
+    print()
+    print("CHECKING OUTPUT TABLE")
+    print()
+    from astropy.table import Table
+    t = Table.read(results_table, format="ascii.ecsv")
+    print(t.dtype)
+    print(t[0])
+
+    t.write("tmp.ecsv", format="ascii.ecsv", overwrite=True)
+    t2 = Table.read("tmp.ecsv", format="ascii.ecsv")
+    assert t.colnames == t2.colnames
+
+    for c in ["ELLIP_MASKED_FRACTION", "SM_R_FLAG", "SM_H_FLAG"]:
+        print(c, t[c].dtype, t[c][0])
+
 def main():
     p = argparse.ArgumentParser(description="Run headless analysis on one galaxy cutout set")
     p.add_argument("--root", help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
@@ -709,13 +726,15 @@ def main():
         phot_yc = float(row["ELLIP_YCENTROID"])
         phot_sma_pix = float(row["ELLIP_SMA_PIX"])
         phot_ba = 1.0 - float(row["ELLIP_EPS"])
-        phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+        #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+        phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
 
         dx = phot_xc - float(row["ELL0_XC"])
         dy = phot_yc - float(row["ELL0_YC"])
         dc = float(np.hypot(dx, dy))
 
         dba = abs(phot_ba - float(row["ELL0_BA"]))
+
         dpa = _angle_diff_deg(phot_pa_deg, float(row["ELL0_PA_DEG"]))
 
         row["ELL_DC_PX"] = dc
@@ -831,6 +850,8 @@ def main():
         row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
         row["GAL_NC_OK"] = not meta_nc["unstable"]
 
+        write_result_row_ecsv(results_path, row)
+        
         if psf_ok:
             # --- Convolution (init from NC) ---
             init_cv = dict(
@@ -839,14 +860,18 @@ def main():
                 nsersic=_scalar(res_nc.comp1.n), BA=_scalar(res_nc.comp1.ba), PA=_scalar(res_nc.comp1.pa),
                 first_time=0,
                 )
-            res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True)
-            _store_galfit(row, res_cv, "GAL_C")
-            row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
-            row["GAL_CV_OK"] = not meta_cv["unstable"]
+            try:
+                res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True)
+                _store_galfit(row, res_cv, "GAL_C")
+                row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
+                row["GAL_CV_OK"] = not meta_cv["unstable"]
 
-            row["GALFIT_SEC"] = time.perf_counter() - t0
-            row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
-
+                row["GALFIT_SEC"] = time.perf_counter() - t0
+                row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
+            except Exception as e:
+                logger.exception(f"GALFIT CV failed: {e}")
+                row["GAL_CV_OK"] = False
+                # keep NC results, continue
         
         write_result_row_ecsv(results_path, row)
     row["TOTAL_SEC"] = time.perf_counter() - t0_total
@@ -857,22 +882,7 @@ def main():
     print(f"Wrote results: {results_path}")
     return results_path
 
-def check_table(results_table):
-    # checking table
-    print()
-    print("CHECKING OUTPUT TABLE")
-    print()
-    from astropy.table import Table
-    t = Table.read(results_table, format="ascii.ecsv")
-    print(t.dtype)
-    print(t[0])
 
-    t.write("tmp.ecsv", format="ascii.ecsv", overwrite=True)
-    t2 = Table.read("tmp.ecsv", format="ascii.ecsv")
-    assert t.colnames == t2.colnames
-
-    for c in ["ELLIP_MASKED_FRACTION", "SM_R_FLAG", "SM_H_FLAG"]:
-        print(c, t[c].dtype, t[c][0])
         
 if __name__ == "__main__":
     results_table = main()

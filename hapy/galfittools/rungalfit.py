@@ -8,6 +8,11 @@ python wrapper to run galfit and parse results
 import os
 from dataclasses import dataclass, field
 from typing import Optional, List, Tuple, Dict
+
+from pathlib import Path
+import subprocess
+import shutil
+
 from astropy.io import fits
 
 from hapy.galfittools.results import GalfitComponent, GalfitResult
@@ -446,12 +451,98 @@ class RunGalfit:
             print('I think fitall is true, just sayin...')
             self.fitall()
         self.close_input_file()
+
+
+
+    def run_galfit(self, displayflag: bool = False):
+        """
+        Run GALFIT using subprocess, capture output, and rename outputs.
+
+        Sets:
+          self.galfit_flag = 1 on success, 0 on failure
+          self.galfit_log, self.galfit_out
+        """
+        self.write_input_file()
+
+        self.galfit_flag = 0  # pessimistic default
+
+        # GALFIT command
+        cmd = ["galfit", self.galfile]
+
+        # Run GALFIT
+        try:
+            proc = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,  # we handle returncode ourselves for better logging
+            )
+        except FileNotFoundError as e:
+            print("GALFIT executable not found (is it on PATH?)")
+            print(e)
+            return False
+        except Exception as e:
+            print("Unexpected error launching GALFIT")
+            print(e)
+            return False
+
+        # Save stdout/stderr to a per-run log file (very helpful for CV crashes)
+        image_id = f"{self.galname}-"
+        runlog = Path(f"{image_id}{self.ncomp}Comp-galfit.stdout_stderr.txt")
+        try:
+            runlog.write_text(
+                "COMMAND:\n"
+                + " ".join(cmd)
+                + "\n\nSTDOUT:\n"
+                + (proc.stdout or "")
+                + "\n\nSTDERR:\n"
+                + (proc.stderr or "")
+            )
+        except Exception:
+            pass
+
+        if proc.returncode != 0:
+            print(f"GALFIT failed (returncode={proc.returncode}). See {runlog}")
+            return False
+
+        # Verify outputs exist
+        fitlog_src = Path("fit.log")
+        out_src = Path("galfit.01")
+
+        if not out_src.exists():
+            print(f"GALFIT returned 0 but {out_src} is missing. See {runlog}")
+            return False
+
+        # Rename/copy outputs deterministically
+        self.galfit_log = f"{image_id}{self.ncomp}Comp-fit.log"
+        self.galfit_out = f"{image_id}{self.ncomp}Comp-galfit.01"
+
+        try:
+            if fitlog_src.exists():
+                shutil.move(str(fitlog_src), self.galfit_log)
+        except Exception as e:
+            print(f"Warning: could not move fit.log -> {self.galfit_log}: {e}")
+
+        try:
+            shutil.move(str(out_src), self.galfit_out)
+        except Exception as e:
+            print(f"GALFIT produced {out_src} but could not move to {self.galfit_out}: {e}")
+            return False
+
+        # Success
+        self.galfit_flag = 1
+
+        if displayflag:
+            self.display_results()
+        return True
+
         
-    def run_galfit(self,displayflag=False):
+    def run_galfit_old(self,displayflag=False):
         self.write_input_file()
         #print 'self.fitall = ',self.fitall
         s = 'galfit '+self.galfile
-        print('run the following: ',s)
+        #print('run the following: ',s)
 
 
         errno=os.system(s)
@@ -473,6 +564,32 @@ class RunGalfit:
         if displayflag:
             self.display_results()
 
+    def run_galfit_old(self,displayflag=False):
+        self.write_input_file()
+        #print 'self.fitall = ',self.fitall
+        s = 'galfit '+self.galfile
+        #print('run the following: ',s)
+
+
+        errno=os.system(s)
+        self.galfit_flag=1
+
+        image_id=str(self.galname)+'-'
+        self.galfit_log=image_id+str(self.ncomp)+'Comp-fit.log'
+        s='cp fit.log '+self.galfit_log
+        os.system(s)
+        self.galfit_out=image_id+str(self.ncomp)+'Comp'+'-galfit.01'
+        s='mv galfit.01 '+self.galfit_out
+        try:
+            os.rename('galfit.01',self.galfit_out)
+        except:
+            print("appears like galfit did not complete")
+            #galflag[j]=0
+            self.galfit_flag=0
+            return
+        if displayflag:
+            self.display_results()
+            
 
     def fitall(self,mindistance=8):
         os.system('cp '+homedir+'research/LocalClusters/sextractor/default.param .')
@@ -600,6 +717,16 @@ class RunGalfit:
         self.constraintflag=not(self.constraintflag)
         
     def run_and_parse(self) -> GalfitResult:
-        self.run_galfit()
-        return parse_galfit_results_dc(self.output_image, ncomp=self.ncomp, asymflag=self.asymmetry)
-    
+        runok = self.run_galfit()
+
+
+        if not ok:
+            runlog = getattr(self, "galfit_runlog", None)
+            msg = f"GALFIT failed for {getattr(self, 'galname', '')} (ncomp={self.ncomp})"
+            if runlog:
+                msg += f"; see {runlog}"
+            raise RuntimeError(msg)
+
+        if not Path(self.output_image).exists():
+            raise RuntimeError(f"GALFIT reported success but output_image missing: {self.output_image}")
+        return parse_galfit_results_dc(self.output_image,ncomp=self.ncomp,asymflag=self.asymmetry,)
