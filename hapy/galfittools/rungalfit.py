@@ -488,7 +488,7 @@ class RunGalfit:
             return False
 
         # Save stdout/stderr to a per-run log file (very helpful for CV crashes)
-        #image_id = f"{self.galname}-"
+        image_id = f"{self.galname}-"
         #runlog = Path(f"{image_id}{self.ncomp}Comp-galfit.stdout_stderr.txt")
         #try:
         #    runlog.write_text(
