@@ -434,7 +434,7 @@ class RunGalfit:
     def write_input_file(self):
         self.create_output_names()
         self.open_galfit_input()
-        print('in rungalfit.run_galfit, self.psf_image = ',self.psf_image)
+        #print('in rungalfit.run_galfit, self.psf_image = ',self.psf_image)
         
         self.write_image_params()
                 
@@ -714,13 +714,14 @@ class RunGalfit:
         self.fitcenter=not(self.fitcenter)
 
     def add_constraint_file(self):
+        
         self.constraintflag=not(self.constraintflag)
         
     def run_and_parse(self) -> GalfitResult:
         runok = self.run_galfit()
 
 
-        if not ok:
+        if not runok:
             runlog = getattr(self, "galfit_runlog", None)
             msg = f"GALFIT failed for {getattr(self, 'galname', '')} (ncomp={self.ncomp})"
             if runlog:

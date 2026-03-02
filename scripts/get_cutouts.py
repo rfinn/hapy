@@ -129,9 +129,9 @@ def main(args=None):
                 rimage_psf= image_set.r.psf_image_name,
                 himage_psf= image_set.h.psf_image_name if himage else None,                
                 rimage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.r.fwhm_arcsec is not None else None, 
-                rimage_fwhm_pixel= float(image_set.h.fwhm_pixels) if image_set.r.fwhm_pixels is not None else None,
+                rimage_fwhm_pixels= float(image_set.h.fwhm_pixels) if image_set.r.fwhm_pixels is not None else None,
                 himage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.h.fwhm_arcsec is not None else None, 
-                himage_fwhm_pixel= float(image_set.h.fwhm_pixels) if image_set.h.fwhm_pixels is not None else None,
+                himage_fwhm_pixels= float(image_set.h.fwhm_pixels) if image_set.h.fwhm_pixels is not None else None,
                 cutout_scale = float(args.cutout_scale),
                 
 
