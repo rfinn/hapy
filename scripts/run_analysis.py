@@ -832,7 +832,7 @@ def main():
         
         convolution_size = min(convolution_size, nx)
         # going back to original convolutionsize
-        convolution_size = min(nx, ny)
+        #convolution_size = min(nx, ny)
         rg = RunGalfit(
             galname=galname,
             image=r_fits,
@@ -857,7 +857,12 @@ def main():
 
         #xc = nx / 2
         #yc = ny / 2
-        init0 = dict(xobj=xc, yobj=yc, mag=15.0, rad=10.0, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
+
+        # try to get a more sensible initial radius for galfit
+        sma_pix = sma_arcsec / pixscale
+        rad_init = max(sma_pix, 30)
+        
+        init0 = dict(xobj=xc, yobj=yc, mag=15.0, rad=rad_init, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
 
         # --- No convolution ---
         res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False)
