@@ -84,7 +84,7 @@ def photutils_theta_to_pa_ccw_north(theta_deg: float) -> float:
     """
     Convert photutils theta (deg CCW from +x) to internal PA_DEG (deg CCW from North/+y).
     """
-    return float((90.0 - theta_deg) % 180.0)
+    return float((90.0 + theta_deg) % 180.0)
 
 
 

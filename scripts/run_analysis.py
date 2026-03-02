@@ -70,7 +70,7 @@ from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.masktools.api import MaskEngine, EllipseParams
 from hapy.hatools.results import write_result_row_ecsv
-from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta
+from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
 
 def _default_sex_config() -> str:
     # hapy/astromatic/default.sex.HDI.mask (adjust if package name differs)
@@ -716,18 +716,56 @@ def main():
             if sv is not None:
                 row[outk] = sv
 
-    # compute difference between input ellipse and photutils ellipse
-    def _angle_diff_deg(a, b):
-        d = (a - b + 90.0) % 180.0 - 90.0
-        return abs(d)
+ 
 
+    phot_xc = float(row["ELLIP_XCENTROID"])
+    phot_yc = float(row["ELLIP_YCENTROID"])
+    phot_sma_pix = float(row["ELLIP_SMA_PIX"])
+    phot_ba = 1.0 - float(row["ELLIP_EPS"])
+    #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+    #phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
+
+    # ELLIP_THETA_RAD measured from +x axis
+    phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+    phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
+
+    dx = phot_xc - float(row["ELL0_XC"])
+    dy = phot_yc - float(row["ELL0_YC"])
+    dc = float(np.hypot(dx, dy))
+
+    dba = abs(phot_ba - float(row["ELL0_BA"]))
+
+    dpa = phot_pa_deg - float(row["ELL0_PA_DEG"])
+
+    row["ELL_DC_PX"] = dc
+    row["ELL_DBA"] = float(dba)
+    row["ELL_DPA_DEG"] = float(dpa)
+
+    # size ratio: prefer arcsec if pixscale known, else pixels
+    if "pixscale" in locals() and pixscale:
+        phot_sma_arcsec = phot_sma_pix * float(pixscale)
+        row["ELL_SMA_RATIO"] = phot_sma_arcsec / float(row["ELL0_SMA_ARCSEC"])
+    else:
+        # fallback: compare in pixels if you have ELL0_SMA_ARCSEC only -> skip ratio
+        row["ELL_SMA_RATIO"] = np.nan
+
+    sma_ratio = row["ELL_SMA_RATIO"]
+    row["ELL_MISMATCH"] = bool(
+        (dc > 10.0) or (dba > 0.2) or (np.abs(dpa) > 10.0)
+        #or (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
+        )
+        
     try:
         phot_xc = float(row["ELLIP_XCENTROID"])
         phot_yc = float(row["ELLIP_YCENTROID"])
         phot_sma_pix = float(row["ELLIP_SMA_PIX"])
         phot_ba = 1.0 - float(row["ELLIP_EPS"])
         #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-        phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
+        #phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
+
+        # ELLIP_THETA_RAD measured from +x axis
+        phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+        phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
 
         dx = phot_xc - float(row["ELL0_XC"])
         dy = phot_yc - float(row["ELL0_YC"])
@@ -735,7 +773,7 @@ def main():
 
         dba = abs(phot_ba - float(row["ELL0_BA"]))
 
-        dpa = _angle_diff_deg(phot_pa_deg, float(row["ELL0_PA_DEG"]))
+        dpa = phot_pa_deg - float(row["ELL0_PA_DEG"])
 
         row["ELL_DC_PX"] = dc
         row["ELL_DBA"] = float(dba)
@@ -751,8 +789,8 @@ def main():
 
         sma_ratio = row["ELL_SMA_RATIO"]
         row["ELL_MISMATCH"] = bool(
-            (dc > 5.0) or (dba > 0.2) or (dpa > 25.0) or
-            (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
+            (dc > 10.0) or (dba > 0.2) or (np.abs(dpa) > 10.0)
+            #or (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
             )
     except Exception:
         # if any missing keys, just don't set mismatch fields
