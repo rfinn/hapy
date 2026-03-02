@@ -250,6 +250,8 @@ class RunGalfit:
     def create_output_names(self):
         if self.asymmetry:
             output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-asym.fits'
+        elif self.convflag:
+            output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-conv.fits'            
         else:
             output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out.fits'
 
