@@ -73,7 +73,7 @@ from matplotlib import patches
 #from maskGui import Ui_maskWindow
 from hapy.maskgui.maskWidget import Ui_Form as Ui_maskWindow
 from hapy.hagui.cutout_window import CutoutImage
-from hapy.imagetools.imutils import circle_pixels
+from hapy.masktools.maskops import circle_pixels
 # import gaia function to get stars within region
 from hapy.masktools.gaia import gaia_stars_in_rectangle
 
