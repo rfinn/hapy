@@ -835,13 +835,13 @@ def main():
 
     try:
         _pull_statmorph("R_SM", getattr(e, "morph", None))
-        row["R_SM_FLAG"] = getattr(e, "statmorph_flag", False)
+        row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
     except Exception:
         pass
 
     try:
         _pull_statmorph("H_SM", getattr(e, "morph2", None))
-        row["H_SM_FLAG"] = getattr(e, "statmorph_flag2", False)
+        row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
     except Exception:
         pass
 
