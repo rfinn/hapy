@@ -675,9 +675,9 @@ def main():
 
     
     # pixel scale
-    pixscale = args.pixscale
-    if pixscale is None:
-        pixscale = get_pixel_scale_from_filename(r_fits)
+    #pixscale = args.pixscale
+    #if pixscale is None:
+    pixscale = get_pixel_scale_from_filename(r_fits)
 
 
     # --- Load cutout image for WCS + shape ---
