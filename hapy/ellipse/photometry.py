@@ -1156,8 +1156,11 @@ class EllipsePhotometry():
                 apertures.append(EllipticalAperture((iso.x0,iso.y0),iso.sma, iso.sma*(1-iso.eps), theta = np.degrees(iso.pa)))
             for aperture in apertures:
                 aperture.plot(color='white',lw=1.5)
+        plt.title(os.path.basename(self.image_name).replace('.fits',''))
         plt.show()
-        #plt.close()
+        
+        
+        plt.close()
     def show_seg_aperture(self,plotname=None):
         ''' matplotlib plotting to show apertures   '''
         tbl1 = self.cat.to_table()
@@ -1681,6 +1684,7 @@ class EllipsePhotometry():
             
         for aperture in apertures:
             aperture.plot(color='white',lw=1.5)
+        plt.title(os.path.basename(self.image_name).split('.fits')[0])
         plt.savefig(self.image_name.split('.fits')[0]+'_phot_apertures.png')
     def plot_profiles(self):
         ''' enclosed flux and surface brightness profiles, save figure '''
