@@ -72,7 +72,7 @@ from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
 from hapy.masktools.api import MaskEngine, EllipseParams
-from hapy.masktools.type import build_ell0_from_metadata
+#from hapy.masktools.types import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
 
@@ -341,11 +341,12 @@ def initialize_result_row():
     row["GALNAME"] = ""   # e.g., "NGC3512" (optional but handy)
 
     # removing these
-    not_needed = ["R_FITS", "CS_FITS","SIGMA_FITS"]
+    not_needed = ["R_FITS", "CS_FITS"]
     # ---------- identity ----------
     for k in [
         "OBJID", "TAG", "ROOT",
          "MASK_FITS","PSF_FITS",
+         "R_FITS", "CS_FITS","SIGMA_FITS"
             ]:
         row[k] = ""
         
@@ -353,7 +354,7 @@ def initialize_result_row():
 
     row["PSF_SOURCE"] = ""   # "cli" | "psf_dir" | ""
 
-    @row["GAL_NC_OK"] = False    
+    row["GAL_NC_OK"] = False    
     # ---------- pipeline status ----------
     for k in ["MASK_OK", "PHOT_OK", "PSF_OK", "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
         row[k] = False
@@ -501,22 +502,22 @@ def check_table(results_table):
 
 def main():
     p = argparse.ArgumentParser(description="Run headless analysis on one galaxy cutout set")
-    p.add_argument("--root", help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
-    p.add_argument("--cutout-dir", default=None, help="Cutout directory containing the root basename (optional).  Example --cutout-dir VFID3084-NGC3512-HDI-20200226-p012.  This will construct the root filename as cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.")    
+    #p.add_argument("--root", help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
+    p.add_argument("--cutout-dir", required=True, default=None, help="Cutout directory (e.g. survey_run/cutouts/<tag>)")    
     p.add_argument("--r", dest="r_fits", default=None, help="Override R-band FITS path")
     p.add_argument("--cs", dest="cs_fits", default=None, help="Override CS FITS path")
     p.add_argument("--mask", dest="mask_fits", default=None, help="Override mask FITS path")
 
     # photometry knobs (passed through)
-    p.add_argument("--image2-filter", dest="image2_filter", default=None)
+    p.add_argument("--image2-filter", dest="image2_filter", default=None, help="Override value in metadata.json")
 
-    p.add_argument("--filter-ratio", dest="filter_ratio", type=float, default=None)
-    p.add_argument("--objra", type=float, default=None)
-    p.add_argument("--objdec", type=float, default=None)
+    p.add_argument("--filter-ratio", dest="filter_ratio", type=float, default=None, help="Override value in metadata.json")
+    p.add_argument("--objra", type=float, default=None, help="Override value in metadata.json")
+    p.add_argument("--objdec", type=float, default=None, help="Override value in metadata.json")
     p.add_argument("--fixcenter", action="store_true")
     p.add_argument("--statmorph", action="store_true")
 
-    p.add_argument("--prefix", default=None, help="Output prefix tag (default: root basename)")
+    #p.add_argument("--prefix", default=None, help="Output prefix tag (default: root basename)")
     p.add_argument("--no-plots", dest="no_plots", action="store_true", help="Skip profile/diagnostic plots")
     p.add_argument("--diagnostic-plots", dest="diagnostic_plots", action="store_true", help="Plot r image, mask, input ellipse and phot ellipse.")    
 
@@ -524,11 +525,11 @@ def main():
     p.add_argument("--make-mask", action="store_true", help="Build/write mask before photometry/galfit")
     p.add_argument("--sepath", default="sex")
     p.add_argument("--gaiapath", default=None)
-    p.add_argument("--sex-config", dest="sex_config", default=_default_sex_config(), help="SExtractor config file path (default: hapy/astromatic/default.sex.HDI.mask)")
+    p.add_argument("--seconfig", default=_default_sex_config(), help="SExtractor config file path (default: hapy/astromatic/default.sex.HDI.mask)")
     
-    p.add_argument("--threshold", type=float, default=0.005)
-    p.add_argument("--snr", type=float, default=10.0)
-    p.add_argument("--minarea", type=int, default=5)
+    p.add_argument("--sethreshold", type=float, default=0.005, help="SExtractor deblending threshold to use when making mask.Default is 0.005")
+    p.add_argument("--sesnr", type=float, default=10.0, help="SExtractor SNR to use when making mask.  Default is 10.")
+    p.add_argument("--seminarea", type=int, default=5, help="SExtractor min object area to use when making mask.  Default is 5.")
     p.add_argument("--no-gaia", dest="no_gaia", action="store_true", help="Disable Gaia star masking")
     p.add_argument("--pixscale", type=float, default=None, help="Override pixel scale (arcsec/pix)")
     p.add_argument("--sma-arcsec", type=float, default=None, help="Ellipse semi-major axis in arcsec (optional)")
@@ -542,49 +543,30 @@ def main():
     p.add_argument("--psf-image", dest="psf_image", default=None, help="Override PSF image in metadata.json (optional)")
     p.add_argument("--psf-oversampling", type=int, default=2)
     p.add_argument("--convflag", default=False, action="store_true", help="set this to run galfit a second time with convolution.  Note: psf is required.")
-    p.add_argument("--ncomp", type=int, default=1, choices=[1, 2])
+    p.add_argument("--ncomp", type=int, default=1, choices=[1, 2], help="Number of components in galfit model.  Default is 1, a single-component Sersic model.")
     p.add_argument("--magzp", type=float, default=None)
     p.add_argument("--sky", type=float, default=0.0)
 
-    parser.add_argument("--log-level", default="INFO",
+    p.add_argument("--log-level", default="INFO",
                     choices=["DEBUG", "INFO", "WARNING", "ERROR"],
                     help="Logging verbosity.")
-    parser.add_argument("--log-to-console", action="store_true",
+    p.add_argument("--log-to-console", action="store_true",
                     help="Also print logs to stdout.")
-    parser.add_argument("--log-dir", default=None,
+    p.add_argument("--log-dir", default=None,
                     help="Optional directory for logs (default: cutout directory).")
     args = p.parse_args()
-    
-    base_outdir = Path(args.outdir).resolve() if args.outdir else Path.cwd()
-    cutouts_outdir = base_outdir / "cutouts"
-    cutouts_outdir.mkdir(parents=True, exist_ok=True)
 
 
-    if args.cutout_dir is not None:
-        d = Path(args.cutout_dir)
-        # allow passing either "cutouts/<tag>" or "<tag>"
-        if not d.exists():
-            d = Path("cutouts") / d
-        if not d.exists():
-            raise FileNotFoundError(f"cutout dir not found: {args.cutout_dir}")
-        args.root = str(d / d.name)   # matches your current convention
-    else:
-        # if user passed cutouts/<tag>/<tag>, collapse to cutouts/<tag>/<tag>
-        rp = Path(args.root)
-        if rp.parent.name == rp.name:
-            args.root = str(rp)  # already canonical
-        elif (rp.parent / rp.parent.name) == rp:
-            args.root = str(rp)  # already canonical
-        # otherwise leave as-is
-    
-    root = args.root
-    root_base = Path(root).name
-    prefix = args.prefix or root_base
+    cutdir = Path(args.cutout_dir)
+    if not cutdir.exists():
+        raise FileNotFoundError(f"Cutout directory not found: {cutdir}")
 
+    tag = cutdir.name
+    root = str(cutdir / tag)
 
-    cutdir = Path(root).parent
-    tag = Path(root).name
+    prefix = args.prefix or tag
     results_path = cutdir / f"{tag}-results.ecsv"
+
 
     # --- initialize logger
     logger, log_path = init_cutout_logger(
@@ -604,10 +586,14 @@ def main():
 
     cs_fits = args.cs_fits or _pick_one(root + "*-CS-ZP.fits") or _pick_one(root + "*-cs.fits") or _pick_one(root + "*-cs.fits")
     mask_fits = args.mask_fits or _pick_one(root + "*-mask.fits")
+
+    
     sigma_image = args.sigma_image or _pick_one(root + "*-sigma.fits") or _pick_one(root + "*-rms.fits")
     psf_image = args.psf_image or _pick_one(root + "*-psf.fits")
 
-
+    row["R_FITS"] = r_fits
+    row["CS_FITS"] = r_fits
+    row["SIGMA_FITS"] = r_fits    
 
             
     row = initialize_result_row()
@@ -674,10 +660,11 @@ def main():
     #yc = float(params["yc"])    
 
     # Try WCS-based centering using stored RA/DEC
-    ra = params.get("ra", None)
-    dec = params.get("dec", None)
+    #ra = params.get("ra", None)
+    #dec = params.get("dec", None)
     objid = params.get("objid", Path(root).name)
-
+    ra = args.objra if args.objra is not None else params.get("ra")
+    dec = args.objdec if args.objdec is not None else params.get("dec")
     row["RA"] = ra
     row["DEC"] = dec
     row["OBJID"] = objid
@@ -720,7 +707,7 @@ def main():
         xc = xc,
         yc = yc,
         ba = ba,
-        sma_pix = sma_arcsec/pixscale
+        sma_pix = sma_arcsec/pixscale,
         theta_deg = photutils_theta_to_pa_ccw_north(pa_deg)
         )
 
@@ -735,7 +722,7 @@ def main():
     #sys.exit()
     if args.make_mask:
 
-        if args.sex_config is None:
+        if args.seconfig is None:
             raise ValueError("--sex-config must be set when --make-mask is used")
         
         row["STAGE"] = "mask"
@@ -772,10 +759,10 @@ def main():
             image_fits=r_fits,
             sepath=args.sepath,
             gaiapath=args.gaiapath,
-            config=args.sex_config,
-            threshold=args.threshold,
-            snr=args.snr,
-            minarea=args.minarea,
+            config=args.seconfig,
+            threshold=args.sethreshold,
+            snr=args.sesnr,
+            minarea=args.seminarea,
             add_gaia_stars=(not args.no_gaia),
         )
 
@@ -814,8 +801,8 @@ def main():
         mask_fits=mask_fits,
         image2_filter=hafilter,
         filter_ratio=args.filter_ratio,
-        objra=args.objra,
-        objdec=args.objdec,
+        objra=ra,
+        objdec=dec,
         fixcenter=args.fixcenter,
         run_statmorph=args.statmorph,
         write_prefix=prefix,
@@ -1040,6 +1027,9 @@ def main():
         row["GAL_NC_OK"] = not meta_nc["unstable"]
 
         write_result_row_ecsv(results_path, row)
+
+        if args.convflag and not psf_ok:
+            logger.warning("convflag requested but PSF not available; skipping convolution.")
         
         if psf_ok and args.convflag:
             # --- Convolution (init from NC) ---
@@ -1063,9 +1053,6 @@ def main():
                 logger.exception(f"GALFIT CV failed: {e}")
                 row["GAL_CV_OK"] = False
                 # keep NC results, continue
-        else:
-        if args.convflag and not psf_ok:
-            logger.warning("convflag requested but PSF not available; skipping convolution.")
         
         write_result_row_ecsv(results_path, row)
     row["TOTAL_SEC"] = time.perf_counter() - t0_total

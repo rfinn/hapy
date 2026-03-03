@@ -32,14 +32,9 @@ python ~/github/hapy/scripts/get_cutouts.py --rimage VF-202.260+46.474-HDI-20170
 
 ### Run on One Cutout
 
-```
-python ~/github/hapy/scripts/run_analysis.py --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
-```
-
-To make use of `--cutout-dir` instead of `--root`:
 
 ```
-python ~/github/hapy/scripts/run_analysis.py --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --convflag 0 --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
+python ~/github/hapy/scripts/run_analysis.py --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask  --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --galfit --convflag --diagnostic-plots
 ```
 
 To create a plot with the r-band image, the mask, the input ellipse, and the photutils ellipse, add the `--diagnostic-plots` argument.
