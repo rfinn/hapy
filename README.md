@@ -61,11 +61,6 @@ survey_run/
 ```
 
 ---
-Excellent — here is a clean **Parallel Example** block to place right below the Quickstart section.
-
-It assumes GNU `parallel` and matches your directory structure.
-
----
 
 # ⚡ Parallel Processing Example
 
