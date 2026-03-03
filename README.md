@@ -1,54 +1,107 @@
+
+
 # hapy
 
-**hapy** (pronounced *happy*) is a Python package for astronomical image processing and analysis.
-It provides tools for working with Hα imaging, segmentation masks, PSF construction, catalog handling, and general image utilities.
+**hapy** (pronounced *happy*) is a Python package for astronomical image processing and survey-scale galaxy analysis.
 
-While originally developed for Hα projects, many modules are general-purpose and can be used in other astronomical workflows.
+Originally developed for Hα imaging, hapy now provides a full cutout-based analysis pipeline including masking, photometry, structural measurements, and GALFIT modeling.
+
+---
+
+# Overview
+
+The typical survey workflow is:
+
+1. Generate galaxy cutouts from coadded images
+2. Run automated analysis (masking, photometry, statmorph, GALFIT)
+3. Merge per-galaxy results into a survey-level table
+
+Each galaxy is processed independently, enabling parallel execution.
 
 ---
 
-# Features
+# 🚀 Quickstart
 
-### Hα Image Processing
+```bash
+# 1️⃣ Generate galaxy cutouts
+python scripts/get_cutouts.py \
+    --rimage /path/to/R_coadd.fits \
+    --catalog /path/to/catalog.fits \
+    --scheme virgo \
+    --outdir survey_run
 
-* Load, calibrate, and manipulate Hα and associated continuum images
-* Handle image sets and coadds
-* Perform photometric preparation steps
+# 2️⃣ Run automated analysis (repeat in parallel for all cutouts)
+python scripts/run_analysis.py \
+    --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
+    --make-mask --statmorph --galfit
 
-### Mask Construction & Editing
+# 3️⃣ Merge all galaxy results into one table
+python scripts/merge_results.py \
+    --indir survey_run/cutouts \
+    --out merged_results.fits \
+    --outdir survey_run
+```
 
-* Build segmentation masks using Source Extractor
-* Grow masked regions
-* Add Gaia star masks
-* Interactive Qt-based GUI for mask editing
-* Programmatic mask generation via `MaskEngine`
+After this, your survey directory will contain:
 
-### Catalog Utilities
-
-* Match and join astronomical catalogs
-* Select and filter objects
-* Cross-match with survey data
-
-### PSF Tools
-
-* Build PSFs from images
-* Prepare PSFs for fitting software such as GALFIT
-
-### GALFIT Tools
-
-* Wrapper functions for running GALFIT
-* GUI utilities for fitting workflows
-
-### Image Utilities
-
-* Download images from survey databases
-* Flexible image display and visualization helpers
+```
+survey_run/
+    cutouts/
+        <galaxy_tag>/
+            metadata.json
+            <tag>-results.ecsv
+            <tag>-diagnostic.png
+    merged_results.fits
+```
 
 ---
+
+# ⚡ Parallel Processing Example
+
+After generating cutouts, you can run analysis on all galaxies in parallel:
+
+```bash id="n1hsu3"
+find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d | \
+parallel -j 8 \
+'python scripts/run_analysis.py \
+    --root {}/$(basename {}) \
+    --make-mask --statmorph --galfit'
+```
+
+Explanation:
+
+* Each galaxy has its own directory inside `cutouts/`
+* The cutout root is `<dir>/<basename>`
+* `-j 8` runs 8 galaxies simultaneously (adjust for your machine)
+
+---
+
+If you prefer creating a list first:
+
+```bash id="4wzqet"
+find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d > cutout_list.txt
+
+parallel -j 8 \
+'python scripts/run_analysis.py \
+    --root {}/$(basename {}) \
+    --make-mask --statmorph --galfit' \
+:::: cutout_list.txt
+```
+
+---
+
+This keeps the workflow:
+
+1. Cutouts
+2. Parallel analysis
+3. Merge
+
+clean and reproducible.
+
+---
+
 
 # Installation
-
-Clone and install in editable mode:
 
 ```bash
 git clone https://github.com/rfinn/hapy.git
@@ -56,73 +109,141 @@ cd hapy
 pip install -e .
 ```
 
-This installs the package and makes command-line scripts available.
+External dependencies:
+
+* Source Extractor
+* GALFIT
+* PyQt5 (for GUI tools)
 
 ---
 
-# Usage
+# Survey Workflow
 
-## Python API
+---
 
-Example usage in Python:
+## 1️⃣ Generate Cutouts
 
-```python
-from hapy.hatools import HalphaImageSet
+Create per-galaxy cutouts from a coadded image and catalog:
 
-image_set = HalphaImageSet(rimage, himage, psfdir=psfdir)
-image_set.load_coadds()
+```bash
+python scripts/get_cutouts.py \
+    --rimage /path/to/R_coadd.fits \
+    --catalog /path/to/catalog.fits \
+    --scheme virgo \
+    --outdir /path/to/survey_run
 ```
 
+If `--outdir` is not provided, cutouts are written to the current working directory.
+
+Output structure:
+
+```
+survey_run/
+    cutouts/
+        <galaxy_tag>/
+            metadata.json
+            <tag>-R.fits
+            <tag>-mask.fits
+```
+
+Each galaxy directory contains a `metadata.json` file describing:
+
+* Object ID
+* Sky coordinates
+* Initial ellipse parameters
+* Parent image information
+* PSF and image metadata
+
 ---
 
-## Masking (Interactive GUI)
+## 2️⃣ Run Automated Analysis
 
-An example script is provided:
+Run masking, ellipse photometry, statmorph, and GALFIT:
+
+```bash
+python scripts/run_analysis.py \
+    --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
+    --make-mask \
+    --statmorph \
+    --galfit
+```
+
+Outputs include:
+
+* Updated mask image
+* Per-galaxy results table (`*-results.ecsv`)
+* Optional diagnostic plot showing:
+
+  * Input mask ellipse
+  * Photutils-derived ellipse
+
+GALFIT runs in two stages:
+
+* NC (no convolution)
+* CV (PSF convolution, optional)
+
+If convolution fails, processing continues and the failure is recorded in the results table.
+
+---
+
+## 3️⃣ Merge Results
+
+Merge all per-galaxy results into a single table:
+
+```bash
+python scripts/merge_results.py \
+    --indir survey_run/cutouts \
+    --out merged_results.fits \
+    --outdir survey_run
+```
+
+* `--indir` specifies where to search for `*-results.ecsv` files.
+* `--outdir` specifies where the merged FITS table will be written.
+* If `--outdir` is not provided, the merged table is written to the current directory.
+
+Each row corresponds to one independent observation.
+
+---
+
+# Masking & GUI Tools
+
+Interactive mask editing:
 
 ```bash
 python scripts/run_maskgui.py
 ```
 
-Edit the script to point to your FITS image.
+Features:
 
-The GUI will:
+* Segmentation mask creation
+* Gaia star masking
+* Mask growth tools
+* Interactive editing (Qt-based)
 
-* Build an initial segmentation mask
-* Display r-band, Hα (optional), and mask panels
-* Allow interactive mask editing
-* Save output as:
-
-```
-<image>-mask.fits
-```
-
-Keyboard shortcuts inside the GUI:
-
-| Key | Action                     |
-| --- | -------------------------- |
-| `r` | Remove object under cursor |
-| `c` | Add circular mask          |
-| `b` | Add square mask            |
-| `g` | Grow mask                  |
-| `w` | Write mask to disk         |
-| `h` | Print help                 |
-| `q` | Quit                       |
-
-See `docs/masking.md` for a full description of the masking workflow.
+See `docs/masking.md` for details.
 
 ---
 
-## Command-Line Scripts
+# Conventions
 
-Example: create cutouts from an image and a catalog:
+## Pixel Coordinate System
 
-```bash
-get_cutouts --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits \
-            --catalog /path/to/catalog.fits \
-            --virgo
+* +x axis = West
+* +y axis = North
+
+## Position Angles
+
+Internal convention:
+
+* `PA_DEG` = degrees CCW from North
+
+Conversion to photutils theta:
+
+```python
+theta_deg = (90 + PA_DEG) % 180
 ```
 
-The script processes the image, matches objects from the catalog, and generates cutouts.
+Ellipse angles are 180° periodic.
 
 ---
 
@@ -131,53 +252,39 @@ The script processes the image, matches objects from the catalog, and generates 
 ```
 hapy/
 │
-├── README.md
-├── docs/                 # Project documentation
-│   └── masking.md
-│
-├── scripts/              # Runnable example scripts
+├── scripts/
+│   ├── get_cutouts.py
+│   ├── run_analysis.py
+│   ├── merge_results.py
 │   └── run_maskgui.py
 │
-├── hapy/                 # Python package
-│   ├── hatools/          # Hα-specific tools
-│   ├── catools/          # Catalog utilities
-│   ├── imagetools/       # Image utilities
-│   ├── masktools/        # MaskEngine + mask operations
-│   ├── maskgui/          # Qt GUI for mask editing
-│   ├── galfittools/      # GALFIT helpers
-│   └── astromatic/       # Configuration files for Astromatic tools
+├── hapy/
+│   ├── hatools/
+│   ├── catools/
+│   ├── imagetools/
+│   ├── masktools/
+│   ├── maskgui/
+│   ├── galfittools/
+│   └── astromatic/
 │
-├── tests/                # Unit and integration tests
-└── pyproject.toml
+├── docs/
+└── tests/
 ```
 
 ---
 
-# Architecture Philosophy
+# Philosophy
 
-Major components follow a clean separation of concerns:
+hapy separates:
 
-* **Engine layers** contain core logic and data state
-* **GUI layers** handle visualization and interaction
-* **Utility modules** provide pure functions without UI dependencies
+* Core engines (masking, photometry, modeling)
+* GUI tools
+* Survey orchestration
 
-This allows:
+This enables:
 
-* Batch processing without GUI
+* Fully automated batch processing
 * Interactive workflows
-* Easier testing and maintenance
+* Reproducible survey analysis
 
 ---
-
-# Dependencies
-
-Core dependencies include:
-
-* NumPy
-* Astropy
-* PyQt5 (for GUI tools)
-* Ginga (image display in GUI)
-* Source Extractor (external executable)
-
----
-
