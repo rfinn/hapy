@@ -1220,6 +1220,15 @@ class EllipsePhotometry():
         a.append(a[i-1] + hwhm + (hwhm*i*.1))
         
         '''
+
+        # initialize conditions to implement a stopping radius
+        snr_stop = 1.0
+        snr_consecutive = 2
+        low_snr_count = 0
+
+        prev_flux1 = None
+        prev_area = None
+        
         # rmax is set according to the image dimensions
         # look for where the semi-major axis hits the edge of the image
         # could be on side (limited by x range) or on top/bottom (limited by y range)
@@ -1281,10 +1290,52 @@ class EllipsePhotometry():
                 self.phot_table1 = aperture_photometry(self.image, ap, method = 'subpixel', subpixels=5)
                 if self.image2_flag:
                     self.phot_table2 = aperture_photometry(self.image2, ap, method = 'subpixel', subpixels=5)
-            self.flux1[i] = self.phot_table1['aperture_sum'][0]
+
             
+            self.flux1[i] = self.phot_table1['aperture_sum'][0]
             # calculate noise
             self.flux1_err[i] = self.get_noise_in_aper(self.flux1[i], self.area[i])
+
+            # --- SNR-based truncation using annulus SNR (R band) ---
+            if prev_flux1 is not None:
+                dF = self.flux1[i] - prev_flux1
+                dA = self.area[i] - prev_area
+
+                # guard against degenerate annulus
+                if dA <= 0:
+                    dA = np.nan
+
+                # noise in annulus: prefer sky-based; you can also use get_noise_in_aper(dF, dA)
+                # If you have sky noise per pixel available, this is the cleanest:
+                sigma_ann = self.sky_noise * np.sqrt(dA)
+                #
+                # Otherwise, reuse your existing noise model:
+                #sigma_ann = self.get_noise_in_aper(dF, dA)
+
+                snr_ann = dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
+
+                if snr_ann < snr_stop:
+                    low_snr_count += 1
+                    if low_snr_count >= snr_consecutive:
+                        # truncate arrays to i (inclusive) and stop
+                        n = i + 1
+                        self.apertures_a = self.apertures_a[:n]
+                        self.apertures_b = self.apertures_b[:n]
+                        self.area = self.area[:n]
+                        self.flux1 = self.flux1[:n]
+                        self.flux1_err = self.flux1_err[:n]
+                        if self.image2_flag:
+                            self.flux2 = self.flux2[:n]
+                            self.flux2_err = self.flux2_err[:n]
+                        self.allellipses = self.allellipses[:n]
+                        break
+                else:
+                    low_snr_count = 0
+
+            prev_flux1 = self.flux1[i]
+            prev_area = self.area[i]
+
+            
             if self.image2_flag:
                 self.flux2[i] = self.phot_table2['aperture_sum'][0]
                 self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area[i])
