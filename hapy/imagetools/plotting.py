@@ -175,7 +175,11 @@ def plot_mask_ellipse_diagnostic(
                                   edgecolor="cyan", linewidth=2))
     ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
                                   edgecolor="magenta", linewidth=2))
-    objid = row.get("objid")
+
+
+    objid = row.get("OBJID")
+    #print("DEBUG: in plotting.plot_mask_ellipse_diagnostic, objid=",objid)
+     
     ax[0].set_title(f"R Image: {objid}")
 
     ax[1].imshow(m_data, origin="lower")

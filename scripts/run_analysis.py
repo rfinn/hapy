@@ -767,7 +767,7 @@ def main():
         pa_deg = float(args.pa_deg)
 
 
-    objid = row.get("objid", "") or ""
+    objid = row.get("OBJID", "") or ""
 
     # VFID is the survey ID prefix for Virgo objects: "VFID####"
     m = re.match(r"^(VFID\d+)", objid)
@@ -1011,7 +1011,7 @@ def main():
 
 
     if not args.no_diagnostic_plots:
-
+        print("making diagnostic plots...")
         e.plot_fancy_profiles()
         e.draw_phot_results_mpl()
         
