@@ -630,7 +630,7 @@ def main():
     tag = cutdir.name
     root = str(cutdir / tag)
 
-    prefix = args.prefix or tag
+    prefix = tag
     results_path = cutdir / f"{tag}-results.ecsv"
 
 
