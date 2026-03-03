@@ -601,6 +601,9 @@ def main():
     g_io.add_argument("--sigma-image", dest="sigma_image", default=None,
                       help="Override sigma/RMS image")
 
+
+
+
     # ============================================================
     # Metadata overrides (advanced)
     # ============================================================
@@ -610,6 +613,10 @@ def main():
                         help="Override image2 filter (otherwise from metadata.json)")
     g_meta.add_argument("--filter-ratio", dest="filter_ratio", type=float, default=None,
                         help="Override FLTRATIO for image2 flux calibration")
+    g_meta.add_argument("--objra", type=float, default=None,
+                    help="Override object RA (deg). If set, overrides metadata.json RA for WCS-derived center.")
+    g_meta.add_argument("--objdec", type=float, default=None,
+                    help="Override object Dec (deg). If set, overrides metadata.json Dec for WCS-derived center.")
     g_meta.add_argument("--sma-arcsec", type=float, default=None,
                         help="Override metadata ellipse SMA (arcsec)")
     g_meta.add_argument("--ba", type=float, default=None,
