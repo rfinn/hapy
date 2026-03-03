@@ -91,7 +91,7 @@ def calculate_background_photutils(data,grow_radius=10, npixels=10):
     # make source mask, using circular expansion footprint
     mask = segment_img.make_source_mask(footprint=footprint)
     # calculate mean, median and std in unmasked pixels
-    mean, median, std = sigma_clipped_stats(data, sigma=3.0, mask=mask)
+    mean, median, std = sigma_clipped_stats(data, sigma=5.0, mask=mask)
     
     return mean, median, std
 
