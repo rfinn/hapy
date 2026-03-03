@@ -20,12 +20,6 @@ Each galaxy is processed independently, enabling parallel execution.
 
 ---
 
-Perfect — here is a clean **Quickstart** block to place right after the title and short description at the top of your README.
-
-It assumes a typical survey layout and keeps things to three commands.
-
----
-
 # 🚀 Quickstart
 
 ```bash
