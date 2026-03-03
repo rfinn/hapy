@@ -77,23 +77,7 @@ def _fraction_unmasked_pixels(cat, idx):
     return n_total, n_unmasked, frac_unmasked
 
 
-def calculate_background_photutils(data,grow_radius=10, npixels=10):
-    """ from https://photutils.readthedocs.io/en/latest/user_guide/background.html """
-    from astropy.stats import sigma_clipped_stats, SigmaClip
-    from photutils.segmentation import detect_threshold, detect_sources
-    from photutils.utils import circular_footprint
-    sigma_clip = SigmaClip(sigma=3.0, maxiters=10)
-    threshold = detect_threshold(data, nsigma=2.0, sigma_clip=sigma_clip)
-    # create segmentation map
-    segment_img = detect_sources(data, threshold, npixels=npixels)
-    # expansion mask
-    footprint = circular_footprint(radius=grow_radius)
-    # make source mask, using circular expansion footprint
-    mask = segment_img.make_source_mask(footprint=footprint)
-    # calculate mean, median and std in unmasked pixels
-    mean, median, std = sigma_clipped_stats(data, sigma=5.0, mask=mask)
-    
-    return mean, median, std
+
 
 def compute_sky_stats(data, mask=None):
     """
@@ -535,14 +519,14 @@ class EllipsePhotometry():
         #    self.draw_phot_results()
 
     def measure_sky(self):
-        skymean, skymedian, skystd = calculate_background_photutils(self.image)
+        skymean, skymedian, skystd = imutils.calculate_background_photutils(self.image)
 
         self.sky_mean = skymean
         self.sky = skymedian
         self.sky_noise = skystd
 
         if self.image2 is not None:
-            skymean, skymedian, skystd = calculate_background_photutils(self.image2)
+            skymean, skymedian, skystd = imutils.calculate_background_photutils(self.image2)
 
             self.sky_mean2 = skymean
             self.sky2 = skymedian

@@ -31,7 +31,8 @@ def main(args=None):
                             help="Directory where cutouts/ will be created (default: current working directory).")
     parser.add_argument('--psfdir', help='set to coadd directory')
     parser.add_argument('--cutout_scale',type=float, default=2, help='multiplicative scale factor for increasing the size of cutout images')
-    parser.add_argument('--overwrite_metadata',default=False, action='store_true', help='Set this to overwrite metadata.json.  Will store a *.bak file.')        
+    parser.add_argument('--overwrite_metadata',default=False, action='store_true', help='Set this to overwrite metadata.json.  Will store a *.bak file.')
+    parser.add_argument("--no-skysub", action="store_true",help="Disable local sky subtraction in cutouts (default: sky is subtracted).")
     parser.add_argument('--catalog',
                             help='full path to galaxy catalog to use for cutouts.  ')
     #parser.add_argument('--outdir',  default='cutouts',
@@ -46,7 +47,7 @@ def main(args=None):
     #parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
     
     args = parser.parse_args()
-
+    
     if args.outdir is None:
         outdir = os.getcwd()
     else:
@@ -72,6 +73,8 @@ def main(args=None):
     image_set.load_coadds()
 
 
+    subtract_sky = not args.no_skysub
+    
     ###################################################    
     # get galaxy catalog
     ###################################################
@@ -153,7 +156,7 @@ def main(args=None):
                 himage_fwhm_pixels= float(image_set.h.fwhm_pixels) if image_set.h.fwhm_pixels is not None else None,
                 cutout_scale = float(args.cutout_scale),
                 filter_ratio = filter_ratio,
-                
+                cutout_sky_subtracted = subtract_sky,
 
         )
         if params_path.exists() and args.overwrite_metadata:
@@ -162,7 +165,7 @@ def main(args=None):
         params_path.write_text(json.dumps(params, indent=2))
 
         # commenting the next line for testing
-        image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname)
+        image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname, subtract_sky=subtract_sky)
         # parent pixel position
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
         #print(f"{rootname}: ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}, x={x:.1f}, y={y:.1f}")

@@ -1,113 +1,277 @@
 #!/usr/bin/env python
 
+from astropy.io.fits import Header
+import numpy as np
+
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
-#import ccdproc
 
-from astropy.io.fits import Header
-import numpy as np
-
-
-try:
-    from photutils import detect_threshold, detect_sources#, make_source_mask
-except ImportError:
-    from photutils.segmentation import detect_threshold, detect_sources#, make_source_mask
-
-from astropy.io.fits import Header
-import numpy as np
-
-def subtract_median_sky(data,getstd=False,getmedian=True,subtract=True,weightimage=None):
-    ''' 
-    subtract median sky from image data 
-
-    data: 2d array to estimate median for
-    weightimage = 2d array with zero values indicating pixels to ignore
+from astropy.stats import SigmaClip
+from photutils.segmentation import detect_threshold, detect_sources
+from photutils.utils import circular_footprint
 
 
-    '''
-    # check to see if data is all zeros
-    if np.all(data == 0):
-        median = 0
-        std = 0
-        return data,median,std
-    elif np.all(np.isnan(data)): # check to see if data is all nans
-        # return NAN values for median        
-        median = np.nan
-        std = 0
-        return data,median,std
 
+def estimate_sky_stats_photutils(
+    data,
+    weightimage=None,
+    grow_radius=10,
+    npixels=10,
+    nsigma=2.0,
+    clip_sigma=3.0,
+    clip_maxiters=10,
+):
+    """
+    Estimate (mean, median, std) of background using an object mask + sigma clipping.
+    Returns floats. Does not modify data.
+    """
+    arr = np.asarray(data)
+
+    # trivial cases
+    if np.all(arr == 0):
+        return 0.0, 0.0, 0.0
+    if np.all(np.isnan(arr)):
+        return np.nan, np.nan, 0.0
+
+    user_mask = None
     if weightimage is not None:
-        image_mask = weightimage == 0 # like for mosaic
-        data = np.ma.array(data, mask=image_mask)
+        user_mask = (weightimage == 0)
 
-    try:
-        from photutils import make_source_mask
-        mask = make_source_mask(data,nsigma=3,npixels=5,dilate_size=5)
-    except ImportError:
-        # check to see if all values in the data is zeros
-        threshold = detect_threshold(data, nsigma=3)
-        segmentation = detect_sources(data, threshold, npixels=5)        
-        #mask = segmentation.make_source_mask(data)
-        mask = segmentation.make_source_mask(size=5) # adds a dilation factor
+    mask = get_object_mask_photutils(
+        arr,
+        grow_radius=grow_radius,
+        npixels=npixels,
+        nsigma=nsigma,
+        user_mask=user_mask,
+        sigma=clip_sigma,
+        maxiters=clip_maxiters,
+    )
 
-    #mask = make_source_mask(data,nsigma=3,npixels=5,dilate_size=5)
-    masked_data = np.ma.array(data,mask=mask)
-    #clipped_array = sigma_clip(masked_data,cenfunc=np.ma.mean)
+    mean, median, std = sigma_clipped_stats(
+        arr,
+        sigma=clip_sigma,
+        maxiters=clip_maxiters,
+        mask=mask,
+    )
+    return float(mean), float(median), float(std)
 
-    # filled masked values with nans
-    nan_filled_data = masked_data.filled(np.nan)
+def get_object_mask_photutils(
+    data,
+    grow_radius=10,
+    npixels=10,
+    weightimage=None,
+    nsigma=2.0,
+    sigma=3.0,
+    maxiters=5,
+):
+    """
+    Return boolean mask where True means 'exclude' (objects + bad pixels).
+    weightimage: pixels with weight==0 are excluded.
+    """
+    data = np.asarray(data)
+
+    base_mask = ~np.isfinite(data)
+    if weightimage is not None:
+        base_mask |= (np.asarray(weightimage) == 0)
+
+    sigma_clip = SigmaClip(sigma=sigma, maxiters=maxiters)
+    threshold = detect_threshold(data, nsigma=nsigma, sigma_clip=sigma_clip, mask=base_mask)
+
+    segment_img = detect_sources(data, threshold, npixels=npixels, mask=base_mask)
+    if segment_img is None:
+        return base_mask
+
+    footprint = circular_footprint(radius=grow_radius)
+    obj_mask = segment_img.make_source_mask(footprint=footprint)
+
+    return base_mask | obj_mask
+
+
+def calculate_background_photutils(
+    data,
+    grow_radius=10,
+    npixels=10,
+    weightimage=None,
+    nsigma=2.0,
+    clip_sigma=3.0,
+    clip_maxiters=5,
+):
+    """
+    Estimate background mean/median/std using object mask + sigma clipping.
+    """
+    mask = get_object_mask_photutils(
+        data,
+        grow_radius=grow_radius,
+        npixels=npixels,
+        weightimage=weightimage,
+        nsigma=nsigma,
+        sigma=3.0,
+        maxiters=clip_maxiters,
+    )
+
+    mean, median, std = sigma_clipped_stats(
+        np.asarray(data),
+        sigma=clip_sigma,
+        maxiters=clip_maxiters,
+        mask=mask,
+    )
+    return float(mean), float(median), float(std)
+
+
+# def calculate_background_photutils(data,grow_radius=10, npixels=10):
+#     """ from https://photutils.readthedocs.io/en/latest/user_guide/background.html """
+
+
+#     mask = get_object_mask_photutils(data, grow_radius=grow_radius, npixels=npixels)
+#     # calculate mean, median and std in unmasked pixels
+#     mean, median, std = sigma_clipped_stats(data, sigma=5.0, mask=mask)
     
-    mean,median,std = sigma_clipped_stats(nan_filled_data,sigma=3.0)# removing this ,cenfunc=np.ma.mean)
-    if subtract:
-        data -= median
+#     return mean, median, std
+
+
+def estimate_and_subtract_sky(data, weightimage=None, subtract=True, **skycfg):
+    """
+    Estimate sky background using calculate_background_photutils and optionally subtract it.
+
+    Returns
+    -------
+    data_out : ndarray
+        Sky-subtracted data (or copy of original if subtract=False).
+    sky_median : float
+        Estimated sky median (ADU).
+    sky_std : float
+        Estimated sky std (ADU/pix).
+    """
+    arr = np.asarray(data)
+
+    # trivial cases
+    if np.all(arr == 0):
+        return arr.copy(), 0.0, 0.0
+    if np.all(~np.isfinite(arr)):
+        return arr.copy(), np.nan, 0.0
+
+    mean, med, std = calculate_background_photutils(arr, weightimage=weightimage, **skycfg)
+
+    # if med is not finite, do not subtract
+    if not np.isfinite(med):
+        return arr.copy(), float(med), float(std)
+
+    out = (arr - med) if subtract else arr.copy()
+    return out, float(med), float(std)
+
+
+
+
+def subtract_median_sky(data, getstd=False, getmedian=True, subtract=True, weightimage=None,
+                        **skykw):
+    """
+    Backwards-compatible wrapper.
+    **skykw passed to estimate_sky_stats_photutils (e.g., grow_radius, npixels, nsigma).
+    """
+    mean, median, std = estimate_sky_stats_photutils(data, weightimage=weightimage, **skykw)
+
+    if subtract and np.isfinite(median):
+        data = data - median  # do NOT modify input in-place unless you really want that
+
     if getstd:
-        return data,median,std
-    
+        return data, median, std
     elif getmedian:
-        return data,median
-    
+        return data, median
     else:
         return data
+
+# def subtract_median_sky(data,getstd=False,getmedian=True,subtract=True,weightimage=None):
+#     ''' 
+#     subtract median sky from image data 
+
+#     data: 2d array to estimate median for
+#     weightimage = 2d array with zero values indicating pixels to ignore
+
+
+#     '''
+#     # check to see if data is all zeros
+#     if np.all(data == 0):
+#         median = 0
+#         std = 0
+#         return data,median,std
+#     elif np.all(np.isnan(data)): # check to see if data is all nans
+#         # return NAN values for median        
+#         median = np.nan
+#         std = 0
+#         return data,median,std
+
+#     if weightimage is not None:
+#         image_mask = weightimage == 0 # like for mosaic
+#         data = np.ma.array(data, mask=image_mask)
+
+#     try:
+#         from photutils import make_source_mask
+#         mask = make_source_mask(data,nsigma=3,npixels=5,dilate_size=5)
+#     except ImportError:
+#         # check to see if all values in the data is zeros
+#         threshold = detect_threshold(data, nsigma=3)
+#         segmentation = detect_sources(data, threshold, npixels=5)        
+#         #mask = segmentation.make_source_mask(data)
+#         mask = segmentation.make_source_mask(size=5) # adds a dilation factor
+
+#     #mask = make_source_mask(data,nsigma=3,npixels=5,dilate_size=5)
+#     masked_data = np.ma.array(data,mask=mask)
+#     #clipped_array = sigma_clip(masked_data,cenfunc=np.ma.mean)
+
+#     # filled masked values with nans
+#     nan_filled_data = masked_data.filled(np.nan)
+    
+#     mean,median,std = sigma_clipped_stats(nan_filled_data,sigma=3.0)# removing this ,cenfunc=np.ma.mean)
+#     if subtract:
+#         data -= median
+#     if getstd:
+#         return data,median,std
+    
+#     elif getmedian:
+#         return data,median
+    
+#     else:
+#         return data
     
 
-"""
-def subtract_median_sky(data,getstd=False,getmedian=True,subtract=True):
-    ''' subtract median sky from image data '''
-    try:
-        from photutils import make_source_mask
-        mask = make_source_mask(data,nsigma=3,npixels=5,dilate_size=5)
-        masked_data = np.ma.array(data,mask=mask)
-        #clipped_array = sigma_clip(masked_data,cenfunc=np.ma.mean)
 
-    except ImportError: # using a more recent version of photutils
+# def subtract_median_sky(data,getstd=False,getmedian=True,subtract=True):
+#     ''' subtract median sky from image data '''
+#     try:
+#         from photutils import make_source_mask
+#         mask = make_source_mask(data,nsigma=3,npixels=5,dilate_size=5)
+#         masked_data = np.ma.array(data,mask=mask)
+#         #clipped_array = sigma_clip(masked_data,cenfunc=np.ma.mean)
 
-        from photutils.segmentation import SegmentationImage
-        from photutils.segmentation import detect_sources
-        from photutils.background import Background2D, MedianBackground
+#     except ImportError: # using a more recent version of photutils
 
-        bkg_estimator = MedianBackground()
+#         from photutils.segmentation import SegmentationImage
+#         from photutils.segmentation import detect_sources
+#         from photutils.background import Background2D, MedianBackground
 
-        bkg = Background2D(data,(50, 50),filter_size=(3, 3), bkg_estimator=bkg_estimator)
-        threshold = 3 * bkg.background_rms
-        segmentation_image = detect_sources(data, threshold, npixels=10)
-        mask = segmentation_image.data > 0
-        mask = segmentation.make_source_mask(size=5) # adds a dilation factor        
-        masked_data = np.ma.array(data,mask=mask)
-    mean,median,std = sigma_clipped_stats(masked_data,sigma=3.0,cenfunc=np.ma.mean)
-    if subtract:
-        data -= median
+#         bkg_estimator = MedianBackground()
+
+#         bkg = Background2D(data,(50, 50),filter_size=(3, 3), bkg_estimator=bkg_estimator)
+#         threshold = 3 * bkg.background_rms
+#         segmentation_image = detect_sources(data, threshold, npixels=10)
+#         mask = segmentation_image.data > 0
+#         mask = segmentation.make_source_mask(size=5) # adds a dilation factor        
+#         masked_data = np.ma.array(data,mask=mask)
+#     mean,median,std = sigma_clipped_stats(masked_data,sigma=3.0,cenfunc=np.ma.mean)
+#     if subtract:
+#         data -= median
 
 
-    if getstd:
-        return data,median,std
+#     if getstd:
+#         return data,median,std
     
-    elif getmedian:
-        return data,median
+#     elif getmedian:
+#         return data,median
     
-    else:
-        return data
+#     else:
+#         return data
 
-"""
+
 
 
 
