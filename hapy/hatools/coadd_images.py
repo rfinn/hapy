@@ -109,7 +109,7 @@ class CoaddImage:
 
     #def make_cutout(self, ra, dec, size_arcsec, output_name=None):
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
-                    subtract_sky=False, skycfg=None):
+                    subtract_sky=False, skycfg=None, return_cutout=True):
 
         """
         Create a cutout centered act (ra, dec) with size in arcsec.
