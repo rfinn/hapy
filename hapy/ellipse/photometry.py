@@ -77,7 +77,23 @@ def _fraction_unmasked_pixels(cat, idx):
     return n_total, n_unmasked, frac_unmasked
 
 
-
+def calculate_background_photutils(data,grow_radius=10, npixels=10):
+    """ from https://photutils.readthedocs.io/en/latest/user_guide/background.html """
+    from astropy.stats import sigma_clipped_stats, SigmaClip
+    from photutils.segmentation import detect_threshold, detect_sources
+    from photutils.utils import circular_footprint
+    sigma_clip = SigmaClip(sigma=3.0, maxiters=10)
+    threshold = detect_threshold(data, nsigma=2.0, sigma_clip=sigma_clip)
+    # create segmentation map
+    segment_img = detect_sources(data, threshold, npixels=npixels)
+    # expansion mask
+    footprint = circular_footprint(radius=grow_radius)
+    # make source mask, using circular expansion footprint
+    mask = segment_img.make_source_mask(footprint=footprint)
+    # calculate mean, median and std in unmasked pixels
+    mean, median, std = sigma_clipped_stats(data, sigma=3.0, mask=mask)
+    
+    return mean, median, std
 
 def compute_sky_stats(data, mask=None):
     """
@@ -314,6 +330,7 @@ class EllipsePhotometry():
         self.get_sky_noise()
         '''
 
+        self.measure_sky()
         #print("detect objects")
         self.detect_objects()
         #print("find central")        
@@ -381,6 +398,8 @@ class EllipsePhotometry():
         self.get_sky_noise()
         '''
 
+        print("measure sky")
+        self.measure_sky()
         print("detect objects")
         self.detect_objects()
         print("find central")        
@@ -455,6 +474,7 @@ class EllipsePhotometry():
         replicating run_for_gui(), but taking input ellipse geometry from galfit
 
         '''
+        self.measure_sky()
         self.detect_objects()
         self.find_central_object()
         self.get_ellipse_guess()
@@ -507,6 +527,20 @@ class EllipsePhotometry():
         #    self.draw_phot_results_mpl()
         #else:
         #    self.draw_phot_results()
+
+    def measure_sky(self):
+        skymean, skymedian, skystd = calculate_background_photutils(self.image)
+
+        self.sky_mean = skymean
+        self.sky = skymedian
+        self.sky_noise = skystd
+
+        if self.image2 is not None:
+            skymean, skymedian, skystd = calculate_background_photutils(self.image2)
+
+            self.sky_mean2 = skymean
+            self.sky2 = skymedian
+            self.sky_noise2 = skystd
     def detect_objects(self, snrcut=1.5,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
@@ -523,53 +557,53 @@ class EllipsePhotometry():
         # I already compute sky sigma and store it in header
         # should look for that and use that as a threshold if it's available
 
-        self.sky = np.nan
-        self.sky_noise = np.nan
-        self.sky2 = np.nan
-        self.sky_noise2 = np.nan
+        # self.sky = np.nan
+        # self.sky_noise = np.nan
+        # self.sky2 = np.nan
+        # self.sky_noise2 = np.nan
         
-        try:
+        # try:
             
-            skystd = self.header['SKYSTD']
-            self.sky_noise = skystd
-            self.sky = self.header['SKYMED']
+        #     skystd = self.header['SKYSTD']
+        #     self.sky_noise = skystd
+        #     self.sky = self.header['SKYMED']
 
-        except KeyError:
-            print("WARNING: SKYSTD not found — computing via sigma clipping")
+        # except KeyError:
+        #     print("WARNING: SKYSTD not found — computing via sigma clipping")
 
-            if self.mask_flag:
-                sample = self.image[~self.boolmask]
-            else:
-                sample = self.image
+        #     if self.mask_flag:
+        #         sample = self.image[~self.boolmask]
+        #     else:
+        #         sample = self.image
 
-            mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
+        #     mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
 
-            self.sky = float(median)
-            self.sky_noise = float(std)
+        #     self.sky = float(median)
+        #     self.sky_noise = float(std)
 
-        # get the value for halpha
-        if self.header2 is not None:
-            try:
+        # # get the value for halpha
+        # if self.header2 is not None:
+        #     try:
             
-                self.sky_noise2 = self.header2['SKYSTD']
-                self.sky2 = self.header2['SKYMED']
+        #         self.sky_noise2 = self.header2['SKYSTD']
+        #         self.sky2 = self.header2['SKYMED']
  
 
-            except KeyError:
-                print("WARNING: SKYSTD not found — computing via sigma clipping")
+        #     except KeyError:
+        #         print("WARNING: SKYSTD not found — computing via sigma clipping")
 
-                if self.mask_flag:
-                    sample = self.image2[~self.boolmask]
-                else:
-                    sample = self.image2
+        #         if self.mask_flag:
+        #             sample = self.image2[~self.boolmask]
+        #         else:
+        #             sample = self.image2
 
-                mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
+        #         mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
 
-                self.sky2 = float(median)
-                self.sky_noise2 = float(std)
-        else:
-            self.sky2 = np.nan
-            self.sky_noise2 = np.nan
+        #         self.sky2 = float(median)
+        #         self.sky_noise2 = float(std)
+        # else:
+        #     self.sky2 = np.nan
+        #     self.sky_noise2 = np.nan
 
                 
         if self.mask_flag:
