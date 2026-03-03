@@ -68,7 +68,9 @@ import time
 from hapy.ellipse.photometry import run_ellipse_photometry
 from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
+from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
 from hapy.masktools.api import MaskEngine, EllipseParams
+from hapy.masktools.type import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
 
@@ -401,6 +403,7 @@ def main():
 
     p.add_argument("--prefix", default=None, help="Output prefix tag (default: root basename)")
     p.add_argument("--no-plots", dest="no_plots", action="store_true", help="Skip profile/diagnostic plots")
+    p.add_argument("--diagnostic-plots", dest="diagnostic_plots", action="store_true", help="Plot r image, mask, input ellipse and phot ellipse.")    
 
     # MASK
     p.add_argument("--make-mask", action="store_true", help="Build/write mask before photometry/galfit")
@@ -571,6 +574,13 @@ def main():
     row["ELL0_YC"] = yc
     row["ELL0_SOURCE"] = "metadata.json" if params_path.exists() else "args"
 
+    ell0_params = EllipseParams(
+        xc = xc,
+        yc = yc,
+        ba = ba,
+        sma_pix = sma_arcsec/pixscale
+        theta_deg = photutils_theta_to_pa_ccw_north(pa_deg)
+        )
 
     # --- Construct the name of the psf image
     psf_path, psf_source = pick_psf_path_and_source(args, params)
@@ -605,14 +615,15 @@ def main():
         sma_pix = sma_arcsec / pixscale
 
         # convert CCW from N angle to photutils CCW from +x
-        theta_deg = pa_ccw_north_to_photutils_theta(pa_deg)
-        galaxy_ellipse = EllipseParams(
-            xc=xc,
-            yc=yc,
-            sma_pix=sma_pix,
-            ba=ba,
-            theta_deg=theta_deg,
-        )
+        galaxy_ellipse = ell0_params
+        #theta_deg = pa_ccw_north_to_photutils_theta(pa_deg)
+        #galaxy_ellipse = EllipseParams(
+        #    xc=xc,
+        #    yc=yc,
+        #    sma_pix=sma_pix,
+        #    ba=ba,
+        #    theta_deg=theta_deg,
+        #)
         engine = MaskEngine(
             image_fits=r_fits,
             sepath=args.sepath,
@@ -718,42 +729,42 @@ def main():
 
  
 
-    phot_xc = float(row["ELLIP_XCENTROID"])
-    phot_yc = float(row["ELLIP_YCENTROID"])
-    phot_sma_pix = float(row["ELLIP_SMA_PIX"])
-    phot_ba = 1.0 - float(row["ELLIP_EPS"])
-    #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-    #phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
+    # phot_xc = float(row["ELLIP_XCENTROID"])
+    # phot_yc = float(row["ELLIP_YCENTROID"])
+    # phot_sma_pix = float(row["ELLIP_SMA_PIX"])
+    # phot_ba = 1.0 - float(row["ELLIP_EPS"])
+    # #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+    # #phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
 
-    # ELLIP_THETA_RAD measured from +x axis
-    phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-    phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
+    # # ELLIP_THETA_RAD measured from +x axis
+    # phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+    # phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
 
-    dx = phot_xc - float(row["ELL0_XC"])
-    dy = phot_yc - float(row["ELL0_YC"])
-    dc = float(np.hypot(dx, dy))
+    # dx = phot_xc - float(row["ELL0_XC"])
+    # dy = phot_yc - float(row["ELL0_YC"])
+    # dc = float(np.hypot(dx, dy))
 
-    dba = abs(phot_ba - float(row["ELL0_BA"]))
+    # dba = abs(phot_ba - float(row["ELL0_BA"]))
 
-    dpa = phot_pa_deg - float(row["ELL0_PA_DEG"])
+    # dpa = phot_pa_deg - float(row["ELL0_PA_DEG"])
 
-    row["ELL_DC_PX"] = dc
-    row["ELL_DBA"] = float(dba)
-    row["ELL_DPA_DEG"] = float(dpa)
+    # row["ELL_DC_PX"] = dc
+    # row["ELL_DBA"] = float(dba)
+    # row["ELL_DPA_DEG"] = float(dpa)
 
-    # size ratio: prefer arcsec if pixscale known, else pixels
-    if "pixscale" in locals() and pixscale:
-        phot_sma_arcsec = phot_sma_pix * float(pixscale)
-        row["ELL_SMA_RATIO"] = phot_sma_arcsec / float(row["ELL0_SMA_ARCSEC"])
-    else:
-        # fallback: compare in pixels if you have ELL0_SMA_ARCSEC only -> skip ratio
-        row["ELL_SMA_RATIO"] = np.nan
+    # # size ratio: prefer arcsec if pixscale known, else pixels
+    # if "pixscale" in locals() and pixscale:
+    #     phot_sma_arcsec = phot_sma_pix * float(pixscale)
+    #     row["ELL_SMA_RATIO"] = phot_sma_arcsec / float(row["ELL0_SMA_ARCSEC"])
+    # else:
+    #     # fallback: compare in pixels if you have ELL0_SMA_ARCSEC only -> skip ratio
+    #     row["ELL_SMA_RATIO"] = np.nan
 
-    sma_ratio = row["ELL_SMA_RATIO"]
-    row["ELL_MISMATCH"] = bool(
-        (dc > 10.0) or (dba > 0.2) or (np.abs(dpa) > 10.0)
-        #or (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
-        )
+    # sma_ratio = row["ELL_SMA_RATIO"]
+    # row["ELL_MISMATCH"] = bool(
+    #     (dc > 10.0) or (dba > 0.2) or (np.abs(dpa) > 10.0)
+    #     #or (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
+    #     )
         
     try:
         phot_xc = float(row["ELLIP_XCENTROID"])
@@ -767,6 +778,8 @@ def main():
         phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
         phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
 
+        # save this for later
+        
         dx = phot_xc - float(row["ELL0_XC"])
         dy = phot_yc - float(row["ELL0_YC"])
         dc = float(np.hypot(dx, dy))
@@ -840,6 +853,32 @@ def main():
         e.plot_fancy_profiles()
         e.draw_phot_results_mpl()
 
+
+
+    if args.diagnostic_plots:
+        phot_xc = float(row["ELLIP_XCENTROID"])
+        phot_yc = float(row["ELLIP_YCENTROID"])
+        phot_sma_pix = float(row["ELLIP_SMA_PIX"])
+        phot_ba = 1.0 - float(row["ELLIP_EPS"])
+        # ELLIP_THETA_RAD measured from +x axis
+        phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+        ellphot_params = EllipseParams(
+            xc = phot_xc,
+            yc = phot_yc,
+            sma_pix = phot_sma_pix,
+            ba = phot_ba,
+            theta_deg = phot_theta_deg
+            )
+        
+        outfile = Path(root).parent / f"{tag}-diagnostic.png"
+        plot_mask_ellipse_diagnostic(
+            r_fits=str(r_fits),
+            mask_fits=str(mask_fits),
+            e0=ell0_params,
+            eph=ellphot_params,
+            outfile=str(outfile),
+            row=row,
+            )
     if args.galfit:
         row["STAGE"] = "galfit"
         t0 = time.perf_counter()

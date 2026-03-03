@@ -140,3 +140,42 @@ def display_legacy_unwise(ra,dec,galname,imsize_arcsec=60,plotdir=None,verbose=F
     return legacy_images, imagefiles
 
 
+
+def plot_mask_ellipse_diagnostic(
+    r_fits,
+    mask_fits,
+    e0,
+    eph,
+    outfile,
+    row
+):
+
+    r_data, r_hdr = fits.getdata(r_fits, header=True)
+    m_data = fits.getdata(mask_fits)
+
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    plt.sca(ax[0])
+    display_image(r_data)
+    ax[0].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                                  edgecolor="cyan", linewidth=2))
+    ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+                                  edgecolor="magenta", linewidth=2))
+    objid = row.get("objid")
+    ax[0].set_title(f"R Image: {objid}")
+
+    ax[1].imshow(m_data, origin="lower")
+    ax[1].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                                  edgecolor="cyan", linewidth=2))
+    ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+                                  edgecolor="magenta", linewidth=2))
+
+    
+    #ax[1].add_patch(ellipse_patch(xc, yc, sma_pix, params["ba"], theta_photutils, edgecolor="cyan", linewidth=2))
+    ax[1].set_title("Mask")
+
+    plt.tight_layout()
+    plt.savefig(outfile, dpi=150)
+    plt.close(fig)
+    print("Wrote:", outfile)
+
+    pass

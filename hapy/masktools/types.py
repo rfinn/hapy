@@ -9,3 +9,17 @@ class EllipseParams:
     sma_pix: float
     ba: float
     theta_deg: float # angle in deg from +x axis
+
+
+def build_ell0_from_metadata(params, pixscale):
+    # params: dict from metadata.json
+    sma_pix = params["sma_arcsec"] / pixscale
+    pa_north = params["pa_deg"]  # CCW from North
+    theta_deg = pa_ccw_north_to_photutils_theta(pa_north)  # uses (90 + pa) % 180 for your axes
+    return EllipseParams(
+        xc=params.get("xc", None),
+        yc=params.get("yc", None),
+        sma_pix=sma_pix,
+        ba=params["ba"],
+        pa_deg=theta_deg,  # photutils theta deg CCW from +x
+    )
