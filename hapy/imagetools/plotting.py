@@ -178,7 +178,7 @@ def plot_mask_ellipse_diagnostic(
 
 
     objid = row.get("OBJID")
-    print("DEBUG: in plotting.plot_mask_ellipse_diagnostic, objid=",objid)
+    #print("DEBUG: in plotting.plot_mask_ellipse_diagnostic, objid=",objid)
      
     ax[0].set_title(f"R Image: {objid}")
 

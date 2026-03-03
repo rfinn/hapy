@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from scipy.stats import scoreatpercentile
 import scipy.ndimage as ndi
 import numpy as np
-
+import os
 
 
 try:
@@ -1716,10 +1716,10 @@ class EllipsePhotometry():
             plt.gca().set_yscale('log')
         #plt.show()
         plt.savefig(self.image_name.split('.fits')[0]+'-enclosed-flux.png')
-    def plot_fancy_profiles(self):
+    def plot_fancy_profiles(self, logx=False):
         # plot enclosed flux        
         fig = plt.figure(figsize=(10,4))
-        plt.subplots_adjust(left=.15,bottom=.15,right=.95,top=.95,wspace=.3)
+        plt.subplots_adjust(left=.15,bottom=.15,right=.95,top=.9,wspace=.3)
 
         labels = ['R','Halphax100']
         alphas = [1,.4,.6,.4]
@@ -1752,8 +1752,10 @@ class EllipsePhotometry():
             plt.plot(x,y0,'-',lw=2,color=mycolors[i])
         plt.xlabel('SMA (arcsec)',fontsize=16)
         plt.ylabel('Flux (erg/s/cm^2/Hz)',fontsize=16)
+        plt.title(os.path.basename(self.image_name).replace('.fits',''))
         plt.gca().set_yscale('log')
-        plt.gca().set_xscale('log')
+        if logx:
+            plt.gca().set_xscale('log')
         plt.legend(loc='lower right')
 
         plt.subplot(1,2,2)
@@ -1776,7 +1778,8 @@ class EllipsePhotometry():
         plt.ylabel('Surface Brightness',fontsize=16)
 
         plt.gca().set_yscale('log')
-        plt.gca().set_xscale('log')        
+        if logx:
+            plt.gca().set_xscale('log')        
         plt.legend(loc='upper right')
             
         plt.savefig(self.image_name.split('.fits')[0]+'_enclosed_flux_fancy.png')        
