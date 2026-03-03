@@ -68,7 +68,7 @@ import re
 import time
 
 from hapy.ellipse.photometry import run_ellipse_photometry
-from hapy.ellipse.utils import infer_ellipse_from_r_cutout, ellipse_missing
+from hapy.ellipse.utils import infer_ellipse_from_r_cutout#, ellipse_missing
 from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
@@ -715,21 +715,21 @@ def main():
     
     params = json.loads(params_path.read_text())
 
-    # --- check for valid input ellipse
-    if ellipse_missing(params):
-        ell = infer_ellipse_from_r_cutout(r_data=image1_data)
-        if ell is not None:
-            params["sma_arcsec"] = float(ell.sma_pix * pixscale)
-            params["ba"] = float(ell.ba)
-            params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
-            params["ell0_source"] = "quick_photutils"
-            params["ell0_ok"] = True
-        else:
-            params["ell0_source"] = "quick_photutils_failed"
-            params["ell0_ok"] = False
+    # # --- check for valid input ellipse
+    # if ellipse_missing(params):
+    #     ell = infer_ellipse_from_r_cutout(r_data=image1_data)
+    #     if ell is not None:
+    #         params["sma_arcsec"] = float(ell.sma_pix * pixscale)
+    #         params["ba"] = float(ell.ba)
+    #         params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
+    #         params["ell0_source"] = "quick_photutils"
+    #         params["ell0_ok"] = True
+    #     else:
+    #         params["ell0_source"] = "quick_photutils_failed"
+    #         params["ell0_ok"] = False
 
-        # write back (development mode)
-        params_path.write_text(json.dumps(params, indent=2))
+    #     # write back (development mode)
+    #     params_path.write_text(json.dumps(params, indent=2))
 
 
     # --- update row with other info from metadata.json
