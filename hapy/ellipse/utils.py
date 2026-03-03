@@ -61,10 +61,10 @@ def infer_ellipse_from_r_cutout(r_data, r_wcs=None, nsigma=2.5, npixels=20):
 
     # orientation: photutils orientation is radians CCW from +x (already your EllipseParams theta)
     theta_deg = float(np.degrees(obj.orientation.to_value(u.rad)) % 180.0)
-
+    print("DEBUG: obj = ",obj)
     return EllipseParams(
-        xc=float(obj.xcentroid.value),
-        yc=float(obj.ycentroid.value),
+        xc=float(obj.xcentroid),
+        yc=float(obj.ycentroid),
         sma_pix=sma_pix,
         ba=ba,
         theta_deg=theta_deg
