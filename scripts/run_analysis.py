@@ -657,9 +657,6 @@ def main():
     sigma_image = args.sigma_image or _pick_one(root + "*-sigma.fits") or _pick_one(root + "*-rms.fits")
     psf_image = args.psf_image or _pick_one(root + "*-psf.fits")
 
-    row["R_FITS"] = r_fits
-    row["CS_FITS"] = r_fits
-    row["SIGMA_FITS"] = r_fits    
 
             
     row = initialize_result_row()
@@ -671,6 +668,11 @@ def main():
     row["PHOT_SEC"] = 0.0
     row["GALFIT_SEC"] = 0.0
     row["TOTAL_SEC"] = 0.0
+
+    row["R_FITS"] = r_fits
+    row["CS_FITS"] = r_fits
+    row["SIGMA_FITS"] = r_fits    
+
     
     # pixel scale
     pixscale = args.pixscale
