@@ -1222,7 +1222,7 @@ class EllipsePhotometry():
         '''
 
         # initialize conditions to implement a stopping radius
-        snr_stop = 3
+        snr_stop = 50
         snr_consecutive = 2
         low_snr_count = 0
 
