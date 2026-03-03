@@ -182,9 +182,9 @@ def plot_mask_ellipse_diagnostic(
      
     ax[0].set_title(f"R Image: {objid}")
 
-    #ax[1].imshow(m_data, origin="lower")
-    plt.sca(ax[1])
-    display_image(m_data)
+    ax[1].imshow(m_data, origin="lower")
+    #plt.sca(ax[1])
+    #display_image(m_data)
     ax[1].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
                                   edgecolor="cyan", linewidth=2))
     ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
