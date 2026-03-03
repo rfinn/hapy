@@ -48,13 +48,23 @@ python ~/github/hapy/scripts/plot_mask_diagnostic.py --root cutouts/VFID1588-NGC
 
 ### Running on a larger sample
 
+
 ```
 mkdir -p logs
 ```
 
+#### Make List of Cutouts
 ```
 find cutouts -mindepth 1 -maxdepth 1 -type d > cutout_list.txt
 ```
+
+To save the full path:
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d \
+  -exec test -f "{}/$(basename {}).results.ecsv" \; -print > cutout_list.txt
+```
+#### Run in Parallel
 
 ```
 parallel -j 0 python ~/github/hapy/scripts/run_analysis.py --cutout-dir {} :::: cutout_list.txt
