@@ -1,3 +1,5 @@
+
+
 # hapy
 
 **hapy** (pronounced *happy*) is a Python package for astronomical image processing and survey-scale galaxy analysis.
@@ -18,39 +20,160 @@ Each galaxy is processed independently, enabling parallel execution.
 
 ---
 
-# Core Features
+Perfect — here is a clean **Quickstart** block to place right after the title and short description at the top of your README.
 
-## Cutout Generation
+It assumes a typical survey layout and keeps things to three commands.
 
-* Create galaxy cutouts from coadded survey images
-* Store per-object metadata (`metadata.json`)
-* Support multiple catalog schemes (Virgo, AGC, generic)
+---
+
+# 🚀 Quickstart
 
 ```bash
+# 1️⃣ Generate galaxy cutouts
 python scripts/get_cutouts.py \
-    --rimage <R_COADD.fits> \
-    --catalog <catalog.fits> \
-    --scheme virgo
+    --rimage /path/to/R_coadd.fits \
+    --catalog /path/to/catalog.fits \
+    --scheme virgo \
+    --outdir survey_run
+
+# 2️⃣ Run automated analysis (repeat in parallel for all cutouts)
+python scripts/run_analysis.py \
+    --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
+    --make-mask --statmorph --galfit
+
+# 3️⃣ Merge all galaxy results into one table
+python scripts/merge_results.py \
+    --indir survey_run/cutouts \
+    --out merged_results.fits \
+    --outdir survey_run
 ```
 
-Each galaxy gets its own directory:
+After this, your survey directory will contain:
 
 ```
-cutouts/<galaxy_tag>/
-    metadata.json
-    <tag>-R.fits
-    <tag>-mask.fits
+survey_run/
+    cutouts/
+        <galaxy_tag>/
+            metadata.json
+            <tag>-results.ecsv
+            <tag>-diagnostic.png
+    merged_results.fits
+```
+
+---
+Excellent — here is a clean **Parallel Example** block to place right below the Quickstart section.
+
+It assumes GNU `parallel` and matches your directory structure.
+
+---
+
+# ⚡ Parallel Processing Example
+
+After generating cutouts, you can run analysis on all galaxies in parallel:
+
+```bash id="n1hsu3"
+find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d | \
+parallel -j 8 \
+'python scripts/run_analysis.py \
+    --root {}/$(basename {}) \
+    --make-mask --statmorph --galfit'
+```
+
+Explanation:
+
+* Each galaxy has its own directory inside `cutouts/`
+* The cutout root is `<dir>/<basename>`
+* `-j 8` runs 8 galaxies simultaneously (adjust for your machine)
+
+---
+
+If you prefer creating a list first:
+
+```bash id="4wzqet"
+find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d > cutout_list.txt
+
+parallel -j 8 \
+'python scripts/run_analysis.py \
+    --root {}/$(basename {}) \
+    --make-mask --statmorph --galfit' \
+:::: cutout_list.txt
 ```
 
 ---
 
-## Automated Analysis
+This keeps the workflow:
+
+1. Cutouts
+2. Parallel analysis
+3. Merge
+
+clean and reproducible.
+
+---
+
+
+# Installation
+
+```bash
+git clone https://github.com/rfinn/hapy.git
+cd hapy
+pip install -e .
+```
+
+External dependencies:
+
+* Source Extractor
+* GALFIT
+* PyQt5 (for GUI tools)
+
+---
+
+# Survey Workflow
+
+---
+
+## 1️⃣ Generate Cutouts
+
+Create per-galaxy cutouts from a coadded image and catalog:
+
+```bash
+python scripts/get_cutouts.py \
+    --rimage /path/to/R_coadd.fits \
+    --catalog /path/to/catalog.fits \
+    --scheme virgo \
+    --outdir /path/to/survey_run
+```
+
+If `--outdir` is not provided, cutouts are written to the current working directory.
+
+Output structure:
+
+```
+survey_run/
+    cutouts/
+        <galaxy_tag>/
+            metadata.json
+            <tag>-R.fits
+            <tag>-mask.fits
+```
+
+Each galaxy directory contains a `metadata.json` file describing:
+
+* Object ID
+* Sky coordinates
+* Initial ellipse parameters
+* Parent image information
+* PSF and image metadata
+
+---
+
+## 2️⃣ Run Automated Analysis
 
 Run masking, ellipse photometry, statmorph, and GALFIT:
 
 ```bash
 python scripts/run_analysis.py \
-    --root cutouts/<galaxy_tag>/<galaxy_tag> \
+    --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
     --make-mask \
     --statmorph \
     --galfit
@@ -58,7 +181,7 @@ python scripts/run_analysis.py \
 
 Outputs include:
 
-* Mask FITS image
+* Updated mask image
 * Per-galaxy results table (`*-results.ecsv`)
 * Optional diagnostic plot showing:
 
@@ -70,17 +193,24 @@ GALFIT runs in two stages:
 * NC (no convolution)
 * CV (PSF convolution, optional)
 
-Failures in the CV stage do not stop processing.
+If convolution fails, processing continues and the failure is recorded in the results table.
 
 ---
 
-## Merge Results
+## 3️⃣ Merge Results
 
-Combine all galaxy results into a single table:
+Merge all per-galaxy results into a single table:
 
 ```bash
-python scripts/merge_results.py --indir cutouts/
+python scripts/merge_results.py \
+    --indir survey_run/cutouts \
+    --out merged_results.fits \
+    --outdir survey_run
 ```
+
+* `--indir` specifies where to search for `*-results.ecsv` files.
+* `--outdir` specifies where the merged FITS table will be written.
+* If `--outdir` is not provided, the merged table is written to the current directory.
 
 Each row corresponds to one independent observation.
 
@@ -88,7 +218,7 @@ Each row corresponds to one independent observation.
 
 # Masking & GUI Tools
 
-Interactive mask editing is available:
+Interactive mask editing:
 
 ```bash
 python scripts/run_maskgui.py
@@ -124,7 +254,7 @@ Conversion to photutils theta:
 theta_deg = (90 + PA_DEG) % 180
 ```
 
-All ellipse comparisons are 180° periodic.
+Ellipse angles are 180° periodic.
 
 ---
 
@@ -154,37 +284,13 @@ hapy/
 
 ---
 
-# Installation
-
-```bash
-git clone https://github.com/rfinn/hapy.git
-cd hapy
-pip install -e .
-```
-
-External dependencies:
-
-* Source Extractor
-* GALFIT (for modeling)
-
----
-
-# Development Notes
-
-* Each cutout directory contains a `metadata.json` file describing the object and input parameters.
-* Output tables use a stable schema to support survey-level merging.
-* Diagnostic plots can be enabled from `run_analysis.py`.
-* Logging support is being added for batch-scale production runs.
-
----
-
 # Philosophy
 
 hapy separates:
 
 * Core engines (masking, photometry, modeling)
 * GUI tools
-* Survey pipeline orchestration
+* Survey orchestration
 
 This enables:
 
