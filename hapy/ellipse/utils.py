@@ -1,6 +1,6 @@
 from photutils.segmentation import detect_threshold, detect_sources, SourceCatalog
 from astropy.stats import SigmaClip
-
+from astropy import units as u
 import numpy as np
 
 
