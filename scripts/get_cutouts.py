@@ -9,6 +9,7 @@ python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200
 from astropy.io import fits
 #from astropy.table import Table
 import numpy as np
+import os
 from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
 from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
 from pathlib import Path
@@ -46,7 +47,11 @@ def main(args=None):
     
     args = parser.parse_args()
 
-    base_outdir = Path(args.outdir).resolve() if args.outdir else Path.cwd()
+    if args.outdir is None:
+        outdir = os.getcwd()
+    else:
+        outdir = args.outdir
+    base_outdir = Path(outdir).resolve() if args.outdir else Path.cwd()
     cutouts_dir = base_outdir / "cutouts"
     cutouts_dir.mkdir(parents=True, exist_ok=True)
     print(f"Writing cutouts to: {cutouts_dir}")
