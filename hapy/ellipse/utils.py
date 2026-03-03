@@ -3,6 +3,14 @@ from astropy.stats import SigmaClip
 
 import numpy as np
 
+
+def ellipse_missing(params):
+
+    bad_geom = ellipse_geom_missing(params)
+
+    bad_pa = pa_is_placeholder(params)
+
+    return bag_geom or bad_pa
 def ellipse_geom_missing(params):
     """True if we cannot build an ellipse at all (size/shape missing)."""
     sma = params.get("sma_arcsec")
