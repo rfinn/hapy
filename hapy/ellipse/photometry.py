@@ -1339,6 +1339,9 @@ class EllipsePhotometry():
             if self.image2_flag:
                 self.flux2[i] = self.phot_table2['aperture_sum'][0]
                 self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area[i])
+
+
+        print(f"DEBUG: len(flux1)={len(self.flux1)}, len(flux2)={len(self.flux2)}")
     def draw_phot_apertures(self,plotname=None):
         ''' matplotlib plotting to show apertures; provide a plot name to save the output figure   '''
         tbl1 = self.cat.to_table()
@@ -1801,6 +1804,7 @@ class EllipsePhotometry():
                 y0=y0*100
                 y1 = y1*100
                 y2 = y2*100
+            print(f"DEBUG: fancy plots flux, len(x)={len(x)}, len(y1)={len(y1)}, len(y2)={len(y2)}")
             plt.fill_between(x,y1,y2,label=labels[i],alpha=alphas[i],color=mycolors[i])
             # also plot line because you can't see the result when the error is small
             # this should fix issue #18 in Virgo github
@@ -1824,6 +1828,7 @@ class EllipsePhotometry():
                 y0=y0*100
                 y1 = y1*100
                 y2 = y2*100
+            print(f"DEBUG: fancy plots sb, len(x)={len(x)}, len(y1)={len(y1)}, len(y2)={len(y2)}")                
             plt.fill_between(x,y1,y2,label=labels[i],alpha=alphas[i],color=mycolors[i])
             # also plot line because you can't see the result when the error is small
             # this should fix issue #18 in Virgo github
