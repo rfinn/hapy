@@ -33,8 +33,8 @@ def main(args=None):
     parser.add_argument('--overwrite_metadata',default=False, action='store_true', help='Set this to overwrite metadata.json.  Will store a *.bak file.')        
     parser.add_argument('--catalog',
                             help='full path to galaxy catalog to use for cutouts.  ')
-    parser.add_argument('--outdir',  default='cutouts',
-                            help='base output directory for cutouts (default: cutouts)')
+    #parser.add_argument('--outdir',  default='cutouts',
+    #                        help='base output directory for cutouts (default: cutouts)')
     parser.add_argument(
     "--scheme",
     choices=["generic", "virgo", "agc"],

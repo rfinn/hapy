@@ -56,6 +56,8 @@ import argparse
 from pathlib import Path
 import glob
 import sys
+import logging
+from datetime import datetime
 
 import numpy as np
 from astropy.io import fits
@@ -73,6 +75,50 @@ from hapy.masktools.api import MaskEngine, EllipseParams
 from hapy.masktools.type import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
+
+
+
+def init_cutout_logger(tag: str, root: str | Path, level: str = "INFO",
+                       log_to_console: bool = False, log_dir: str | Path | None = None):
+    """
+    Create a per-cutout logger writing to <cutout_dir>/<tag>.log (or log_dir).
+    Safe for parallel runs because each cutout has its own log file.
+    """
+    root = Path(root)
+    cutdir = root.parent
+
+    if log_dir is None:
+        log_path = cutdir / f"{tag}.log"
+    else:
+        log_dir = Path(log_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{tag}.log"
+
+    logger = logging.getLogger(f"hapy.run_analysis.{tag}")
+    logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+    logger.propagate = False  # don't double-log via root logger
+
+    # Prevent duplicate handlers if init is called twice in same process
+    if logger.handlers:
+        for h in list(logger.handlers):
+            logger.removeHandler(h)
+
+    fmt = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    fh = logging.FileHandler(log_path, mode="w")  # overwrite each run
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+
+    if log_to_console:
+        sh = logging.StreamHandler()
+        sh.setFormatter(fmt)
+        logger.addHandler(sh)
+
+    logger.info(f"Log file: {log_path}")
+    return logger, log_path
 
 def _default_sex_config() -> str:
     # hapy/astromatic/default.sex.HDI.mask (adjust if package name differs)
@@ -139,7 +185,7 @@ def resolve_psf_path(psfdir, parent_rimage):
     psf_path = Path(psfdir) / psf_name
     return psf_path if psf_path.exists() else None
     
-def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0):
+def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0, logger=None):
     """
     init: dict with xobj,yobj,mag,rad,nsersic,BA,PA, first_time
     returns: (res, meta)
@@ -152,6 +198,9 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0):
             rg.disable_convolution()
         stage = "NC"
 
+    if logger:
+        logger.info(f"GALFIT {stage} start init={init}")
+        
     def unstable(res):
         if _scalar(res.error) != 0: return True
         if _scalar(res.comp1.numerical_error_flag) != 0: return True
@@ -171,13 +220,33 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0):
         first_time=init.get("first_time", 0),
     )
     rg.set_sky(args.sky)
-    res = rg.run_and_parse()
+    #res = rg.run_and_parse()
 
+    try:
+        res = rg.run_and_parse()
+    except Exception as e:
+        if logger:
+            logger.exception(f"GALFIT {stage} failed during run_and_parse: {e}")
+        raise
+    
     meta = {"stage": stage, "rerun_fixed_n": False, "unstable": False}
 
+    if logger:
+        try:
+            logger.info(
+                f"GALFIT {stage} result: chi2nu={_scalar(res.chi2nu)} "
+                f"re={_scalar(res.comp1.re)} n={_scalar(res.comp1.n)} "
+                f"ba={_scalar(res.comp1.ba)} pa={_scalar(res.comp1.pa)} "
+                f"numerr={_scalar(res.comp1.numerical_error_flag)} err={_scalar(res.error)}"
+            )
+        except Exception:
+            logger.info(f"GALFIT {stage} result parsed (logging fields failed)")
+            
     # rerun if high n
     if _scalar(res.comp1.n) > n_hi:
         meta["rerun_fixed_n"] = True
+        if logger:
+            logger.warning(f"GALFIT {stage}: high-n detected (n={_scalar(res.comp1.n)}); rerunning with n=4 fixed")
         rg.set_sersic_params(
             xobj=_scalar(res.comp1.xc), yobj=_scalar(res.comp1.yc),
             mag=_scalar(res.comp1.mag), rad=_scalar(res.comp1.re),
@@ -186,9 +255,23 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0):
             first_time=0,
         )
         rg.set_sky(args.sky)
-        res = rg.run_and_parse()
+        #res = rg.run_and_parse()
+        try:
+            res = rg.run_and_parse()
+        except Exception as e:
+            if logger:
+                logger.exception(f"GALFIT {stage} rerun (fixed n) failed: {e}")
+            raise
+        if logger:
+            logger.info(
+                f"GALFIT {stage} rerun result: chi2nu={_scalar(res.chi2nu)} "
+                f"re={_scalar(res.comp1.re)} ba={_scalar(res.comp1.ba)} pa={_scalar(res.comp1.pa)} "
+                f"numerr={_scalar(res.comp1.numerical_error_flag)} err={_scalar(res.error)}"
+            )       
 
     meta["unstable"] = unstable(res)
+    if logger:
+        logger.info(f"GALFIT {stage} done: unstable={meta['unstable']} rerun_fixed_n={meta['rerun_fixed_n']}")
     return res, meta
 
 def _store_galfit(row, res, prefix):
@@ -214,6 +297,29 @@ def _store_galfit(row, res, prefix):
     row[f"{prefix}NUMERR"] = _scalar(res.comp1.numerical_error_flag)
     row[f"{prefix}ERROR"] = _scalar(res.error)
 
+    # ---- statmorph (best-effort; only a few key fields to start) ----
+def _pull_statmorph(prefix, mobj):
+    if mobj is None:
+        return
+    for outk, attr in [
+                    ("XCENTROID", "xc_centroid"),
+                    ("YCENTROID", "yc_centroid"),
+                    ("GINI", "gini"),
+                    ("M20", "m20"),
+                    ("C", "concentration"),
+                    ("A", "asymmetry"),
+                    ("S", "smoothness"),
+                    ("RPETRO_ELLIP", "rpetro_ellip"),
+                    ("RHALF_ELLIP", "rhalf_ellip"),
+                    ("R20", "r20"),
+                    ("R50", "r50"),
+                    ("R80", "r80"),
+                    ("FLAG", "flag"),
+                    ]:
+        try:
+            row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
+        except Exception:
+            pass
 def initialize_result_row():
     """Return a fully populated results-row dict with frozen schema."""
 
@@ -234,21 +340,22 @@ def initialize_result_row():
     row["VFID"] = ""      # e.g., "VFID3084"
     row["GALNAME"] = ""   # e.g., "NGC3512" (optional but handy)
 
-    
+    # removing these
+    not_needed = ["R_FITS", "CS_FITS","SIGMA_FITS"]
     # ---------- identity ----------
     for k in [
-        "objid", "tag", "root",
-        "r_fits", "cs_fits", "mask_fits",
-        "psf_fits", "sigma_fits", "scheme"
-    ]:
+        "OBJID", "TAG", "ROOT",
+         "MASK_FITS","PSF_FITS",
+            ]:
         row[k] = ""
         
     #row["psf_ok"] = False
 
     row["PSF_SOURCE"] = ""   # "cli" | "psf_dir" | ""
-    
+
+    @row["GAL_NC_OK"] = False    
     # ---------- pipeline status ----------
-    for k in ["mask_ok", "phot_ok", "psf_ok"]:#, "galfit_ok"]:
+    for k in ["MASK_OK", "PHOT_OK", "PSF_OK", "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
         row[k] = False
 
     for k in ["STAGE", "STATUS"]:
@@ -258,8 +365,8 @@ def initialize_result_row():
         row[k] = np.nan
 
     # ---------- coordinates ----------
-    row["ra"] = np.nan
-    row["dec"] = np.nan
+    row["RA"] = np.nan
+    row["DEC"] = np.nan
 
     # ---------- cutout properties ----------
     for k in [
@@ -336,7 +443,7 @@ def initialize_result_row():
         row[k] = 0
 
     row["GAL_NC_RERUN_FIXEDN"] = False
-    row["GAL_NC_OK"] = False
+
 
     # ---------- GALFIT CV ----------
     for k in [
@@ -356,7 +463,7 @@ def initialize_result_row():
         row[k] = 0
 
     row["GAL_CV_RERUN_FIXEDN"] = False
-    row["GAL_CV_OK"] = False
+    #row["GAL_CV_OK"] = False
 
     return row
 
@@ -434,11 +541,18 @@ def main():
     p.add_argument("--psf-dir", dest="psf_dir", default=None, help="Directory containing PSF image.  Assumes the PSF image in the r-band coadd image (from metadata.json) rfilename.replace('.fits','-psf.fits')")    
     p.add_argument("--psf-image", dest="psf_image", default=None, help="Override PSF image in metadata.json (optional)")
     p.add_argument("--psf-oversampling", type=int, default=2)
-    p.add_argument("--convflag", type=int, default=1, help="1 convolve with PSF, 0 otherwise")
+    p.add_argument("--convflag", default=False, action="store_true", help="set this to run galfit a second time with convolution.  Note: psf is required.")
     p.add_argument("--ncomp", type=int, default=1, choices=[1, 2])
     p.add_argument("--magzp", type=float, default=None)
     p.add_argument("--sky", type=float, default=0.0)
-    
+
+    parser.add_argument("--log-level", default="INFO",
+                    choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                    help="Logging verbosity.")
+    parser.add_argument("--log-to-console", action="store_true",
+                    help="Also print logs to stdout.")
+    parser.add_argument("--log-dir", default=None,
+                    help="Optional directory for logs (default: cutout directory).")
     args = p.parse_args()
     
     base_outdir = Path(args.outdir).resolve() if args.outdir else Path.cwd()
@@ -471,6 +585,16 @@ def main():
     cutdir = Path(root).parent
     tag = Path(root).name
     results_path = cutdir / f"{tag}-results.ecsv"
+
+    # --- initialize logger
+    logger, log_path = init_cutout_logger(
+    tag=tag,
+    root=root,
+    level=args.log_level,
+    log_to_console=args.log_to_console,
+    log_dir=args.log_dir,  # usually None
+        )
+
     
     # Auto-detect common filenames if not provided.
     # Adjust these glob patterns to match your exact suffix conventions.
@@ -487,8 +611,8 @@ def main():
 
             
     row = initialize_result_row()
-    row["root"] = str(root)
-    row["tag"] = Path(root).name
+    row["ROOT"] = str(root)
+    row["TAG"] = Path(root).name
     row["STAGE"] = "init"
     row["STATUS"] = "running"
     row["MASK_SEC"] = 0.0
@@ -554,9 +678,9 @@ def main():
     dec = params.get("dec", None)
     objid = params.get("objid", Path(root).name)
 
-    row["ra"] = ra
-    row["dec"] = dec
-    row["objid"] = objid
+    row["RA"] = ra
+    row["DEC"] = dec
+    row["OBJID"] = objid
 
     if ra is not None and dec is not None:
         try:
@@ -602,10 +726,10 @@ def main():
 
     # --- Construct the name of the psf image
     psf_path, psf_source = pick_psf_path_and_source(args, params)
-    row["psf_fits"] = str(psf_path) if psf_path else ""
-    row["psf_ok"] = bool(psf_path)
+    row["PSF_FITS"] = str(psf_path) if psf_path else ""
+    row["PSF_OK"] = bool(psf_path)
     row["PSF_SOURCE"] = psf_source
-    psf_ok = row["psf_ok"]
+    psf_ok = row["PSF_OK"]
 
     #print("TESTING: psf_path = ",psf_path)
     #sys.exit()
@@ -615,6 +739,8 @@ def main():
             raise ValueError("--sex-config must be set when --make-mask is used")
         
         row["STAGE"] = "mask"
+        logger.info("STAGE: mask")
+        
         t0 = time.perf_counter()
 
         # choose output mask name if not provided/found
@@ -664,15 +790,17 @@ def main():
 
 
 
-        row["mask_ok"] = True
-        row["mask_fits"] = str(mask_fits)
+        row["MASK_OK"] = True
+        row["MASK_FITS"] = str(mask_fits)
 
         row["MASK_SEC"] = time.perf_counter() - t0
-        row["mask_ok"] = True
+        #row["mask_ok"] = True
         write_result_row_ecsv(results_path, row)
 
 
     row["STAGE"] = "phot"
+    logger.info("STAGE: phot")
+    
     t0 = time.perf_counter()
 
     hafilter = row["HAFILTER"]
@@ -750,44 +878,6 @@ def main():
             if sv is not None:
                 row[outk] = sv
 
- 
-
-    # phot_xc = float(row["ELLIP_XCENTROID"])
-    # phot_yc = float(row["ELLIP_YCENTROID"])
-    # phot_sma_pix = float(row["ELLIP_SMA_PIX"])
-    # phot_ba = 1.0 - float(row["ELLIP_EPS"])
-    # #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-    # #phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
-
-    # # ELLIP_THETA_RAD measured from +x axis
-    # phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-    # phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
-
-    # dx = phot_xc - float(row["ELL0_XC"])
-    # dy = phot_yc - float(row["ELL0_YC"])
-    # dc = float(np.hypot(dx, dy))
-
-    # dba = abs(phot_ba - float(row["ELL0_BA"]))
-
-    # dpa = phot_pa_deg - float(row["ELL0_PA_DEG"])
-
-    # row["ELL_DC_PX"] = dc
-    # row["ELL_DBA"] = float(dba)
-    # row["ELL_DPA_DEG"] = float(dpa)
-
-    # # size ratio: prefer arcsec if pixscale known, else pixels
-    # if "pixscale" in locals() and pixscale:
-    #     phot_sma_arcsec = phot_sma_pix * float(pixscale)
-    #     row["ELL_SMA_RATIO"] = phot_sma_arcsec / float(row["ELL0_SMA_ARCSEC"])
-    # else:
-    #     # fallback: compare in pixels if you have ELL0_SMA_ARCSEC only -> skip ratio
-    #     row["ELL_SMA_RATIO"] = np.nan
-
-    # sma_ratio = row["ELL_SMA_RATIO"]
-    # row["ELL_MISMATCH"] = bool(
-    #     (dc > 10.0) or (dba > 0.2) or (np.abs(dpa) > 10.0)
-    #     #or (np.isfinite(sma_ratio) and ((sma_ratio < 0.5) or (sma_ratio > 2.0)))
-    #     )
         
     try:
         phot_xc = float(row["ELLIP_XCENTROID"])
@@ -832,29 +922,7 @@ def main():
         # if any missing keys, just don't set mismatch fields
         pass
 
-    # ---- statmorph (best-effort; only a few key fields to start) ----
-    def _pull_statmorph(prefix, mobj):
-        if mobj is None:
-            return
-        for outk, attr in [
-            ("XCENTROID", "xc_centroid"),
-            ("YCENTROID", "yc_centroid"),
-            ("GINI", "gini"),
-            ("M20", "m20"),
-            ("C", "concentration"),
-            ("A", "asymmetry"),
-            ("S", "smoothness"),
-            ("RPETRO_ELLIP", "rpetro_ellip"),
-            ("RHALF_ELLIP", "rhalf_ellip"),
-            ("R20", "r20"),
-            ("R50", "r50"),
-            ("R80", "r80"),
-            ("FLAG", "flag"),
-        ]:
-            try:
-                row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
-            except Exception:
-                pass
+
 
     try:
         _pull_statmorph("R_SM", getattr(e, "morph", None))
@@ -903,7 +971,8 @@ def main():
             row=row,
             )
     if args.galfit:
-        row["STAGE"] = "galfit"
+        row["STAGE"] = "galfit_nc"
+        logger.info("STAGE: galfit NC")
         t0 = time.perf_counter()
         galname = root  # no .fits; matches your test
         pscale = get_pixel_scale_from_filename(r_fits)
@@ -926,7 +995,7 @@ def main():
         else:
             # set to the number of pixels with
             # assume seeing = 2 arcsec, and 0.4"/pixels
-            print("no FWHM for in metadata.json - assuming 2 arcsec")
+            logger.info("no FWHM for in metadata.json - assuming 2 arcsec")
             convolution_size = nconvolution_scale * 2/0.4
 
         
@@ -965,15 +1034,17 @@ def main():
         init0 = dict(xobj=xc, yobj=yc, mag=10.0, rad=rad_init, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
 
         # --- No convolution ---
-        res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False)
+        res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False, logger=logger)
         _store_galfit(row, res_nc, "GAL_")
         row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
         row["GAL_NC_OK"] = not meta_nc["unstable"]
 
         write_result_row_ecsv(results_path, row)
         
-        if psf_ok:
+        if psf_ok and args.convflag:
             # --- Convolution (init from NC) ---
+            row["STAGE"] = "galfit_cv"
+            logger.info("STAGE: galfit CV")
             init_cv = dict(
                 xobj=_scalar(res_nc.comp1.xc), yobj=_scalar(res_nc.comp1.yc),
                 mag=_scalar(res_nc.comp1.mag), rad=_scalar(res_nc.comp1.re),
@@ -981,7 +1052,7 @@ def main():
                 first_time=0,
                 )
             try:
-                res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True)
+                res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True, logger=logger)
                 _store_galfit(row, res_cv, "GAL_C")
                 row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
                 row["GAL_CV_OK"] = not meta_cv["unstable"]
@@ -989,9 +1060,12 @@ def main():
                 row["GALFIT_SEC"] = time.perf_counter() - t0
                 row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
             except Exception as e:
-                print(f"GALFIT CV failed: {e}")
+                logger.exception(f"GALFIT CV failed: {e}")
                 row["GAL_CV_OK"] = False
                 # keep NC results, continue
+        else:
+        if args.convflag and not psf_ok:
+            logger.warning("convflag requested but PSF not available; skipping convolution.")
         
         write_result_row_ecsv(results_path, row)
     row["TOTAL_SEC"] = time.perf_counter() - t0_total
