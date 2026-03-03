@@ -333,6 +333,7 @@ class EllipsePhotometry():
         '''
 
         self.measure_sky()
+        self.subtract_sky()
         #print("detect objects")
         self.detect_objects()
         #print("find central")        
@@ -402,6 +403,8 @@ class EllipsePhotometry():
 
         print("measure sky")
         self.measure_sky()
+        print("subtract sky")
+        self.subtract_sky()
         print("detect objects")
         self.detect_objects()
         print("find central")        
@@ -477,6 +480,7 @@ class EllipsePhotometry():
 
         '''
         self.measure_sky()
+        self.subtract_sky()
         self.detect_objects()
         self.find_central_object()
         self.get_ellipse_guess()
@@ -543,6 +547,15 @@ class EllipsePhotometry():
             self.sky_mean2 = skymean
             self.sky2 = skymedian
             self.sky_noise2 = skystd
+
+    def subtract_sky(self):
+        print(f"DEBUG: subtracting {self.sky:.2e} from image1")
+        self.image -= self.sky
+        if self.image2 is not None:
+            print(f"DEBUG: subtracting {self.sky2:.2e} from image2")
+            self.image2 -= self.sky2
+
+        #TODO add this into image header
     def detect_objects(self, snrcut=1.5,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
