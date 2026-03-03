@@ -34,8 +34,9 @@ def zp_scale_r_to_ha(zp_ha, zp_r):
     zp_ha = float(zp_ha)
     zp_r = float(zp_r)
     if not (np.isfinite(zp_ha) and np.isfinite(zp_r)):
+        print("WARNING: could not calculate the zp scale!")
         return np.nan
-    return float(10 ** (-0.4 * (zp_ha - zp_r)))
+    return float(10 ** (-0.4 * (zp_r - zp_ha)))
 
 
 class CoaddImage:

@@ -68,6 +68,7 @@ import re
 import time
 
 from hapy.ellipse.photometry import run_ellipse_photometry
+from hapy.ellipse.utils import infer_ellipse_from_r_cutout, ellipse_missing
 from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
@@ -177,14 +178,7 @@ def _finite(x):
     except Exception:
         return False
 
-def resolve_psf_path(psfdir, parent_rimage):
-    """Return PSF path derived from parent R coadd filename, or None."""
-    if not psfdir or not parent_rimage:
-        return None
-    psf_name = str(parent_rimage).replace(".fits", "-psf.fits")
-    psf_path = Path(psfdir) / psf_name
-    return psf_path if psf_path.exists() else None
-    
+
 def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0, logger=None):
     """
     init: dict with xobj,yobj,mag,rad,nsersic,BA,PA, first_time
@@ -320,6 +314,15 @@ def _pull_statmorph(prefix, mobj):
             row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         except Exception:
             pass
+
+def resolve_psf_path(psfdir, parent_rimage):
+    """Return PSF path derived from parent R coadd filename, or None."""
+    if not psfdir or not parent_rimage:
+        return None
+    psf_name = str(parent_rimage).replace(".fits", "-psf.fits")
+    psf_path = Path(psfdir) / psf_name
+    return psf_path if psf_path.exists() else None
+    
 def initialize_result_row():
     """Return a fully populated results-row dict with frozen schema."""
 
@@ -468,6 +471,7 @@ def initialize_result_row():
     #row["GAL_CV_OK"] = False
 
     return row
+
 
 def pick_psf_path_and_source(args, params):
     psf_image = getattr(args, "psf_image", None)
@@ -699,12 +703,6 @@ def main():
     yc = ny / 2.0
 
 
-
-
-
-
-
-
     t0_total = time.perf_counter()
 
     params_path = Path(root).parent / "metadata.json"
@@ -716,6 +714,25 @@ def main():
         )
     
     params = json.loads(params_path.read_text())
+
+    # --- check for valid input ellipse
+    if ellipse_missing(params):
+        ell = infer_ellipse_from_r_cutout(r_data=image1_data)
+        if ell is not None:
+            params["sma_arcsec"] = float(ell.sma_pix * pixscale)
+            params["ba"] = float(ell.ba)
+            params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
+            params["ell0_source"] = "quick_photutils"
+            params["ell0_ok"] = True
+        else:
+            params["ell0_source"] = "quick_photutils_failed"
+            params["ell0_ok"] = False
+
+        # write back (development mode)
+        params_path.write_text(json.dumps(params, indent=2))
+
+
+    # --- update row with other info from metadata.json
     row["TELESCOPE"] = params.get("telescope", "")
     row["DATEOBS"]   = params.get("dateobs", "")
     row["POINTING"]  = params.get("pointing", "")
