@@ -56,6 +56,13 @@ def main(args=None):
         himage = rheader['HAIMAGE']
     except KeyError:
         print(f"WARNING: could not get HAIMAGE in rimage header {args.rimage}")
+        himage = None
+    try:
+        rheader = fits.getheader(args.rimage)
+        filter_ratio = float(rheader['FLTRATIO'])
+    except KeyError:
+        print(f"WARNING: could not get FLTRATIO in rimage header {args.rimage}.  Make sure you ran filter ratio program!")
+        filter_ratio = None
     image_set = HalphaImageSet(args.rimage, himage, psfdir=args.psfdir)
     image_set.load_coadds()
 
@@ -140,6 +147,7 @@ def main(args=None):
                 himage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.h.fwhm_arcsec is not None else None, 
                 himage_fwhm_pixels= float(image_set.h.fwhm_pixels) if image_set.h.fwhm_pixels is not None else None,
                 cutout_scale = float(args.cutout_scale),
+                filter_ratio = filter_ratio,
                 
 
         )

@@ -1377,11 +1377,15 @@ class EllipsePhotometry():
                 self.magzp2 = 22.5
         else:
             self.uconversion2 = None
-        if self.filter_ratio is not None:
-            if self.image2_flag:
-                self.uconversion2b = self.filter_ratio*self.uconversion1
-        else:
-            self.uconversion2b = None
+
+        if self.image2_flag:
+            fr = self.filter_ratio
+            self.uconversion2b = fr * self.uconversion1 #if fr is not None else np.nan
+        #if self.filter_ratio is not None:
+        #    if self.image2_flag:
+        #        self.uconversion2b = self.filter_ratio*self.uconversion1
+        #else:
+        #    self.uconversion2b = None
             
         ###########################################################
         ### CONVERT UNITS TO

@@ -371,7 +371,8 @@ def initialize_result_row():
 
     # ---------- cutout properties ----------
     for k in [
-        "CUTOUT_SCALE", "CUTOUT_XSIZE", "CUTOUT_YSIZE", "FILTER_CORRECTION"
+        "CUTOUT_SCALE", "CUTOUT_XSIZE", "CUTOUT_YSIZE",
+        "FILTER_CORRECTION", "FILTER_RATIO"
     ]:
         row[k] = np.nan
 
@@ -501,61 +502,126 @@ def check_table(results_table):
         print(c, t[c].dtype, t[c][0])
 
 def main():
-    p = argparse.ArgumentParser(description="Run headless analysis on one galaxy cutout set")
-    #p.add_argument("--root", help="Cutout root prefix (no extension) with relative path. e.g. --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012.  See --cutout-dir for easier interface for Virgo or UAT surveys.")
-    p.add_argument("--cutout-dir", required=True, default=None, help="Cutout directory (e.g. survey_run/cutouts/<tag>)")    
-    p.add_argument("--r", dest="r_fits", default=None, help="Override R-band FITS path")
-    p.add_argument("--cs", dest="cs_fits", default=None, help="Override CS FITS path")
-    p.add_argument("--mask", dest="mask_fits", default=None, help="Override mask FITS path")
 
-    # photometry knobs (passed through)
-    p.add_argument("--image2-filter", dest="image2_filter", default=None, help="Override value in metadata.json")
+    p = argparse.ArgumentParser(
+    description="Run headless analysis on one galaxy cutout directory"
+    )
 
-    p.add_argument("--filter-ratio", dest="filter_ratio", type=float, default=None, help="Override value in metadata.json")
-    p.add_argument("--objra", type=float, default=None, help="Override value in metadata.json")
-    p.add_argument("--objdec", type=float, default=None, help="Override value in metadata.json")
-    p.add_argument("--fixcenter", action="store_true")
-    p.add_argument("--statmorph", action="store_true")
+    # ============================================================
+    # Required input
+    # ============================================================
+    g_req = p.add_argument_group("Required Input")
 
-    #p.add_argument("--prefix", default=None, help="Output prefix tag (default: root basename)")
-    p.add_argument("--no-plots", dest="no_plots", action="store_true", help="Skip profile/diagnostic plots")
-    p.add_argument("--diagnostic-plots", dest="diagnostic_plots", action="store_true", help="Plot r image, mask, input ellipse and phot ellipse.")    
+    g_req.add_argument(
+        "--cutout-dir",
+        required=True,
+        help="Cutout directory (e.g. survey_run/cutouts/<tag>)"
+        )
 
-    # MASK
-    p.add_argument("--make-mask", action="store_true", help="Build/write mask before photometry/galfit")
-    p.add_argument("--sepath", default="sex")
-    p.add_argument("--gaiapath", default=None)
-    p.add_argument("--seconfig", default=_default_sex_config(), help="SExtractor config file path (default: hapy/astromatic/default.sex.HDI.mask)")
-    
-    p.add_argument("--sethreshold", type=float, default=0.005, help="SExtractor deblending threshold to use when making mask.Default is 0.005")
-    p.add_argument("--sesnr", type=float, default=10.0, help="SExtractor SNR to use when making mask.  Default is 10.")
-    p.add_argument("--seminarea", type=int, default=5, help="SExtractor min object area to use when making mask.  Default is 5.")
-    p.add_argument("--no-gaia", dest="no_gaia", action="store_true", help="Disable Gaia star masking")
-    p.add_argument("--pixscale", type=float, default=None, help="Override pixel scale (arcsec/pix)")
-    p.add_argument("--sma-arcsec", type=float, default=None, help="Ellipse semi-major axis in arcsec (optional)")
-    p.add_argument("--ba", type=float, default=None, help="Ellipse b/a (optional)")
-    p.add_argument("--pa-deg", type=float, default=None, help="Ellipse PA deg (optional)")
-    
+    # ============================================================
+    # Main pipeline controls
+    # ============================================================
+    g_main = p.add_argument_group("Pipeline Controls")
+
+    g_main.add_argument("--make-mask", action="store_true",
+                        help="Build/write mask before photometry/galfit")
+    g_main.add_argument("--statmorph", action="store_true",
+                        help="Compute statmorph structural parameters")
+    g_main.add_argument("--galfit", action="store_true",
+                        help="Run GALFIT after photometry")
+    g_main.add_argument("--convflag", action="store_true", default=False,
+                        help="Run GALFIT convolution stage (requires PSF)")
+    g_main.add_argument("--diagnostic-plots", action="store_true",
+                        help="Write diagnostic plot (R image + mask + ellipses)")
+
+
+    # ============================================================
+    # Masking (SExtractor + Gaia)
+    # ============================================================
+    g_mask = p.add_argument_group("Masking Options")
+
+    g_mask.add_argument("--sepath", default="sex",
+                        help="Path to SExtractor executable")
+    g_mask.add_argument("--seconfig", default=_default_sex_config(),
+                        help="SExtractor config file path")
+    g_mask.add_argument("--sethreshold", type=float, default=0.005,
+                        help="SExtractor detection/deblend threshold")
+    g_mask.add_argument("--sesnr", type=float, default=10.0,
+                        help="SExtractor SNR threshold")
+    g_mask.add_argument("--seminarea", type=int, default=5,
+                        help="SExtractor minimum object area")
+    g_mask.add_argument("--gaiapath", default=None,
+                        help="Path to Gaia catalog file")
+    g_mask.add_argument("--no-gaia", action="store_true",
+                        help="Disable Gaia star masking")
+
+    # ============================================================
     # GALFIT
-    p.add_argument("--galfit", action="store_true", help="Run GALFIT after photometry")
-    p.add_argument("--sigma-image", dest="sigma_image", default=None, help="Override sigma/RMS image (optional)")
-    p.add_argument("--psf-dir", dest="psf_dir", default=None, help="Directory containing PSF image.  Assumes the PSF image in the r-band coadd image (from metadata.json) rfilename.replace('.fits','-psf.fits')")    
-    p.add_argument("--psf-image", dest="psf_image", default=None, help="Override PSF image in metadata.json (optional)")
-    p.add_argument("--psf-oversampling", type=int, default=2)
-    p.add_argument("--convflag", default=False, action="store_true", help="set this to run galfit a second time with convolution.  Note: psf is required.")
-    p.add_argument("--ncomp", type=int, default=1, choices=[1, 2], help="Number of components in galfit model.  Default is 1, a single-component Sersic model.")
-    p.add_argument("--magzp", type=float, default=None)
-    p.add_argument("--sky", type=float, default=0.0)
+    # ============================================================
+    g_gal = p.add_argument_group("GALFIT Options")
 
-    p.add_argument("--log-level", default="INFO",
-                    choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-                    help="Logging verbosity.")
-    p.add_argument("--log-to-console", action="store_true",
-                    help="Also print logs to stdout.")
-    p.add_argument("--log-dir", default=None,
-                    help="Optional directory for logs (default: cutout directory).")
+    g_gal.add_argument("--psf-dir", dest="psf_dir", default=None,
+                       help="Directory containing PSF images (derived from parent_rimage)")
+    g_gal.add_argument("--psf-image", dest="psf_image", default=None,
+                       help="Explicit PSF image path (overrides --psf-dir)")
+    g_gal.add_argument("--psf-oversampling", type=int, default=2,
+                       help="PSF oversampling factor")
+    g_gal.add_argument("--ncomp", type=int, default=1, choices=[1, 2],
+                       help="Number of GALFIT components")
+    g_gal.add_argument("--magzp", type=float, default=None,
+                       help="Override PHOTZP passed to GALFIT")
+    g_gal.add_argument("--sky", type=float, default=0.0,
+                       help="Fixed sky value for GALFIT")
+
+    # ============================================================
+    # Logging
+    # ============================================================
+    g_log = p.add_argument_group("Logging")
+
+    g_log.add_argument("--log-level", default="INFO",
+                       choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                       help="Logging verbosity")
+    g_log.add_argument("--log-to-console", action="store_true",
+                       help="Also print logs to stdout")
+    g_log.add_argument("--log-dir", default=None,
+                       help="Optional directory for logs (default: cutout directory)")
+
+
+    # ============================================================
+    # Input overrides (advanced use)
+    # ============================================================
+    g_io = p.add_argument_group("Input Overrides (Advanced)")
+
+    g_io.add_argument("--r", dest="r_fits", default=None,
+                      help="Override R-band FITS path")
+    g_io.add_argument("--cs", dest="cs_fits", default=None,
+                      help="Override continuum-sub FITS path")
+    g_io.add_argument("--mask", dest="mask_fits", default=None,
+                      help="Override mask FITS path")
+    g_io.add_argument("--sigma-image", dest="sigma_image", default=None,
+                      help="Override sigma/RMS image")
+
+    # ============================================================
+    # Metadata overrides (advanced)
+    # ============================================================
+    g_meta = p.add_argument_group("Metadata Overrides (Advanced)")
+
+    g_meta.add_argument("--image2-filter", dest="image2_filter", default=None,
+                        help="Override image2 filter (otherwise from metadata.json)")
+    g_meta.add_argument("--filter-ratio", dest="filter_ratio", type=float, default=None,
+                        help="Override FLTRATIO for image2 flux calibration")
+    g_meta.add_argument("--sma-arcsec", type=float, default=None,
+                        help="Override metadata ellipse SMA (arcsec)")
+    g_meta.add_argument("--ba", type=float, default=None,
+                        help="Override metadata ellipse b/a")
+    g_meta.add_argument("--pa-deg", type=float, default=None,
+                        help="Override metadata PA_DEG (CCW from North)")
+    g_meta.add_argument("--fixcenter", action="store_true",
+                        help="Hold ellipse center fixed during photometry")
+    
     args = p.parse_args()
-
+    
+ 
 
     cutdir = Path(args.cutout_dir)
     if not cutdir.exists():
@@ -650,7 +716,15 @@ def main():
 
     row["HAFILTER"] = params.get("hafilter")
     row["CUTOUT_SCALE"] = params.get("cutout_scale")
-    row["FILTER_CORRECTION"] = params.get("filter_correction")        
+    row["FILTER_CORRECTION"] = params.get("filter_correction")
+
+
+    filter_ratio = params.get("filter_ratio", None)
+    if filter_ratio is None:
+        filter_ratio = np.nan
+        logger.warning("FLTRATIO missing from metadata; physical flux calibration will be NaN.")
+
+    row["FILTER_RATIO"] = filter_ratio           
 
     # --- Get ellipse parameters ---    
     sma_arcsec = float(params["sma_arcsec"])
@@ -800,7 +874,7 @@ def main():
         cs_fits=cs_fits,
         mask_fits=mask_fits,
         image2_filter=hafilter,
-        filter_ratio=args.filter_ratio,
+        filter_ratio=filter_ratio,
         objra=ra,
         objdec=dec,
         fixcenter=args.fixcenter,
@@ -926,12 +1000,8 @@ def main():
     # Write/update per-galaxy results row
     write_result_row_ecsv(results_path, row)
 
-
-    if not args.no_plots:
-        e.plot_fancy_profiles()
-        e.draw_phot_results_mpl()
-
-
+    e.plot_fancy_profiles()
+    e.draw_phot_results_mpl()
 
     if args.diagnostic_plots:
         phot_xc = float(row["ELLIP_XCENTROID"])
