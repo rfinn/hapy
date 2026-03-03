@@ -53,6 +53,8 @@ from hapy.geometry.adapters import pa_ccw_north_deg_to_photutils_theta_rad
 
 ## filter information
 ## from https://www.noao.edu/kpno/mosaic/filters/
+
+translate_filter = {'ha4':'4'}
 central_wavelength = {'4':6620.52,'8':6654.19,'12':6698.53,'16':6730.72,'R':6513.5,'r':6292.28,'inthalpha':6568.,'intha6657':6657,'intr':6240} # angstrom
 dwavelength = {'4':80.48,'8':81.33,'12':82.95,'16':81.1,'R':1511.3,'r':1475.17,'inthalpha':95.,'intha6657':80,'intr':1347} # angstrom
 
@@ -1359,14 +1361,26 @@ class EllipsePhotometry():
             print("WARNING: no PHOTZP keyword in image header. \nAssuming ZP=22.5")
             self.magzp = 22.5
         #print('mag zp = ',self.magzp)
-        filter = self.header
+        filter1 = self.header['FILTER']
         # multiply by bandwidth of filter to convert from Jy to erg/s/cm^2
-        bandwidth1 = 3.e8*dwavelength['R']*1.e-10/(central_wavelength['R']*1.e-10)**2
-        # need to figure out how to adjust automatically
-        bandwidth1 = 3.e8*dwavelength['r']*1.e-10/(central_wavelength['r']*1.e-10)**2        
+        try:
+            bandwidth1 = 3.e8*dwavelength[filter1]*1.e-10/(central_wavelength[filter1]*1.e-10)**2
+        except KeyError:
+            print("WARNING: no bandwidth for filter ",filter1, " setting dwavelength to 1500.")
+            dwave = 1500
+            cwavelength = 6500
+            bandwidth1 = 3.e8*dwave*1.e-10/(cwavelength*1.e-10)**2
+
         self.uconversion1 = 3631.*10**(self.magzp/-2.5)*1.e-23*bandwidth1
         if self.image2_filter:
-            bandwidth2 = 3.e8*dwavelength[self.image2_filter]*1.e-10/(central_wavelength[self.image2_filter]*1.e-10)**2
+            try:
+                bandwidth2 = 3.e8*dwavelength[self.image2_filter]*1.e-10/(central_wavelength[self.image2_filter]*1.e-10)**2
+            except KeyError:
+                print("WARNING: no bandwidth for filter ",self.image2_filter, " setting dwavelength to 80.")
+                dwave = 80
+                cwavelength = 6600
+                bandwidth2 = 3.e8*dwave*1.e-10/(cwavelength*1.e-10)**2
+                
             try:
                 self.magzp2 = float(self.header2['PHOTZP'])
                 self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2

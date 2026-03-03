@@ -1,6 +1,21 @@
 from matplotlib import pyplot as plt
 from astropy.visualization import simple_norm
 from astropy.stats import sigma_clip
+from astropy.io import fits
+
+from matplotlib.patches import Ellipse
+
+def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
+    # matplotlib Ellipse needs angle relative to +x axis
+    return Ellipse(
+        (xc, yc),
+        width=2 * sma_pix,
+        height=2 * sma_pix * ba,
+        angle=pa_deg,
+        fill=False,
+        **kwargs,
+    )
+
 
 def display_image(image, percent=99.9, lowrange=False, sigclip=True):
     if sigclip:

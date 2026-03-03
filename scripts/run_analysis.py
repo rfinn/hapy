@@ -1010,7 +1010,7 @@ def main():
     write_result_row_ecsv(results_path, row)
 
 
-    if not args.diagnostic_plots:
+    if not args.no_diagnostic_plots:
 
         e.plot_fancy_profiles()
         e.draw_phot_results_mpl()
