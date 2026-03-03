@@ -131,6 +131,13 @@ def main():
         required=True,
         help="Root directory containing galaxy subdirectories."
     )
+
+    parser.add_argument(
+        "--outdir",
+        type=str,
+        default=None,
+        help="Directory where merged table will be written (default: current directory)."
+    )
     parser.add_argument(
         "--pattern",
         default="*-results.ecsv",
@@ -146,9 +153,12 @@ def main():
 
     files = find_result_files(args.indir, args.pattern)
 
-
+    if args.outdir:
+        outpath = Path(args.outdir).resolve() / args.out
+    else:
+        outpath = Path(args.out).resolve()
     
-    merge_tables(files, args.out)
+    merge_tables(files, outpath)
 
 
 if __name__ == "__main__":

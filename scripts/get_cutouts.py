@@ -26,7 +26,8 @@ def main(args=None):
 
     #parser.add_argument('--table-path', dest = 'tablepath', default = '/Users/rfinn/github/Virgo/tables/', help = 'path to github/Virgo/tables')
     parser.add_argument('--rimage', help='r-band image name')
-    
+    parser.add_argument("--outdir",type=str,default=None,
+                            help="Directory where cutouts/ will be created (default: current working directory).")
     parser.add_argument('--psfdir', help='set to coadd directory')
     parser.add_argument('--cutout_scale',type=float, default=2, help='multiplicative scale factor for increasing the size of cutout images')
     parser.add_argument('--overwrite_metadata',default=False, action='store_true', help='Set this to overwrite metadata.json.  Will store a *.bak file.')        
@@ -45,6 +46,10 @@ def main(args=None):
     
     args = parser.parse_args()
 
+    base_outdir = Path(args.outdir).resolve() if args.outdir else Path.cwd()
+    cutouts_dir = base_outdir / "cutouts"
+    cutouts_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Writing cutouts to: {cutouts_dir}")
     
     try:
         rheader = fits.getheader(args.rimage)
@@ -83,6 +88,7 @@ def main(args=None):
         corrections = myfilter.get_trans_correction(redshift,outfile=None)
         filter_keepflag = corrections < args.maxcorrection # this is a crazy big cut, but we can adjust with halphagui
         gcat.keepflag[gcat.keepflag] = filter_keepflag
+        filter_corrections = corrections[filter_keepflag]
 
     print(f"number of galaxies in FOV = {np.sum(gcat.keepflag)}")
     
@@ -104,8 +110,8 @@ def main(args=None):
     for i in range(len(gra)):
         
 
-        rootname = build_cutout_name(tokens, galid[i], args.outdir)
-
+        #rootname = build_cutout_name(tokens, galid[i], args.outdir)
+        rootname = build_cutout_name(tokens, galid[i], cutouts_dir)
 
         # Write mask ellipse params for downstream masking
         cutdir = Path(rootname).parent
@@ -126,6 +132,7 @@ def main(args=None):
                 parent_rimage=Path(args.rimage).name,
                 parent_haimage=Path(himage).name if himage else None,
                 hafilter=image_set.h.instrument if himage else None,
+                filter_correction = float(filter_corrections[i]),
                 rimage_psf= image_set.r.psf_image_name,
                 himage_psf= image_set.h.psf_image_name if himage else None,                
                 rimage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.r.fwhm_arcsec is not None else None, 

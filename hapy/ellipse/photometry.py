@@ -409,7 +409,7 @@ class EllipsePhotometry():
 
         print("runStatmorphFlag = ",runStatmorphFlag)
         if runStatmorphFlag:
-            print("running statmorph - please be patient...")
+            #print("running statmorph - please be patient...")
             #self.run_statmorph()
             #self.statmorph_flag = True
 

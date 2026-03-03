@@ -226,6 +226,7 @@ def initialize_result_row():
         "SCHEME",
         "PARENT_RIMAGE",
         "PARENT_HAIMAGE",
+        "HAFILTER"
     ]:
         row[k] = ""
 
@@ -242,12 +243,12 @@ def initialize_result_row():
     ]:
         row[k] = ""
         
-    row["psf_ok"] = False
+    #row["psf_ok"] = False
 
     row["PSF_SOURCE"] = ""   # "cli" | "psf_dir" | ""
     
     # ---------- pipeline status ----------
-    for k in ["mask_ok", "phot_ok", "galfit_ok"]:
+    for k in ["mask_ok", "phot_ok", "psf_ok"]:#, "galfit_ok"]:
         row[k] = False
 
     for k in ["STAGE", "STATUS"]:
@@ -259,6 +260,12 @@ def initialize_result_row():
     # ---------- coordinates ----------
     row["ra"] = np.nan
     row["dec"] = np.nan
+
+    # ---------- cutout properties ----------
+    for k in [
+        "CUTOUT_SCALE", "CUTOUT_XSIZE", "CUTOUT_YSIZE", "FILTER_CORRECTION"
+    ]:
+        row[k] = np.nan
 
     # ---------- ELL0 ----------
     for k in [
@@ -395,6 +402,7 @@ def main():
 
     # photometry knobs (passed through)
     p.add_argument("--image2-filter", dest="image2_filter", default=None)
+
     p.add_argument("--filter-ratio", dest="filter_ratio", type=float, default=None)
     p.add_argument("--objra", type=float, default=None)
     p.add_argument("--objdec", type=float, default=None)
@@ -432,6 +440,11 @@ def main():
     p.add_argument("--sky", type=float, default=0.0)
     
     args = p.parse_args()
+    
+    base_outdir = Path(args.outdir).resolve() if args.outdir else Path.cwd()
+    cutouts_outdir = base_outdir / "cutouts"
+    cutouts_outdir.mkdir(parents=True, exist_ok=True)
+
 
     if args.cutout_dir is not None:
         d = Path(args.cutout_dir)
@@ -494,6 +507,8 @@ def main():
     ny, nx = data.shape
     wcs = WCS(hdr)
 
+    row["CUTOUT_XSIZE"] = nx
+    row["CUTOUT_YSIZE"] = ny
     # Default center = image center
     xc = nx / 2.0
     yc = ny / 2.0
@@ -523,6 +538,9 @@ def main():
     row["PARENT_RIMAGE"]  = params.get("parent_rimage", "")
     row["PARENT_HAIMAGE"] = params.get("parent_haimage", "")
 
+    row["HAFILTER"] = params.get("hafilter")
+    row["CUTOUT_SCALE"] = params.get("cutout_scale")
+    row["FILTER_CORRECTION"] = params.get("filter_correction")        
 
     # --- Get ellipse parameters ---    
     sma_arcsec = float(params["sma_arcsec"])
@@ -589,7 +607,7 @@ def main():
     row["PSF_SOURCE"] = psf_source
     psf_ok = row["psf_ok"]
 
-    print("TESTING: psf_path = ",psf_path)
+    #print("TESTING: psf_path = ",psf_path)
     #sys.exit()
     if args.make_mask:
 
@@ -656,12 +674,17 @@ def main():
 
     row["STAGE"] = "phot"
     t0 = time.perf_counter()
-    
+
+    hafilter = row["HAFILTER"]
+    if args.image2_filter is not None:
+        hafilter = args.image2_filter
+        row["HAFILTER"] = hafilter
+        
     e = run_ellipse_photometry(
         r_fits=r_fits,
         cs_fits=cs_fits,
         mask_fits=mask_fits,
-        image2_filter=args.image2_filter,
+        image2_filter=hafilter,
         filter_ratio=args.filter_ratio,
         objra=args.objra,
         objdec=args.objdec,
