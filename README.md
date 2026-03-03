@@ -1,12 +1,3 @@
-This is a strong foundation. 👍
-It just needs to be tightened and updated to reflect the **survey pipeline workflow** you’ve built (cutouts → run_analysis → merge).
-
-Below is a revised **short + practical README** that keeps your structure but adds the modern pipeline pieces and clarifies conventions.
-
-You can paste this over your current README.
-
----
-
 # hapy
 
 **hapy** (pronounced *happy*) is a Python package for astronomical image processing and survey-scale galaxy analysis.
@@ -202,8 +193,3 @@ This enables:
 * Reproducible survey analysis
 
 ---
-
-If you’d like, next we can:
-
-* Add a very compact “Quickstart” block at the top (3 commands only), or
-* Add a short “v1.0 production-ready checklist” note for future you.
