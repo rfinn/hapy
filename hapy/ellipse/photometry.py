@@ -1222,7 +1222,7 @@ class EllipsePhotometry():
         '''
 
         # initialize conditions to implement a stopping radius
-        snr_stop = 50
+        snr_stop = 3
         snr_consecutive = 2
         low_snr_count = 0
 
@@ -1307,13 +1307,13 @@ class EllipsePhotometry():
 
                 # noise in annulus: prefer sky-based; you can also use get_noise_in_aper(dF, dA)
                 # If you have sky noise per pixel available, this is the cleanest:
-                sigma_ann = self.sky_noise * np.sqrt(dA)
+                #sigma_ann = self.sky_noise * np.sqrt(dA)
                 #
                 # Otherwise, reuse your existing noise model:
-                #sigma_ann = self.get_noise_in_aper(dF, dA)
+                sigma_ann = self.get_noise_in_aper(dF, dA)
 
                 snr_ann = dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
-                print(f"DEBUG: snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1f}, sky_noise={self.sky_noise:.1f}, dA={dA:.1f}")
+                print(f"DEBUG: snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
                 if snr_ann < snr_stop:
                     low_snr_count += 1
                     if low_snr_count >= snr_consecutive:
