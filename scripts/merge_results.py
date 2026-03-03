@@ -55,7 +55,40 @@ def check_duplicate_objids(tables):
     if duplicates:
         raise RuntimeError(f"Duplicate objid detected: {duplicates}")
 
+import numpy as np
 
+def _coerce_bool_col(tab, name, default=False):
+    if name not in tab.colnames:
+        tab[name] = np.full(len(tab), default, dtype=bool)
+        return
+
+    col = tab[name]
+
+    # masked -> fill default
+    try:
+        if hasattr(col, "filled"):
+            col = col.filled(default)
+    except Exception:
+        pass
+
+    # coerce object/mixed to bool safely
+    if getattr(col, "dtype", None) == object:
+        def asbool(v):
+            if v is None:
+                return default
+            if isinstance(v, (bool, np.bool_)):
+                return bool(v)
+            s = str(v).strip().lower()
+            if s in ("true", "t", "1", "yes", "y"):
+                return True
+            if s in ("false", "f", "0", "no", "n", "", "none", "nan"):
+                return False
+            return default
+
+        tab[name] = np.array([asbool(v) for v in col], dtype=bool)
+    else:
+        tab[name] = np.array(col, dtype=bool)
+        
 def merge_tables(files, output):
     """Read, validate, merge, and write output FITS table."""
     print(f"Found {len(files)} result files.")
@@ -63,6 +96,10 @@ def merge_tables(files, output):
 
     tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
+    for t in tables:
+        _coerce_bool_col(t, "R_SM_FLAG", default=False)
+        _coerce_bool_col(t, "H_SM_FLAG", default=False)
+        
     print("Validating schema...")
     validate_schema(tables)
 
@@ -70,8 +107,6 @@ def merge_tables(files, output):
 
     print("Stacking tables...")
     merged = vstack(tables, metadata_conflicts="silent")
-
-
 
 
     # Add explicit observation ID column
