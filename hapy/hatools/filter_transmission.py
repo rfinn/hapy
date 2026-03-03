@@ -41,7 +41,11 @@ class FilterTrace():
                                 '4':'Ha+4nm','8':'Ha+8nm','12':'Ha+12nm','16':'Ha+16nm',\
                                 'ha4':'Ha+4nm','ha8':'Ha+8nm','ha12':'Ha+12nm','ha16':'Ha+16nm','ha':'Ha-197',\
                                 'Ha+4nm':'Ha+4nm','Ha4nm':'Ha+4nm',\
-                                'Halpha':'Ha-197','Ha6657':'Ha-227'}
+                                'Halpha':'Ha-197','Ha6657':'Ha-227',\
+                                'ha4 H-alpha+4nm k1010':'4',
+                                'ha8 H-alpha+8nm k1011':'8',
+                                'ha12 H-alpha+12nm k1012':'12',
+                                'ha16 H-alpha+16nm k1013':'16',}
         print("testing, self.hafilter = ",self.hafilter, self.instrument)
         self.halpha_filtername = utils.get_filter_file(f"{instrument_to_prefix[self.instrument]}-{filter_to_suffix[self.hafilter]}.fits")
 
