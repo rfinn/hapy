@@ -116,7 +116,7 @@ def main(args=None):
 
     rows = []
     tokens = parse_coadd_name(args.rimage, scheme=args.scheme)
-    outbase = Path(args.outdir)
+    outbase = Path(outdir)
     outbase.mkdir(parents=True, exist_ok=True)
     #tokens = parse_coadd_name(args.rimage, scheme=args.scheme)
     for i in range(len(gra)):
@@ -187,7 +187,7 @@ def main(args=None):
     ts = datetime.now().strftime("%Y%m%d")
 
     stem = Path(rootname).stem
-    summary_path = Path(args.outdir) / f"cutouts_summary-{stem}-{user}-{ts}.fits"
+    summary_path = Path(outdir) / f"cutouts_summary-{stem}-{user}-{ts}.fits"
     tab.write(summary_path, overwrite=True)
     print(f"Wrote summary table: {summary_path}")
 if __name__ == '__main__':
