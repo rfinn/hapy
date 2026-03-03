@@ -1809,6 +1809,8 @@ class EllipsePhotometry():
             # also plot line because you can't see the result when the error is small
             # this should fix issue #18 in Virgo github
             plt.plot(x,y0,'-',lw=2,color=mycolors[i])
+            # and points
+            plt.plot(x,y0,'bo',color=mycolors[i])
         plt.xlabel('SMA (arcsec)',fontsize=16)
         plt.ylabel('Flux (erg/s/cm^2/Hz)',fontsize=16)
         plt.title(os.path.basename(self.image_name).replace('.fits',''))
@@ -1833,7 +1835,7 @@ class EllipsePhotometry():
             # also plot line because you can't see the result when the error is small
             # this should fix issue #18 in Virgo github
             plt.plot(x,y0,'-',lw=2,color=mycolors[i])
-        
+            plt.plot(x,y0,'bo',color=mycolors[i])
         plt.xlabel('SMA (arcsec)',fontsize=16)
         plt.ylabel('Surface Brightness',fontsize=16)
 
