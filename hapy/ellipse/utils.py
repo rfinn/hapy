@@ -3,7 +3,7 @@ from astropy.stats import SigmaClip
 from astropy import units as u
 import numpy as np
 
-
+from hapy.masktools.api import EllipseParams
 def ellipse_missing(params):
 
     bad_geom = ellipse_geom_missing(params)
