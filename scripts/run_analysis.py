@@ -682,8 +682,8 @@ def main():
     row["TOTAL_SEC"] = 0.0
 
     row["R_FITS"] = r_fits
-    row["CS_FITS"] = r_fits
-    row["SIGMA_FITS"] = r_fits    
+    row["CS_FITS"] = cs_fits
+    row["SIGMA_FITS"] = sigma_image    
 
     
     # pixel scale
@@ -718,7 +718,7 @@ def main():
 
     # --- check for valid input ellipse
     if ellipse_missing(params):
-        ell = infer_ellipse_from_r_cutout(r_data=image1_data)
+        ell = infer_ellipse_from_r_cutout(r_data=data)
         if ell is not None:
             # if agc has a valid radius and BA, then keep?
             #if params["sma_arcsec"] > 0.1:
