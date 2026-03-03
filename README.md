@@ -65,7 +65,7 @@ find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d | \
 parallel -j 8 \
 'python scripts/run_analysis.py \
     --root {}/$(basename {}) \
-    --make-mask --statmorph --galfit'
+    --make-mask --statmorph --galfit --convflag'
 ```
 
 Explanation:
@@ -84,7 +84,7 @@ find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d > cutout_list.txt
 parallel -j 8 \
 'python scripts/run_analysis.py \
     --root {}/$(basename {}) \
-    --make-mask --statmorph --galfit' \
+    --make-mask --statmorph --galfit --convflag' \
 :::: cutout_list.txt
 ```
 
@@ -165,7 +165,7 @@ python scripts/run_analysis.py \
     --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
     --make-mask \
     --statmorph \
-    --galfit
+    --galfit --convflag
 ```
 
 Outputs include:
