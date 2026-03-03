@@ -307,7 +307,9 @@ class EllipsePhotometry():
     def get_noise_in_aper(self, flux, area):
         ''' calculate the noise in an area '''
         if self.sky_noise is not None:
-            noise_e = np.sqrt(flux*self.gain + area*self.sky_noise*self.gain)
+            noise_source = np.sqrt(flux*self.gain)
+            noise_sky = self.sky_noise*np.sqrt(area)*self.gain
+            noise_e = np.sqrt(noise_source**2 + noise_sky**2)
             noise_adu = noise_e/self.gain
         else:
             noise_adu = np.nan
