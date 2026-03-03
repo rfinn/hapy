@@ -531,8 +531,8 @@ def main():
                         help="Run GALFIT after photometry")
     g_main.add_argument("--convflag", action="store_true", default=False,
                         help="Run GALFIT convolution stage (requires PSF)")
-    g_main.add_argument("--diagnostic-plots", action="store_true",
-                        help="Write diagnostic plot (R image + mask + ellipses)")
+    g_main.add_argument("--no-diagnostic-plots", action="store_true",
+                        help="Don't write diagnostic plot (R image + mask + ellipses)")
 
 
     # ============================================================
@@ -1000,10 +1000,12 @@ def main():
     # Write/update per-galaxy results row
     write_result_row_ecsv(results_path, row)
 
-    e.plot_fancy_profiles()
-    e.draw_phot_results_mpl()
 
-    if args.diagnostic_plots:
+    if not args.diagnostic_plots:
+
+        e.plot_fancy_profiles()
+        e.draw_phot_results_mpl()
+        
         phot_xc = float(row["ELLIP_XCENTROID"])
         phot_yc = float(row["ELLIP_YCENTROID"])
         phot_sma_pix = float(row["ELLIP_SMA_PIX"])
