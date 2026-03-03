@@ -722,7 +722,7 @@ def main():
         if ell is not None:
             # if agc has a valid radius and BA, then keep?
             #if params["sma_arcsec"] > 0.1:
-            radius_scale_factor = 2.5
+            radius_scale_factor = 1
             params["sma_arcsec"] = float(ell.sma_pix * pixscale * radius_scale_factor)
             params["ba"] = float(ell.ba)
             params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
