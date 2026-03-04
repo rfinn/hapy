@@ -20,7 +20,8 @@ dependencies = [
 # Include scripts as console commands
 [project.scripts]
 get_cutouts = "hapy.scripts.get_cutouts:main"
-#get_cutouts = "hapy.scripts.get_cutouts:main"
+run_analysis = "hapy.scripts.run_analysis:main"
+merge_tables = "hapy.scripts.merge_tables:main"
 
 # Package discovery
 [tool.setuptools.packages.find]
