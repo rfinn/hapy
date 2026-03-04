@@ -305,8 +305,17 @@ def _store_galfit(row, res, prefix):
     row[f"{prefix}NUMERR"] = _scalar(res.comp1.numerical_error_flag)
     row[f"{prefix}ERROR"] = _scalar(res.error)
 
-    # ---- statmorph (best-effort; only a few key fields to start) ----
-def _pull_statmorph(prefix, mobj):
+
+def print_statmorph(mobj):
+    for k in mobj.__dict__.keys():
+        if k.startswith('_'):
+            continue
+        print(f"\t{k}: {mobj.__dict__[k]}")
+
+
+# ---- statmorph (best-effort; only a few key fields to start) ----
+
+def _pull_statmorph(row, prefix, mobj):
     if mobj is None:
         return
     for outk, attr in [
@@ -323,15 +332,16 @@ def _pull_statmorph(prefix, mobj):
             ("R50", "r50"),
             ("R80", "r80"),
             ("FLAG", "flag"),
-            ("SERSIC_AMP", "sersic_amplitude")
-            ("SERSIC_RHALF","sersic_rhalf")
-            ("SERSIC_N","sersic_n")
-            ("SERSIC_XC","sersic_xc")
-            ("SERSIC_YC","sersic_yc")
-            ("SERSIC_ELLIP","sersic_ellip")
-            ("SERSIC_THETA","sersic_theta")
-            ("SERSIC_CHISQ_DOF","sersic_chi2_dof")
+            ("SERSIC_AMP", "sersic_amplitude"),
+            ("SERSIC_RHALF","sersic_rhalf"),
+            ("SERSIC_N","sersic_n"),
+            ("SERSIC_XC","sersic_xc"),
+            ("SERSIC_YC","sersic_yc"),
+            ("SERSIC_ELLIP","sersic_ellip"),
+            ("SERSIC_THETA","sersic_theta"),
+            ("SERSIC_CHISQ_DOF","sersic_chi2_dof"),
                     ]:
+        row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         try:
             row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         except Exception:
@@ -1057,16 +1067,24 @@ def main():
         # if any missing keys, just don't set mismatch fields
         pass
 
+    # print()
+    # print("DEBUG: morph")
+    # print_statmorph(e.morph)
 
+    # print()
+    # print("DEBUG: morph2")
+    # print_statmorph(e.morph2)    
+    # _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
+    # row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
 
     try:
-        _pull_statmorph("R_SM", getattr(e, "morph", None))
+        _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
         row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
     except Exception:
         pass
 
     try:
-        _pull_statmorph("H_SM", getattr(e, "morph2", None))
+        _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
         row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
     except Exception:
         pass

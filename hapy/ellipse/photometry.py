@@ -424,27 +424,14 @@ class EllipsePhotometry():
             #self.statmorph_flag = True
 
             
-            
+            self.run_statmorph(save_figs=True)
             try:
                 print("running statmorph - please be patient...")
                 print()
-                self.run_statmorph(save_figs=True)
                 self.statmorph_flag = True
             except:
                 self.statmorph_flag = False            
                 print("WARNING: problem running statmorph")
-            if self.image2 is not None:
-                #self.run_statmorph_image2()
-                #self.statmorph_flag2 = True                
-                try:
-                    print("running statmorph on image 2- please be patient...")
-                    print()
-                    self.run_statmorph_image2()
-                    self.statmorph_flag2 = True
-                except:
-                    self.statmorph_flag2 = False            
-                    print("WARNING: problem running statmorph on image 2")
-
         self.get_sky_noise()
         print("writing tables")
         self.write_phot_tables()
@@ -1837,13 +1824,13 @@ class EllipsePhotometry():
                 y0=y0*100
                 y1 = y1*100
                 y2 = y2*100
-            print(f"DEBUG: fancy plots flux, len(x)={len(x)}, len(y1)={len(y1)}, len(y2)={len(y2)}")
+            #print(f"DEBUG: fancy plots flux, len(x)={len(x)}, len(y1)={len(y1)}, len(y2)={len(y2)}")
             plt.fill_between(x,y1,y2,label=labels[i],alpha=alphas[i],color=mycolors[i])
             # also plot line because you can't see the result when the error is small
             # this should fix issue #18 in Virgo github
             plt.plot(x,y0,'-',lw=2,color=mycolors[i])
             # and points
-            plt.plot(x,y0,'bo',color=mycolors[i])
+            plt.plot(x,y0, marker='o',color=mycolors[i])
         plt.xlabel('SMA (arcsec)',fontsize=16)
         plt.ylabel('Flux (erg/s/cm^2/Hz)',fontsize=16)
         plt.title(os.path.basename(self.image_name).replace('.fits',''))
@@ -1863,12 +1850,12 @@ class EllipsePhotometry():
                 y0=y0*100
                 y1 = y1*100
                 y2 = y2*100
-            print(f"DEBUG: fancy plots sb, len(x)={len(x)}, len(y1)={len(y1)}, len(y2)={len(y2)}")                
+            #print(f"DEBUG: fancy plots sb, len(x)={len(x)}, len(y1)={len(y1)}, len(y2)={len(y2)}")                
             plt.fill_between(x,y1,y2,label=labels[i],alpha=alphas[i],color=mycolors[i])
             # also plot line because you can't see the result when the error is small
             # this should fix issue #18 in Virgo github
             plt.plot(x,y0,'-',lw=2,color=mycolors[i])
-            plt.plot(x,y0,'bo',color=mycolors[i])
+            plt.plot(x,y0,marker='o',color=mycolors[i])
         plt.xlabel('SMA (arcsec)',fontsize=16)
         plt.ylabel('Surface Brightness',fontsize=16)
 
