@@ -5,8 +5,12 @@ from pathlib import Path
 from pathlib import Path
 
 # hapy/masktools/sextractor.py → parents[1] = hapy/
-HAPY_DIR = Path(__file__).resolve().parents[1]
-ASTROMATIC_DIR = HAPY_DIR / "astromatic"
+#HAPY_DIR = Path(__file__).resolve().parents[1]
+#ASTROMATIC_DIR = HAPY_DIR / "astromatic"
+
+from importlib.resources import files
+
+ASTROMATIC_DIR = files("hapy") / "astromatic"
 
 SEXTRACTOR_FILES = [
     "default.sex.HDI.mask",
