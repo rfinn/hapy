@@ -67,6 +67,7 @@ import json
 import re
 import time
 
+import hapy
 from hapy.ellipse.photometry import run_ellipse_photometry
 from hapy.ellipse.utils import infer_ellipse_from_r_cutout, ellipse_missing
 from hapy.galfittools.rungalfit import RunGalfit
@@ -77,7 +78,7 @@ from hapy.masktools.gaia import make_gaia_mask,  get_gaia_stars
 #from hapy.masktools.types import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
-
+from hapy.utils.paths import astromatic_dir 
 
 
 def init_cutout_logger(tag: str, root: str | Path, level: str = "INFO",
@@ -122,15 +123,27 @@ def init_cutout_logger(tag: str, root: str | Path, level: str = "INFO",
     logger.info(f"Log file: {log_path}")
     return logger, log_path
 
+
 def _default_sex_config() -> str:
-    # hapy/astromatic/default.sex.HDI.mask (adjust if package name differs)
+    # Preferred: resolve relative to installed/imported hapy package
     try:
-        with resources.as_file(resources.files("hapy.astromatic") / "default.sex.HDI.mask") as p:
+        pkg_root = Path(hapy.__file__).resolve().parent
+        p = pkg_root / "astromatic" / "default.sex.HDI.mask"
+        if p.exists():
             return str(p)
     except Exception:
-        # fallback relative to repo
-        return str(Path(__file__).resolve().parents[1] / "hapy" / "astromatic" / "default.sex.HDI.mask")
+        pass
 
+    # Secondary: try importlib.resources relative to "hapy" package root
+    try:
+        p = resources.files("hapy") / "astromatic" / "default.sex.HDI.mask"
+        return str(p)
+    except Exception:
+        pass
+
+    # Last resort: relative to this file (repo layout)
+    return str(Path(__file__).resolve().parents[1] / "astromatic" / "default.sex.HDI.mask")
+    
 def _pick_one(pattern: str) -> str | None:
     hits = sorted(glob.glob(pattern))
     return hits[0] if hits else None
