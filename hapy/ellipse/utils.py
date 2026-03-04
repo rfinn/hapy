@@ -26,15 +26,18 @@ def pa_is_placeholder(params):
         return True
     return (scheme == "agc" and float(pa) == 0.0)
 
-def infer_ellipse_from_r_cutout(r_data, r_wcs=None, nsigma=2.5, npixels=20):
+def infer_ellipse_from_r_cutout(r_data, user_mask=None, r_wcs=None, nsigma=2.5, npixels=20):
     """
     Return an EllipseParams guess in pixel coords (theta_deg CCW from +x).
     Heuristic: choose the detection closest to image center.
     """
+
     ny, nx = r_data.shape
     xc0, yc0 = nx / 2.0, ny / 2.0
 
     base_mask = ~np.isfinite(r_data)
+    if user_mask is not None:
+        base_mask = base_mask | user_mask
     sigma_clip = SigmaClip(sigma=3.0, maxiters=5)
     thr = detect_threshold(r_data, nsigma=nsigma, sigma_clip=sigma_clip, mask=base_mask)
     segm = detect_sources(r_data, thr, npixels=npixels, mask=base_mask)

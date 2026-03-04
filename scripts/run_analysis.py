@@ -73,6 +73,7 @@ from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
 from hapy.masktools.api import MaskEngine, EllipseParams
+from hapy.masktools.gaia import make_gaia_mask,  get_gaia_stars
 #from hapy.masktools.types import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
@@ -718,7 +719,17 @@ def main():
 
     # --- check for valid input ellipse
     if ellipse_missing(params):
-        ell = infer_ellipse_from_r_cutout(r_data=data)
+        print("\nGetting initial ellipse estimate from photutils...\n")
+        # get gaia mask
+        brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
+        mask_array = np.zeros_like(data,  dtype=np.int32)
+        mask_array, gaia_mask = make_gaia_mask(mask_array,star_xpix,star_ypix,pixscale/3600.,gaia_table=brightstar)
+
+        # convert to boolean mask
+        gaia_mask = gaia_mask > 0
+
+        # get ellipse from photutils
+        ell = infer_ellipse_from_r_cutout(r_data=data, user_mask=gaia_mask)
         if ell is not None:
             # if agc has a valid radius and BA, then keep?
             print("DEBUG: original radius = ",params["sma_arcsec"])
