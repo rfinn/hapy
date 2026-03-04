@@ -1104,7 +1104,7 @@ def main():
         convflag = bool(args.convflag)
 
         # set convolution box size
-        nconvolution_scale = 20
+        nconvolution_scale = 10
         if params['himage_fwhm_pixels'] is not None:
             convolution_size = nconvolution_scale * float(params['himage_fwhm_pixels'])
         elif params['rimage_fwhm_arcsec'] is not None:
