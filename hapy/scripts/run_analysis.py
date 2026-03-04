@@ -748,7 +748,7 @@ def main():
             print("DEBUG: original radius = ",params["sma_arcsec"])
             radius_scale_factor = 1.2
             print("DEBUG: new radius = ",ell.sma_pix * pixscale)
-            params["sma_arcsec"] = float(ell.sma_pix * pixscale) * radius_scale_factor)
+            params["sma_arcsec"] = float(ell.sma_pix * pixscale * radius_scale_factor)
             params["ba"] = float(ell.ba)
             params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
             params["ell0_source"] = "quick_photutils"
