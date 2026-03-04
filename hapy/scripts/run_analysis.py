@@ -310,19 +310,27 @@ def _pull_statmorph(prefix, mobj):
     if mobj is None:
         return
     for outk, attr in [
-                    ("XCENTROID", "xc_centroid"),
-                    ("YCENTROID", "yc_centroid"),
-                    ("GINI", "gini"),
-                    ("M20", "m20"),
-                    ("C", "concentration"),
-                    ("A", "asymmetry"),
-                    ("S", "smoothness"),
-                    ("RPETRO_ELLIP", "rpetro_ellip"),
-                    ("RHALF_ELLIP", "rhalf_ellip"),
-                    ("R20", "r20"),
-                    ("R50", "r50"),
-                    ("R80", "r80"),
-                    ("FLAG", "flag"),
+            ("XCENTROID", "xc_centroid"),
+            ("YCENTROID", "yc_centroid"),
+            ("GINI", "gini"),
+            ("M20", "m20"),
+            ("C", "concentration"),
+            ("A", "asymmetry"),
+            ("S", "smoothness"),
+            ("RPETRO_ELLIP", "rpetro_ellip"),
+            ("RHALF_ELLIP", "rhalf_ellip"),
+            ("R20", "r20"),
+            ("R50", "r50"),
+            ("R80", "r80"),
+            ("FLAG", "flag"),
+            ("SERSIC_AMP", "sersic_amplitude")
+            ("SERSIC_RHALF","sersic_rhalf")
+            ("SERSIC_N","sersic_n")
+            ("SERSIC_XC","sersic_xc")
+            ("SERSIC_YC","sersic_yc")
+            ("SERSIC_ELLIP","sersic_ellip")
+            ("SERSIC_THETA","sersic_theta")
+            ("SERSIC_CHISQ_DOF","sersic_chi2_dof")
                     ]:
         try:
             row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
@@ -437,7 +445,15 @@ def initialize_result_row():
         "XCENTROID", "YCENTROID", "GINI", "M20",
         "C", "A", "S",
         "RPETRO_ELLIP", "RHALF_ELLIP",
-        "R20", "R50", "R80"
+        "R20", "R50", "R80",
+        "SERSIC_AMP", 
+        "SERSIC_RHALF",
+        "SERSIC_N",
+        "SERSIC_XC",
+        "SERSIC_YC",
+        "SERSIC_ELLIP",
+        "SERSIC_THETA",
+        "SERSIC_CHISQ_DOF",
     ]
 
     for band in ["R", "H"]:
