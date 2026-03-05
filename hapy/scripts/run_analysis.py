@@ -255,6 +255,7 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=4.0, logger=None):
             logger.info(f"GALFIT {stage} result parsed (logging fields failed)")
             
     # rerun if high n
+    rerun=False
     if _scalar(res.comp1.n) > n_hi:
         meta["rerun_fixed_n"] = True
         if logger:
@@ -267,6 +268,8 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=4.0, logger=None):
             fitmag=1, fitcenter=1, fitrad=1, fitBA=1, fitPA=1, fitn=0,
             first_time=0,
         )
+        rerun = True
+    if rerun:
         rg.set_sky(args.sky)
         #res = rg.run_and_parse()
         try:
@@ -780,9 +783,9 @@ def main():
         ell = infer_ellipse_from_r_cutout(r_data=data, user_mask=gaia_mask)
         if ell is not None:
             # if agc has a valid radius and BA, then keep?
-            print("DEBUG: original radius = ",params["sma_arcsec"])
+            #print("DEBUG: original radius = ",params["sma_arcsec"])
             radius_scale_factor = 1.2
-            print("DEBUG: new radius = ",ell.sma_pix * pixscale)
+            #print("DEBUG: new radius = ",ell.sma_pix * pixscale)
             params["sma_arcsec"] = float(ell.sma_pix * pixscale * radius_scale_factor)
             params["ba"] = float(ell.ba)
             params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
@@ -1238,7 +1241,7 @@ def main():
                 and (_scalar(res_nc.error) == 0)
                 and (_scalar(res_nc.comp1.numerical_error_flag) == 0)
                 and _finite_dict(init_from_nc)
-                and (_scalar(res_nc.comp1.re) > 5.)
+                and (_scalar(res_nc.comp1.re) > 3.)
                 )
 
             if use_nc_init:
