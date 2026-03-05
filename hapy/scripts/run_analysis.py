@@ -983,7 +983,7 @@ def main():
 
     # ---- photometry summary (scalar-only; arrays stay in the photometry table files) ----
     row["PHOT_SEC"] = _scalar(time.perf_counter() - t0)
-    row["phot_ok"] = True
+    row["PHOT_OK"] = True
 
     # ---- core ellipse / detection-derived quantities ----
     FIELDS = [

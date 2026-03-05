@@ -117,6 +117,12 @@ def merge_tables(files, output):
     print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
     tables = tables[keepflag]
 
+    goodtables = []
+    for i in range(len(tables)):
+        if keepflag[i]:
+            goodtables.append(tables[i])
+
+    tables = goodtables
 
     print("Stacking tables...")
     merged = vstack(tables, metadata_conflicts="silent")
