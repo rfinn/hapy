@@ -213,7 +213,11 @@ def parse_galfit_results(galfit_outimage, asymflag=0, ncomp=1, return_keywords=F
 
 
 class RunGalfit:
-    def __init__(self,galname=None,image=None,sigma_image=None,psf_image=None,psf_oversampling=None,mask_image=None,xminfit=None,yminfit=None,xmaxfit=None,ymaxfit=None,convolution_size=None,magzp=None,pscale=None,convflag=1,constraintflag=1,fitallflag=False,ncomp=1,asym=False):
+#    def __init__(self,galname=None,image=None,sigma_image=None,psf_image=None,psf_oversampling=None,mask_image=None,xminfit=None,yminfit=None,xmaxfit=None,ymaxfit=None,convolution_size=None,magzp=None,pscale=None,convflag=1,constraintflag=1,fitallflag=False,ncomp=1,asym=False):
+    def __init__(self,galname=None,image=None,sigma_image=None,psf_image=None,psf_oversampling=None,mask_image=None,
+                 xminfit=None,yminfit=None,xmaxfit=None,ymaxfit=None,convolution_size=None,magzp=None,pscale=None,
+                 convflag=1,constraintflag=1,fitallflag=False,ncomp=1,asym=False,
+                 workdir=None, localize_files=False, psf_local_name="psf.fits"):
         self.galname=galname
         self.image=image
 
@@ -233,8 +237,16 @@ class RunGalfit:
         self.fitallflag=fitallflag
         self.ncomp=ncomp
         self.asymmetry=asym
+
+        self.workdir = workdir
+        self.localize_files = localize_files
+        self.psf_local_name = psf_local_name
+
         if self.sigma_image == None:
             self.sigma_image = 'none'
+
+        if self.localize_files and self.workdir is not None:
+            self._localize_paths()
 
         #print(xminfit,xmaxfit,yminfit,ymaxfit,convolution_size)
         #print(self.xminfit,self.xmaxfit,self.yminfit,self.ymaxfit,self.convolution_size)
@@ -242,13 +254,46 @@ class RunGalfit:
         #print('self.fitall = ',self.fitallflag)
         #print('***%%%%%%%%%%%%%%%%%')
 
-        
+    def _link_or_copy(self, src, dst):
+        from pathlib import Path
+        import os, shutil
+        src = Path(src).resolve()
+        dst = Path(dst)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists():
+            return
+        try:
+            rel = os.path.relpath(src, start=dst.parent)
+            dst.symlink_to(rel)
+        except Exception:
+            shutil.copy2(src, dst)
+
+    def _localize_paths(self):
+        """Rewrite feedme paths to short local names; link/copy PSF into workdir."""
+        from pathlib import Path
+        wd = Path(self.workdir).resolve()
+
+        # Always use basenames for images we expect to already live in wd.
+        # (Your cutouts already have r_fits, mask_fits, sigma_image in the cutout dir.)
+        if self.image not in (None, 'none'):
+            self.image = Path(self.image).name
+        if self.sigma_image not in (None, 'none'):
+            self.sigma_image = Path(self.sigma_image).name
+        if self.mask_image not in (None, 'none'):
+            self.mask_image = Path(self.mask_image).name
+
+        # PSF is the dangerous one: ensure a short local filename exists
+        if self.convflag and self.psf_image not in (None, 'none'):
+            psf_dst = wd / self.psf_local_name
+            self._link_or_copy(self.psf_image, psf_dst)
+            self.psf_image = self.psf_local_name
+
     def disable_convolution(self):
         self.convflag = False
     def enable_convolution(self):
         self.convflag = True
     def create_output_names(self):
-        self.galfile=str(self.galname)+'-galfit.input.'+str(self.ncomp)+'Comp'            
+        self.galfile=str(self.galname)+'-galfit.input.'+str(self.ncomp)+'Comp'
         if self.asymmetry:
             output_image=str(self.galname)+'-'+ str(self.ncomp) +'Comp-galfit-out-asym.fits'
             self.galfile += '-asym'
@@ -263,10 +308,14 @@ class RunGalfit:
 
 
 
+
     def open_galfit_input(self):
-        self.galfit_input=open(self.galfile,'w')
-
-
+        if self.workdir is not None: 
+            p = Path(self.workdir) / self.galfile
+        else:
+            p = Path(self.galfile)
+        self.galfit_input = open(p, "w")
+        
     def write_image_params(self):#,input_image,output_image,sigma_image,psf_image,psf_oversampling,mask_image,xminfit,xmaxfit,yminfit,ymaxfit,convolution_size,magzp,pscale,convflag=1,constraintflag=1,fitallflag=0):
         self.galfit_input.write('# IMAGE PARAMETERS\n')
         self.galfit_input.write('A) '+self.image+'              # Input data image (FITS file)\n')
@@ -478,6 +527,7 @@ class RunGalfit:
         try:
             proc = subprocess.run(
                 cmd,
+                cwd=str(self.workdir),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -494,7 +544,8 @@ class RunGalfit:
 
         # Save stdout/stderr to a per-run log file (very helpful for CV crashes)
         image_id = f"{self.galname}-"
-        runlog = Path(f"{image_id}{self.ncomp}Comp-conv{int(self.convflag)}-galfit.stdout_stderr.txt")
+        #runlog = Path(f"{image_id}{self.ncomp}Comp-conv{int(self.convflag)}-galfit.stdout_stderr.txt")
+        runlog = Path(self.workdir) / f"{image_id}{self.ncomp}Comp-conv{int(self.convflag)}-galfit.stdout_stderr.txt"
         try:
             runlog.write_text(
                 "COMMAND:\n"
@@ -512,16 +563,20 @@ class RunGalfit:
             return False
 
         # Verify outputs exist
-        fitlog_src = Path("fit.log")
-        out_src = Path("galfit.01")
+        fitlog_src = Path(self.workdir) / "fit.log"
+        out_src = Path(self.workdir) / "galfit.01"
+        #fitlog_src = Path("fit.log")
+        #out_src = Path("galfit.01")
 
         if not out_src.exists():
             print(f"GALFIT returned 0 but {out_src} is missing. See {runlog}")
             return False
 
         # Rename/copy outputs deterministically
-        self.galfit_log = f"{image_id}{self.ncomp}Comp-fit.log"
-        self.galfit_out = f"{image_id}{self.ncomp}Comp-galfit.01"
+        #self.galfit_log = f"{image_id}{self.ncomp}Comp-fit.log"
+        #self.galfit_out = f"{image_id}{self.ncomp}Comp-galfit.01"
+        self.galfit_log = str(Path(self.workdir) / f"{image_id}{self.ncomp}Comp-fit.log")
+        self.galfit_out = str(Path(self.workdir) / f"{image_id}{self.ncomp}Comp-galfit.01")
 
         try:
             if fitlog_src.exists():
@@ -733,6 +788,10 @@ class RunGalfit:
                 msg += f"; see {runlog}"
             raise RuntimeError(msg)
 
-        if not Path(self.output_image).exists():
-            raise RuntimeError(f"GALFIT reported success but output_image missing: {self.output_image}")
-        return parse_galfit_results_dc(self.output_image,ncomp=self.ncomp,asymflag=self.asymmetry,)
+
+        outp = Path(self.output_image)
+        if getattr(self, "workdir", None):
+            outp = Path(self.workdir) / outp.name
+        if not outp.exists():
+            raise RuntimeError(f"GALFIT reported success but output_image missing: {outp}")
+        return parse_galfit_results_dc(str(outp), ncomp=self.ncomp, asymflag=self.asymmetry)

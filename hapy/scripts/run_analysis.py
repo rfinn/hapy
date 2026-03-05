@@ -81,14 +81,14 @@ from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_th
 from hapy.utils.paths import astromatic_dir 
 
 
-def init_cutout_logger(tag: str, root: str | Path, level: str = "INFO",
+def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
                        log_to_console: bool = False, log_dir: str | Path | None = None):
     """
     Create a per-cutout logger writing to <cutout_dir>/<tag>.log (or log_dir).
     Safe for parallel runs because each cutout has its own log file.
     """
-    root = Path(root)
-    cutdir = root.parent
+    cutdir = Path(cutdir)
+    #cutdir = root.parent
 
     if log_dir is None:
         log_path = cutdir / f"{tag}.log"
@@ -347,6 +347,9 @@ def _pull_statmorph(row, prefix, mobj):
         except Exception:
             pass
 
+def cutfile(cutdir, tag, suffix):
+    return cutdir / f"{tag}-{suffix}.fits"
+        
 def resolve_psf_path(psfdir, parent_rimage):
     """Return PSF path derived from parent R coadd filename, or None."""
     if not psfdir or not parent_rimage:
@@ -379,7 +382,7 @@ def initialize_result_row():
     not_needed = ["R_FITS", "CS_FITS"]
     # ---------- identity ----------
     for k in [
-        "OBJID", "TAG", "ROOT",
+        "OBJID", "TAG", "CUTDIR",
          "MASK_FITS","PSF_FITS",
          "R_FITS", "CS_FITS","SIGMA_FITS"
             ]:
@@ -680,7 +683,7 @@ def main():
         raise FileNotFoundError(f"Cutout directory not found: {cutdir}")
 
     tag = cutdir.name
-    root = str(cutdir / tag)
+    root = tag
 
     prefix = tag
     results_path = cutdir / f"{tag}-results.ecsv"
@@ -689,7 +692,7 @@ def main():
     # --- initialize logger
     logger, log_path = init_cutout_logger(
     tag=tag,
-    root=root,
+    cutdir=cutdir,
     level=args.log_level,
     log_to_console=args.log_to_console,
     log_dir=args.log_dir,  # usually None
@@ -698,21 +701,21 @@ def main():
     
     # Auto-detect common filenames if not provided.
     # Adjust these glob patterns to match your exact suffix conventions.
-    r_fits = args.r_fits or _pick_one(root + "*-R.fits") or _pick_one(root + "*-r.fits")
+    r_fits = args.r_fits or _pick_one(str(cutdir/ f"{tag}*-R.fits")) or _pick_one(str(cutdir / f"{tag}*-r.fits"))
     if r_fits is None:
-        raise FileNotFoundError(f"Could not find R-band FITS for root: {root}")
+        raise FileNotFoundError(f"Could not find R-band FITS in: {cutdir}")
 
-    cs_fits = args.cs_fits or _pick_one(root + "*-CS-ZP.fits") or _pick_one(root + "*-cs.fits") or _pick_one(root + "*-cs.fits")
-    mask_fits = args.mask_fits or _pick_one(root + "*-mask.fits")
+    cs_fits = args.cs_fits or _pick_one(str(cutdir / f"{tag}*-CS-ZP.fits")) or _pick_one(str(cutdir / f"{tag}*-cs.fits")) 
+    mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
     
-    sigma_image = args.sigma_image or _pick_one(root + "*-sigma.fits") or _pick_one(root + "*-rms.fits")
-    psf_image = args.psf_image or _pick_one(root + "*-psf.fits")
+    sigma_image = args.sigma_image or _pick_one(str(cutdir / f"{tag}*-sigma.fits")) or _pick_one(str(cutdir / f"{tag}*-rms.fits"))
+    psf_image = args.psf_image or _pick_one(str(cutdir / f"{tag}*-psf.fits"))
 
 
             
     row = initialize_result_row()
-    row["ROOT"] = str(root)
+    row["CUTDIR"] = str(cutdir)
     row["TAG"] = Path(root).name
     row["STAGE"] = "init"
     row["STATUS"] = "running"
@@ -746,7 +749,7 @@ def main():
 
     t0_total = time.perf_counter()
 
-    params_path = Path(root).parent / "metadata.json"
+    params_path = cutdir / "metadata.json"
 
     if not params_path.exists():
         raise RuntimeError(
@@ -1122,10 +1125,12 @@ def main():
             row=row,
             )
     if args.galfit:
+        print("DEBUG: cutdir = ",root)
+        print("DEBUG: tag = ",tag)        
         row["STAGE"] = "galfit_nc"
         logger.info("STAGE: galfit NC")
         t0 = time.perf_counter()
-        galname = root  # no .fits; matches your test
+        galname = Path(root).name  # no .fits; matches your test
         pscale = get_pixel_scale_from_filename(r_fits)
 
         data, hdr = fits.getdata(r_fits, header=True)
@@ -1171,6 +1176,9 @@ def main():
             fitallflag=False,
             ncomp=args.ncomp,
             asym=False,
+            workdir=cutdir,
+            localize_files=True,
+            psf_local_name="psf.fits",
         )
 
         t0 = time.perf_counter()
