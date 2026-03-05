@@ -258,11 +258,12 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=4.0, logger=None):
     if _scalar(res.comp1.n) > n_hi:
         meta["rerun_fixed_n"] = True
         if logger:
-            logger.warning(f"GALFIT {stage}: high-n detected (n={_scalar(res.comp1.n)}); rerunning with n=4 fixed")
+            logger.warning(f"GALFIT {stage}: high-n detected (n={_scalar(res.comp1.n)}); rerunning with same initial conditions except fixing n=4")
         rg.set_sersic_params(
-            xobj=_scalar(res.comp1.xc), yobj=_scalar(res.comp1.yc),
-            mag=_scalar(res.comp1.mag), rad=_scalar(res.comp1.re),
-            nsersic=4.0, BA=_scalar(res.comp1.ba), PA=_scalar(res.comp1.pa),
+            xobj=init["xobj"], yobj=init["yobj"],
+            mag=init["mag"], rad=init["rad"],
+            nsersic=4.0,
+            BA=init["BA"], PA=init["PA"],
             fitmag=1, fitcenter=1, fitrad=1, fitBA=1, fitPA=1, fitn=0,
             first_time=0,
         )
