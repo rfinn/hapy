@@ -373,7 +373,7 @@ class RunGalfit:
             self.fitBA0=fitBA
             self.fitPA0=fitPA
             self.asymmetry0=self.asymmetry
-        print("DEBUG: in set_sersic_params, self.rad = ",self.rad)   
+        #print("DEBUG: in set_sersic_params, self.rad = ",self.rad)   
     def set_sersic_params_comp2(self,xobj=None,yobj=None,mag=None,rad=None,nsersic=None,BA=None,PA=None,fitmag=1,fitcenter=1,fitrad=1,fitBA=1,fitPA=1,fitn=1,first_time=0):
         self.xobj2=xobj
         self.yobj2=yobj
@@ -441,7 +441,7 @@ class RunGalfit:
         if self.asymmetry:
             self.galfit_input.write('F1) 0.0001 0.00   1  1     # azim. Fourier mode 1, amplitude & phase angle \n')
         self.galfit_input.write(" Z) 0                  # Output option (0 = residual, 1 = Don't subtract)  \n")
-        print("DEBUG: in write_sersic: ", ' 4) %8.2f       %i       #     R_e              [Pixels] \n'%(self.rad,self.fitrad))
+        #print("DEBUG: in write_sersic: ", ' 4) %8.2f       %i       #     R_e              [Pixels] \n'%(self.rad,self.fitrad))
         
     def write_sersic_BD(self):
         
@@ -520,11 +520,11 @@ class RunGalfit:
           self.galfit_flag = 1 on success, 0 on failure
           self.galfit_log, self.galfit_out
         """
-        print("BEFORE write_input_file")
-        self.print_params()        
+        #print("BEFORE write_input_file")
+        #self.print_params()        
         self.write_input_file()
-        self.print_params()
-        print("DEBUG: self.galfile = ",self.galfile)
+        #self.print_params()
+        #print("DEBUG: self.galfile = ",self.galfile)
         self.galfit_flag = 0  # pessimistic default
 
         # GALFIT command
