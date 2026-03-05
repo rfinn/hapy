@@ -1,3 +1,6 @@
+import logging
+log = logging.getLogger(__name__)
+
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.nddata.utils import Cutout2D
@@ -7,6 +10,8 @@ import astropy.units as u
 
 import os
 import numpy as np
+
+
 
 #from . import utils
 from hapy.imagetools.imutils import get_pixel_scale
@@ -98,6 +103,45 @@ class CoaddImage:
         self.filter = self.header['FILTER']
     def get_target(self):
         self.target = self.header['OBJECT']
+    def fix_gain(self):
+        # if FIXGAIN is in header, return
+        if "FIXGAIN" in self.header:
+            return
+
+        # otherwise get EXPTIME and GAIN from header
+        exptime = self.header.get("EXPTIME")
+        gain = self.header.get("GAIN")
+
+        # Missing keywords → warn and mark skipped
+        if exptime is None or gain is None:
+            log.warning(f"fix_gain: missing EXPTIME or GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
+            self.header["FIXGAIN"] = (False, "GAIN not scaled (missing EXPTIME/GAIN)")
+            return
+
+        # Coerce to floats
+        try:
+            exptime_f = float(exptime)
+            gain_f = float(gain)
+        except Exception:
+            log.warning(f"fix_gain: non-numeric EXPTIME/GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
+            self.header["FIXGAIN"] = (False, "GAIN not scaled (non-numeric EXPTIME/GAIN)")
+            return
+
+        # Invalid EXPTIME → warn and mark skipped
+        if exptime_f <= 0:
+            log.warning(f"fix_gain: invalid EXPTIME={exptime_f}; leaving GAIN unchanged")
+            self.header["FIXGAIN"] = (False, "GAIN not scaled (invalid EXPTIME)")
+            return
+        
+        # mv GAIN to GAINORIG
+        self.header["GAINORIG"] = (gain, "Original detector gain (e-/ADU)")
+        
+        # set newgain to gain * exptime
+        new_gain = gain * exptime
+        self.header["GAIN"] = (new_gain, "Effective gain after coadd scaling (GAINORIG*EXPTIME)")
+
+        self.header["FIXGAIN"] = (True, "GAIN multiplied by EXPTIME")
+        
     def get_fwhm(self):
         try:
             self.fwhm_arcsec = float(self.header['SEFWHM'])

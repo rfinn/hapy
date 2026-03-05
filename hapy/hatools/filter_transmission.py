@@ -3,6 +3,10 @@
 import os
 import numpy as np
 from scipy import interpolate
+
+import matplotlib
+matplotlib.use("Agg")
+
 from matplotlib import pyplot as plt
 from astropy.io import ascii
 from astropy.table import Table
@@ -197,7 +201,7 @@ class FilterTrace():
             plt.title(titlestring)
             
             plt.savefig(outfile)
-
+            plt.close()
         return correction
 
     def get_response(self):

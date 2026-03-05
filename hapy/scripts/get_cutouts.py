@@ -1,26 +1,24 @@
 #!/usr/bin/env python
 """
-
-
-
 USAGE:
 python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo 
 """
-from astropy.io import fits
-#from astropy.table import Table
 import numpy as np
 import os
-from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
-from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
 from pathlib import Path
 from astropy.table import Table
+from astropy.io import fits
+#from astropy.table import Table
 
 import getpass
 from datetime import datetime
 import json
 
-def main(args=None):
+from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
+from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
+from hapy.utils.logging_utils import setup_logging
 
+def main(args=None):
     import argparse
 
     parser = argparse.ArgumentParser(description ='create psf image from image that contains stars')
@@ -47,6 +45,10 @@ def main(args=None):
     #parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
     
     args = parser.parse_args()
+
+
+ 
+    
     
     if args.outdir is None:
         outdir = os.getcwd()
@@ -56,7 +58,26 @@ def main(args=None):
     cutouts_dir = base_outdir / "cutouts"
     cutouts_dir.mkdir(parents=True, exist_ok=True)
     print(f"Writing cutouts to: {cutouts_dir}")
-    
+
+    # set up logging
+
+
+    image_id = Path(args.rimage).stem
+
+    outdir = args.outdir or "."
+
+    log = setup_logging(
+       outdir=outdir,
+       tag=image_id,
+       script_name="cutouts"
+       )
+
+    log.info("Starting get_cutouts with rimage=%s scheme=%s", args.rimage, args.scheme)
+
+
+        
+
+    # get images
     try:
         rheader = fits.getheader(args.rimage)
         himage = rheader['HAIMAGE']

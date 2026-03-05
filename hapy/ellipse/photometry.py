@@ -1,4 +1,6 @@
 
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 from scipy.stats import scoreatpercentile
 import scipy.ndimage as ndi
@@ -1136,7 +1138,7 @@ class EllipsePhotometry():
         display_image(self.masked_image)#, cmap='Greys', norm=norm , origin='lower')        
         plt.colorbar()
         self.aperture.plot(color='k', lw=1.)
-        plt.show()
+        #plt.show()
 
     def fit_ellipse(self):
         ''' FIT ELLIPSE '''
@@ -1177,7 +1179,7 @@ class EllipsePhotometry():
             for aperture in apertures:
                 aperture.plot(color='white',lw=1.5)
         plt.title(os.path.basename(self.image_name).replace('.fits',''))
-        plt.show()
+        #plt.show()
         
         
         plt.close()
@@ -1219,7 +1221,8 @@ class EllipsePhotometry():
         #plt.show()
         if plotname is not None:
             plt.savefig(plotname)
-        #plt.close()
+            
+            plt.close()
     def measure_phot(self):
         '''
         # alternative is to use ellipse from detect
@@ -1394,7 +1397,7 @@ class EllipsePhotometry():
             
         if plotname is not None:
             plt.savefig(plotname)
-
+            plt.close()
     def calc_sb(self):
         # calculate surface brightness in each aperture
 
@@ -1760,6 +1763,7 @@ class EllipsePhotometry():
             aperture.plot(color='white',lw=1.5)
         plt.title(os.path.basename(self.image_name).split('.fits')[0])
         plt.savefig(self.image_name.split('.fits')[0]+'_phot_apertures.png')
+        plt.close()
     def plot_profiles(self):
         ''' enclosed flux and surface brightness profiles, save figure '''
         #plt.close("all")        
@@ -1794,6 +1798,7 @@ class EllipsePhotometry():
             plt.gca().set_yscale('log')
         #plt.show()
         plt.savefig(self.image_name.split('.fits')[0]+'-enclosed-flux.png')
+        plt.close()
     def plot_fancy_profiles(self, logx=False):
         # plot enclosed flux        
         fig = plt.figure(figsize=(10,4))
@@ -1865,7 +1870,7 @@ class EllipsePhotometry():
         plt.legend(loc='upper right')
             
         plt.savefig(self.image_name.split('.fits')[0]+'_enclosed_flux_fancy.png')        
-        #plt.close(fig)
+        plt.close(fig)
 
 
 def run_ellipse_photometry(

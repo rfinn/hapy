@@ -5,7 +5,10 @@ import os
 import numpy as np
 import glob
 
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
+
 from PIL import Image
 from scipy.stats import scoreatpercentile
 
@@ -280,7 +283,7 @@ def get_unwise_image(ra,dec,galid='VFID0',pixscale=2.75,imsize='60',bands='1234'
         im = fits.getdata(rename)
         norm = simple_norm(im, stretch='asinh',percent=99)
         plt.imshow(im, norm=norm,origin='upper')
-        plt.show()
+        #plt.show()
     #print(image_names)
     #print(multiframe)
 

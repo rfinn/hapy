@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 from astropy.visualization import simple_norm
 from astropy.stats import sigma_clip
@@ -151,7 +153,7 @@ def display_legacy_unwise(ra,dec,galname,imsize_arcsec=60,plotdir=None,verbose=F
         display_image(data,percent=92)
         plt.title(imnames[i],fontsize=14)
     plt.savefig(plotdir+galname+"cutouts.png",transparent=False)
-    #plt.close()
+    plt.close()
     return legacy_images, imagefiles
 
 

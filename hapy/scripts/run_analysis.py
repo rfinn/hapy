@@ -79,7 +79,7 @@ from hapy.masktools.gaia import make_gaia_mask,  get_gaia_stars
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
 from hapy.utils.paths import astromatic_dir 
-
+from hapy.utils.logging_utils import setup_logging
 
 def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
                        log_to_console: bool = False, log_dir: str | Path | None = None):
@@ -91,11 +91,11 @@ def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
     #cutdir = root.parent
 
     if log_dir is None:
-        log_path = cutdir / f"{tag}.log"
+        log_dir = cutdir / "logs" / f"{tag}.analysis.log"
     else:
         log_dir = Path(log_dir)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / f"{tag}.log"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"{tag}.log"
 
     logger = logging.getLogger(f"hapy.run_analysis.{tag}")
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
@@ -107,7 +107,7 @@ def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
             logger.removeHandler(h)
 
     fmt = logging.Formatter(
-        fmt="%(asctime)s | %(levelname)s | %(message)s",
+        fmt="%(asctime)s | %(levelname)s | pid=%(process)d | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
@@ -696,11 +696,11 @@ def main():
 
     # --- initialize logger
     logger, log_path = init_cutout_logger(
-    tag=tag,
-    cutdir=cutdir,
-    level=args.log_level,
-    log_to_console=args.log_to_console,
-    log_dir=args.log_dir,  # usually None
+        tag=tag,
+        cutdir=cutdir,
+        level=args.loglevel if hasattr(args, "loglevel") else "INFO",
+        log_to_console=args.log_to_console,
+        log_dir=args.log_dir,  # usually None
         )
 
     
@@ -1130,6 +1130,7 @@ def main():
             row=row,
             )
     if args.galfit:
+        print("starting galfit ...")
         #print("DEBUG: cutdir = ",root)
         #print("DEBUG: tag = ",tag)        
         row["STAGE"] = "galfit_nc"
@@ -1197,7 +1198,7 @@ def main():
         rad_init = max(sma_pix, 30)
         
         init0 = dict(xobj=xc, yobj=yc, mag=10.0, rad=rad_init, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
-
+        
         # --- No convolution ---
         res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False, logger=logger)
         _store_galfit(row, res_nc, "GAL_")
@@ -1206,6 +1207,15 @@ def main():
 
         write_result_row_ecsv(results_path, row)
 
+        # print this by setting --log-to-console at command line
+        # print(
+        #     f"GALFIT NC: chi2nu={_scalar(res_nc.chi2nu):.3f} "
+        #     f"re={_scalar(res_nc.comp1.re):.2f} "
+        #     f"n={_scalar(res_nc.comp1.n):.2f} "
+        #     f"ba={_scalar(res_nc.comp1.ba):.2f} "
+        #     f"pa={_scalar(res_nc.comp1.pa):.1f}"
+        #     )
+        
         if args.convflag and not psf_ok:
             logger.warning("convflag requested but PSF not available; skipping convolution.")
         
@@ -1252,6 +1262,14 @@ def main():
                 logger.exception(f"GALFIT CV failed: {e}")
                 row["GAL_CV_OK"] = False
                 # keep NC results, continue
+
+            # print(
+            #     f"GALFIT CV: chi2nu={_scalar(res_cv.chi2nu):.3f} "
+            #     f"re={_scalar(res_cv.comp1.re):.2f} "
+            #     f"n={_scalar(res_cv.comp1.n):.2f} "
+            #     f"ba={_scalar(res_cv.comp1.ba):.2f} "
+            #     f"pa={_scalar(res_cv.comp1.pa):.1f}"
+            #     )
         
         write_result_row_ecsv(results_path, row)
     row["TOTAL_SEC"] = time.perf_counter() - t0_total

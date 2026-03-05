@@ -27,6 +27,8 @@ from astropy.stats.sigma_clipping import sigma_clip
 from astropy.stats import sigma_clip
 from astropy.modeling import models, fitting
 
+import matplotlib
+matplotlib.use("Agg")
 
 catdir = 'SEcats_filterratio'
 if not os.path.exists(catdir):
@@ -215,7 +217,7 @@ def make_plot(image1, image2, return_flag = False, plotdir = './', zps=None):
     #plt.show()
     #plt.axis([0,5000,-.06,.06])
     plt.savefig(plotdir+'/'+t+'-filter-ratio.png')
-
+    plt.close()
     if return_flag:
         if zps is not None:
             return ave, std,fratiozp

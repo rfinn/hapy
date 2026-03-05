@@ -53,6 +53,8 @@ from astropy.stats import SigmaClip
 from astropy.modeling import models, fitting
 from astropy.stats import gaussian_sigma_to_fwhm
 
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
 class psf_parent_image():
@@ -244,6 +246,7 @@ class psf_parent_image():
             ax[i].imshow(self.stars[i], norm=norm, origin='lower', cmap='viridis')
         #plt.show()
         plt.savefig('plots/'+self.basename+'-allstars.png')
+        plt.close()
     def build_psf(self):
         mysigclip = SigmaClip(sigma=3, cenfunc='median')
         self.oversampling=2
@@ -259,6 +262,7 @@ class psf_parent_image():
         plt.colorbar()
         #plt.show()
         plt.savefig('plots/'+self.basename+'-psf.png')
+        plt.close()
     def measure_fwhm(self):
         nx,ny = self.epsf.data.shape
         x,y = np.mgrid[:nx,:ny]
