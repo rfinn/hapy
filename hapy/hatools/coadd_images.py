@@ -262,7 +262,14 @@ class HalphaImageSet:
 
         # get fwhm if
         self.r.get_fwhm()
-        self.h.get_fwhm()        
+        self.h.get_fwhm()
+
+        # fix gain
+        self.r.fix_gain()
+        self.h.fix_gain()
+        if self.cs_flag:
+            self.cs.fix_gain()
+        
     def get_cutout_all_filters_old(self, ra, dec, size_arcsec, rootname):
         
         self.r.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")
@@ -307,6 +314,7 @@ class HalphaImageSet:
         cs_hdr["CSPHZPH"] = (float(zp_h) if np.isfinite(zp_h) else np.nan, "Parent Ha PHOTZP")
         cs_hdr["CSLSKY"] = (bool(subtract_sky), "Local sky-sub applied before CS")
 
+        cs_name = f"{rootname}-CS-ZP.fits"
         if np.isfinite(scale):
             cs_data = h_data - scale * r_data
         else:
@@ -314,7 +322,7 @@ class HalphaImageSet:
             cs_data = np.full_like(h_data, np.nan, dtype=float)
             cs_hdr["CSMAKE"] = (False, "Continuum subtraction failed (missing PHOTZP)")
 
-        fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(f"{rootname}-CS-ZP.fits", overwrite=True)
+        fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(cs_name, overwrite=True)
 
         # 5) Optional: if you still want to cut out from a pre-made CS coadd, keep it behind a flag
         if self.cs_flag and not subtract_sky:

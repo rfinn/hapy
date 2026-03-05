@@ -94,6 +94,8 @@ def main(args=None):
     image_set.load_coadds()
 
 
+    # default is to subtract sky locally in the r and halpha cutouts
+    # then make CS cutout from those
     subtract_sky = not args.no_skysub
     
     ###################################################    
