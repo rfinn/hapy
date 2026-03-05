@@ -30,11 +30,11 @@ instruments = ['BOK','INT','HDI','MOS']
 # BOK using the NOAO filter, so Halpha 4
 # 
 
-def fix_gain(input_header):
+def fix_header_gain(input_header):
     header = input_header.copy()
     # if FIXGAIN is in header, return
     if "FIXGAIN" in header:
-        return
+        return None
 
     # otherwise get EXPTIME and GAIN from header
     exptime = header.get("EXPTIME")
@@ -44,7 +44,7 @@ def fix_gain(input_header):
     if exptime is None or gain is None:
         log.warning(f"fix_gain: missing EXPTIME or GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
         header["FIXGAIN"] = (False, "GAIN not scaled (missing EXPTIME/GAIN)")
-        return
+        return None
 
     # Coerce to floats
     try:
@@ -262,7 +262,9 @@ class CoaddImage:
 
         # fix gain
         if fix_gain:
-            outheader = fix_gain(outheader)
+            newheader = fix_header_gain(outheader)
+            if newheader is not None:
+                outheader = newheader
         hdu = fits.PrimaryHDU(data=cutout_data, header=outheader)                    
         hdu.writeto(output_name, overwrite=True)
 
