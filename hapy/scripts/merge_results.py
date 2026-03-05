@@ -115,7 +115,7 @@ def merge_tables(files, output):
     keepflag = validate_schema(tables,files)
 
     print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
-    tables = tables[keepflag]
+    #tables = tables[keepflag]
 
     goodtables = []
     for i in range(len(tables)):
