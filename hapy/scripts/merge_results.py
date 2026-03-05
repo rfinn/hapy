@@ -110,9 +110,10 @@ def merge_tables(files, output):
 
 
     # Add explicit observation ID column
-    obs_ids = [Path(r).name for r in merged["root"]]
+    obs_ids = [Path(r).name for r in merged["OBJID"]]
     merged["obs_id"] = obs_ids
-    
+
+    merged.remove_column('SIGMA_FITS')
     
     print(f"Writing merged table → {output}")
     merged.write(output, format="fits", overwrite=True)
