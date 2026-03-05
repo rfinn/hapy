@@ -1586,7 +1586,7 @@ class EllipsePhotometry():
              outfile = self.image_name.split('.fits')[0]+'_phot.fits'
         else:
              outfile = self.image_name.split('.fits')[0]+'-'+prefix+'_phot.fits'
-        print('photometry outfile = ',outfile)
+        print('DEBUG: photometry outfile = ',outfile, self.image_name)
 
         data = [self.apertures_a*self.pixel_scale,self.apertures_a, \
              self.flux1,self.flux1_err,\

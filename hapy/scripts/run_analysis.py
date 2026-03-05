@@ -606,8 +606,8 @@ def main():
     g_mask.add_argument("--sesnr", type=float, default=5.0,
                         help="SExtractor SNR threshold.  Default is 5.")
     g_mask.add_argument("--seminarea", type=int, default=5,
-                        help="SExtractor minimum object area. Default is 5.")
-    g_mask.add_argument("--grow-size", default=5,
+                        help="SExtractor minimum object area. Default is 7.")
+    g_mask.add_argument("--grow-size", default=7,
                         help="Grow size in mask expansion.  Default is 5.")
     g_mask.add_argument("--grow-iterations", default=4,
                         help="Grow size in mask expansion.  Default is 4.")
@@ -978,7 +978,7 @@ def main():
         objdec=dec,
         fixcenter=args.fixcenter,
         run_statmorph=args.statmorph,
-        write_prefix=prefix,
+        #write_prefix=prefix,
     )
 
     # ---- photometry summary (scalar-only; arrays stay in the photometry table files) ----

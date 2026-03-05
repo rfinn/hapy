@@ -30,6 +30,46 @@ instruments = ['BOK','INT','HDI','MOS']
 # BOK using the NOAO filter, so Halpha 4
 # 
 
+def fix_gain(input_header):
+    header = input_header.copy()
+    # if FIXGAIN is in header, return
+    if "FIXGAIN" in header:
+        return
+
+    # otherwise get EXPTIME and GAIN from header
+    exptime = header.get("EXPTIME")
+    gain = header.get("GAIN")
+
+    # Missing keywords → warn and mark skipped
+    if exptime is None or gain is None:
+        log.warning(f"fix_gain: missing EXPTIME or GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
+        header["FIXGAIN"] = (False, "GAIN not scaled (missing EXPTIME/GAIN)")
+        return
+
+    # Coerce to floats
+    try:
+        exptime_f = float(exptime)
+        gain_f = float(gain)
+    except Exception:
+        log.warning(f"fix_gain: non-numeric EXPTIME/GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
+        header["FIXGAIN"] = (False, "GAIN not scaled (non-numeric EXPTIME/GAIN)")
+        return
+
+    # Invalid EXPTIME → warn and mark skipped
+    if exptime_f <= 0:
+        log.warning(f"fix_gain: invalid EXPTIME={exptime_f}; leaving GAIN unchanged")
+        header["FIXGAIN"] = (False, "GAIN not scaled (invalid EXPTIME)")
+        return
+
+    # mv GAIN to GAINORIG
+    header["GAINORIG"] = (gain, "Original detector gain (e-/ADU)")
+
+    # set newgain to gain * exptime
+    new_gain = gain * exptime
+    header["GAIN"] = (new_gain, "Effective gain after coadd scaling (GAINORIG*EXPTIME)")
+
+    header["FIXGAIN"] = (True, "GAIN multiplied by EXPTIME")
+    return header
 
 
 def zp_scale_r_to_ha(zp_ha, zp_r):
@@ -103,44 +143,44 @@ class CoaddImage:
         self.filter = self.header['FILTER']
     def get_target(self):
         self.target = self.header['OBJECT']
-    def fix_gain(self):
-        # if FIXGAIN is in header, return
-        if "FIXGAIN" in self.header:
-            return
+    # def fix_gain(self):
+    #     # if FIXGAIN is in header, return
+    #     if "FIXGAIN" in self.header:
+    #         return
 
-        # otherwise get EXPTIME and GAIN from header
-        exptime = self.header.get("EXPTIME")
-        gain = self.header.get("GAIN")
+    #     # otherwise get EXPTIME and GAIN from header
+    #     exptime = self.header.get("EXPTIME")
+    #     gain = self.header.get("GAIN")
 
-        # Missing keywords → warn and mark skipped
-        if exptime is None or gain is None:
-            log.warning(f"fix_gain: missing EXPTIME or GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
-            self.header["FIXGAIN"] = (False, "GAIN not scaled (missing EXPTIME/GAIN)")
-            return
+    #     # Missing keywords → warn and mark skipped
+    #     if exptime is None or gain is None:
+    #         log.warning(f"fix_gain: missing EXPTIME or GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
+    #         self.header["FIXGAIN"] = (False, "GAIN not scaled (missing EXPTIME/GAIN)")
+    #         return
 
-        # Coerce to floats
-        try:
-            exptime_f = float(exptime)
-            gain_f = float(gain)
-        except Exception:
-            log.warning(f"fix_gain: non-numeric EXPTIME/GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
-            self.header["FIXGAIN"] = (False, "GAIN not scaled (non-numeric EXPTIME/GAIN)")
-            return
+    #     # Coerce to floats
+    #     try:
+    #         exptime_f = float(exptime)
+    #         gain_f = float(gain)
+    #     except Exception:
+    #         log.warning(f"fix_gain: non-numeric EXPTIME/GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
+    #         self.header["FIXGAIN"] = (False, "GAIN not scaled (non-numeric EXPTIME/GAIN)")
+    #         return
 
-        # Invalid EXPTIME → warn and mark skipped
-        if exptime_f <= 0:
-            log.warning(f"fix_gain: invalid EXPTIME={exptime_f}; leaving GAIN unchanged")
-            self.header["FIXGAIN"] = (False, "GAIN not scaled (invalid EXPTIME)")
-            return
+    #     # Invalid EXPTIME → warn and mark skipped
+    #     if exptime_f <= 0:
+    #         log.warning(f"fix_gain: invalid EXPTIME={exptime_f}; leaving GAIN unchanged")
+    #         self.header["FIXGAIN"] = (False, "GAIN not scaled (invalid EXPTIME)")
+    #         return
         
-        # mv GAIN to GAINORIG
-        self.header["GAINORIG"] = (gain, "Original detector gain (e-/ADU)")
+    #     # mv GAIN to GAINORIG
+    #     self.header["GAINORIG"] = (gain, "Original detector gain (e-/ADU)")
         
-        # set newgain to gain * exptime
-        new_gain = gain * exptime
-        self.header["GAIN"] = (new_gain, "Effective gain after coadd scaling (GAINORIG*EXPTIME)")
+    #     # set newgain to gain * exptime
+    #     new_gain = gain * exptime
+    #     self.header["GAIN"] = (new_gain, "Effective gain after coadd scaling (GAINORIG*EXPTIME)")
 
-        self.header["FIXGAIN"] = (True, "GAIN multiplied by EXPTIME")
+    #     self.header["FIXGAIN"] = (True, "GAIN multiplied by EXPTIME")
         
     def get_fwhm(self):
         try:
@@ -154,7 +194,7 @@ class CoaddImage:
 
     #def make_cutout(self, ra, dec, size_arcsec, output_name=None):
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
-                    subtract_sky=False, skycfg=None, return_cutout=True):
+                    subtract_sky=False, skycfg=None, return_cutout=True, fix_gain=True):
 
         """
         Create a cutout centered act (ra, dec) with size in arcsec.
@@ -219,7 +259,10 @@ class CoaddImage:
             outheader["SKYMED"] = (float(med), "Median sky (ADU) subtracted")
             outheader["SKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
             outheader["SKYMETH"] = ("PHOTUTILS", "Background estimation method")
-            
+
+        # fix gain
+        if fix_gain:
+            outheader = fix_header(outheader)
         hdu = fits.PrimaryHDU(data=cutout_data, header=outheader)                    
         hdu.writeto(output_name, overwrite=True)
 
