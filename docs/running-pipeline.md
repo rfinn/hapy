@@ -5,7 +5,13 @@
 python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
 ```
 
-Testing on macbook:
+To run in parallel, you need a list of the r-band coadds. For example:
+```
+ls VF*R.fits > coadd_list
+ls VF*r.fits >> coadd_list
+```
+
+The run parallel.  Testing on macbook:
 
 ```
 parallel --eta -j 0 get_cutouts --catalog
@@ -13,29 +19,7 @@ parallel --eta -j 0 get_cutouts --catalog
 virgo --overwrite_metadata --rimage :::: coadd_list
 ```
 
-### Running with the AGC for UAT Halpha Groups
-If using the AGC scheme, the code will assume that coadded images are named like (someday I will make this more robust than just splitting on '`'):
-``` 
-VF-202.260+46.474-HDI-20170523-p023-h01-R.fits
-```
 
-I copied one virgo coadd to test with both the virgo and agc schemes.  I first needed to alter the name to conform with the UAT naming convention.
-
-First, add the extra '-h01' to the pointing name, as we do for the UAT groups.
-```bash
-for f in *p023*; do\n    mv "$f" "${f/p023/p023-h01}"\ndone
-```
-
-Second, update the name of HAIMAGE in the r-band header accordingly:
-```bash
-sethead VF-202.260+46.474-HDI-20170523-p023-h01-R.fits HAIMAGE=VF-202.260+46.474-HDI-20170523-p023-h01-ha4.fits
-```
-
-
-Then create cutouts:
-```bash
-python ~/github/hapy/scripts/get_cutouts.py --rimage VF-202.260+46.474-HDI-20170523-p023-h01-R.fits --catalog /Users/rfinn/research/AGC/agcnorthminus1.full200617.fits --scheme agc
-```
 ## Run Analysis on Cutouts
 
 ### Run on One Cutout
@@ -92,3 +76,5 @@ parallel -0 -j 0 --joblog logs/joblog.tsv \
 ```python
 python ~/github/hapy/scripts/merge_results.py --indir cutouts/
 ```
+
+
