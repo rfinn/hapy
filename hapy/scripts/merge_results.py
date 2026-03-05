@@ -17,7 +17,7 @@ Output:
 
 Author: Rose Finn
 """
-
+import numpy as np
 import argparse
 from pathlib import Path
 from astropy.table import Table, vstack
@@ -33,6 +33,7 @@ def find_result_files(indir, pattern="*-results.ecsv"):
 
 def validate_schema(tables, filename):
     """Ensure all tables share identical column names."""
+    keepflag = np.ones(len(tables),'bool')
     reference = tables[0].colnames
     for i, t in enumerate(tables[1:], start=2):
         if t.colnames != reference:
@@ -40,18 +41,18 @@ def validate_schema(tables, filename):
             print(f"Schema mismatch detected in table #{i}.\n")
             print(f"Expected columns:\n{reference}\n\n")
             print(f"Found columns:\n{t.colnames}")
-
-            for j in range(len(reference)):
-                print(f"col {j}:")
-                print(f"\tref={reference[j]}")
-                print(f"\ttab={t.colnames[j]}")
+            keepflag[i] = False
+            # for j in range(len(reference)):
+            #     print(f"col {j}:")
+            #     print(f"\tref={reference[j]}")
+            #     print(f"\ttab={t.colnames[j]}")
             
             # raise RuntimeError(
             #     f"Schema mismatch detected in table #{i}.\n"
             #     f"Expected columns:\n{reference}\n\n"
             #     f"Found columns:\n{t.colnames}"
             # )
-
+    return keepflag
 
 def check_duplicate_objids(tables):
     """Detect duplicate objid entries across tables."""
@@ -111,8 +112,10 @@ def merge_tables(files, output):
         _coerce_bool_col(t, "H_SM_FLAG", default=False)
         
     print("Validating schema...")
-    validate_schema(tables,files)
+    keepflag = validate_schema(tables,files)
 
+    print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
+    tables = tables[keepflag]
 
 
     print("Stacking tables...")
