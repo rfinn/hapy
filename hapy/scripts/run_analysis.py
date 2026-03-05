@@ -192,8 +192,12 @@ def _finite(x):
     except Exception:
         return False
 
+def _finite_dict(d):
+    return all(np.isfinite(float(v)) for v in d.values())
 
-def _galfit_stage(rg, args, init, do_conv: bool, n_hi=8.0, logger=None):
+
+
+def _galfit_stage(rg, args, init, do_conv: bool, n_hi=4.0, logger=None):
     """
     init: dict with xobj,yobj,mag,rad,nsersic,BA,PA, first_time
     returns: (res, meta)
@@ -392,7 +396,8 @@ def initialize_result_row():
 
     row["PSF_SOURCE"] = ""   # "cli" | "psf_dir" | ""
 
-    row["GAL_NC_OK"] = False    
+    row["GAL_NC_OK"] = False
+    row["GAL_CV_INIT_FROM_NC"] = False        
     # ---------- pipeline status ----------
     for k in ["MASK_OK", "PHOT_OK", "PSF_OK", "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
         row[k] = False
@@ -1125,12 +1130,13 @@ def main():
             row=row,
             )
     if args.galfit:
-        print("DEBUG: cutdir = ",root)
-        print("DEBUG: tag = ",tag)        
+        #print("DEBUG: cutdir = ",root)
+        #print("DEBUG: tag = ",tag)        
         row["STAGE"] = "galfit_nc"
         logger.info("STAGE: galfit NC")
         t0 = time.perf_counter()
-        galname = Path(root).name  # no .fits; matches your test
+        #galname = Path(root).name  # no .fits; matches your test
+        galname = tag  # no .fits; matches your test
         pscale = get_pixel_scale_from_filename(r_fits)
 
         data, hdr = fits.getdata(r_fits, header=True)
@@ -1207,12 +1213,33 @@ def main():
             # --- Convolution (init from NC) ---
             row["STAGE"] = "galfit_cv"
             logger.info("STAGE: galfit CV")
-            init_cv = dict(
+
+            init_from_nc = dict(
                 xobj=_scalar(res_nc.comp1.xc), yobj=_scalar(res_nc.comp1.yc),
                 mag=_scalar(res_nc.comp1.mag), rad=_scalar(res_nc.comp1.re),
                 nsersic=_scalar(res_nc.comp1.n), BA=_scalar(res_nc.comp1.ba), PA=_scalar(res_nc.comp1.pa),
                 first_time=0,
                 )
+
+
+            use_nc_init = (
+                (not meta_nc["unstable"])
+                and (_scalar(res_nc.error) == 0)
+                and (_scalar(res_nc.comp1.numerical_error_flag) == 0)
+                and _finite_dict(init_from_nc)
+                and (_scalar(res_nc.comp1.re) > 5.)
+                )
+
+            if use_nc_init:
+                init_cv = init_from_nc
+                row["GAL_CV_INIT_FROM_NC"] = True
+
+            else:
+                init_cv = dict(init0)
+                init_cv["first_time"] = 0
+                row["GAL_CV_INIT_FROM_NC"] = False
+                logger.warning("GALFIT CV init: NC results flagged; using fallback init0")
+                
             try:
                 res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True, logger=logger)
                 _store_galfit(row, res_cv, "GAL_C")

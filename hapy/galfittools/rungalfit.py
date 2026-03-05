@@ -238,7 +238,10 @@ class RunGalfit:
         self.ncomp=ncomp
         self.asymmetry=asym
 
-        self.workdir = workdir
+        self.workdir = Path(workdir)
+
+        if not self.workdir.exists():
+            raise FileNotFoundError(f"RunGalfit workdir does not exist: {self.workdir}")
         self.localize_files = localize_files
         self.psf_local_name = psf_local_name
 
