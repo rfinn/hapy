@@ -520,7 +520,8 @@ class RunGalfit:
           self.galfit_log, self.galfit_out
         """
         self.write_input_file()
-
+        self.print_params()
+        print("DEBUG: self.galfile = ",self.galfile)
         self.galfit_flag = 0  # pessimistic default
 
         # GALFIT command

@@ -79,7 +79,7 @@ from hapy.masktools.gaia import make_gaia_mask,  get_gaia_stars
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
 from hapy.utils.paths import astromatic_dir 
-from hapy.utils.logging_utils import setup_logging
+#from hapy.utils.logging_utils import setup_logging
 
 def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
                        log_to_console: bool = False, log_dir: str | Path | None = None):
