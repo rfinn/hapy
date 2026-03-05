@@ -603,10 +603,14 @@ def main():
                         help="SExtractor config file path")
     g_mask.add_argument("--sethreshold", type=float, default=0.005,
                         help="SExtractor detection/deblend threshold. Default is 0.005.")
-    g_mask.add_argument("--sesnr", type=float, default=10.0,
-                        help="SExtractor SNR threshold.  Default is 10.")
+    g_mask.add_argument("--sesnr", type=float, default=5.0,
+                        help="SExtractor SNR threshold.  Default is 5.")
     g_mask.add_argument("--seminarea", type=int, default=5,
                         help="SExtractor minimum object area. Default is 5.")
+    g_mask.add_argument("--grow-size", default=5,
+                        help="Grow size in mask expansion.  Default is 5.")
+    g_mask.add_argument("--grow-iterations", default=4,
+                        help="Grow size in mask expansion.  Default is 4.")
     g_mask.add_argument("--gaiapath", default=None,
                         help="Path to Gaia catalog file")
     g_mask.add_argument("--no-gaia", action="store_true",
@@ -936,8 +940,8 @@ def main():
         mask = engine.build_initial_mask(
             galaxy_ellipse=galaxy_ellipse,
             progress_callback=_progress_cb,
-            grow_size=10,
-            grow_iterations=4,
+            grow_size=int(args.grow_size),
+            grow_iterations=int(args.grow_iterations),
         )
 
         mask_out = mask_fits or (root + "-mask.fits")
