@@ -31,11 +31,12 @@ def find_result_files(indir, pattern="*-results.ecsv"):
     return files
 
 
-def validate_schema(tables):
+def validate_schema(tables, filename):
     """Ensure all tables share identical column names."""
     reference = tables[0].colnames
     for i, t in enumerate(tables[1:], start=2):
         if t.colnames != reference:
+            print(f"WAIT!!! Problem with table {filename[i]}!!!")
             raise RuntimeError(
                 f"Schema mismatch detected in table #{i}.\n"
                 f"Expected columns:\n{reference}\n\n"
@@ -101,7 +102,7 @@ def merge_tables(files, output):
         _coerce_bool_col(t, "H_SM_FLAG", default=False)
         
     print("Validating schema...")
-    validate_schema(tables)
+    validate_schema(tables,files)
 
 
 
