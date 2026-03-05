@@ -293,9 +293,17 @@ class EllipsePhotometry():
     def get_noise_in_aper(self, flux, area):
         ''' calculate the noise in an area '''
         if self.sky_noise is not None:
-            noise_source = np.sqrt(flux*self.gain)
-            noise_sky = self.sky_noise*np.sqrt(area)*self.gain
-            noise_e = np.sqrt(noise_source**2 + noise_sky**2)
+            # if flux/pixel > n * sky_noise
+
+            
+            noise_source_e = np.sqrt(flux*self.gain)
+            
+            #noise_sky_e = self.sky_noise* np.sqrt(area) *self.gain
+            # variance in sky = SUM_1^npix (sky_noise_per_pixel * gain)**2 = area * (skynoise * gain)**2
+            # noise in sky = sqrt(area) * skynoise * gain
+            noise_sky_e = self.sky_noise * np.sqrt(area) * self.gain
+            
+            noise_total_e = np.sqrt(noise_source_e**2 + noise_sky_e**2)
             noise_adu = noise_e/self.gain
         else:
             noise_adu = np.nan
@@ -1239,7 +1247,7 @@ class EllipsePhotometry():
         '''
         this is how becky set the apertures
         a = [0]
-        for i in range(1,500):
+        for i in range(1,500)
         a.append(a[i-1] + hwhm + (hwhm*i*.1))
         
         '''

@@ -255,10 +255,10 @@ class CoaddImage:
                 outheader["PSKYSTD"] = (self.header["SKYSTD"], "Parent coadd SKYSTD")
 
             outheader["CUTSKY"] = (True, "Sky median subtracted from cutout")
-            outheader["SKYSRC"] = ("CUTOUT", "Sky measured on cutout")
-            outheader["SKYMED"] = (float(med), "Median sky (ADU) subtracted")
-            outheader["SKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
-            outheader["SKYMETH"] = ("PHOTUTILS", "Background estimation method")
+            outheader["CSKYSRC"] = ("CUTOUT", "Sky measured on cutout")
+            outheader["CSKYMED"] = (float(med), "Median sky (ADU) subtracted")
+            outheader["CSKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
+            outheader["CSKYMETH"] = ("PHOTUTILS", "Background estimation method")
 
         # fix gain
         if fix_gain:
