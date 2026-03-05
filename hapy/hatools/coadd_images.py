@@ -66,9 +66,9 @@ def fix_header_gain(input_header):
 
     # set newgain to gain * exptime
     new_gain = gain * exptime
-    header["GAIN"] = (new_gain, "Effective gain after coadd scaling (GAINORIG*EXPTIME)")
+    header["GAIN"] = (new_gain, "Eff gain=GAINORIG*EXPTIME")
 
-    header["FIXGAIN"] = (True, "GAIN multiplied by EXPTIME")
+    header["FIXGAIN"] = (True, "GAIN was multiplied by EXPTIME")
     return header
 
 

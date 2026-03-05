@@ -5,6 +5,14 @@
 python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
 ```
 
+Testing on macbook:
+
+```
+parallel --eta -j 0 get_cutouts --catalog
+/Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme
+virgo --overwrite_metadata 
+```
+
 ### Running with the AGC for UAT Halpha Groups
 If using the AGC scheme, the code will assume that coadded images are named like (someday I will make this more robust than just splitting on '`'):
 ``` 
