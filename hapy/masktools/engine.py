@@ -121,8 +121,8 @@ class MaskEngine:
         remove_center_object: bool = True,
         center_object_id = None,
         galaxy_ellipse = None,
-        grow_size: int = 5,
-        grow_iterations: int = 3,
+        grow_size: int = 10,
+        grow_iterations: int = 5,
         output_prefix: Optional[str] = None,
         progress_callback=None,
         
