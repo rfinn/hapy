@@ -304,7 +304,7 @@ class EllipsePhotometry():
             noise_sky_e = self.sky_noise * np.sqrt(area) * self.gain
             
             noise_total_e = np.sqrt(noise_source_e**2 + noise_sky_e**2)
-            noise_adu = noise_e/self.gain
+            noise_adu = noise_total_e/self.gain
         else:
             noise_adu = np.nan
         return noise_adu

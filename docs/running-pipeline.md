@@ -10,7 +10,7 @@ Testing on macbook:
 ```
 parallel --eta -j 0 get_cutouts --catalog
 /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme
-virgo --overwrite_metadata 
+virgo --overwrite_metadata --rimage :::: coadd_list
 ```
 
 ### Running with the AGC for UAT Halpha Groups
@@ -57,9 +57,6 @@ python ~/github/hapy/scripts/plot_mask_diagnostic.py --root cutouts/VFID1588-NGC
 ### Running on a larger sample
 
 
-```
-mkdir -p logs
-```
 
 #### Make List of Cutouts
 ```
