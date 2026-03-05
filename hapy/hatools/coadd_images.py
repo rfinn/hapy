@@ -262,7 +262,7 @@ class CoaddImage:
 
         # fix gain
         if fix_gain:
-            outheader = fix_header(outheader)
+            outheader = fix_gain(outheader)
         hdu = fits.PrimaryHDU(data=cutout_data, header=outheader)                    
         hdu.writeto(output_name, overwrite=True)
 
@@ -308,10 +308,10 @@ class HalphaImageSet:
         self.h.get_fwhm()
 
         # fix gain
-        self.r.fix_gain()
-        self.h.fix_gain()
-        if self.cs_flag:
-            self.cs.fix_gain()
+        #self.r.fix_gain()
+        #self.h.fix_gain()
+        #if self.cs_flag:
+        #    self.cs.fix_gain()
         
     def get_cutout_all_filters_old(self, ra, dec, size_arcsec, rootname):
         
@@ -365,6 +365,7 @@ class HalphaImageSet:
             cs_data = np.full_like(h_data, np.nan, dtype=float)
             cs_hdr["CSMAKE"] = (False, "Continuum subtraction failed (missing PHOTZP)")
 
+        
         fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(cs_name, overwrite=True)
 
         # 5) Optional: if you still want to cut out from a pre-made CS coadd, keep it behind a flag
