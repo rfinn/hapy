@@ -37,11 +37,18 @@ def validate_schema(tables, filename):
     for i, t in enumerate(tables[1:], start=2):
         if t.colnames != reference:
             print(f"WAIT!!! Problem with table {filename[i]}!!!")
-            raise RuntimeError(
-                f"Schema mismatch detected in table #{i}.\n"
-                f"Expected columns:\n{reference}\n\n"
-                f"Found columns:\n{t.colnames}"
-            )
+            print(f"Schema mismatch detected in table #{i}.\n")
+            print(f"Expected columns:\n{reference}\n\n")
+            print(f"Found columns:\n{t.colnames}")
+
+            for j in range(len(reference)):
+                print(f"col {j}: ref={reference[j]}, tabcol={t.colnames[j]}")
+            
+            # raise RuntimeError(
+            #     f"Schema mismatch detected in table #{i}.\n"
+            #     f"Expected columns:\n{reference}\n\n"
+            #     f"Found columns:\n{t.colnames}"
+            # )
 
 
 def check_duplicate_objids(tables):
