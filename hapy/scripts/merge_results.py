@@ -42,7 +42,9 @@ def validate_schema(tables, filename):
             print(f"Found columns:\n{t.colnames}")
 
             for j in range(len(reference)):
-                print(f"col {j}: ref={reference[j]}, tabcol={t.colnames[j]}")
+                print(f"col {j}:")
+                print(f"\tref={reference[j]}")
+                print(f"\ttab={t.colnames[j]}")
             
             # raise RuntimeError(
             #     f"Schema mismatch detected in table #{i}.\n"
