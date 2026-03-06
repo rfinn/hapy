@@ -1347,7 +1347,7 @@ class EllipsePhotometry():
                 # snr_per_pixel = median_sb/noise
 
                 ave_sb = dF/dA
-                noise_per_pixel = sqrt(self.sky_noise**2 + ave_sb) # does not account properly for gain...
+                noise_per_pixel = np.sqrt(self.sky_noise**2 + ave_sb) # does not account properly for gain...
                 snr_per_pixel = ave_sb/noise_per_pixel
                 
                 sigma_ann = self.get_noise_in_aper(dF, dA)
