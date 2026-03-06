@@ -225,7 +225,7 @@ class EllipsePhotometry():
             self.xcenter_ra = self.xcenter
             self.ycenter_dec = self.ycenter            
             # convert sma to pixels using pixel scale from mask wcs
-            self.pixel_scale = wcs.pixel_scale_matrix[1][1]
+            #self.pixel_scale = wcs.pixel_scale_matrix[1][1]
             #self.objsma_pixels = self.objsma/(self.pixel_scale*3600)
         
         # image 2 is designed to be the Halpha image, but it can be any second
@@ -1353,7 +1353,7 @@ class EllipsePhotometry():
                 sigma_ann = self.get_noise_in_aper(dF, dA)
                 snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
                 
-                print(f"DEBUG: a={self.apertures_a[i]:.1f}, snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
+                print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
                 if snr_ann < snr_stop:
                 #if snr_per_pixel < snr_stop:                
                     low_snr_count += 1
