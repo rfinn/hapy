@@ -150,14 +150,6 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     ----------
     image_name : str
         Name of image file (used for cache filename).
-    racenter, deccenter : float
-        Field center in degrees.
-    dxdeg, dydeg : float
-        Half-width of search box in degrees.
-    image_wcs : astropy.wcs.WCS
-        WCS object for pixel conversion.
-    xmax, ymax : int
-        Image dimensions.
     gaiapath : str, optional
         Path to local Gaia catalog fallback.
     use_cache : bool

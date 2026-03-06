@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+import argparse
+from pathlib import Path
+from hapy.masktools.gaia import get_gaia_stars
+
+def main(args):
+    # get list of coadds
+    patterns = []
+    if args.prefix is not None:
+        patterns.append(f"{args.prefix}*R.fits")
+        patterns.append(f"{args.prefix}*r.fits")
+    else:
+        patterns.append("*R.fits")
+        patterns.append("*r.fits")
+
+    flist = []
+    for pat in patterns:
+        flist.extend(Path(".").glob(pat))
+    flist = sorted(set(flist))
+    
+    
+    # make output directory gaia_catalogs
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    # for each coadd,
+    for image_name in flist:
+        image_path = Path(image_name)
+        outfile = outdir / f"{image_path.stem}-gaia.fits"
+
+        if outfile.exists() and not args.overwrite:
+            print(f"Skipping existing {outfile}")
+            continue
+
+        print(f"Querying Gaia for {image_path}")
+        gaiatab, xpixel, ypixel = get_gaia_stars(str(image_path), use_cache=False)
+        gaiatab.write(outfile, format="fits", overwrite=True)
+
+        if args.testing:
+            break
+    return 0
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser(
+        description="Download gaia catalogs for a set of FITS images."
+    )
+
+    g_io = p.add_argument_group("Input / Output")
+    g_io.add_argument(
+        "--prefix",
+        default=None,
+        help="Prefix for images to glob. Default: all *R.fits and *r.fits files in the current directory."
+    )
+    g_io.add_argument(
+        "--outdir",
+        default="gaia_catalogs",
+        help="Output directory for Gaia catalogs. Default: gaia_catalogs"
+    )
+    g_io.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing Gaia catalogs.  Default is False."
+    )
+
+    p.add_argument(
+        "--testing",
+        action="store_true",
+        help="Run on one image only."
+    )
+    
+
+
+    args = p.parse_args()
+    raise SystemExit(main(args))
