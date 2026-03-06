@@ -289,7 +289,7 @@ class EllipsePhotometry():
         self.use_mpl = use_mpl
         self.napertures = napertures
         # assuming a typical fwhm 
-        self.fwhm = 3.5
+        self.fwhm = self.header['FWHM']
     def get_noise_in_aper(self, flux, area):
         ''' calculate the noise in an area '''
         if self.sky_noise is not None:
@@ -778,7 +778,7 @@ class EllipsePhotometry():
         self.masked_fraction = frac_masked
         self.pixel_area = ntotal
         self.masked_pixel_area = ntotal - nunmasked
-        
+        print("DEBUG: masked_fraction = ",self.masked_fraction)
     def get_sky_noise(self):
         '''
         * get the noise in image1 and image2 
@@ -804,8 +804,8 @@ class EllipsePhotometry():
         if not hasattr(self, "sky2"):
             self.sky2 = np.nan
 
-        print("DEBUG uconv1,uconv2,pixscale:", self.uconversion1, self.uconversion2, self.pixel_scale)
-        print("DEBUG sky_noise ADU:", self.sky_noise, self.sky_noise2)
+        #print("DEBUG uconv1,uconv2,pixscale:", self.uconversion1, self.uconversion2, self.pixel_scale)
+        #print("DEBUG sky_noise ADU:", self.sky_noise, self.sky_noise2)
         
         sky_noise_erg = self.sky_noise*self.uconversion1/self.pixel_scale**2
 
@@ -1372,7 +1372,7 @@ class EllipsePhotometry():
             # compare ave sb in image units to sky_noise (measured from image, also in image units)
 
             snr_image_units = ave_sb_adu/self.sky_noise
-            print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_image_units={snr_image_units:.1f},snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
+            #print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_image_units={snr_image_units:.1f},snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
             self.snr_total.append(snr_ann)
             self.snr_per_pixel.append(snr_per_pixel)
             self.snr_image_units.append(snr_image_units)
