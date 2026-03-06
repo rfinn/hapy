@@ -131,9 +131,11 @@ def gaia_foreground_filter(tab, pm_snr_min=5.0, plx_snr_min=5.0, ruwe_max=1.4, p
         # allow either significant pm or significant parallax
         motion_ok = (pm_snr >= pm_snr_min) | (plx_snr >= plx_snr_min)
         motion_ok &= np.isfinite(pm_snr) | np.isfinite(plx_snr)
-    if "ruwe" in tab.colnames:
-        ruwe = np.array(tab["ruwe"])
-        motion_ok &= (ruwe < ruwe_max)
+
+        
+    # if "ruwe" in tab.colnames:
+    #     ruwe = np.array(tab["ruwe"])
+    #     motion_ok &= (ruwe < ruwe_max)
 
     # drop NaNs safely
 
