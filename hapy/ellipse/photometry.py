@@ -296,7 +296,7 @@ class EllipsePhotometry():
             # if flux/pixel > n * sky_noise
 
             
-            noise_source_e = np.sqrt(flux*self.gain)
+            noise_source_e = np.sqrt(np.abs(flux)*self.gain)
             
             #noise_sky_e = self.sky_noise* np.sqrt(area) *self.gain
             # variance in sky = SUM_1^npix (sky_noise_per_pixel * gain)**2 = area * (skynoise * gain)**2
@@ -327,7 +327,9 @@ class EllipsePhotometry():
         '''
 
         self.measure_sky()
-        self.subtract_sky()
+        # we subtract the sky in each cutout already in get_cutouts.py
+        #self.subtract_sky()
+        
         #print("detect objects")
         self.detect_objects()
         #print("find central")        
@@ -397,8 +399,11 @@ class EllipsePhotometry():
 
         print("measure sky")
         self.measure_sky()
-        print("subtract sky")
-        self.subtract_sky()
+
+        # we subtract the sky in get_cutouts already - don't redo
+        #print("subtract sky")
+        #self.subtract_sky()
+        
         print("detect objects")
         self.detect_objects()
         print("find central")        
@@ -461,7 +466,9 @@ class EllipsePhotometry():
 
         '''
         self.measure_sky()
-        self.subtract_sky()
+
+        # we subtract the sky in get_cutouts
+        #self.subtract_sky()
         self.detect_objects()
         self.find_central_object()
         self.get_ellipse_guess()
@@ -1259,6 +1266,7 @@ class EllipsePhotometry():
 
         prev_flux1 = None
         prev_area = None
+        prev_flux2 = None
         
         # rmax is set according to the image dimensions
         # look for where the semi-major axis hits the edge of the image
@@ -1302,6 +1310,14 @@ class EllipsePhotometry():
             self.flux2 = np.zeros(len(self.apertures_a),'f')
             self.flux2_err = np.zeros(len(self.apertures_a),'f')
         self.allellipses = []
+
+        self.snr_total = [] # total snr in aperture
+        self.snr_per_pixel = [] # includes poisson noise from galaxy
+        self.snr_image_units = [] # ave/sb to sky noise
+        self.snr_total2 = [] # total snr in aperture
+        self.snr_per_pixel2 = [] # includes poisson noise from galaxy
+        self.snr_image_units2 = [] # ave/sb to sky noise
+        
         for i in range(len(self.apertures_a)):
             #print('measure phot: ',self.xcenter, self.ycenter,self.apertures_a[i],self.apertures_b[i],self.theta)
             #,ai,bi,theta) for ai,bi in zip(a,b)]
@@ -1328,60 +1344,92 @@ class EllipsePhotometry():
             self.flux1_err[i] = self.get_noise_in_aper(self.flux1[i], self.area[i])
 
             # --- SNR-based truncation using annulus SNR (R band) ---
-            if prev_flux1 is not None:
+            if i == 0:
+                dF = self.flux1[i]
+                dA = self.area[i] 
+            else:
                 dF = self.flux1[i] - prev_flux1
                 dA = self.area[i] - prev_area
+            
+            # noise in annulus: prefer sky-based; you can also use get_noise_in_aper(dF, dA)
+            # If you have sky noise per pixel available, this is the cleanest:
+            #sigma_ann = self.sky_noise * np.sqrt(dA)
+            #
+            # Otherwise, reuse your existing noise model:
+            # what Becky did
+            # median sb in annulus as signal
+            # compared with noise_per_pixel = sqrt(sky_uncertainty**2 + median_sb)
+            # snr_per_pixel = median_sb/noise
 
-                # guard against degenerate annulus
-                if dA <= 0:
-                    dA = np.nan
+            ave_sb_adu = dF/dA
+            noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*ave_sb_adu)/self.gain # does not account properly for gain...
+            snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
 
-                # noise in annulus: prefer sky-based; you can also use get_noise_in_aper(dF, dA)
-                # If you have sky noise per pixel available, this is the cleanest:
-                #sigma_ann = self.sky_noise * np.sqrt(dA)
-                #
-                # Otherwise, reuse your existing noise model:
-                # what Becky did
-                # median sb in annulus as signal
-                # compared with noise_per_pixel = sqrt(sky_uncertainty**2 + median_sb)
-                # snr_per_pixel = median_sb/noise
+            sigma_ann = self.get_noise_in_aper(dF, dA)
+            snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
 
-                ave_sb_adu = dF/dA
-                noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*ave_sb_adu)/self.gain # does not account properly for gain...
-                snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
-                
-                sigma_ann = self.get_noise_in_aper(dF, dA)
-                snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
-                
-                print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
-                if snr_ann < snr_stop:
-                #if snr_per_pixel < snr_stop:                
-                    low_snr_count += 1
-                    if low_snr_count >= snr_consecutive:
-                        # truncate arrays to i (inclusive) and stop
-                        n = i + 1
-                        self.apertures_a = self.apertures_a[:n]
-                        self.apertures_b = self.apertures_b[:n]
-                        self.area = self.area[:n]
-                        self.flux1 = self.flux1[:n]
-                        self.flux1_err = self.flux1_err[:n]
-                        if self.image2_flag:
-                            self.flux2 = self.flux2[:n]
-                            self.flux2_err = self.flux2_err[:n]
-                        self.allellipses = self.allellipses[:n]
-                        break
-                else:
-                    low_snr_count = 0
+            # testing measurements in observed units only
+            # compare ave sb in image units to sky_noise (measured from image, also in image units)
 
-            prev_flux1 = self.flux1[i]
-            prev_area = self.area[i]
+            snr_image_units = ave_sb_adu/self.sky_noise
+            print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_image_units={snr_image_units:.1f},snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
+            self.snr_total.append(snr_ann)
+            self.snr_per_pixel.append(snr_per_pixel)
+            self.snr_image_units.append(snr_image_units)
+            # if snr_ann < snr_stop:
+            # #if snr_per_pixel < snr_stop:                
+            #     low_snr_count += 1
+            #     if low_snr_count >= snr_consecutive:
+            #         # truncate arrays to i (inclusive) and stop
+            #         n = i + 1
+            #         self.apertures_a = self.apertures_a[:n]
+            #         self.apertures_b = self.apertures_b[:n]
+            #         self.area = self.area[:n]
+            #         self.flux1 = self.flux1[:n]
+            #         self.flux1_err = self.flux1_err[:n]
+            #         if self.image2_flag:
+            #             self.flux2 = self.flux2[:n]
+            #             self.flux2_err = self.flux2_err[:n]
+            #         self.allellipses = self.allellipses[:n]
+            #         break
+            # else:
+            #     low_snr_count = 0
+
 
             
             if self.image2_flag:
                 self.flux2[i] = self.phot_table2['aperture_sum'][0]
                 self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area[i])
+                if i == 0:
+                    dF = self.flux2[i] 
+                    dA = self.area[i] 
+                else:
+                    dF = self.flux2[i] - prev_flux1
+                    dA = self.area[i] - prev_area
 
+                ave_sb_adu = dF/dA
+                noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*ave_sb_adu)/self.gain # does not account properly for gain...
+                snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
 
+                sigma_ann = self.get_noise_in_aper(dF, dA)
+                snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
+
+                snr_image_units = ave_sb_adu/self.sky_noise
+                self.snr_total2.append(snr_ann)
+                self.snr_per_pixel2.append(snr_per_pixel)
+                self.snr_image_units2.append(snr_image_units)
+                prev_flux2 = self.flux2[i]
+
+            prev_flux1 = self.flux1[i]
+            prev_area = self.area[i]
+
+        self.snr_total = np.array(self.snr_total)
+        self.snr_per_pixel = np.array(self.snr_per_pixel)
+        self.snr_image_units = np.array(self.snr_image_units)
+        self.snr_total2 = np.array(self.snr_total2)
+        self.snr_per_pixel2 = np.array(self.snr_per_pixel2)
+        self.snr_image_units2 = np.array(self.snr_image_units2)
+            
         print(f"DEBUG: len(flux1)={len(self.flux1)}, len(flux2)={len(self.flux2)}")
     def draw_phot_apertures(self,plotname=None):
         ''' matplotlib plotting to show apertures; provide a plot name to save the output figure   '''
@@ -1606,14 +1654,21 @@ class EllipsePhotometry():
              outfile = self.image_name.split('.fits')[0]+'-'+prefix+'_phot.fits'
         print('DEBUG: photometry outfile = ',outfile, self.image_name)
 
+        #self.snr_total = [] # total snr in aperture
+        #self.snr_per_pixel = [] # includes poisson noise from galaxy
+        #self.snr_image_units = [] # ave/sb to sky noise
+
         data = [self.apertures_a*self.pixel_scale,self.apertures_a, \
-             self.flux1,self.flux1_err,\
-             self.sb1, self.sb1_err, \
-             self.sb1_snr, \
-             self.flux1_erg, self.flux1_err_erg,\
-             self.mag1, self.mag1_err, \
-             self.sb1_erg_sqarcsec,self.sb1_erg_sqarcsec_err, \
-             self.sb1_mag_sqarcsec,self.sb1_mag_sqarcsec_err]
+                self.flux1,self.flux1_err,\
+                self.sb1, self.sb1_err, \
+                self.sb1_snr, \
+                self.flux1_erg, self.flux1_err_erg,\
+                self.mag1, self.mag1_err, \
+                self.sb1_erg_sqarcsec,self.sb1_erg_sqarcsec_err, \
+                self.sb1_mag_sqarcsec,self.sb1_mag_sqarcsec_err,
+                self.snr_total, self.snr_per_pixel,
+                self.snr_image_units,
+                ]
 
         names = ['sma_arcsec','sma_pix','flux','flux_err',\
                  'sb', 'sb_err', \
@@ -1621,14 +1676,15 @@ class EllipsePhotometry():
                  'flux_erg', 'flux_erg_err',\
                  'mag', 'mag_err', \
                  'sb_erg_sqarcsec','sb_erg_sqarcsec_err', \
-                 'sb_mag_sqarcsec','sb_mag_sqarcsec_err']
+                 'sb_mag_sqarcsec','sb_mag_sqarcsec_err',
+                     'snr_total','snr_per_pixel','snr_image_units',]
 
         units = [u.arcsec,u.pixel,u.adu/u.s,u.adu/u.s, \
                  u.adu/u.s/u.pixel**2, u.adu/u.s/u.pixel**2, '',\
                  u.erg/u.s/u.cm**2,u.erg/u.s/u.cm**2,\
                  u.mag,u.mag,\
                  u.erg/u.s/u.cm**2/u.arcsec**2,u.erg/u.s/u.cm**2/u.arcsec**2,\
-                 u.mag/u.arcsec**2,u.mag/u.arcsec**2]
+                 u.mag/u.arcsec**2,u.mag/u.arcsec**2,'','','',]
 
 
         #self.sky_noise,self.sky_noise_erg]
@@ -1637,6 +1693,7 @@ class EllipsePhotometry():
         columns = []
         for i in range(len(data)):
             columns.append(Column(data[i],name=names[i],unit=units[i]))
+            #print("DEBUG: col {i}, len(data)={len(data[i])}"
         
         t = Table(columns)
         t.write(outfile, format='fits', overwrite=True)
@@ -1656,20 +1713,26 @@ class EllipsePhotometry():
                 self.flux2_erg, self.flux2_err_erg,\
                 self.mag2, self.mag2_err, \
                 self.sb2_erg_sqarcsec,self.sb2_erg_sqarcsec_err, \
-                self.sb2_mag_sqarcsec,self.sb2_mag_sqarcsec_err]
+                self.sb2_mag_sqarcsec,self.sb2_mag_sqarcsec_err,
+                self.snr_total2, self.snr_per_pixel2,
+                self.snr_image_units2,
+                ]
+                
             names = ['sma_arcsec','sma_pix','flux','flux_err',\
                 'sb', 'sb_err', \
                 'sb_snr', \
                 'flux_erg', 'flux_erg_err',\
                 'mag', 'mag_err', \
                 'sb_erg_sqarcsec','sb_erg_sqarcsec_err', \
-                'sb_mag_sqarcsec','sb_mag_sqarcsec_err']
+                'sb_mag_sqarcsec','sb_mag_sqarcsec_err',
+                'snr_total','snr_per_pixel','snr_image_units',]
             units = [u.arcsec,u.pixel,u.adu/u.s,u.adu/u.s, \
                  u.adu/u.s/u.pixel**2, u.adu/u.s/u.pixel**2, '',\
                  u.erg/u.s/u.cm**2,u.erg/u.s/u.cm**2,\
                  u.mag,u.mag,\
                  u.erg/u.s/u.cm**2/u.arcsec**2,u.erg/u.s/u.cm**2/u.arcsec**2,\
-                 u.mag/u.arcsec**2,u.mag/u.arcsec**2]
+                 u.mag/u.arcsec**2,u.mag/u.arcsec**2,
+                         '','','',]
             columns = []
             for i in range(len(data)):
                 columns.append(Column(data[i],name=names[i],unit=units[i]))
