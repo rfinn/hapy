@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from pathlib import Path
+import shutil
 
 # hapy/masktools/sextractor.py → parents[1] = hapy/
 #HAPY_DIR = Path(__file__).resolve().parents[1]
@@ -31,11 +31,13 @@ def link_sextractor_files(workdir="."):
         if not src.exists():
             raise FileNotFoundError(f"Missing SExtractor file: {src}")
 
+        os.system(f"cp {src} {dst}")
         if dst.exists() or dst.is_symlink():
             dst.unlink()
 
-        dst.symlink_to(src)
-
+        #dst.symlink_to(src)
+        shutil.copy2(src, dst)
+        
 def clean_sextractor_links(workdir="."):
     """Remove SExtractor symbolic links."""
     workdir = Path(workdir)
@@ -101,7 +103,7 @@ def run_sextractor(
 
     segdata = fits.getdata(segmentation)
 
-    clean_sextractor_links()
+    #clean_sextractor_links()
     
     return segdata, catname, segmentation
  

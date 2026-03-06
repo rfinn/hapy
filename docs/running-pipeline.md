@@ -49,7 +49,7 @@ find cutouts -mindepth 1 -maxdepth 1 -type d \
 
 ```bash
 parallel --eta -j 0 --joblog run_analysis_joblog.tsv  run_analysis --cutout-dir {} --make-mask --psf-dir
-.  --log-to-console :::: cutout_list.txt
+.  --log-to-console :::: cutout_list.txt 2>&1 | tee screen_dump.out
 ```
 
 
