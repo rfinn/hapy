@@ -1341,11 +1341,21 @@ class EllipsePhotometry():
                 #sigma_ann = self.sky_noise * np.sqrt(dA)
                 #
                 # Otherwise, reuse your existing noise model:
-                sigma_ann = self.get_noise_in_aper(dF, dA)
+                # what Becky did
+                # median sb in annulus as signal
+                # compared with noise_per_pixel = sqrt(sky_uncertainty**2 + median_sb)
+                # snr_per_pixel = median_sb/noise
 
-                snr_ann = dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
-                print(f"DEBUG: snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
+                ave_sb = dF/dA
+                noise_per_pixel = sqrt(self.sky_noise**2 + ave_sb) # does not account properly for gain...
+                snr_per_pixel = ave_sb/noise_per_pixel
+                
+                sigma_ann = self.get_noise_in_aper(dF, dA)
+                snr_ann =  dFdA / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
+                
+                print(f"DEBUG: snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
                 if snr_ann < snr_stop:
+                #if snr_per_pixel < snr_stop:                
                     low_snr_count += 1
                     if low_snr_count >= snr_consecutive:
                         # truncate arrays to i (inclusive) and stop

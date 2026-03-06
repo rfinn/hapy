@@ -27,7 +27,7 @@ parallel -j 8 python scripts/run_analysis.py --root {} --make-mask --galfit ::::
 
 One Step, Step 1/1:
 ```
-for d in cutouts/*/; do
+for d in cutouts/*/; 
   b=$(basename "$d")
   echo "${d}${b}"
 done | parallel -j 8 python scripts/run_analysis.py --root {} --make-mask --galfit
@@ -91,11 +91,11 @@ def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
     #cutdir = root.parent
 
     if log_dir is None:
-        log_dir = cutdir / "logs" / f"{tag}.analysis.log"
+        log_dir = cutdir / "logs" 
     else:
         log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{tag}.log"
+    log_path = log_dir /f"{tag}.analysis.log"
 
     logger = logging.getLogger(f"hapy.run_analysis.{tag}")
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
@@ -701,7 +701,7 @@ def main():
     prefix = tag
     results_path = cutdir / f"{tag}-results.ecsv"
 
-
+    print(f"DEBUG: cutdir={cutdir},tag={tag}, root={root}")
     # --- initialize logger
     logger, log_path = init_cutout_logger(
         tag=tag,
@@ -718,7 +718,9 @@ def main():
     if r_fits is None:
         raise FileNotFoundError(f"Could not find R-band FITS in: {cutdir}")
 
-    cs_fits = args.cs_fits or _pick_one(str(cutdir / f"{tag}*-CS-ZP.fits")) or _pick_one(str(cutdir / f"{tag}*-cs.fits")) 
+    cs_fits = args.cs_fits or _pick_one(str(cutdir / f"{tag}*-CS-ZP.fits")) or _pick_one(str(cutdir / f"{tag}*-cs.fits"))
+
+    # why are we looking for a mask when we are suppose to make one?
     mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
     
@@ -816,6 +818,7 @@ def main():
     row["FILTER_CORRECTION"] = params.get("filter_correction")
 
 
+    # TODO get this information from ZP ratio
     filter_ratio = params.get("filter_ratio", None)
     if filter_ratio is None:
         filter_ratio = np.nan
@@ -902,9 +905,9 @@ def main():
         t0 = time.perf_counter()
 
         # choose output mask name if not provided/found
-        mask_out = mask_fits or (root + "-mask.fits")
+        mask_out = mask_fits or (cutdir / f"{tag}-mask.fits")
 
-
+        print(f"DEBUG: mask_out={mask_out}")
 
 
 
@@ -944,7 +947,7 @@ def main():
             grow_iterations=int(args.grow_iterations),
         )
 
-        mask_out = mask_fits or (root + "-mask.fits")
+        #mask_out = mask_fits or (root + "-mask.fits")
         engine.write_mask(mask_out)
         mask_fits = mask_out
 
@@ -1130,7 +1133,7 @@ def main():
             theta_deg = phot_theta_deg
             )
         
-        outfile = Path(root).parent / f"{tag}-diagnostic.png"
+        outfile = cutdir / f"{tag}-diagnostic.png"
         plot_mask_ellipse_diagnostic(
             r_fits=str(r_fits),
             mask_fits=str(mask_fits),

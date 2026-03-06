@@ -212,8 +212,9 @@ def main(args=None):
     #ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     ts = datetime.now().strftime("%Y%m%d")
 
-    stem = Path(rootname).stem
-    summary_path = Path(outdir) / f"cutouts_summary-{stem}-{user}-{ts}.fits"
+    #stem = Path(rootname).stem
+    tag= Path(args.rimage).name.replace("-R.fits","").replace("-r.fits","")
+    summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.fits"
     tab.write(summary_path, overwrite=True)
     print(f"Wrote summary table: {summary_path}")
 if __name__ == '__main__':

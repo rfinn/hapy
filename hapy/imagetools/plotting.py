@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
@@ -19,15 +20,24 @@ def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
     )
 
 
-def display_image(image, percent=99.9, lowrange=False, sigclip=True):
-    if sigclip:
+def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None):
+    masked=False
+    if mask is not None:
+        #image = np.ma.array(image, mask=mask)
+        masked=True
+        statarray = image.copy()
+        statarray[mask] = np.nan
+    if sigclip and (mask is None):
         clipped_data = sigma_clip(image, sigma_lower=5, sigma_upper=5)
     else:
         clipped_data = image
 
     stretch = "linear" if lowrange else "asinh"
-    norm = simple_norm(clipped_data, stretch=stretch, percent=percent)
-    plt.imshow(image, norm=norm, cmap="gray_r", origin="lower")
+    if mask is not None:
+        norm = simple_norm(statarray, stretch=stretch, percent=percent)
+    else:
+        norm = simple_norm(clipped_data, stretch=stretch, percent=percent)
+    plt.imshow(image, norm=norm,origin="lower", cmap="gray_r")#, origin="lower")
 
 
 def display_unwise(ra,dec,galname,imsize_arcsec=60):
@@ -169,10 +179,16 @@ def plot_mask_ellipse_diagnostic(
 
     r_data, r_hdr = fits.getdata(r_fits, header=True)
     m_data = fits.getdata(mask_fits)
-
+    mmask = m_data > 0
+    rmasked = np.ma.array(r_data, mask=mmask)
+    #plt.figure()
+    #plt.imshow(rmasked, origin="lower")
+    #plt.savefig("debug-plot.png")
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
     plt.sca(ax[0])
-    display_image(r_data)
+    display_image(r_data, mask=mmask)
+    #display_image(rmasked)
+    #plt.colorbar()
     ax[0].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
                                   edgecolor="cyan", linewidth=2))
     ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
