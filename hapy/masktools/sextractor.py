@@ -36,6 +36,7 @@ def link_sextractor_files(workdir="."):
             dst.unlink()
 
         #dst.symlink_to(src)
+        print("DEBUG link_sextractor_files: ",src,dst)
         shutil.copy2(src, dst)
         
 def clean_sextractor_links(workdir="."):
