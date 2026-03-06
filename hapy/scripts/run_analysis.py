@@ -780,7 +780,9 @@ def main():
         # get gaia mask
         brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
         mask_array = np.zeros_like(data,  dtype=np.int32)
-        mask_array, gaia_mask = make_gaia_mask(mask_array,star_xpix,star_ypix,pixscale/3600.,gaia_table=brightstar)
+        # could add a radius_scale_factor that depends on image FWHM
+        # (FWHM-1.5)
+        mask_array, gaia_mask = make_gaia_mask(mask_array,star_xpix,star_ypix,pixscale/3600.,gaia_table=brightstar,radius_scale_factor=1)
 
         # convert to boolean mask
         gaia_mask = gaia_mask > 0
@@ -1291,12 +1293,13 @@ def main():
 
     write_result_row_ecsv(results_path, row)
     print(f"Wrote results: {results_path}")
-    return results_path
-
+    #return results_path
+    return 0
 
         
 if __name__ == "__main__":
-    results_table = main()
-
+    #results_table = main()
+    raise SystemExit(main())
+    
     # checking table - comment after check
     #check_table(results_table)

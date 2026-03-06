@@ -108,9 +108,14 @@ def calculate_background_photutils(
         sigma=3.0,
         maxiters=clip_maxiters,
     )
-
+    if weightimage is not None:
+        goodmask = weightimage > 0
+        badmask = ~goodmask
+    else:
+        badmask = np.zeros_like(data, 'bool')
+    data = np.ma.array(data,mask=badmask)
     mean, median, std = sigma_clipped_stats(
-        np.asarray(data),
+        data,
         sigma=clip_sigma,
         maxiters=clip_maxiters,
         mask=mask,
@@ -156,7 +161,12 @@ def estimate_and_subtract_sky(data, weightimage=None, subtract=True, **skycfg):
     if not np.isfinite(med):
         return arr.copy(), float(med), float(std)
 
-    out = (arr - med) if subtract else arr.copy()
+    goodmask = weightimage > 1
+    out = np.zeros_like(arr)
+    if subtract:
+        out[goodmask] = (arr[goodmask] - med)
+    else:
+        out = arr.copy()
     return out, float(med), float(std)
 
 

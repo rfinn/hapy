@@ -1362,7 +1362,7 @@ class EllipsePhotometry():
             # snr_per_pixel = median_sb/noise
 
             ave_sb_adu = dF/dA
-            noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*ave_sb_adu)/self.gain # does not account properly for gain...
+            noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*np.abs(ave_sb_adu))/self.gain # does not account properly for gain...
             snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
 
             sigma_ann = self.get_noise_in_aper(dF, dA)
@@ -1408,7 +1408,7 @@ class EllipsePhotometry():
                     dA = self.area[i] - prev_area
 
                 ave_sb_adu = dF/dA
-                noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*ave_sb_adu)/self.gain # does not account properly for gain...
+                noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*np.abs(ave_sb_adu))/self.gain # does not account properly for gain...
                 snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
 
                 sigma_ann = self.get_noise_in_aper(dF, dA)
