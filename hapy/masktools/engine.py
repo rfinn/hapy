@@ -8,6 +8,8 @@ from typing import Optional, Sequence, Tuple, List, Union, Callable
 
 import numpy as np
 from astropy.io import fits
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 #from astropy.wcs import WCS
 from astropy import wcs
 from .maskops import (
@@ -16,7 +18,7 @@ from .maskops import (
     grow_mask_square,
     circle_pixels,
 )
-from .gaia import get_gaia_stars, make_gaia_mask
+from .gaia import get_gaia_stars, make_gaia_mask, gaia_foreground_filter
 from .sextractor import run_sextractor
 
 from .types import EllipseParams
@@ -53,7 +55,7 @@ class MaskEngine:
         self.ha_image_fits = str(ha_image_fits) if ha_image_fits else None
 
         #self.sepath = sepath
-        #self.gaiapath = gaiapath
+        self.gaiapath = gaiapath
         self.config = config
 
         self.threshold = float(threshold)
@@ -125,6 +127,7 @@ class MaskEngine:
         grow_iterations: int = 4,
         output_prefix: Optional[str] = None,
         progress_callback=None,
+        gaia_table = None, 
         
         
     ):
@@ -179,15 +182,59 @@ class MaskEngine:
             self.grow(size=grow_size, ngrow=grow_iterations, preserve_gaia=True)
 
         # ADD GAIA STARS
-        if self.add_gaia_stars:# and self.gaiapath is not None:
 
+        if self.add_gaia_stars:
             self._progress(progress_callback, stage="gaia", fraction=0.85, message="Adding Gaia stars")
-            brightstar, x_pixels, y_pixels = get_gaia_stars(self.image_fits)            
-            self.gaia_mask, star_masks = make_gaia_mask(self.maskdat, x_pixels, y_pixels, self.pixel_scale_deg, gaia_table=brightstar)
-            #print("after gaia", self.maskdat.shape, " and gaia mask shape = ",self.gaia_mask.shape)
-            self.maskdat = apply_user_masks(self.maskdat, self.gaia_mask)
-            #print("after gaia - add back user masks", self.maskdat.shape)
-        #print("after gaia", self.maskdat.shape)
+
+            if gaia_table is None:
+                brightstar, x_pixels, y_pixels = get_gaia_stars(self.image_fits)
+            else:
+                brightstar = gaia_table
+
+                # filter on proper motion and parallax
+                motion_ok = gaia_foreground_filter(brightstar)
+                brightstar = brightstar[motion_ok]
+                
+                # project Gaia catalog onto this cutout WCS
+                starcoord = SkyCoord(
+                    brightstar["ra"],
+                    brightstar["dec"],
+                    frame="icrs",
+                    unit="deg",
+                )
+                x_pixels, y_pixels = self.wcs.world_to_pixel(starcoord)
+
+                # keep only stars inside the image
+                keep = (
+                    (x_pixels >= 0) & (x_pixels < self.xmax) &
+                    (y_pixels >= 0) & (y_pixels < self.ymax)
+                )
+                brightstar = brightstar[keep]
+                x_pixels = x_pixels[keep]
+                y_pixels = y_pixels[keep]
+
+            if brightstar is not None and len(brightstar) > 0:
+                self.gaia_mask, star_masks = make_gaia_mask(
+                    self.maskdat,
+                    x_pixels,
+                    y_pixels,
+                    self.pixel_scale_deg,
+                    gaia_table=brightstar,
+                )
+                self.maskdat = apply_user_masks(self.maskdat, self.gaia_mask)
+
+        
+        # if self.add_gaia_stars:# and self.gaiapath is not None:
+        #     # LOOK FOR CATALOG THAT IS PASSED IN
+
+
+        #     self._progress(progress_callback, stage="gaia", fraction=0.85, message="Adding Gaia stars")
+        #     brightstar, x_pixels, y_pixels = get_gaia_stars(self.image_fits)            
+        #     self.gaia_mask, star_masks = make_gaia_mask(self.maskdat, x_pixels, y_pixels, self.pixel_scale_deg, gaia_table=brightstar)
+        #     #print("after gaia", self.maskdat.shape, " and gaia mask shape = ",self.gaia_mask.shape)
+        #     self.maskdat = apply_user_masks(self.maskdat, self.gaia_mask)
+        #     #print("after gaia - add back user masks", self.maskdat.shape)
+        # #print("after gaia", self.maskdat.shape)
         self._progress(progress_callback, stage="done", fraction=1.0, message="Mask build complete")
         return self.maskdat
 

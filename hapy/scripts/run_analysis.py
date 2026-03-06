@@ -62,6 +62,7 @@ from datetime import datetime
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy.table import Table
 
 import json
 import re
@@ -611,11 +612,12 @@ def main():
                         help="Grow size in mask expansion.  Default is 5.")
     g_mask.add_argument("--grow-iterations", default=4,
                         help="Grow size in mask expansion.  Default is 4.")
-    g_mask.add_argument("--gaiapath", default=None,
-                        help="Path to Gaia catalog file")
+    #g_mask.add_argument("--gaiapath", default=None,
+    #                    help="Path to Gaia catalog file")
+    g_mask.add_argument("--gaia-dir", default="gaia_catalogs",
+                        help="Directory containing precomputed Gaia catalogs (default: gaia_catalogs)")
     g_mask.add_argument("--no-gaia", action="store_true",
                         help="Disable Gaia star masking")
-
     # ============================================================
     # GALFIT
     # ============================================================
@@ -912,6 +914,7 @@ def main():
         print(f"DEBUG: mask_out={mask_out}")
 
 
+        
 
 
         #row["sma_arcsec"] = sma_arcsec
@@ -931,10 +934,27 @@ def main():
         #    ba=ba,
         #    theta_deg=theta_deg,
         #)
+
+        # -- look for gaia table from parent image
+        parent_rimage = params.get("parent_rimage", None)        
+        gaia_table_path = None
+        if parent_rimage:
+            gaia_dir = Path(args.gaia_dir)
+            gaia_table_path = gaia_dir / parent_rimage.replace(".fits", "-gaia.fits")
+    
+
+        if not args.no_gaia and parent_rimage:
+            gaia_table_path = Path(args.gaia_dir) / parent_rimage.replace(".fits", "-gaia.fits")
+            if gaia_table_path.exists():
+                gaia_table = Table.read(gaia_table_path)
+                logger.info(f"Using local Gaia catalog: {gaia_table_path}")
+            else:
+                logger.warning(f"Local Gaia catalog not found: {gaia_table_path}")
+        
         engine = MaskEngine(
             image_fits=r_fits,
             sepath=args.sepath,
-            gaiapath=args.gaiapath,
+            #gaiapath=args.gaiapath,
             config=args.seconfig,
             threshold=args.sethreshold,
             snr=args.sesnr,
@@ -947,6 +967,7 @@ def main():
             progress_callback=_progress_cb,
             grow_size=int(args.grow_size),
             grow_iterations=int(args.grow_iterations),
+            gaia_table = gaia_table,
         )
 
         #mask_out = mask_fits or (root + "-mask.fits")
