@@ -227,6 +227,10 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     mask_radius = mask_radius_for_mag(
         brightstar["phot_g_mean_mag"]
     )
+
+
+
+    
     brightstar["radius"] = mask_radius
 
     # Convert to pixel coords
@@ -261,7 +265,8 @@ def make_gaia_mask(
     x_pixels,
     y_pixels,
     pixel_scale_deg,
-    gaia_table=None,):
+    gaia_table=None,
+    radius_scale_factor=1):
     """
     Create a Gaia bright-star mask using a magnitude-radius relation.
     
@@ -309,7 +314,7 @@ def make_gaia_mask(
         pixel_mask = circle_pixels(
             float(x_pixels[i]),
             float(y_pixels[i]),
-            float(rad_pixels[i]),
+            float(rad_pixels[i]*radius_scale_factor),
             nx,
             ny,
         )
