@@ -20,7 +20,7 @@ SEXTRACTOR_FILES = [
 ]
 
 
-def link_sextractor_files(workdir="."):
+def copy_sextractor_files(workdir="."):
     """Create symbolic links to required SExtractor config files."""
     workdir = Path(workdir)
 
@@ -28,16 +28,15 @@ def link_sextractor_files(workdir="."):
         src = ASTROMATIC_DIR / fname
         dst = workdir / fname
 
-        if not src.exists():
-            raise FileNotFoundError(f"Missing SExtractor file: {src}")
 
-        os.system(f"cp {src} {dst}")
-        if dst.exists() or dst.is_symlink():
-            dst.unlink()
 
-        #dst.symlink_to(src)
-        print("DEBUG link_sextractor_files: ",src,dst)
-        shutil.copy2(src, dst)
+        #print("DEBUG link_sextractor_files: ",src,dst)
+        #os.system(f"cp {src} {dst}")
+        if not dst.exists():
+            if not src.exists():
+                raise FileNotFoundError(f"Missing SExtractor file: {src}")
+            #dst.symlink_to(src)
+            shutil.copy2(src, dst)
         
 def clean_sextractor_links(workdir="."):
     """Remove SExtractor symbolic links."""
@@ -54,6 +53,62 @@ import numpy as np
 from astropy.io import fits
 
 
+# def run_sextractor(
+#     image_name,
+#     config,
+#     threshold,
+#     snr,
+#     snr_analysis,
+#     minarea,
+#     weight_image=None,
+#     weight_threshold=1,):
+#     """
+#     Run SExtractor and return segmentation array + catalog filename.
+#     """
+#     # Resolve config path safely
+#     config_path = Path(config)
+#     if not config_path.is_file():
+#         config_path = ASTROMATIC_DIR / config
+
+#     if not config_path.exists():
+#         raise FileNotFoundError(f"SExtractor config not found: {config_path}")
+
+#     print("DEBUG: in run_sextractor, image_name = ",image_name)
+#     catname = image_name.replace(".fits", ".cat")
+#     segmentation = image_name.replace(".fits", "-segmentation.fits")
+    
+#     link_sextractor_files()
+    
+#     cmd = [
+#         "sex",
+#         image_name,
+#         "-c", str(config_path),
+#         "-CATALOG_NAME", catname,
+#         "-CATALOG_TYPE", "FITS_1.0",
+#         "-DEBLEND_MINCONT", str(threshold),
+#         "-DETECT_THRESH", str(snr),
+#         "-ANALYSIS_THRESH", str(snr_analysis),
+#         "-CHECKIMAGE_NAME", segmentation,
+#         "-DETECT_MINAREA", str(minarea),
+#     ]
+
+#     if weight_image is not None:
+#         cmd += [
+#             "-WEIGHT_TYPE", "MAP_WEIGHT",
+#             "-WEIGHT_IMAGE", weight_image,
+#             "-WEIGHT_THRESH", str(weight_threshold),
+#         ]
+
+#     print("Running:", " ".join(cmd))
+#     subprocess.run(cmd, check=True)
+
+#     segdata = fits.getdata(segmentation)
+
+#     #clean_sextractor_links()
+    
+#     return segdata, catname, segmentation
+ 
+
 def run_sextractor(
     image_name,
     config,
@@ -62,27 +117,34 @@ def run_sextractor(
     snr_analysis,
     minarea,
     weight_image=None,
-    weight_threshold=1,):
+    weight_threshold=1,
+):
     """
     Run SExtractor and return segmentation array + catalog filename.
     """
+
+    image_path = Path(image_name)
+    workdir = image_path.parent
+    image_basename = image_path.name
+
     # Resolve config path safely
     config_path = Path(config)
     if not config_path.is_file():
-        config_path = ASTROMATIC_DIR / config
+        config_path = Path(ASTROMATIC_DIR) / config
 
     if not config_path.exists():
         raise FileNotFoundError(f"SExtractor config not found: {config_path}")
 
-    catname = image_name.replace(".fits", ".cat")
-    segmentation = image_name.replace(".fits", "-segmentation.fits")
-    
-    link_sextractor_files()
-    
+    catname = image_basename.replace(".fits", ".cat")
+    segmentation = image_basename.replace(".fits", "-segmentation.fits")
+
+    # copy astromatic files into working directory
+    copy_sextractor_files(workdir)
+
     cmd = [
         "sex",
-        image_name,
-        "-c", str(config_path),
+        image_basename,
+        "-c", config_path.name,
         "-CATALOG_NAME", catname,
         "-CATALOG_TYPE", "FITS_1.0",
         "-DEBLEND_MINCONT", str(threshold),
@@ -93,22 +155,21 @@ def run_sextractor(
     ]
 
     if weight_image is not None:
+        weight_basename = Path(weight_image).name
         cmd += [
             "-WEIGHT_TYPE", "MAP_WEIGHT",
-            "-WEIGHT_IMAGE", weight_image,
+            "-WEIGHT_IMAGE", weight_basename,
             "-WEIGHT_THRESH", str(weight_threshold),
         ]
 
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
 
-    segdata = fits.getdata(segmentation)
+    subprocess.run(cmd, cwd=str(workdir), check=True)
 
-    #clean_sextractor_links()
-    
-    return segdata, catname, segmentation
- 
- 
+    segdata = fits.getdata(workdir / segmentation)
+
+    return segdata, str(workdir / catname), str(workdir / segmentation)
+
 
 def read_se_catalog(catname, xc=None, yc=None):
     """
