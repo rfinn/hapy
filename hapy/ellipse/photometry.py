@@ -1353,7 +1353,7 @@ class EllipsePhotometry():
                 sigma_ann = self.get_noise_in_aper(dF, dA)
                 snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
                 
-                print(f"DEBUG: snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
+                print(f"DEBUG: a={self.apertures_a[i]:.1f}, snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
                 if snr_ann < snr_stop:
                 #if snr_per_pixel < snr_stop:                
                     low_snr_count += 1
