@@ -442,7 +442,10 @@ def initialize_result_row():
     ]:
         row[k] = np.nan
 
-    row["ELLIP_MASKED_FRACTION"] = ""
+
+    row["AREA_GUESS_ELLIPSE_PIX"] = np.nan
+    row["AREA_GUESS_ELLIPSE_UNMASKED_PIX"] = np.nan
+    row["MASKFRAC_GUESS_ELLIPSE"] = np.nan
 
     # ---------- R band ----------
     for k in [
@@ -1028,6 +1031,9 @@ def main():
         ("R_M20", "M20_1"),
         ("R_ASYM", "asym"),
         ("R_ASYM_ERR", "asym_err"),
+        ("AREA_GUESS_ELLIPSE_PIX", "area_guess_ellipse_pix"),
+        ("AREA_GUESS_ELLIPSE_UNMASKED_PIX", "area_guess_ellipse_unmasked_pix"),
+        ("MASKFRAC_GUESS_ELLIPSE", "maskfrac_guess_ellipse"),
         ]
 
 
