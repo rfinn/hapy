@@ -490,7 +490,7 @@ def initialize_result_row():
 
     # ---------- H band ----------
     for k in [
-        "H_SKYSTD_ADU", "H_SKYMED_ADU",
+        "H_FWHM", "H_SKYSTD_ADU", "H_SKYMED_ADU",
         "H_SKYSTD_PHYS", "H_M20", "H_ASYM", "H_ASYM_ERR"
     ]:
         row[k] = np.nan
@@ -966,6 +966,9 @@ def main():
     row["DEC"] = dec
     row["OBJID"] = objid
 
+    row["R_FHWM"] = float(params.get("rimage_psf"))
+    row["H_FHWM"] = float(params.get("himage_psf"))
+
     if ra is not None and dec is not None:
         try:
             xw, yw = wcs.world_to_pixel_values(float(ra), float(dec))
@@ -1145,7 +1148,6 @@ def main():
         ("ELLIP_SOURCE_SUM", "source_sum"),
         ("ELLIP_SEGMENT_FLUX", "photutils_segment_flux"),
         ("ELLIP_SEGMENT_MAG","photutils_segment_mag"),
-        ("R_FWHM", "fwhm"),
         ("R_SKYSTD_ADU", "sky_noise"),
         ("R_SKYMED_ADU", "sky"),
         ("R_SKYSTD_PHYS", "im1_skynoise"),
