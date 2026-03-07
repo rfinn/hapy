@@ -2247,10 +2247,12 @@ class EllipsePhotometry():
             sbflux_errs = [self.sb1_erg_sqarcsec_err]
 
         plt.subplot(1,2,1)
+        plotflag = self.snr_per_pixel > 2
+        x = x[plotflag]
         for i,t in enumerate(fluxes):
-            y0 = fluxes[i]            
-            y1 = y0+flux_errs[i]
-            y2 = y0-flux_errs[i]
+            y0 = fluxes[i][plotflag]
+            y1 = y0+flux_errs[i][plotflag]
+            y2 = y0-flux_errs[i][plotflag]
 
             if (i == 1) + (i == 3):
                 y0=y0*100
@@ -2274,9 +2276,9 @@ class EllipsePhotometry():
         plt.subplot(1,2,2)
 
         for i,t in enumerate(sbfluxes):
-            y0 = sbfluxes[i]            
-            y1 = y0+sbflux_errs[i]
-            y2 = y0-sbflux_errs[i]
+            y0 = sbfluxes[i][plotflag]          
+            y1 = y0+sbflux_errs[i][plotflag]
+            y2 = y0-sbflux_errs[i][plotflag]
 
             if (i == 1) + (i == 3):
                 y0=y0*100

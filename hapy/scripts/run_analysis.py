@@ -375,11 +375,19 @@ def initialize_result_row():
     """Return a fully populated results-row dict with frozen schema."""
 
     row = {}
+ 
 
     # ---------- virgo identifiers ----------
     row["VFID"] = ""      # e.g., "VFID3084"
     row["GALNAME"] = ""   # e.g., "NGC3512" (optional but handy)
     row["OBJID"] = ""
+    # ---------- coordinates ----------
+    row["RA"] = np.nan
+    row["DEC"] = np.nan
+
+    # ---- meta data ---
+    row["HAPY_VERSION"] = ""
+    row["RUN_DATE"] = ""
     for k in [
         "TELESCOPE",
         "DATEOBS",
@@ -441,9 +449,6 @@ def initialize_result_row():
     row["GAL_CV_RERUN_FIXEDN"] = False
  
 
-    # ---------- coordinates ----------
-    row["RA"] = np.nan
-    row["DEC"] = np.nan
 
     # ---------- cutout properties ----------
     for k in [
@@ -836,6 +841,14 @@ def main():
 
             
     row = initialize_result_row()
+
+    
+    from datetime import datetime
+    row["RUN_DATE"] = datetime.utcnow().strftime("%Y-%m-%d")
+
+    from importlib.metadata import version
+    row["HAPY_VERSION"] = version("hapy")
+    
     row["CUTDIR"] = str(cutdir)
     row["TAG"] = Path(root).name
     row["STAGE"] = "init"
