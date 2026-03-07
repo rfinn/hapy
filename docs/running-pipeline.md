@@ -1,8 +1,14 @@
+## In Coadd directory, download the gaia files
+
+```
+python ~/github/hapy/scripts/download_gaia_coadd_catalogs.py 
+```
+
 ## Make Cutouts
 
 ### Running on VFS-Halpha coadds
 ```
-python ~/github/hapy/scripts/get_cutouts.py --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
+get_cutouts --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
 ```
 
 To run in parallel, you need a list of the r-band coadds. For example:
