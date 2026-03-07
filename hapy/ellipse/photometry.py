@@ -224,9 +224,16 @@ class EllipsePhotometry():
     def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=20,apertures=None, image2_filter=None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False):
         '''  inputs described above '''
 
+        self.tag = image.replace('.fits','')
         self.image, self.header = fits.getdata(image, header=True)
         self.image_name = image
 
+        try:
+            self.magzp = float(self.header['PHOTZP'])
+        except KeyError:
+            warnings.warn(f"No PHOTZP keyword in image {image} header. \nAssuming ZP=22.5")
+            self.magzp = 22.5
+        
         # get image dimensions - will use this to determine the max sma to measure
         self.yimage_max, self.ximage_max = self.image.shape
 
@@ -259,6 +266,13 @@ class EllipsePhotometry():
             self.image2_name = image2
             self.image2,self.header2 = fits.getdata(image2, header=True)
             self.image2_flag = True
+
+            try:
+                self.magzp2 = float(self.header2['PHOTZP'])
+            except KeyError:
+                warnings.warn(f"No PHOTZP keyword in image {image2} header. \nAssuming ZP=22.5")
+                self.magzp2 = 22.5
+
         else:
             self.image2_flag = False
             self.image2 = None
@@ -457,7 +471,7 @@ class EllipsePhotometry():
         try:
             self.get_asymmetry()
         except:
-            warnings.warn(f"{self.image.replace('fits','')}: problem measuring asymmetry")
+            warnings.warn(f"{self.tag}: problem measuring asymmetry")
             self.asym = -99
             self.asym_err = -99
             self.asym2 = -99
@@ -931,24 +945,6 @@ class EllipsePhotometry():
             #print(f"comparing ycenter {ycat:.1f} and from dec {self.ycenter_dec:.1f}")
             #print()
 
-    def get_mask_from_segmentation(self):
-        # create a copy of the segmentation image
-        # replace the object index values with zeros        
-        segmap = self.segmentation.data == self.cat.label[self.objectIndex]
-
-        # subtract this from segmentation
-
-        mask_data = self.segmentation.data - segmap*self.cat.label[self.objectIndex]
-        # smooth 
-        segmap_float = ndi.uniform_filter(np.float64(mask_data), size=10)
-        mask = segmap_float > 0.5
-
-        self.mask_image = mask
-        self.boolmask = mask
-        self.mask_flag = True
-
-
-        # turn the segmentation image into a boolean mask
 
 
     def run_statmorph(self, save_figs = True):
@@ -1168,6 +1164,15 @@ class EllipsePhotometry():
         # EllipseGeometry using angle in radians, CCW from +x axis
         self.guess = EllipseGeometry(x0=self.xcenter,y0=self.ycenter,sma=self.sma,eps = self.eps, pa = self.theta)
 
+        
+        self.photutils_segment_flux = np.nan
+        self.photutils_segment_mag = np.nan
+
+        if np.isfinite(self.source_sum) and (self.source_sum > 0):
+            self.photutils_segment_flux = float(self.source_sum)
+            self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
+
+    
     def measure_mask_fraction_in_guess_ellipse(self):
         """
         Measure the fraction of masked pixels inside the photutils-derived
@@ -1184,40 +1189,48 @@ class EllipsePhotometry():
             Fraction of the ellipse area that is masked.
         """
         if self.mask_image is not None:
-            mask = self.mask_image
+            mask = self.mask_image > 0
         else:
-            warnings.warn(f"{self.image.replace('.fits',''): No mask provided and self.mask is not set.", RuntimeWarning)
+            warnings.warn(f"{self.tag}: No mask provided and self.mask is not set.", RuntimeWarning)
             return np.nan, np.nan, np.nan
 
         if not hasattr(self, "aperture") or self.aperture is None:
-            warnings.warn(f"{self.image.replace('.fits',''): Guess ellipse aperture is not defined. Run get_ellipse_guess() first.", RuntimeWarning)
+            warnings.warn(f"{self.tag}: Guess ellipse aperture is not defined. Run get_ellipse_guess() first.", RuntimeWarning)
             return np.nan, np.nan, np.nan
         
         # Fractional footprint of the ellipse on the image grid
+        #print("DEBUG: self.aperture = ",self.aperture)
         apermask = self.aperture.to_mask(method="exact")
         footprint = apermask.to_image(mask.shape)
-
+        #print("DEBUG: footprint = ",footprint)
         if footprint is None:
             raise ValueError("Ellipse footprint could not be projected onto image.")
 
+        # plt.figure()
+        # plt.imshow(footprint)
+        # plt.colorbar()
+        # plt.savefig("debug_masked_pixels.png")
+        
         # Pixels contributing to the aperture
         total_pix = np.sum(footprint)
+
 
         # Mask convention: True = masked
         masked_weight = np.sum(footprint * mask.astype(float))
         unmasked_pix = total_pix - masked_weight
-
+        #print(f"DEBUG: total_pix = {total_pix:.1f},masked_weight = {masked_weight:.1f}")
         if total_pix > 0:
             masked_fraction = masked_weight / total_pix
         else:
             masked_fraction = np.nan
-
+        #print(f"DEBUG: unmasked_pix = {unmasked_pix:.1f},masked_fraction = {masked_fraction:.1f}")
         return total_pix, unmasked_pix, masked_fraction
+
     def set_guess_ellipse_mask_metrics(self, mask=None):
         """
         Compute and store mask metrics for the photutils-derived guess ellipse.
         """
-        total_pix, unmasked_pix, masked_fraction = self.measure_mask_fraction_in_guess_ellipse(mask=mask)
+        total_pix, unmasked_pix, masked_fraction = self.measure_mask_fraction_in_guess_ellipse()
 
         self.area_guess_ellipse_pix = total_pix
         self.area_guess_ellipse_unmasked_pix = unmasked_pix
@@ -1350,19 +1363,19 @@ class EllipsePhotometry():
         apertures = (index + 1) * 0.5 * self.fwhm * (1 + (index + 1) * 0.1)
         apertures_a = apertures[apertures < rmax]
         apertures_b = (1.0 - self.eps) * apertures_a
-            area_total = np.pi * apertures_a * apertures_b
+        area_total = np.pi * apertures_a * apertures_b
 
-            allellipses = [
-                EllipticalAperture(
-                    (self.xcenter, self.ycenter),
-                    apertures_a[i],
-                    apertures_b[i],
-                    self.theta,
-                    )
-                for i in range(len(apertures_a))
-                ]
+        allellipses = [
+            EllipticalAperture(
+                (self.xcenter, self.ycenter),
+                apertures_a[i],
+                apertures_b[i],
+                self.theta,
+                )
+            for i in range(len(apertures_a))
+            ]
 
-            return apertures_a, apertures_b, area_total, allellipses
+        return apertures_a, apertures_b, area_total, allellipses
 
     def _measure_single_aperture(self, image, ap, combined_mask=None):
         """
@@ -1380,8 +1393,8 @@ class EllipsePhotometry():
             phot_table = aperture_photometry(image, ap, method="subpixel", subpixels=5)
             area_unmasked = area_total
 
-            flux = phot_table["aperture_sum"][0]
-            return float(flux), float(area_total), float(area_unmasked)
+        flux = phot_table["aperture_sum"][0]
+        return float(flux), float(area_total), float(area_unmasked)
 
     def _compute_annulus_snr(self, flux, prev_flux, area_unmasked, prev_area_unmasked, sky_noise):
         """
@@ -1805,12 +1818,6 @@ class EllipsePhotometry():
         '''
 
         self.pixel_scale = imutils.get_pixel_scale(self.header)
-        try:
-            self.magzp = float(self.header['PHOTZP'])
-
-        except:
-            print("WARNING: no PHOTZP keyword in image header. \nAssuming ZP=22.5")
-            self.magzp = 22.5
         #print('mag zp = ',self.magzp)
         filter1 = self.header['FILTER']
         # multiply by bandwidth of filter to convert from Jy to erg/s/cm^2
@@ -1832,14 +1839,8 @@ class EllipsePhotometry():
                 cwavelength = 6600
                 bandwidth2 = 3.e8*dwave*1.e-10/(cwavelength*1.e-10)**2
                 
-            try:
-                self.magzp2 = float(self.header2['PHOTZP'])
-                self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2
-            except:
-                # use 25 as default ZP if none is provided in header
-                self.uconversion2 = 3631.*10**(25/-2.5)*1.e-23*bandwidth2
-                print("WARNING: no PHOTZP keyword in image2 header. \nAssuming ZP=22.5")                
-                self.magzp2 = 22.5
+            self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2
+ 
         else:
             self.uconversion2 = None
 
@@ -1864,12 +1865,23 @@ class EllipsePhotometry():
         self.flux1_err_erg = self.uconversion1*self.flux1_err
         self.source_sum_erg = self.uconversion1*self.source_sum
         self.source_sum_mag = self.magzp - 2.5*np.log10(self.source_sum)
-        self.mag1 = self.magzp - 2.5*np.log10(self.flux1)
-        self.mag1_err = self.mag1 - (self.magzp - 2.5*np.log10(self.flux1 + self.flux1_err))
         self.sb1_erg_sqarcsec = self.uconversion1*self.sb1/self.pixel_scale**2
         self.sb1_erg_sqarcsec_err = self.uconversion1*self.sb1_err/self.pixel_scale**2
-        self.sb1_mag_sqarcsec = self.magzp - 2.5*np.log10(self.sb1/self.pixel_scale**2)
-        self.sb1_mag_sqarcsec_err = self.sb1_mag_sqarcsec - (self.magzp - 2.5*np.log10((self.sb1 + self.sb1_err)/self.pixel_scale**2))
+
+        # limit mag calculations to values with positive values of flux/sb
+        self.mag1 = np.full_like(self.flux1, np.nan)
+        self.mag1_err = np.full_like(self.flux1, np.nan)
+        good = self.flux1 > 0
+        self.mag1[good] = self.magzp - 2.5*np.log10(self.flux1[good])
+        self.mag1_err[good] = self.mag1[good] - (self.magzp - 2.5*np.log10(self.flux1[good] + self.flux1_err[good]))
+        
+
+        self.sb1_mag_sqarcsec = np.full_like(self.sb1, np.nan)
+        self.sb1_mag_sqarcsec_err = np.full_like(self.sb1, np.nan)
+        sb_arcsec = self.sb1/self.pixel_scale**2
+        good = self.sb1 > 0
+        self.sb1_mag_sqarcsec[good] = self.magzp - 2.5*np.log10(sb_arcsec[good])
+        self.sb1_mag_sqarcsec_err[good] = self.sb1_mag_sqarcsec[good] - (self.magzp - 2.5*np.log10((self.sb1[good] + self.sb1_err[good])/self.pixel_scale**2))
         
         if self.image2_flag and (self.uconversion2 is not None):
             self.flux2_erg = self.uconversion2*self.flux2
@@ -1878,24 +1890,33 @@ class EllipsePhotometry():
             self.source_sum2_erg = self.uconversion2*self.cat2.segment_flux[self.objectIndex]
             self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum)
             
+            # limit mag calculations to values with positive values of flux/sb
+            self.mag2 = np.full_like(self.flux2, np.nan)
+            self.mag2_err = np.full_like(self.flux2, np.nan)
+            good = self.flux2 > 0
+            self.mag2[good] = self.magzp2 - 2.5*np.log10(self.flux2[good])
+            self.mag2_err[good] = self.mag2[good] - (self.magzp2 - 2.5*np.log10(self.flux2[good] + self.flux2_err[good]))
+        
 
-            self.mag2 = self.magzp2 - 2.5*np.log10(self.flux2)
-            self.mag2_err = self.mag2 - (self.magzp2 - 2.5*np.log10(self.flux2 + self.flux2_err))
-            self.sb2_erg_sqarcsec = self.uconversion2*self.sb2/self.pixel_scale**2
-            self.sb2_erg_sqarcsec_err = self.uconversion2*self.sb2_err/self.pixel_scale**2
-            self.sb2_mag_sqarcsec = self.magzp2 - 2.5*np.log10(self.sb2/self.pixel_scale**2)
-            # add error to flux and calculate magnitude, then take difference with original mag
-            self.sb2_mag_sqarcsec_err = self.sb2_mag_sqarcsec - (self.magzp2 - 2.5*np.log10((self.sb2+self.sb2_err)/self.pixel_scale**2))
+        
             # this next set uses the filter ratio and the filter 1 flux conversion to
             # convert narrow-band flux (filter 2) to physical units.
             if self.uconversion2b:
                 conversion = self.uconversion2b
-                self.flux2b_erg = conversion*self.flux2
-                self.flux2b_err_erg = conversion*self.flux2_err
-                self.sb2b_erg_sqarcsec = conversion*self.sb2/self.pixel_scale**2
-                self.sb2b_erg_sqarcsec_err = conversion*self.sb2_err/self.pixel_scale**2
-                self.sb2b_mag_sqarcsec = self.magzp2 - 2.5*np.log10(conversion*self.sb2/self.pixel_scale**2)
-                self.sb2b_mag_sqarcsec_err = self.sb2b_mag_sqarcsec - (self.magzp2 - 2.5*np.log10(conversion*(self.sb2+self.sb2_err)/self.pixel_scale**2))
+                self.flux2_erg = conversion*self.flux2
+                self.flux2_err_erg = conversion*self.flux2_err
+                self.sb2_erg_sqarcsec = conversion*self.sb2/self.pixel_scale**2
+                self.sb2_erg_sqarcsec_err = conversion*self.sb2_err/self.pixel_scale**2
+
+                self.sb2_mag_sqarcsec = np.full_like(self.sb2, np.nan)
+                self.sb2_mag_sqarcsec_err = np.full_like(self.sb2, np.nan)
+                sb2_arcsec = self.sb2/self.pixel_scale**2
+                good = self.sb2 > 0
+                self.sb2_mag_sqarcsec[good] = self.magzp2 - 2.5*np.log10(sb2_arcsec[good])
+                self.sb2_mag_sqarcsec_err[good] = self.sb2_mag_sqarcsec[good] - (self.magzp2 - 2.5*np.log10((self.sb2[good] + self.sb2_err[good])/self.pixel_scale**2))
+                
+                #self.sb2_mag_sqarcsec = self.magzp2 - 2.5*np.log10(conversion*self.sb2/self.pixel_scale**2)
+                #self.sb2_mag_sqarcsec_err = self.sb2_mag_sqarcsec - (self.magzp2 - 2.5*np.log10(conversion*(self.sb2+self.sb2_err)/self.pixel_scale**2))
                 
     def write_phot_tables(self):
         '''
@@ -2047,7 +2068,7 @@ class EllipsePhotometry():
         t1.meta["PIXELSCL"] = self.pixel_scale
 
         t1.write(_outfile(self.image_name), format="fits", overwrite=True)
-
+        self.photfile = _outfile(self.image_name)
         # --- image2 table ---
         if self.image2_flag:
             t2 = self._build_phot_table(
@@ -2074,7 +2095,7 @@ class EllipsePhotometry():
             t2.meta["PIXELSCL"] = self.pixel_scale
 
             t2.write(_outfile(self.image2_name), format="fits", overwrite=True)
-
+            self.photfile2 = _outfile(self.image2_name)
 
 
     def write_phot_fits_table1_simple(self, prefix=None):

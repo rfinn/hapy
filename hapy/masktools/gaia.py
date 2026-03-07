@@ -296,12 +296,12 @@ def make_gaia_mask(
     print("mask value =", mask_value)
 
     for i in range(len(mag)):
-        print(
-            f"star {i}: "
-            f"{x_pixels[i]:.1f},"
-            f"{y_pixels[i]:.1f},"
-            f"{rad_pixels[i]:.1f}"
-        )
+        # print(
+        #     f"star {i}: "
+        #     f"{x_pixels[i]:.1f},"
+        #     f"{y_pixels[i]:.1f},"
+        #     f"{rad_pixels[i]:.1f}"
+        # )
 
         pixel_mask = circle_pixels(
             float(x_pixels[i]),

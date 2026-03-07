@@ -82,6 +82,10 @@ from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_th
 from hapy.utils.paths import astromatic_dir 
 #from hapy.utils.logging_utils import setup_logging
 
+from hapy.ellipse.profile_summary import summarize_dual_profiles
+
+
+
 def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
                        log_to_console: bool = False, log_dir: str | Path | None = None):
     """
@@ -372,6 +376,10 @@ def initialize_result_row():
 
     row = {}
 
+    # ---------- virgo identifiers ----------
+    row["VFID"] = ""      # e.g., "VFID3084"
+    row["GALNAME"] = ""   # e.g., "NGC3512" (optional but handy)
+    row["OBJID"] = ""
     for k in [
         "TELESCOPE",
         "DATEOBS",
@@ -383,15 +391,12 @@ def initialize_result_row():
     ]:
         row[k] = ""
 
-    # ---------- virgo identifiers ----------
-    row["VFID"] = ""      # e.g., "VFID3084"
-    row["GALNAME"] = ""   # e.g., "NGC3512" (optional but handy)
 
     # removing these
     not_needed = ["R_FITS", "CS_FITS"]
     # ---------- identity ----------
     for k in [
-        "OBJID", "TAG", "CUTDIR",
+        "TAG", "CUTDIR",
          "MASK_FITS","PSF_FITS",
          "R_FITS", "CS_FITS","SIGMA_FITS"
             ]:
@@ -401,17 +406,40 @@ def initialize_result_row():
 
     row["PSF_SOURCE"] = ""   # "cli" | "psf_dir" | ""
 
-    row["GAL_NC_OK"] = False
-    row["GAL_CV_INIT_FROM_NC"] = False        
-    # ---------- pipeline status ----------
-    for k in ["MASK_OK", "PHOT_OK", "PSF_OK", "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
-        row[k] = False
-
     for k in ["STAGE", "STATUS"]:
         row[k] = ""
 
     for k in ["MASK_SEC", "PHOT_SEC", "GALFIT_SEC", "TOTAL_SEC"]:
-        row[k] = np.nan
+        row[k] = np.nan    
+   
+    # ---------- pipeline status ----------
+    for k in ["MASK_OK", "PHOT_OK", "PSF_OK", "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
+        row[k] = False
+    row["GAL_CV_INIT_FROM_NC"] = False
+
+
+    for band in ["R", "H"]:
+        row[f"{band}_SM_FLAG"] = False
+
+    for k in [
+        "R_PROFILE_OK",            
+        "R_PETRO_OK",
+        "R_EXPFIT_OK",
+        "R_LOGFIT_OK",
+    ]:
+        row[k] = False
+
+    for k in [
+        "HA_PROFILE_OK",
+        "HA_PETRO_OK",
+        "HA_EXPFIT_OK",
+        "HA_LOGFIT_OK",
+    ]:
+        row[k] = False
+
+    row["GAL_NC_RERUN_FIXEDN"] = False
+    row["GAL_CV_RERUN_FIXEDN"] = False
+ 
 
     # ---------- coordinates ----------
     row["RA"] = np.nan
@@ -438,7 +466,8 @@ def initialize_result_row():
         "ELLIP_SMA_PIX", "ELLIP_B_PIX",
         "ELLIP_EPS", "ELLIP_THETA_RAD",
         "ELLIP_GINI_DET", "ELLIP_SOURCE_SUM",
-        "ELLIP_BA"
+        "ELLIP_BA", "ELLIP_SEGMENT_FLUX",
+        "ELLIP_SEGMENT_MAG"
     ]:
         row[k] = np.nan
 
@@ -485,7 +514,76 @@ def initialize_result_row():
     for band in ["R", "H"]:
         for s in sm_suffixes:
             row[f"{band}_SM_{s}"] = np.nan
-        row[f"{band}_SM_FLAG"] = False
+
+
+    # ---------- R profile summary ----------
+    for k in [
+        "R_PROFILE_NGOOD",
+        "R_PROFILE_MASKFRAC_MAX",
+        "R25_ARCSEC", "R25_PIX",
+        "R50_ARCSEC", "R50_PIX",
+        "R75_ARCSEC", "R75_PIX",
+        "R24_ARCSEC", "R24_ARCSEC_ERR",
+        "R24_MAG", "R24_MAG_ERR",
+        "R25_ISO_ARCSEC", "R25_ISO_ARCSEC_ERR",
+        "R25_ISO_MAG", "R25_ISO_MAG_ERR",
+        "R25P5_ARCSEC", "R25P5_ARCSEC_ERR",
+        "R25P5_MAG", "R25P5_MAG_ERR",
+        "R24_VEGA_ARCSEC", "R24_VEGA_ARCSEC_ERR",
+        "R24_VEGA_MAG", "R24_VEGA_MAG_ERR",
+        "R25_VEGA_ARCSEC", "R25_VEGA_ARCSEC_ERR",
+        "R25_VEGA_MAG", "R25_VEGA_MAG_ERR",
+        "R30R24_FLUX_CGS", "R30R24_FLUX_CGS_ERR",
+        "R24_FLUX_CGS", "R24_FLUX_CGS_ERR",
+        "R_C30", "R_C30_ERR",
+        "R_PETRO_RAD_ARCSEC",
+        "R_PETRO_FLUX",
+        "R_PETRO_FLUX_CGS", "R_PETRO_FLUX_CGS_ERR",
+        "R_PETRO_MAG",
+        "R_PETRO_R50_ARCSEC",
+        "R_PETRO_R90_ARCSEC",
+        "R_PETRO_CON",
+        "R_EXPFIT_I0", "R_EXPFIT_K", "R_EXPFIT_RE_ARCSEC",
+        "R_LOGFIT_SLOPE", "R_LOGFIT_INTERCEPT", "R_LOGFIT_RE_ARCSEC",
+        "R_TOT_MAG_SNR",
+        "R_TOT_FLUX_CGS_SNR", "R_TOT_FLUX_CGS_SNR_ERR",
+        "R_SNR_TRUNC_ARCSEC",
+    ]:
+        row[k] = np.nan
+
+
+    # ---------- Halpha profile summary ----------
+    for k in [
+        "HA_PROFILE_NGOOD",
+        "HA_PROFILE_LONGRUN",
+        "HA_NDET_RUNS",
+        "HA_PROFILE_MASKFRAC_MAX",
+        "HA_MAXDET_ARCSEC", "HA_MAXDET_PIX",
+        "HA_TOT_FLUX_CGS", "HA_TOT_FLUX_CGS_ERR",
+        "HA_SNR_TRUNC_ARCSEC",
+        "HA25_ARCSEC", "HA25_PIX",
+        "HA50_ARCSEC", "HA50_PIX",
+        "HA75_ARCSEC", "HA75_PIX",
+        "HA_ISO5E17_ARCSEC", "HA_ISO5E17_ARCSEC_ERR",
+        "HA_ISO5E17_FLUX_CGS", "HA_ISO5E17_FLUX_CGS_ERR",
+        "HA_ISO17E18_ARCSEC", "HA_ISO17E18_ARCSEC_ERR",
+        "HA_ISO17E18_FLUX_CGS", "HA_ISO17E18_FLUX_CGS_ERR",
+        "HA30R24_FLUX_CGS", "HA30R24_FLUX_CGS_ERR",
+        "HA_R24_FLUX_CGS", "HA_R24_FLUX_CGS_ERR",
+        "HA_C30_R24", "HA_C30_R24_ERR",
+        "HA_R95_R24_ARCSEC",
+        "HA_PETRO_RAD_ARCSEC",
+        "HA_PETRO_FLUX",
+        "HA_PETRO_FLUX_CGS", "HA_PETRO_FLUX_CGS_ERR",
+        "HA_PETRO_MAG",
+        "HA_PETRO_R50_ARCSEC",
+        "HA_PETRO_R90_ARCSEC",
+        "HA_PETRO_CON",
+        "HA_EXPFIT_I0", "HA_EXPFIT_K", "HA_EXPFIT_RE_ARCSEC",
+        "HA_LOGFIT_SLOPE", "HA_LOGFIT_INTERCEPT", "HA_LOGFIT_RE_ARCSEC",
+    ]:
+        row[k] = np.nan
+
 
     # ---------- GALFIT NC ----------
     for k in [
@@ -504,7 +602,6 @@ def initialize_result_row():
     for k in ["GAL_NUMERR", "GAL_ERROR"]:
         row[k] = 0
 
-    row["GAL_NC_RERUN_FIXEDN"] = False
 
 
     # ---------- GALFIT CV ----------
@@ -523,8 +620,7 @@ def initialize_result_row():
 
     for k in ["GAL_CNUMERR", "GAL_CERROR"]:
         row[k] = 0
-
-    row["GAL_CV_RERUN_FIXEDN"] = False
+        
     #row["GAL_CV_OK"] = False
 
     return row
@@ -559,9 +655,14 @@ def check_table(results_table):
     t2 = Table.read("tmp.ecsv", format="ascii.ecsv")
     assert t.colnames == t2.colnames
 
-    for c in ["ELLIP_MASKED_FRACTION", "SM_R_FLAG", "SM_H_FLAG"]:
+    #for c in ["ELLIP_MASKED_FRACTION", "SM_R_FLAG", "SM_H_FLAG"]:
+    for c in ["SM_R_FLAG", "SM_H_FLAG"]:
         print(c, t[c].dtype, t[c][0])
 
+def valid_file(path):
+    p = Path(path)
+    return p.is_file() and p.stat().st_size > 0
+        
 def main():
 
     p = argparse.ArgumentParser(
@@ -759,7 +860,9 @@ def main():
     data, hdr = fits.getdata(r_fits, header=True)
     ny, nx = data.shape
     wcs = WCS(hdr)
-
+    
+    magzp = args.magzp if args.magzp is not None else float(hdr.get("PHOTZP", 25.0))
+    
     row["CUTOUT_XSIZE"] = nx
     row["CUTOUT_YSIZE"] = ny
     # Default center = image center
@@ -901,6 +1004,9 @@ def main():
 
     #print("TESTING: psf_path = ",psf_path)
     #sys.exit()
+
+
+    
     if args.make_mask:
 
         if args.seconfig is None:
@@ -1024,6 +1130,8 @@ def main():
         ("ELLIP_THETA_RAD", "theta"),
         ("ELLIP_GINI_DET", "gini"),
         ("ELLIP_SOURCE_SUM", "source_sum"),
+        ("ELLIP_SEGMENT_FLUX", "photutils_segment_flux"),
+        ("ELLIP_SEGMENT_MAG","photutils_segment_mag"),
         ("R_FWHM", "fwhm"),
         ("R_SKYSTD_ADU", "sky_noise"),
         ("R_SKYMED_ADU", "sky"),
@@ -1047,13 +1155,13 @@ def main():
     row["ELLIP_BA"] = 1. - float(row["ELLIP_EPS"])
 
     # JSON field (stable schema)
-    mf = getattr(e, "masked_fraction", None)
-    if mf is not None:
-        try:
-            row["ELLIP_MASKED_FRACTION"] = json.dumps(mf)
-        except TypeError:
-            # if mf contains numpy types etc.
-            row["ELLIP_MASKED_FRACTION"] = json.dumps(mf, default=_scalar)
+    # mf = getattr(e, "masked_fraction", None)
+    # if mf is not None:
+    #     try:
+    #         row["ELLIP_MASKED_FRACTION"] = json.dumps(mf)
+    #     except TypeError:
+    #         # if mf contains numpy types etc.
+    #         row["ELLIP_MASKED_FRACTION"] = json.dumps(mf, default=_scalar)
         
 
     # If image2 exists (e.g., continuum-sub / HA), capture analogous scalars
@@ -1143,6 +1251,27 @@ def main():
     write_result_row_ecsv(results_path, row)
 
 
+ 
+    # ---- FIT PROFILES!  ----------- #
+
+    if valid_file(e.photfile) and valid_file(e.photfile2):
+        row["PHOT_OK"] = True
+
+    
+        rtab = Table.read(e.photfile)
+        hatab = Table.read(e.photfile2)
+
+        profile_results = summarize_dual_profiles(
+            rtab=rtab,
+            hatab=hatab,
+            r_magzp=magzp,
+        )
+
+        row.update(profile_results)
+
+    # Write/update per-galaxy results row
+    write_result_row_ecsv(results_path, row)
+    
     if not args.no_diagnostic_plots:
         print("making diagnostic plots...")
         e.plot_fancy_profiles()
@@ -1188,7 +1317,7 @@ def main():
         yminfit, ymaxfit = 1, ny
 
         
-        magzp = args.magzp if args.magzp is not None else float(hdr.get("PHOTZP", 25.0))
+
         convflag = bool(args.convflag)
 
         # set convolution box size
@@ -1299,7 +1428,7 @@ def main():
                 row["GAL_CV_OK"] = not meta_cv["unstable"]
 
                 row["GALFIT_SEC"] = time.perf_counter() - t0
-                row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
+                #row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
             except Exception as e:
                 logger.exception(f"GALFIT CV failed: {e}")
                 row["GAL_CV_OK"] = False
