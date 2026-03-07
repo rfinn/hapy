@@ -20,7 +20,7 @@ def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
     )
 
 
-def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None):
+def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None,cmap='gray_r'):
     masked=False
     if mask is not None:
         #image = np.ma.array(image, mask=mask)
@@ -37,7 +37,7 @@ def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None):
         norm = simple_norm(statarray, stretch=stretch, percent=percent)
     else:
         norm = simple_norm(clipped_data, stretch=stretch, percent=percent)
-    plt.imshow(image, norm=norm,origin="lower", cmap="gray_r")#, origin="lower")
+    plt.imshow(image, norm=norm,origin="lower", cmap=cmap)#, origin="lower")
 
 
 def display_unwise(ra,dec,galname,imsize_arcsec=60):
