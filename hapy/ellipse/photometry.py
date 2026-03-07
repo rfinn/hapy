@@ -48,6 +48,7 @@ from photutils.morphology import gini
 from hapy.imagetools import imutils
 
 from hapy.hatools import morphology as morph
+from hapy.imagetools.plotting import display_image
 from hapy.geometry.adapters import pa_ccw_north_deg_to_photutils_theta_rad
 # This overwrites the photutils task
 #from hapy.masktools.types import EllipseParams 
@@ -70,12 +71,30 @@ def _fraction_unmasked_pixels(cat, idx):
     """
     label = cat.label[idx]
     seg = cat.segment[idx] == label
+    #print(np.sum(seg), seg)
+    npixels = np.sum(seg)
+    
     # data_ma is a MaskedArray cutout; its mask marks excluded pixels
     masked = cat.data_ma[idx].mask
+    
+    #print(masked)
+    testmask = np.ones_like(seg,'bool')
+    testmask = np.array(masked, 'bool')
+    nmasked = np.sum(seg & testmask)
+    #print(f"DEBUG: npixels={npixels}, nmasked={nmasked}") 
+        
 
+    # plt.figure(figsize=(10,4))
+    # plt.subplot(1,2,1)
+    # display_image(cat.segment[idx],cmap='viridis')
+    # plt.colorbar()
+    # plt.subplot(1,2,2)
+    # display_image(cat.data_ma[idx],cmap='viridis')
+    # plt.savefig('debug_fraction_masked.png')
     n_total = int(np.sum(seg))
     n_unmasked = int(np.sum(seg & ~masked))
     frac_unmasked = (n_unmasked / n_total) if n_total > 0 else np.nan
+    print("DEBUG: ",n_total, n_unmasked, frac_unmasked)
     return n_total, n_unmasked, frac_unmasked
 
 
@@ -288,8 +307,15 @@ class EllipsePhotometry():
         # use this if running this code as the main program
         self.use_mpl = use_mpl
         self.napertures = napertures
-        # assuming a typical fwhm 
-        self.fwhm = self.header['FWHM']
+        # assuming a typical fwhm
+        try:
+            self.fwhm = self.header['SEFWHM']
+        except KeyError:
+            try:
+                self.fwhm = self.header['FWHM'] * self.pixel_scale
+            except KeyError:
+                self.fwhm = np.nan
+        
     def get_noise_in_aper(self, flux, area):
         ''' calculate the noise in an area '''
         if self.sky_noise is not None:
@@ -449,7 +475,7 @@ class EllipsePhotometry():
                 print("WARNING: problem running statmorph")
         self.get_sky_noise()
         print("writing tables")
-        self.write_phot_tables()
+        #self.write_phot_tables()
         self.write_phot_fits_tables()
 
 
@@ -1652,7 +1678,7 @@ class EllipsePhotometry():
              outfile = self.image_name.split('.fits')[0]+'_phot.fits'
         else:
              outfile = self.image_name.split('.fits')[0]+'-'+prefix+'_phot.fits'
-        print('DEBUG: photometry outfile = ',outfile, self.image_name)
+        #print('DEBUG: photometry outfile = ',outfile, self.image_name)
 
         #self.snr_total = [] # total snr in aperture
         #self.snr_per_pixel = [] # includes poisson noise from galaxy
