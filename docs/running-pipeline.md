@@ -84,21 +84,11 @@ get_cutouts --rimage
 /data-pool/Halpha/coadds-2025DEC/VF-126.291+27.988-HDI-20180313-p004-R.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
 ```
 
+### Run on full Virgo sample
 
-### Running on VFS-Halpha coadds
+```bash
+cat fullpath_rcoadds_hapy_ready.txt | parallel -j 32 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
 ```
-get_cutouts --rimage VF-165.869+28.044-HDI-20200226-p012-r.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
-```
-
-
-The run parallel.  Testing on macbook:
-
-```
-parallel --eta -j 0 get_cutouts --catalog
-/Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme
-virgo --overwrite_metadata --rimage :::: coadd_list
-```
-
 
 # Run Analysis 
 
