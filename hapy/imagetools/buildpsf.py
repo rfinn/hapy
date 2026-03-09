@@ -56,21 +56,39 @@ from astropy.stats import gaussian_sigma_to_fwhm
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
+from hapy.imagetools.imutil import get_pixel_scale
+from hapy.external.sextractor import run_sextractor_two_pass
 
+from importlib.resources import files
+
+ASTROMATIC_DIR = files("hapy") / "astromatic"
+
+SEXTRACTOR_FILES = [
+    "default.sex.HDI",
+    "default.sex.INT",
+    "default.sex.BOK",    
+    "default.param",
+    "default.conv",
+    "default.nnw",
+]
 
 from pathlib import Path
 
 class psf_parent_image():
-    def __init__(self, image=None, max_good=None, size=25, se_config = 'default.sex.HDI', sepath=None,nstars=100, pixelscale=0.43,oversampling=None,saturate=None):
-        self.image_name = image
+    def __init__(self, args, max_good=None, se_config = 'default.sex.HDI', sepath=None,):
+        self.image_name = args.image
         self.basename = os.path.basename(self.image_name).split('.fits')[0]
         self.psf_image_name = self.basename+'-psf.fits'        
         self.data, self.header = fits.getdata(self.image_name, header=True)
-        self.sat_level = max_good
-        self.size = size
+
+
+        self.pixel_scale = get_pixel_scale(self.header)
+        self.size = args.size
         self.config = se_config
-        self.sextractor_files =['default.sex.HDI','default.param','default.conv','default.nnw','default.sex.INT','default.sex.BOK']
-        self.saturate = saturate
+
+        self.saturate = args.saturate
+        
+        self.sextractor_files =['default.sex.HDI','default.param','default.conv','default.nnw','default.sex.INT','default.sex.BOK']        
         # path to source extractor files
         # default is probably fine if you have github in ~/github
         if sepath == None:
@@ -125,117 +143,25 @@ class psf_parent_image():
 
 
 
-
     def runse(self):
-        self.link_files()
-
-        image_path = Path(self.image_name)
-
-        # Write catalog to current directory
-        self.seoutfile = image_path.stem + "-se.cat"
-
-        # (1) Name the SE output catalog from the image name
-        #self.seoutfile = str(image_path.with_suffix('')) + '-se.cat'
-
-        # (2) Construct weight image name from image name
-        weight_image = image_path.with_suffix('.weight.fits')
-
-        # Base command
-        if self.saturate is not None:
-            s = f'sex {self.image_name} -c {self.config} -CATALOG_NAME {self.seoutfile} -SATUR_LEVEL {self.saturate}'
-        else:
-            s = f'sex {self.image_name} -c {self.config} -CATALOG_NAME {self.seoutfile} -SATUR_LEVEL 40000.0'
-
-        # (3) If weight image exists, pass weight arguments
-        if weight_image.exists():
-            s += f' -WEIGHT_IMAGE {weight_image} -WEIGHT_TYPE MAP_WEIGHT'
-
-        print('running:', s)
-        os.system(s)
-
-        ###################################
-        # Read in Source Extractor catalog
-        ###################################
-        secat = fits.getdata(self.seoutfile, 2)
-
-        ###################################
-        # get median fwhm of image
-        ###################################
-        fwhm = np.median(secat['FWHM_IMAGE']) * self.pixelscale
-        self.se_fwhm_arcsec = fwhm
-        print(f"SE got a FWHM = {fwhm:.1f} pixels")
-        #############################################################
-        # rerun Source Extractor catalog with updated SEEING_FWHM
-        #############################################################
-        if self.saturate is not None:
-            s = (
-                f'sex {self.image_name} -c {self.config} '
-                f'-CATALOG_NAME {self.seoutfile} '
-                f'-SATUR_LEVEL {self.saturate} '
-                f'-SEEING_FWHM {fwhm:.1f}'
-            )
-        else:
-            s = (
-                f'sex {self.image_name} -c {self.config} '
-                f'-CATALOG_NAME {self.seoutfile} '
-                f'-SATUR_LEVEL 40000.0 '
-                f'-SEEING_FWHM {fwhm:.1f}'
+        result = run_sextractor_two_pass(
+            image=self.image_name,
+            config=self.config,
+            pixelscale=self.pixelscale,
+            saturate=self.saturate,
+            overwrite=self.overwrite,
+            outdir="SEcats_psf",
             )
 
-        if weight_image.exists():
-            s += f' -WEIGHT_IMAGE {weight_image} -WEIGHT_TYPE MAP_WEIGHT'
-
-        print('running:', s)
-        os.system(s)
-
-        diagnostic=True
-        if diagnostic:
-            secat = fits.getdata(self.seoutfile, 2)
-            plt.figure()
-            plt.scatter(secat['MAG_AUTO'],secat['CLASS_STAR'],c=secat['FLAGS'])
-            plt.savefig(f"{image_path.stem}-se-diag.png")
-
-    # should update the size to be a multiple of the fwhm
+        self.se1outfile = result["se1"]
+        self.se2outfile = result["se2"]
+        self.seoutfile = result["se2"]
+        self.se_fwhm_arcsec = result["fwhm_arcsec"]
 
     
-    # def runse(self):
-    #     self.link_files()
-    #     self.seoutfile = self.image_name.replace('.fits','-se.cat')
-    #     if self.saturate is not None:
-    #         s = 'sex {} -c {}  -SATUR_LEVEL {}'.format(self.image_name,self.config,self.saturate)
-    #     else:
-    #         s = 'sex %s -c %s  -SATUR_LEVEL 40000.0'%(self.image_name,self.config)
-    #     #print(s)
-
-    #     weight_image = self.image_name.replace('.fits','.weight.fits')
-            
-    #     os.system(s)
-    #     ###################################
-    #     # Read in Source Extractor catalog
-    #     ###################################
-
-    #     secat = fits.getdata('test_cat.fits',2)
-    #     ###################################
-    #     # get median fwhm of image
-    #     ###################################
-    #     fwhm = np.median(secat['FWHM_IMAGE'])*self.pixelscale
-    #     self.se_fwhm_arcsec = fwhm
-    #     #############################################################
-    #     # rerun Source Extractor catalog with updated SEEING_FWHM
-    #     #############################################################
-    #     if self.saturate is not None:
-    #         s = 'sex {} -c {}  -SATUR_LEVEL {} -SEEING_FWHM {:.1f}'.format(self.image_name,self.config,self.saturate,fwhm)
-    #         print('running: ',s)
-    #     else:
-    #         s = 'sex %s -c %s  -SATUR_LEVEL 40000.0 -SEEING_FWHM %s'%(self.image_name,self.config,str(fwhm))
-
-    #     os.system(s)
-
-    #     # should update the size to be a multiple of the fwhm
-
     def read_se_table(self):
-        self.secat = fits.getdata('test_cat.fits',2)
-        pass
+        self.secat = fits.getdata(self.seoutfile, 2)
+
     def find_stars(self):
         # select objects with CLASS_STAR > 0.98
         # and FLUX_MAX 
@@ -243,12 +169,13 @@ class psf_parent_image():
         y = self.secat['Y_IMAGE']
 
         # select based on star/class separator and no flags
-        flag0 = (self.secat['CLASS_STAR'] > 0.95)
+        flag0 = (self.secat['CLASS_STAR'] > 0.9)
         flag1 = (self.secat['FLAGS'] == 0)
 
         # remove stars that are near the edge
         # being conservative by using the 10x full image size as the buffer rather than half image size
         # in part to compensate from zeros that sometimes are seen around perimeter after swarp
+        print("DEBUG: data shape = ",self.data.shape)
         flag2 = ((x > 5.*self.size) & (x < (self.data.shape[1] -1 - 5.*self.size)) &
                 (y > 5.*self.size) & (y < (self.data.shape[0] -1 - 5.*self.size)))
 
@@ -407,10 +334,17 @@ if __name__ == '__main__':
         formatter_class=argparse.RawTextHelpFormatter)
    
     parser.add_argument('--image',dest = 'image', help='input image')
-    parser.add_argument('--saturate',default=None,dest = 'saturate', help='saturation limit')
+    parser.add_argument('--oversampling',dtype=int,default=2, help='oversampling factor for psf.  Default=2.')
+    parser.add_argument('--nstars',dtype=int,default=100, help='Number of stars to use.  Default is 100.')
+    parser.add_argument('--size',dtype=int,default=30, help='Size of the output psf image')            
+    parser.add_argument('--saturate', default=None,dest = 'saturate', help='saturation limit')
     parser.add_argument('--int',default=False,dest='int',action = 'store_true', help='set this for INT data')
     parser.add_argument('--bok',default=False,dest='bok',action = 'store_true', help='set this for BOK data')        
-     
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="rerun Source Extractor even if output catalogs already exist"
+    )
     args = parser.parse_args()
 
     
@@ -427,12 +361,13 @@ if __name__ == '__main__':
         sys.exit()
     
     if args.int:
-        p = psf_parent_image(image=args.image, size=39, nstars=100, oversampling=2,saturate=args.saturate,se_config='default.sex.INT')
+        se_config='default.sex.INT'
     elif args.bok:
-        p = psf_parent_image(image=args.image, size=39, nstars=100, oversampling=2,saturate=args.saturate,se_config='default.sex.BOK')
+        se_config='default.sex.BOK'
     # bok config file is causing trouble for some images - but why???
     else:
-        p = psf_parent_image(image=args.image, size=25, nstars=100, oversampling=2,saturate=args.saturate)
+        se_config='default.sex.HDI'
+    p = psf_parent_image(args,se_config=se_config)
     p.runse()
     p.read_se_table()
     p.find_stars()

@@ -3,6 +3,9 @@ import subprocess
 from pathlib import Path
 
 import shutil
+import numpy as np
+from astropy.io import fits
+
 
 # hapy/masktools/sextractor.py → parents[1] = hapy/
 #HAPY_DIR = Path(__file__).resolve().parents[1]
@@ -47,67 +50,6 @@ def clean_sextractor_links(workdir="."):
         if path.exists() or path.is_symlink():
             path.unlink()
             
-
-
-import numpy as np
-from astropy.io import fits
-
-
-# def run_sextractor(
-#     image_name,
-#     config,
-#     threshold,
-#     snr,
-#     snr_analysis,
-#     minarea,
-#     weight_image=None,
-#     weight_threshold=1,):
-#     """
-#     Run SExtractor and return segmentation array + catalog filename.
-#     """
-#     # Resolve config path safely
-#     config_path = Path(config)
-#     if not config_path.is_file():
-#         config_path = ASTROMATIC_DIR / config
-
-#     if not config_path.exists():
-#         raise FileNotFoundError(f"SExtractor config not found: {config_path}")
-
-#     print("DEBUG: in run_sextractor, image_name = ",image_name)
-#     catname = image_name.replace(".fits", ".cat")
-#     segmentation = image_name.replace(".fits", "-segmentation.fits")
-    
-#     link_sextractor_files()
-    
-#     cmd = [
-#         "sex",
-#         image_name,
-#         "-c", str(config_path),
-#         "-CATALOG_NAME", catname,
-#         "-CATALOG_TYPE", "FITS_1.0",
-#         "-DEBLEND_MINCONT", str(threshold),
-#         "-DETECT_THRESH", str(snr),
-#         "-ANALYSIS_THRESH", str(snr_analysis),
-#         "-CHECKIMAGE_NAME", segmentation,
-#         "-DETECT_MINAREA", str(minarea),
-#     ]
-
-#     if weight_image is not None:
-#         cmd += [
-#             "-WEIGHT_TYPE", "MAP_WEIGHT",
-#             "-WEIGHT_IMAGE", weight_image,
-#             "-WEIGHT_THRESH", str(weight_threshold),
-#         ]
-
-#     print("Running:", " ".join(cmd))
-#     subprocess.run(cmd, check=True)
-
-#     segdata = fits.getdata(segmentation)
-
-#     #clean_sextractor_links()
-    
-#     return segdata, catname, segmentation
- 
 
 def run_sextractor(
     image_name,

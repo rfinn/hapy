@@ -19,7 +19,7 @@ from .maskops import (
     circle_pixels,
 )
 from .gaia import get_gaia_stars, make_gaia_mask, gaia_foreground_filter
-from .sextractor import run_sextractor
+from hapy/external/sextractor import run_sextractor
 
 from .types import EllipseParams
 
