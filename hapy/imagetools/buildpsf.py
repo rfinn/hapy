@@ -345,8 +345,8 @@ if __name__ == '__main__':
     
     if args.int:
         p = psf_parent_image(image=args.image, size=39, nstars=100, oversampling=2,saturate=args.saturate,se_config='default.sex.INT')
-    #elif args.bok:
-    #    p = psf_parent_image(image=args.image, size=39, nstars=100, oversampling=2,saturate=args.saturate,se_config='default.sex.BOK')
+    elif args.bok:
+        p = psf_parent_image(image=args.image, size=39, nstars=100, oversampling=2,saturate=args.saturate,se_config='default.sex.BOK')
     # bok config file is causing trouble for some images - but why???
     else:
         p = psf_parent_image(image=args.image, size=25, nstars=100, oversampling=2,saturate=args.saturate)
