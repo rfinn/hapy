@@ -57,6 +57,9 @@ import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
+
+from pathlib import Path
+
 class psf_parent_image():
     def __init__(self, image=None, max_good=None, size=25, se_config = 'default.sex.HDI', sepath=None,nstars=100, pixelscale=0.43,oversampling=None,saturate=None):
         self.image_name = image
@@ -120,36 +123,105 @@ class psf_parent_image():
         self.measure_fwhm()
         self.save_psf_image()
 
+
+
+
     def runse(self):
         self.link_files()
+
+        image_path = Path(self.image_name)
+
+        # (1) Name the SE output catalog from the image name
+        self.seoutfile = str(image_path.with_suffix('')) + '-se.cat'
+
+        # (2) Construct weight image name from image name
+        weight_image = image_path.with_suffix('.weight.fits')
+
+        # Base command
         if self.saturate is not None:
-            s = 'sex {} -c {}  -SATUR_LEVEL {}'.format(self.image_name,self.config,self.saturate)
+            s = f'sex {self.image_name} -c {self.config} -CATALOG_NAME {self.seoutfile} -SATUR_LEVEL {self.saturate}'
         else:
-            s = 'sex %s -c %s  -SATUR_LEVEL 40000.0'%(self.image_name,self.config)
-        #print(s)
+            s = f'sex {self.image_name} -c {self.config} -CATALOG_NAME {self.seoutfile} -SATUR_LEVEL 40000.0'
+
+        # (3) If weight image exists, pass weight arguments
+        if weight_image.exists():
+            s += f' -WEIGHT_IMAGE {weight_image} -WEIGHT_TYPE MAP_WEIGHT'
+
+        print('running:', s)
         os.system(s)
+
         ###################################
         # Read in Source Extractor catalog
         ###################################
+        secat = fits.getdata(self.seoutfile, 2)
 
-        secat = fits.getdata('test_cat.fits',2)
         ###################################
         # get median fwhm of image
         ###################################
-        fwhm = np.median(secat['FWHM_IMAGE'])*self.pixelscale
+        fwhm = np.median(secat['FWHM_IMAGE']) * self.pixelscale
         self.se_fwhm_arcsec = fwhm
+
         #############################################################
         # rerun Source Extractor catalog with updated SEEING_FWHM
         #############################################################
         if self.saturate is not None:
-            s = 'sex {} -c {}  -SATUR_LEVEL {} -SEEING_FWHM {:.1f}'.format(self.image_name,self.config,self.saturate,fwhm)
-            print('running: ',s)
+            s = (
+                f'sex {self.image_name} -c {self.config} '
+                f'-CATALOG_NAME {self.seoutfile} '
+                f'-SATUR_LEVEL {self.saturate} '
+                f'-SEEING_FWHM {fwhm:.1f}'
+            )
         else:
-            s = 'sex %s -c %s  -SATUR_LEVEL 40000.0 -SEEING_FWHM %s'%(self.image_name,self.config,str(fwhm))
+            s = (
+                f'sex {self.image_name} -c {self.config} '
+                f'-CATALOG_NAME {self.seoutfile} '
+                f'-SATUR_LEVEL 40000.0 '
+                f'-SEEING_FWHM {fwhm:.1f}'
+            )
 
+        if weight_image.exists():
+            s += f' -WEIGHT_IMAGE {weight_image} -WEIGHT_TYPE MAP_WEIGHT'
+
+        print('running:', s)
         os.system(s)
 
-        # should update the size to be a multiple of the fwhm
+    # should update the size to be a multiple of the fwhm
+
+    
+    # def runse(self):
+    #     self.link_files()
+    #     self.seoutfile = self.image_name.replace('.fits','-se.cat')
+    #     if self.saturate is not None:
+    #         s = 'sex {} -c {}  -SATUR_LEVEL {}'.format(self.image_name,self.config,self.saturate)
+    #     else:
+    #         s = 'sex %s -c %s  -SATUR_LEVEL 40000.0'%(self.image_name,self.config)
+    #     #print(s)
+
+    #     weight_image = self.image_name.replace('.fits','.weight.fits')
+            
+    #     os.system(s)
+    #     ###################################
+    #     # Read in Source Extractor catalog
+    #     ###################################
+
+    #     secat = fits.getdata('test_cat.fits',2)
+    #     ###################################
+    #     # get median fwhm of image
+    #     ###################################
+    #     fwhm = np.median(secat['FWHM_IMAGE'])*self.pixelscale
+    #     self.se_fwhm_arcsec = fwhm
+    #     #############################################################
+    #     # rerun Source Extractor catalog with updated SEEING_FWHM
+    #     #############################################################
+    #     if self.saturate is not None:
+    #         s = 'sex {} -c {}  -SATUR_LEVEL {} -SEEING_FWHM {:.1f}'.format(self.image_name,self.config,self.saturate,fwhm)
+    #         print('running: ',s)
+    #     else:
+    #         s = 'sex %s -c %s  -SATUR_LEVEL 40000.0 -SEEING_FWHM %s'%(self.image_name,self.config,str(fwhm))
+
+    #     os.system(s)
+
+    #     # should update the size to be a multiple of the fwhm
 
     def read_se_table(self):
         self.secat = fits.getdata('test_cat.fits',2)
