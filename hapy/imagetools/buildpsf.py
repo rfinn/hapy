@@ -188,6 +188,13 @@ class psf_parent_image():
         print('running:', s)
         os.system(s)
 
+        diagnostic=True
+        if diagnostic:
+            secat = fits.getdata(self.seoutfile, 2)
+            plt.figure()
+            plt.scatter(secat['MAG_AUTO'],secat['CLASS_STAR'],c=secat['FLAGS'])
+            plt.savefig("{image_path.stem}-se-diag.png")
+
     # should update the size to be a multiple of the fwhm
 
     
