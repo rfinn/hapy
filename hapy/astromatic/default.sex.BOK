@@ -8,7 +8,17 @@ CATALOG_NAME     test_cat.fits       # name of the output catalog
 CATALOG_TYPE     FITS_LDAC	# NONE,ASCII,ASCII_HEAD, ASCII_SKYCAT,
                                 # ASCII_VOTABLE, FITS_1.0 or FITS_LDAC
 PARAMETERS_NAME  default.param  # name of the file containing catalog contents
- 
+
+#-------------------------------- WEIGHTing ----------------------------------
+
+WEIGHT_TYPE      MAP_WEIGHT           # type of WEIGHTing: NONE, BACKGROUND,
+                                # MAP_RMS, MAP_VAR or MAP_WEIGHT
+RESCALE_WEIGHTS  N              # Rescale input weights/variances (Y/N)?
+WEIGHT_IMAGE     weight.fits    # weight-map filename
+WEIGHT_GAIN      Y              # modulate gain (E/ADU) with weights? (Y/N)
+WEIGHT_THRESH                   # weight threshold[s] for bad pixels
+
+
 #------------------------------- Extraction ----------------------------------
  
 DETECT_TYPE      CCD            # CCD (linear) or PHOTO (with gamma correction)
@@ -39,7 +49,7 @@ PHOT_PETROPARAMS 2.0, 3.5       # MAG_PETRO parameters: <Petrosian_fact>,
 #PHOT_FLUXFRAC	 0.5		# Radius (pixel) enclosing a specified fraction of the flux 
 SATUR_LEVEL      60000.0        # level (in ADUs) at which arises saturation
  
-MAG_ZEROPOINT    0            # magnitude zero-point
+MAG_ZEROPOINT    25            # magnitude zero-point
 MAG_GAMMA        4.0            # gamma of emulsion (for photographic scans)
 GAIN             GAIN            # detector gain in e-/ADU
 PIXEL_SCALE      0            # size of pixel in arcsec (0=use FITS WCS info)
