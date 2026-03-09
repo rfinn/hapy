@@ -107,25 +107,25 @@ class psf_parent_image():
                 self.pixelscale = np.abs(float(self.header['CD1_1']))*3600
             except KeyError:
                 self.pixelscale = pixelscale
-        if oversampling == None:
+        if args.oversampling == None:
             self.oversampling = 2
         else:
-            self.oversampling = oversampling
+            self.oversampling = args.oversampling
 
         # make a directory for saving plots
         if not os.path.exists('plots'):
             os.mkdir('plots')
-    def link_files(self):
-        # these are the sextractor files that we need
-        # set up symbolic links from sextractor directory to the current working directory        
-        for file in self.sextractor_files:
-            os.system('ln -s '+self.sepath+'/'+file+' .')
+    # def link_files(self):
+    #     # these are the sextractor files that we need
+    #     # set up symbolic links from sextractor directory to the current working directory        
+    #     for file in self.sextractor_files:
+    #         os.system('ln -s '+self.sepath+'/'+file+' .')
             
-    def clean_links(self):
-        # clean up symbolic links to sextractor files
-        # sextractor_files=['default.sex.sdss','default.param','default.conv','default.nnw']
-        for file in self.sextractor_files:
-            os.system('unlink '+file)
+    # def clean_links(self):
+    #     # clean up symbolic links to sextractor files
+    #     # sextractor_files=['default.sex.sdss','default.param','default.conv','default.nnw']
+    #     for file in self.sextractor_files:
+    #         os.system('unlink '+file)
     def run_all(self):
         self.runse()
         self.read_se_table()
