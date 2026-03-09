@@ -96,7 +96,7 @@ class psf_parent_image():
         else:
             self.sepath = sepath
         # number of stars to use to determine the psf
-        self.nstars = nstars
+        self.nstars = args.nstars
         # default pixelscale is set for HDI camera
 
         # get pixelscale from image header
