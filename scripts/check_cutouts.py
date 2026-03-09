@@ -14,6 +14,47 @@ check_cutouts ready_coadds.txt cutouts
 import argparse
 from pathlib import Path
 
+from pathlib import Path
+
+def coadd_key_from_filename(path):
+    """
+    Build a matching key from a coadd image filename.
+
+    Example
+    -------
+    VF-126.291+27.988-BOK-20210416-VFID2997-R.fits
+    -> BOK-20210416-VFID2997
+    """
+    stem = Path(path).stem
+    parts = stem.split("-")
+
+    # remove trailing band token if present
+    if parts[-1] in {"r", "R"}:
+        parts = parts[:-1]
+
+    if len(parts) < 3:
+        return None
+
+    return "-".join(parts[-3:])
+
+
+def cutout_key_from_dirname(dirname):
+    """
+    Build a matching key from a cutout directory name.
+
+    Example
+    -------
+    VFID2995-NGC4793-BOK-20210416-VFID2997
+    -> BOK-20210416-VFID2997
+
+    Works even if NED name contains extra '-'.
+    """
+    parts = Path(dirname).name.split("-")
+
+    if len(parts) < 4:
+        return None
+
+    return "-".join(parts[-3:])
 
 def check_cutouts(coadd_list, cutout_dir):
 
@@ -44,8 +85,21 @@ def check_cutouts(coadd_list, cutout_dir):
 
     for f in coadds:
         base = Path(f).stem
-        matches = [d for d in cutdirs if d.name.startswith(base)]
+        #matches = [d for d in cutdirs if d.name.startswith(base)]
+        cutdir_map = {}
+        for d in cutdirs:
+            key = cutout_key_from_dirname(d.name)
+            if key is not None:
+                cutdir_map.setdefault(key, []).append(d)
 
+        no_cutouts = []
+
+        for f in coadds:
+            key = coadd_key_from_filename(f)
+            if key is None or key not in cutdir_map:
+                no_cutouts.append(f)
+
+        
         if len(matches) == 0:
             no_cutouts.append(f)
 
