@@ -131,8 +131,11 @@ class psf_parent_image():
 
         image_path = Path(self.image_name)
 
+        # Write catalog to current directory
+        self.seoutfile = image_path.stem + "-se.cat"
+
         # (1) Name the SE output catalog from the image name
-        self.seoutfile = str(image_path.with_suffix('')) + '-se.cat'
+        #self.seoutfile = str(image_path.with_suffix('')) + '-se.cat'
 
         # (2) Construct weight image name from image name
         weight_image = image_path.with_suffix('.weight.fits')
@@ -160,7 +163,7 @@ class psf_parent_image():
         ###################################
         fwhm = np.median(secat['FWHM_IMAGE']) * self.pixelscale
         self.se_fwhm_arcsec = fwhm
-
+        print(f"SE got a FWHM = {fwhm:.1f} pixels")
         #############################################################
         # rerun Source Extractor catalog with updated SEEING_FWHM
         #############################################################
