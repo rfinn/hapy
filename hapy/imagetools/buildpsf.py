@@ -56,7 +56,7 @@ from astropy.stats import gaussian_sigma_to_fwhm
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-from hapy.imagetools.imutil import get_pixel_scale
+from hapy.imagetools.imutils import get_pixel_scale
 from hapy.external.sextractor import run_sextractor_two_pass
 
 from importlib.resources import files
@@ -334,9 +334,9 @@ if __name__ == '__main__':
         formatter_class=argparse.RawTextHelpFormatter)
    
     parser.add_argument('--image',dest = 'image', help='input image')
-    parser.add_argument('--oversampling',dtype=int,default=2, help='oversampling factor for psf.  Default=2.')
-    parser.add_argument('--nstars',dtype=int,default=100, help='Number of stars to use.  Default is 100.')
-    parser.add_argument('--size',dtype=int,default=30, help='Size of the output psf image')            
+    parser.add_argument('--oversampling',type=int,default=2, help='oversampling factor for psf.  Default=2.')
+    parser.add_argument('--nstars',type=int,default=100, help='Number of stars to use.  Default is 100.')
+    parser.add_argument('--size',type=int,default=30, help='Size of the output psf image')            
     parser.add_argument('--saturate', default=None,dest = 'saturate', help='saturation limit')
     parser.add_argument('--int',default=False,dest='int',action = 'store_true', help='set this for INT data')
     parser.add_argument('--bok',default=False,dest='bok',action = 'store_true', help='set this for BOK data')        
