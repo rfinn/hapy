@@ -55,7 +55,7 @@ BACK_SIZE        512             # Background mesh: <size> or <width>,<height>
 BACK_FILTERSIZE  3              # Background filter: <size> or <width>,<height>
  
 BACKPHOTO_TYPE   LOCAL         # can be GLOBAL or LOCAL
-BACKPHOTO_THICK  24
+BACKPHOTO_THICK  128
 #------------------------------ Check Image ----------------------------------
  
 CHECKIMAGE_TYPE  SEGMENTATION           # can be NONE, BACKGROUND, BACKGROUND_RMS,
