@@ -212,19 +212,37 @@ def main(args=None):
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
         #print(f"{rootname}: ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}, x={x:.1f}, y={y:.1f}")
         rows.append(dict(
-        objid=str(galid[i]),
-        parent_rimage=Path(args.rimage).name,
-        parent_haimage=Path(himage).name if himage is not None else None,
-        telescope=tokens.get("telescope"),
-        dateobs=tokens.get("dateobs"),
-        pointing=tokens.get("pointing"),
-        ra=float(gra[i]),
-        dec=float(gdec[i]),
-        size_arcsec=float(2 * gradius[i]),
-        cutout_root=str(rootname),
-        x_parent=float(x),
-        y_parent=float(y),
+            objid=str(galid[i]),
+            tag=Path(rootname).name,
+            parent_rimage=Path(args.rimage).name,
+            parent_haimage=Path(himage).name if himage is not None else None,
+            telescope=tokens.get("telescope"),
+            dateobs=tokens.get("dateobs"),
+            pointing=tokens.get("pointing"),
+            scheme=args.scheme,
+            hafilter=image_set.h.filter if himage is not None else None,
+            filter_ratio=filter_ratio,
+            ra=float(gra[i]),
+            dec=float(gdec[i]),
+            size_arcsec=float(2 * gradius[i]),
+            cutout_root=str(rootname),
+            x_parent=float(x),
+            y_parent=float(y),
             ))
+        # rows.append(dict(
+        # objid=str(galid[i]),
+        # parent_rimage=Path(args.rimage).name,
+        # parent_haimage=Path(himage).name if himage is not None else None,
+        # telescope=tokens.get("telescope"),
+        # dateobs=tokens.get("dateobs"),
+        # pointing=tokens.get("pointing"),
+        # ra=float(gra[i]),
+        # dec=float(gdec[i]),
+        # size_arcsec=float(2 * gradius[i]),
+        # cutout_root=str(rootname),
+        # x_parent=float(x),
+        # y_parent=float(y),
+        #     ))
     tab = Table(rows=rows)
 
     user = getpass.getuser()
@@ -233,8 +251,10 @@ def main(args=None):
 
     #stem = Path(rootname).stem
     tag= Path(args.rimage).name.replace("-R.fits","").replace("-r.fits","")
-    summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.fits"
-    tab.write(summary_path, overwrite=True)
+    #summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.fits"
+    #tab.write(summary_path, overwrite=True)
+    summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.ecsv"
+    tab.write(summary_path, overwrite=True, format="ascii.ecsv")
     print(f"Wrote summary table: {summary_path}")
 if __name__ == '__main__':
 
