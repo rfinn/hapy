@@ -111,7 +111,7 @@ class psf_parent_image():
             self.oversampling = 2
         else:
             self.oversampling = args.oversampling
-
+        self.overwrite = args.overwrite
         # make a directory for saving plots
         if not os.path.exists('plots'):
             os.mkdir('plots')
