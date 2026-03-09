@@ -18,6 +18,16 @@ from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
 from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
 from hapy.utils.logging_utils import setup_logging
 
+
+def resolve_sibling_path(base_image, sibling_name):
+    """
+    Resolve sibling_name relative to base_image directory unless already absolute.
+    """
+    sibling = Path(sibling_name)
+    if sibling.is_absolute():
+        return str(sibling)
+    return str(Path(base_image).resolve().parent / sibling)
+
 def main(args=None):
     import argparse
 
@@ -40,6 +50,13 @@ def main(args=None):
     choices=["generic", "virgo", "agc"],
     default="generic",
     help="Filename parsing scheme for coadd images.")
+    
+    parser.add_argument(
+    "--overwrite",
+    action="store_true",
+    default = False,
+    help="Overwrite existing cutouts if they already exist"
+    )
    
     parser.add_argument('--maxcorrection',dest='maxcorrection', default=3, help='maximum filter correction for galaxies in FOV.  default is 3, so galaxies whose redshift falls where filter transmission < 33 percent will be skipped.')        
     #parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
@@ -90,7 +107,9 @@ def main(args=None):
     except KeyError:
         print(f"WARNING: could not get FLTRATIO in rimage header {args.rimage}.  Make sure you ran filter ratio program!")
         filter_ratio = None
-    image_set = HalphaImageSet(args.rimage, himage, psfdir=args.psfdir)
+
+    himage_full_path = resolve_sibling_path(args.rimage, himage)
+    image_set = HalphaImageSet(args.rimage, himage_full_path, psfdir=args.psfdir)
     image_set.load_coadds()
 
 
@@ -188,7 +207,7 @@ def main(args=None):
         params_path.write_text(json.dumps(params, indent=2))
 
         # commenting the next line for testing
-        image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname, subtract_sky=subtract_sky)
+        image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname, subtract_sky=subtract_sky, overwrite=args.overwrite)
         # parent pixel position
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
         #print(f"{rootname}: ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}, x={x:.1f}, y={y:.1f}")
