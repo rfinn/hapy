@@ -243,7 +243,8 @@ class psf_parent_image():
         y = self.secat['Y_IMAGE']
 
         # select based on star/class separator and no flags
-        flag1 = (self.secat['CLASS_STAR'] > 0.95) & (self.secat['FLAGS'] == 0)
+        flag0 = (self.secat['CLASS_STAR'] > 0.95)
+        flag1 = (self.secat['FLAGS'] == 0)
 
         # remove stars that are near the edge
         # being conservative by using the 10x full image size as the buffer rather than half image size
@@ -265,7 +266,7 @@ class psf_parent_image():
         x = x[star_flag]
         y = y[star_flag]
         sorted_indices = fm.argsort()
-        print('number of potential stars', sum(flag1), sum(flag2), np.sum(star_flag))
+        print('number of potential stars', sum(flag0),sum(flag1), sum(flag2), np.sum(star_flag))
         # select stars within +/- nstar/2 from a threshold
         # where threshold is the percentile ranking according to peak flux
         threshold = .30
