@@ -31,22 +31,20 @@ def find_result_files(indir, pattern="*-results.ecsv"):
     return files
 
 
-def validate_schema(tables, filename):
+def validate_schema(tables, filenames):
     """Ensure all tables share identical column names."""
-    keepflag = np.ones(len(tables),'bool')
+    keepflag = np.ones(len(tables), dtype=bool)
     reference = tables[0].colnames
-    for i, t in enumerate(tables[1:], start=2):
+
+    for i, t in enumerate(tables[1:], start=1):
         if t.colnames != reference:
-            print(f"WAIT!!! Problem with table {filename[i]}!!!")
-            print(f"Schema mismatch detected in table #{i}.\n")
-            print(f"Expected columns:\n{reference}\n\n")
-            print(f"Found columns:\n{t.colnames}")
+            print(f"WAIT!!! Problem with table {filenames[i]}!!!")
+            print("Schema mismatch detected.\n")
+            print(f"Expected columns:\n{reference}\n")
+            print(f"Found columns:\n{t.colnames}\n")
             keepflag[i] = False
 
     return keepflag
-
-
-
 
 def _coerce_bool_col(tab, name, default=False):
     if name not in tab.colnames:
@@ -105,15 +103,18 @@ def merge_tables(files, output, mode):
 
     tables = goodtables
 
+    if not tables:
+        raise RuntimeError("No valid tables remain after schema validation.")
+    
     print("Stacking tables...")
     merged = vstack(tables, metadata_conflicts="silent")
 
+    if mode == "run_analysis":
+        if "OBJID" in merged.colnames:
+            merged["obs_id"] = [Path(str(r)).name for r in merged["OBJID"]]
 
-    # Add explicit observation ID column
-    obs_ids = [Path(r).name for r in merged["OBJID"]]
-    merged["obs_id"] = obs_ids
-
-    merged.remove_column('SIGMA_FITS')
+    if "SIGMA_FITS" in merged.colnames:
+        merged.remove_column("SIGMA_FITS")
     
     print(f"Writing merged table → {output}")
     merged.write(output, format="fits", overwrite=True)
@@ -140,10 +141,12 @@ def main():
         help="Directory where merged table will be written (default: current directory)."
     )
     parser.add_argument(
-        "--pattern",
-        default="*-results.ecsv",
-        help="Filename pattern to search for (default: *-results.ecsv)"
+    "--pattern",
+    default=None,
+    help="Optional filename pattern to override the mode-specific default."
     )
+    
+
     parser.add_argument(
         "--out",
         default="merged_results.fits",
@@ -158,10 +161,13 @@ def main():
 
     args = parser.parse_args()
 
-    if args.mode == "get_cutouts":
+    if args.pattern is not None:
+        pattern = args.pattern
+    elif args.mode == "get_cutouts":
         pattern = "cutouts_summary*.ecsv"
-    elif args.mode == "run_analysis":
+    else:
         pattern = "*results.ecsv"
+    
     files = find_result_files(args.indir, pattern)
 
     if args.outdir:
