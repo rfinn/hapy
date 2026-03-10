@@ -179,11 +179,11 @@ def main(args=None):
         )
 
         if not ok:
-            if "MOS" in args.rimage:
-                print("Invalid regions in weight file for {args.rimage} - making cutout anyway")
-            else:
-                print(f"Skipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}")
-                continue
+            #if "MOS" in args.rimage:
+            #    print(f"Invalid regions in weight file for {args.rimage} - making cutout anyway")
+            #else:
+            print(f"Skipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}")
+            continue
 
         # --------------------------------------------------
         # Build rootname only after validity check
