@@ -169,7 +169,7 @@ class psf_parent_image():
         y = self.secat['Y_IMAGE']
 
         # select based on star/class separator and no flags
-        flag0 = (self.secat['CLASS_STAR'] > 0.9)
+        flag0 = (self.secat['CLASS_STAR'] > 0.95)
         flag1 = (self.secat['FLAGS'] == 0)
 
         # remove stars that are near the edge

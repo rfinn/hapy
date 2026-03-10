@@ -116,6 +116,7 @@ def run_sextractor_once(
     seeing_fwhm=None,
     weight_image=None,
     extra_args=None,
+    #outdir="SEcats",
 ):
     """Run SExtractor once."""
     cmd = build_sextractor_command(
