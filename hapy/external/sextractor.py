@@ -108,7 +108,7 @@ def build_sextractor_command(
     return cmd
 
 
-def run_sextractor_once(
+def _run_sextractor_once(
     image,
     config,
     catalog_name,
@@ -154,7 +154,7 @@ def run_sextractor_two_pass(
     wgt = weight_path(image)
 
     if overwrite or not se1.exists():
-        run_sextractor_once(
+        _run_sextractor_once(
             image=image,
             config=config,
             catalog_name=se1,
@@ -185,3 +185,64 @@ def run_sextractor_two_pass(
         "se2": str(se2),
         "fwhm_arcsec": fwhm,
     }
+
+def run_sextractor(
+    image_name,
+    config,
+    threshold,
+    snr,
+    snr_analysis,
+    minarea,
+    weight_image=None,
+    weight_threshold=1,
+):
+    """
+    Run SExtractor and return segmentation array + catalog filename.
+    """
+
+    image_path = Path(image_name)
+    workdir = image_path.parent
+    image_basename = image_path.name
+
+    # Resolve config path safely
+    config_path = Path(config)
+    if not config_path.is_file():
+        config_path = Path(ASTROMATIC_DIR) / config
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"SExtractor config not found: {config_path}")
+
+    catname = image_basename.replace(".fits", ".cat")
+    segmentation = image_basename.replace(".fits", "-segmentation.fits")
+
+    # copy astromatic files into working directory
+    copy_sextractor_files(workdir)
+
+    cmd = [
+        "sex",
+        image_basename,
+        "-c", config_path.name,
+        "-CATALOG_NAME", catname,
+        "-CATALOG_TYPE", "FITS_1.0",
+        "-DEBLEND_MINCONT", str(threshold),
+        "-DETECT_THRESH", str(snr),
+        "-ANALYSIS_THRESH", str(snr_analysis),
+        "-CHECKIMAGE_NAME", segmentation,
+        "-DETECT_MINAREA", str(minarea),
+    ]
+
+    if weight_image is not None:
+        weight_basename = Path(weight_image).name
+        cmd += [
+            "-WEIGHT_TYPE", "MAP_WEIGHT",
+            "-WEIGHT_IMAGE", weight_basename,
+            "-WEIGHT_THRESH", str(weight_threshold),
+        ]
+
+    print("Running:", " ".join(cmd))
+
+    subprocess.run(cmd, cwd=str(workdir), check=True)
+
+    segdata = fits.getdata(workdir / segmentation)
+
+    return segdata, str(workdir / catname), str(workdir / segmentation)
