@@ -159,58 +159,95 @@ def main(args=None):
     gPA = gcat.PA_DEG[gcat.keepflag]
     galid = np.asarray(galid_full)[gcat.keepflag]
 
+
     rows = []
     tokens = parse_coadd_name(args.rimage, scheme=args.scheme)
     outbase = Path(outdir)
     outbase.mkdir(parents=True, exist_ok=True)
-    #tokens = parse_coadd_name(args.rimage, scheme=args.scheme)
+
     for i in range(len(gra)):
-        
 
-        #rootname = build_cutout_name(tokens, galid[i], args.outdir)
+        size_arcsec = args.cutout_scale * 2 * gradius[i]
+
+        # --------------------------------------------------
+        # Pre-check validity on R and Ha weight images
+        # --------------------------------------------------
+        ok, status = image_set.cutout_location_is_valid(
+            gra[i],
+            gdec[i],
+            size_arcsec
+        )
+
+        if not ok:
+            print(f"Skipping {galid[i]}: invalid cutout region ({status})")
+            continue
+
+        # --------------------------------------------------
+        # Build rootname only after validity check
+        # --------------------------------------------------
         rootname = build_cutout_name(tokens, galid[i], cutouts_dir)
-
-        # Write mask ellipse params for downstream masking
         cutdir = Path(rootname).parent
         params_path = cutdir / "metadata.json"
-        params = dict(
-                objid=str(galid[i]),
-                tag=Path(rootname).name,          # e.g., VFID3084-NGC3512-HDI-20200226-p012
-                root=str(rootname),              # full cutout root path
-                ra=float(gra[i]),
-                dec=float(gdec[i]),
-                sma_arcsec=float(gradius[i]),   # semi-major = radius
-                ba=float(gBA[i]),
-                pa_deg=float(gPA[i]),
-                telescope=tokens.get("telescope"),
-                dateobs=tokens.get("dateobs"),
-                pointing=tokens.get("pointing"),
-                scheme=args.scheme,
-                parent_rimage=Path(args.rimage).name,
-                parent_haimage=Path(himage).name if himage else None,
-                hafilter=image_set.h.filter if himage else None,
-                filter_correction = float(filter_corrections[i]),
-                rimage_psf= image_set.r.psf_image_name,
-                himage_psf= image_set.h.psf_image_name if himage else None,                
-                rimage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.r.fwhm_arcsec is not None else None, 
-                rimage_fwhm_pixels= float(image_set.h.fwhm_pixels) if image_set.r.fwhm_pixels is not None else None,
-                himage_fwhm_arcsec= float(image_set.r.fwhm_arcsec) if image_set.h.fwhm_arcsec is not None else None, 
-                himage_fwhm_pixels= float(image_set.h.fwhm_pixels) if image_set.h.fwhm_pixels is not None else None,
-                cutout_scale = float(args.cutout_scale),
-                filter_ratio = filter_ratio,
-                cutout_sky_subtracted = subtract_sky,
 
+        # --------------------------------------------------
+        # Metadata
+        # --------------------------------------------------
+        params = dict(
+            objid=str(galid[i]),
+            tag=Path(rootname).name,
+            root=str(rootname),
+            ra=float(gra[i]),
+            dec=float(gdec[i]),
+            sma_arcsec=float(gradius[i]),
+            ba=float(gBA[i]),
+            pa_deg=float(gPA[i]),
+            telescope=tokens.get("telescope"),
+            dateobs=tokens.get("dateobs"),
+            pointing=tokens.get("pointing"),
+            scheme=args.scheme,
+            parent_rimage=Path(args.rimage).name,
+            parent_haimage=Path(himage).name if himage else None,
+            hafilter=image_set.h.filter if himage else None,
+            filter_correction=float(filter_corrections[i]),
+            rimage_psf=image_set.r.psf_image_name,
+            himage_psf=image_set.h.psf_image_name if himage else None,
+            rimage_fwhm_arcsec=float(image_set.r.fwhm_arcsec) if image_set.r.fwhm_arcsec is not None else None,
+            rimage_fwhm_pixels=float(image_set.r.fwhm_pixels) if image_set.r.fwhm_pixels is not None else None,
+            himage_fwhm_arcsec=float(image_set.h.fwhm_arcsec) if (himage and image_set.h.fwhm_arcsec is not None) else None,
+            himage_fwhm_pixels=float(image_set.h.fwhm_pixels) if (himage and image_set.h.fwhm_pixels is not None) else None,
+            cutout_scale=float(args.cutout_scale),
+            filter_ratio=float(filter_ratio) if filter_ratio is not None else None,
+            cutout_sky_subtracted=bool(subtract_sky),
+            valid_region=True,
+            valid_status=str(status),
         )
+
         if params_path.exists() and args.overwrite_metadata:
             backup = params_path.with_suffix(".json.bak")
             params_path.replace(backup)
+
         params_path.write_text(json.dumps(params, indent=2))
 
-        # commenting the next line for testing
-        image_set.get_cutout_all_filters(gra[i], gdec[i], args.cutout_scale*2*gradius[i], rootname, subtract_sky=subtract_sky, overwrite=args.overwrite)
-        # parent pixel position
+        # --------------------------------------------------
+        # Make cutouts
+        # --------------------------------------------------
+        result = image_set.get_cutout_all_filters(
+            gra[i],
+            gdec[i],
+            size_arcsec,
+            rootname,
+            subtract_sky=subtract_sky,
+            overwrite=args.overwrite
+        )
+
+        # If get_cutout_all_filters later returns an invalid/failure flag,
+        # you can handle it here. For now, assume pre-check was sufficient.
+
+        # --------------------------------------------------
+        # Parent pixel position
+        # --------------------------------------------------
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
-        #print(f"{rootname}: ra={gra[i]:.6f}, dec={gdec[i]:.6f}, radius_arcsec={gradius[i]:6.2f}, BA={gBA[i]:.2f}, PA={gPA[i]:5.1f}, x={x:.1f}, y={y:.1f}")
+
         rows.append(dict(
             objid=str(galid[i]),
             tag=Path(rootname).name,
@@ -220,29 +257,17 @@ def main(args=None):
             dateobs=tokens.get("dateobs"),
             pointing=tokens.get("pointing"),
             scheme=args.scheme,
-            hafilter=image_set.h.filter if himage is not None else None,
-            filter_ratio=filter_ratio,
             ra=float(gra[i]),
             dec=float(gdec[i]),
-            size_arcsec=float(2 * gradius[i]),
+            size_arcsec=float(size_arcsec),
             cutout_root=str(rootname),
             x_parent=float(x),
             y_parent=float(y),
-            ))
-        # rows.append(dict(
-        # objid=str(galid[i]),
-        # parent_rimage=Path(args.rimage).name,
-        # parent_haimage=Path(himage).name if himage is not None else None,
-        # telescope=tokens.get("telescope"),
-        # dateobs=tokens.get("dateobs"),
-        # pointing=tokens.get("pointing"),
-        # ra=float(gra[i]),
-        # dec=float(gdec[i]),
-        # size_arcsec=float(2 * gradius[i]),
-        # cutout_root=str(rootname),
-        # x_parent=float(x),
-        # y_parent=float(y),
-        #     ))
+            valid_region=True,
+            valid_status=str(status),
+        ))
+
+
     tab = Table(rows=rows)
 
     user = getpass.getuser()

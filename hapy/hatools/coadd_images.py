@@ -208,7 +208,26 @@ class CoaddImage:
         except KeyError:
             self.fwhm_pixels = None
 
+    def cutout_region_is_valid(self, ra, dec, size_arcsec, central_frac=0.25, min_center_frac=0.8):
+        """
+        Quick validity check using the weight image at a proposed cutout location.
+        Returns (ok, stats_dict).
+        """
+        if not getattr(self, "weight_flag", False) or not getattr(self, "weight_image", None):
+            return True, {"reason": "no_weight"}
 
+        size_pix = int(size_arcsec / self.pixelscale)
+        position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
+
+        try:
+            wdata = fits.getdata(self.weight_image)
+            wcut = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs).data
+        except Exception:
+            return False, {"reason": "weight_cutout_failed"}
+
+        ok, stats = _weight_ok(wcut, central_frac=central_frac, min_center_frac=min_center_frac)
+        return ok, stats
+        
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
                     subtract_sky=False, skycfg=None, return_cutout=True,
                     fix_gain=True, overwrite=False):
@@ -224,7 +243,8 @@ class CoaddImage:
             outpath = Path(output_name)
             if outpath.is_file() and not overwrite:
                 print(f"Skipping existing cutout: {outpath}")
-                return None
+                return ("skipped", None, None)
+
 
         if self.data is None or self.wcs is None:
             self.load_image()
@@ -247,8 +267,9 @@ class CoaddImage:
         # --- reject edge / chip-gap cases based on weight image ---
         weight_ok, weight_stats = _weight_ok(wcut, central_frac=0.25, min_center_frac=0.8)
         if not weight_ok:
-            print(f"Skipping cutout due to invalid central weight region: {output_name}")
-            return None
+            print(f"Rejecting cutout due to invalid central weight region: {output_name}")
+            return ("invalid", None, None)
+
 
         # --- optional sky subtraction ---
         skycfg = skycfg or {}
@@ -301,7 +322,7 @@ class CoaddImage:
             print(f"Cutout saved to {output_name}")
 
         if return_cutout:
-            return cutout_data, outheader
+            return ("ok", cutout_data, outheader)
         return None
 
 
@@ -438,7 +459,21 @@ class HalphaImageSet:
         #self.h.fix_gain()
         #if self.cs_flag:
         #    self.cs.fix_gain()
-        
+
+    def cutout_location_is_valid(self, ra, dec, size_arcsec):
+        """
+        Require valid cutout region in both R and Halpha images.
+        """
+        ok_r, stats_r = self.r.cutout_region_is_valid(ra, dec, size_arcsec)
+        if not ok_r:
+            return False, "r_invalid"
+
+        ok_h, stats_h = self.h.cutout_region_is_valid(ra, dec, size_arcsec)
+        if not ok_h:
+            return False, "ha_invalid"
+
+        return True, "ok"
+
     def get_cutout_all_filters_old(self, ra, dec, size_arcsec, rootname):
         
         self.r.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")
@@ -468,20 +503,29 @@ class HalphaImageSet:
         # --------------------------------------------------
         # R cutout
         # --------------------------------------------------
-        r_result = self.r.make_cutout(
+
+        status, r_data, r_hdr = self.r.make_cutout(
             ra, dec, size_arcsec,
             output_name=r_name,
             subtract_sky=subtract_sky,
             overwrite=overwrite
-        )
+            )
 
-        if r_result is None:
+        if status == "skipped":
             if r_path.is_file():
                 r_data, r_hdr = fits.getdata(r_name, header=True)
             else:
                 raise FileNotFoundError(f"R cutout was skipped but does not exist: {r_name}")
+
+        elif status == "invalid":
+            print(f"Skipping galaxy because R cutout is invalid: {rootname}")
+            return
+
+        elif status == "ok":
+            pass
+
         else:
-            r_data, r_hdr = r_result
+            raise RuntimeError("Unknown make_cutout status")
 
         # --------------------------------------------------
         # Ha cutout
