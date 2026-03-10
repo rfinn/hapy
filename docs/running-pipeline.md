@@ -115,10 +115,28 @@ Bad cutout dir names:      0
 
 ```
 
+
 ## Merge get_cutouts tables
 ```
+merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
+```
+
+Example output:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260310$ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
+Searching for files  cutouts_summary*.ecsv
+Found 211 result files.
+Reading tables...
+Validating schema...
+	validated 211/211 tables
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260310/merged_cutouts_results.fits
+Done.
+Final table rows: 768
+Final table columns: 19
 
 ```
+
 
 # Run Analysis 
 
