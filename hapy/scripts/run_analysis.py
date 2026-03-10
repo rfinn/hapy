@@ -630,11 +630,18 @@ def initialize_result_row():
 
     return row
 
-
-def pick_psf_path_and_source(args, params):
+def _print_psf_image(p,logger):
+    if logger is not None:
+        logger.info(f"PSF image = {str(p)}")
+            
+    else:
+        print(f"PSF image = {str(p)}")
+    
+def pick_psf_path_and_source(args, params,logger=None):
     psf_image = getattr(args, "psf_image", None)
     if psf_image:
         p = Path(psf_image)
+        _print_psf_image(p,logger)
         return (str(p), "cli") if p.exists() else (None, "cli_missing")
 
     psfdir = getattr(args, "psf_dir", None) or getattr(args, "psfdir", None)
@@ -642,8 +649,9 @@ def pick_psf_path_and_source(args, params):
     if psfdir and parent:
         name = str(parent).replace(".fits", "-psf.fits")
         p = Path(psfdir) / name
+        _print_psf_image(p,logger)
         return (str(p), "psf_dir") if p.exists() else (None, "psf_dir_missing")
-
+    _print_psf_image(None, logger)
     return None, ""
 
 def check_table(results_table):
@@ -1012,7 +1020,7 @@ def main():
         )
 
     # --- Construct the name of the psf image
-    psf_path, psf_source = pick_psf_path_and_source(args, params)
+    psf_path, psf_source = pick_psf_path_and_source(args, params,logger=logger)
     row["PSF_FITS"] = str(psf_path) if psf_path else ""
     row["PSF_OK"] = bool(psf_path)
     row["PSF_SOURCE"] = psf_source
