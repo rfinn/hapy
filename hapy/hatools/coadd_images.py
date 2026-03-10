@@ -525,25 +525,32 @@ class HalphaImageSet:
             pass
 
         else:
-            raise RuntimeError("Unknown make_cutout status")
+            raise RuntimeError(f"Unknown R make_cutout status: {r_status}")
 
         # --------------------------------------------------
         # Ha cutout
         # --------------------------------------------------
-        h_result = self.h.make_cutout(
+
+        h_status, h_data, h_hdr = self.h.make_cutout(
             ra, dec, size_arcsec,
             output_name=h_name,
             subtract_sky=subtract_sky,
             overwrite=overwrite
         )
 
-        if h_result is None:
+        if h_status == "skipped":
             if h_path.is_file():
                 h_data, h_hdr = fits.getdata(h_name, header=True)
             else:
                 raise FileNotFoundError(f"Ha cutout was skipped but does not exist: {h_name}")
-        else:
-            h_data, h_hdr = h_result
+
+        elif h_status == "invalid":
+            print(f"Skipping galaxy because Ha cutout is invalid: {rootname}")
+            return "invalid"
+
+        elif h_status != "ok":
+            raise RuntimeError(f"Unknown Ha make_cutout status: {h_status}")
+
 
         # --------------------------------------------------
         # CS cutout
