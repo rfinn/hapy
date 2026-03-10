@@ -216,7 +216,7 @@ def run_sextractor(
     segmentation = image_basename.replace(".fits", "-segmentation.fits")
 
     # copy astromatic files into working directory
-    copy_sextractor_files(workdir)
+    copy_sextractor_files(config_path, workdir)
 
     cmd = [
         "sex",
