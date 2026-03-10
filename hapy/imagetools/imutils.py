@@ -160,8 +160,10 @@ def estimate_and_subtract_sky(data, weightimage=None, subtract=True, **skycfg):
     # if med is not finite, do not subtract
     if not np.isfinite(med):
         return arr.copy(), float(med), float(std)
-
-    goodmask = weightimage > 1
+    if weightimage is not None:
+        goodmask = weightimage > 1
+    else:
+        goodmask = np.ones_like(arr,'bool')
     out = np.zeros_like(arr)
     if subtract:
         out[goodmask] = (arr[goodmask] - med)
