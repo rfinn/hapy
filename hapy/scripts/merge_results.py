@@ -42,31 +42,11 @@ def validate_schema(tables, filename):
             print(f"Expected columns:\n{reference}\n\n")
             print(f"Found columns:\n{t.colnames}")
             keepflag[i] = False
-            # for j in range(len(reference)):
-            #     print(f"col {j}:")
-            #     print(f"\tref={reference[j]}")
-            #     print(f"\ttab={t.colnames[j]}")
-            
-            # raise RuntimeError(
-            #     f"Schema mismatch detected in table #{i}.\n"
-            #     f"Expected columns:\n{reference}\n\n"
-            #     f"Found columns:\n{t.colnames}"
-            # )
+
     return keepflag
 
-def check_duplicate_objids(tables):
-    """Detect duplicate objid entries across tables."""
-    objids = []
-    for t in tables:
-        if "objid" not in t.colnames:
-            raise RuntimeError("Column 'objid' not found in results table.")
-        objids.append(t["objid"][0])
 
-    duplicates = set([x for x in objids if objids.count(x) > 1])
-    if duplicates:
-        raise RuntimeError(f"Duplicate objid detected: {duplicates}")
 
-import numpy as np
 
 def _coerce_bool_col(tab, name, default=False):
     if name not in tab.colnames:
@@ -100,16 +80,17 @@ def _coerce_bool_col(tab, name, default=False):
     else:
         tab[name] = np.array(col, dtype=bool)
         
-def merge_tables(files, output):
+def merge_tables(files, output, mode):
     """Read, validate, merge, and write output FITS table."""
     print(f"Found {len(files)} result files.")
     print("Reading tables...")
 
     tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
-    for t in tables:
-        _coerce_bool_col(t, "R_SM_FLAG", default=False)
-        _coerce_bool_col(t, "H_SM_FLAG", default=False)
+    if mode == "run_analysis":
+        for t in tables:
+            _coerce_bool_col(t, "R_SM_FLAG", default=False)
+            _coerce_bool_col(t, "H_SM_FLAG", default=False)
         
     print("Validating schema...")
     keepflag = validate_schema(tables,files)
@@ -168,17 +149,27 @@ def main():
         default="merged_results.fits",
         help="Output FITS filename (default: merged_results.fits)"
     )
+    parser.add_argument(
+        "--mode",
+        choices=["run_analysis", "get_cutouts"],
+        required=True,
+        help="Pipeline stage whose results should be merged."
+    )
 
     args = parser.parse_args()
 
-    files = find_result_files(args.indir, args.pattern)
+    if args.mode == "get_cutouts"
+        pattern = "cutouts_summary*.ecsv"
+    elif args.mode == "run_analysis"
+        pattern = "*results.ecsv"
+    files = find_result_files(args.indir, pattern)
 
     if args.outdir:
         outpath = Path(args.outdir).resolve() / args.out
     else:
         outpath = Path(args.out).resolve()
     
-    merge_tables(files, outpath)
+    merge_tables(files, outpath, args.mode)
 
 
 if __name__ == "__main__":
