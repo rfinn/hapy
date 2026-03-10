@@ -144,7 +144,7 @@ Final table columns: 19
 
 
 ```
-run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask  --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --galfit --convflag --diagnostic-plots
+run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --diagnostic-plots
 ```
 
 

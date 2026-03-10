@@ -23,6 +23,44 @@ from pathlib import Path
 from astropy.table import Table, vstack
 import sys
 
+from collections import defaultdict
+
+
+def keep_latest_cutout_summaries(files):
+    latest = {}
+
+    for f in files:
+        f = Path(f)
+        name = f.stem
+
+        if not name.startswith("cutouts_summary-"):
+            print(f"WARNING: unexpected filename, skipping: {f}")
+            continue
+
+        remainder = name[len("cutouts_summary-"):]
+        parts = remainder.rsplit("-", 2)
+
+        if len(parts) != 3:
+            print(f"WARNING: could not parse summary filename, skipping: {f}")
+            continue
+
+        tag, user, ts = parts
+
+        if tag in latest:
+            old_ts, old_file = latest[tag]
+            if ts > old_ts:
+                latest[tag] = (ts, f)
+            elif ts == old_ts:
+                print(f"WARNING: duplicate timestamp for tag {tag}:")
+                print(f"    {old_file}")
+                print(f"    {f}")
+        else:
+            latest[tag] = (ts, f)
+
+    return sorted(v[1] for v in latest.values())
+
+
+
 def find_result_files(indir, pattern="*-results.ecsv"):
     """Recursively locate result files under indir."""
     print("Searching for files ",pattern)
@@ -159,7 +197,11 @@ def main():
         required=True,
         help="Pipeline stage whose results should be merged."
     )
-
+    parser.add_argument(
+        "--latest-only",
+        action="store_true",
+        help="For get_cutouts mode, keep only the newest summary file per tag."
+    )
     args = parser.parse_args()
 
     if args.pattern is not None:
@@ -170,7 +212,11 @@ def main():
         pattern = "*results.ecsv"
     
     files = find_result_files(args.indir, pattern)
-
+    
+    if args.mode == "get_cutouts" and args.latest_only:
+        files = keep_latest_cutout_summaries(files)
+        print(f"Keeping latest summary per tag: {len(files)} files")
+    
     if args.outdir:
         outpath = Path(args.outdir).resolve() / args.out
     else:
