@@ -974,8 +974,8 @@ def main():
     row["DEC"] = dec
     row["OBJID"] = objid
 
-    row["R_FHWM"] = float(params.get("rimage_psf"))
-    row["H_FHWM"] = float(params.get("himage_psf"))
+    row["R_FHWM"] = float(params.get("rimage_fwhm_pixels"))
+    row["H_FHWM"] = float(params.get("himage_fwhm_pixels"))
 
     if ra is not None and dec is not None:
         try:
