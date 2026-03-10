@@ -90,6 +90,54 @@ def zp_scale_r_to_ha(zp_ha, zp_r):
     return float(10 ** (-0.4 * (zp_r - zp_ha)))
 
 
+def _weight_ok(weight_cutout, central_frac=0.25, min_center_frac=0.8):
+    """
+    Decide whether the cutout is safely on valid data.
+
+    Parameters
+    ----------
+    weight_cutout : 2D array
+        Weight map cutout.
+    central_frac : float
+        Fractional size of central box to test.
+    min_center_frac : float
+        Minimum fraction of pixels in the central box that must have weight > 0.
+
+    Returns
+    -------
+    ok : bool
+    stats : dict
+    """
+    if weight_cutout is None:
+        return True, {"center_weight": np.nan, "central_good_frac": np.nan}
+
+    w = np.asarray(weight_cutout, dtype=float)
+    good = np.isfinite(w) & (w > 0)
+
+    ny, nx = w.shape
+    yc, xc = ny // 2, nx // 2
+
+    center_weight = w[yc, xc] if np.isfinite(w[yc, xc]) else np.nan
+
+    halfx = max(1, int(0.5 * central_frac * nx))
+    halfy = max(1, int(0.5 * central_frac * ny))
+
+    x1 = max(0, xc - halfx)
+    x2 = min(nx, xc + halfx + 1)
+    y1 = max(0, yc - halfy)
+    y2 = min(ny, yc + halfy + 1)
+
+    central_good = good[y1:y2, x1:x2]
+    central_good_frac = np.mean(central_good)
+
+    ok = (center_weight > 0) and (central_good_frac >= min_center_frac)
+
+    stats = {
+        "center_weight": float(center_weight) if np.isfinite(center_weight) else np.nan,
+        "central_good_frac": float(central_good_frac),
+    }
+    return ok, stats
+
 class CoaddImage:
     """
     Class to handle coadded images and create cutouts around galaxies.
@@ -149,44 +197,6 @@ class CoaddImage:
         self.filter = self.header['FILTER']
     def get_target(self):
         self.target = self.header['OBJECT']
-    # def fix_gain(self):
-    #     # if FIXGAIN is in header, return
-    #     if "FIXGAIN" in self.header:
-    #         return
-
-    #     # otherwise get EXPTIME and GAIN from header
-    #     exptime = self.header.get("EXPTIME")
-    #     gain = self.header.get("GAIN")
-
-    #     # Missing keywords → warn and mark skipped
-    #     if exptime is None or gain is None:
-    #         log.warning(f"fix_gain: missing EXPTIME or GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
-    #         self.header["FIXGAIN"] = (False, "GAIN not scaled (missing EXPTIME/GAIN)")
-    #         return
-
-    #     # Coerce to floats
-    #     try:
-    #         exptime_f = float(exptime)
-    #         gain_f = float(gain)
-    #     except Exception:
-    #         log.warning(f"fix_gain: non-numeric EXPTIME/GAIN (EXPTIME={exptime}, GAIN={gain}); leaving GAIN unchanged")
-    #         self.header["FIXGAIN"] = (False, "GAIN not scaled (non-numeric EXPTIME/GAIN)")
-    #         return
-
-    #     # Invalid EXPTIME → warn and mark skipped
-    #     if exptime_f <= 0:
-    #         log.warning(f"fix_gain: invalid EXPTIME={exptime_f}; leaving GAIN unchanged")
-    #         self.header["FIXGAIN"] = (False, "GAIN not scaled (invalid EXPTIME)")
-    #         return
-        
-    #     # mv GAIN to GAINORIG
-    #     self.header["GAINORIG"] = (gain, "Original detector gain (e-/ADU)")
-        
-    #     # set newgain to gain * exptime
-    #     new_gain = gain * exptime
-    #     self.header["GAIN"] = (new_gain, "Effective gain after coadd scaling (GAINORIG*EXPTIME)")
-
-    #     self.header["FIXGAIN"] = (True, "GAIN multiplied by EXPTIME")
         
     def get_fwhm(self):
         try:
@@ -198,32 +208,34 @@ class CoaddImage:
         except KeyError:
             self.fwhm_pixels = None
 
-    #def make_cutout(self, ra, dec, size_arcsec, output_name=None):
+
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
-                    subtract_sky=False, skycfg=None, return_cutout=True, fix_gain=True, overwrite=False):
+                    subtract_sky=False, skycfg=None, return_cutout=True,
+                    fix_gain=True, overwrite=False):
 
         """
-        Create a cutout centered act (ra, dec) with size in arcsec.
+        Create a cutout centered at (ra, dec) with size in arcsec.
+
+        If a weight image exists, reject cutouts whose central region falls in
+        a chip gap or off the valid image area.
         """
 
-        # --- check if output_name exists, return if it does
         if output_name is not None:
             outpath = Path(output_name)
             if outpath.is_file() and not overwrite:
                 print(f"Skipping existing cutout: {outpath}")
                 return None
-    
+
         if self.data is None or self.wcs is None:
             self.load_image()
 
-        # convert size from arcsec to pixels
         size_pix = int(size_arcsec / self.pixelscale)
-        #position = (ra, dec)
-        position = SkyCoord(ra=ra*u.deg, dec=dec*u.deg, frame="icrs")
-        cutout = Cutout2D(self.data, position=position, size=(size_pix,size_pix), wcs=self.wcs)
+        position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
 
+        cutout = Cutout2D(self.data, position=position, size=(size_pix, size_pix), wcs=self.wcs)
+        cutout_data = cutout.data.copy()
 
-        # --- optional weight cutout (for background masking) ---
+        # --- optional weight cutout ---
         wcut = None
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
             try:
@@ -232,37 +244,40 @@ class CoaddImage:
             except Exception:
                 wcut = None
 
-        # --- optional sky subtraction on the cutout ---
+        # --- reject edge / chip-gap cases based on weight image ---
+        weight_ok, weight_stats = _weight_ok(wcut, central_frac=0.25, min_center_frac=0.8)
+        if not weight_ok:
+            print(f"Skipping cutout due to invalid central weight region: {output_name}")
+            return None
+
+        # --- optional sky subtraction ---
         skycfg = skycfg or {}
+        med = None
+        std = None
         if subtract_sky:
- 
             cutout_data, med, std = estimate_and_subtract_sky(
                 cutout.data,
                 weightimage=wcut,
                 subtract=subtract_sky
-                )
-        
+            )
+
         if output_name is None:
             base = os.path.basename(self.image_file).replace('.fits', '')
             output_name = f"{base}-cutout.fits"
 
-
-
         outheader = self.header.copy()
         outheader.update(cutout.wcs.to_header())
-        #outheader = cutout.wcs.to_header()
-        
+
         if self.psf_image_name is not None:
-            outheader.set('PSFIMAGE',self.psf_image_name)
+            outheader.set('PSFIMAGE', self.psf_image_name)
 
-        # TODO - propagate header keywords to the cutout
-
-        
-        # record sky stats
+        # record weight diagnostics
+        outheader["WGTCUTOK"] = (bool(weight_ok), "Central weight region valid")
+        _safe_set_float_header(outheader, "WGTCNTR", weight_stats["center_weight"], "Central weight value")
+        _safe_set_float_header(outheader, "WGTCFRAC", weight_stats["central_good_frac"], "Central good-weight fraction")
 
         if subtract_sky:
             parent_hdr = self.header
-            # check for previous values of SKYMED in header
             if "SKYMED" in parent_hdr:
                 outheader["PSKYMED"] = (self.header["SKYMED"], "Parent coadd SKYMED")
             if "SKYSTD" in parent_hdr:
@@ -272,18 +287,15 @@ class CoaddImage:
             outheader["CSKYSRC"] = ("CUTOUT", "Sky measured on cutout")
             _safe_set_float_header(outheader, "CSKYMED", med, "Median sky (ADU) subtracted")
             _safe_set_float_header(outheader, "CSKYSTD", std, "Std sky (ADU)")
-            #_safe_set_float_header(outheader, "CSKYMEA", mean, "Mean sky (ADU)")
-            #outheader["CSKYMED"] = (float(med), "Median sky (ADU) subtracted")
-            #outheader["CSKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
             outheader["CSKYMETH"] = ("PHOTUTILS", "Background estimation method")
             outheader["CSKYOK"] = (bool(np.isfinite(med) and np.isfinite(std)), "Sky estimate finite")
-        # fix gain
+
         if fix_gain:
             newheader = fix_header_gain(outheader)
             if newheader is not None:
                 outheader = newheader
-        hdu = fits.PrimaryHDU(data=cutout_data, header=outheader)                    
-        hdu.writeto(output_name, overwrite=True)
+
+        fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
 
         if self.verbose:
             print(f"Cutout saved to {output_name}")
@@ -291,6 +303,101 @@ class CoaddImage:
         if return_cutout:
             return cutout_data, outheader
         return None
+
+
+    # #def make_cutout(self, ra, dec, size_arcsec, output_name=None):
+    # def make_cutout(self, ra, dec, size_arcsec, output_name=None,
+    #                 subtract_sky=False, skycfg=None, return_cutout=True, fix_gain=True, overwrite=False):
+
+    #     """
+    #     Create a cutout centered act (ra, dec) with size in arcsec.
+    #     """
+
+    #     # --- check if output_name exists, return if it does
+    #     if output_name is not None:
+    #         outpath = Path(output_name)
+    #         if outpath.is_file() and not overwrite:
+    #             print(f"Skipping existing cutout: {outpath}")
+    #             return None
+    
+    #     if self.data is None or self.wcs is None:
+    #         self.load_image()
+
+    #     # convert size from arcsec to pixels
+    #     size_pix = int(size_arcsec / self.pixelscale)
+    #     #position = (ra, dec)
+    #     position = SkyCoord(ra=ra*u.deg, dec=dec*u.deg, frame="icrs")
+    #     cutout = Cutout2D(self.data, position=position, size=(size_pix,size_pix), wcs=self.wcs)
+
+
+    #     # --- optional weight cutout (for background masking) ---
+    #     wcut = None
+    #     if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
+    #         try:
+    #             wdata = fits.getdata(self.weight_image)
+    #             wcut = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs).data
+    #         except Exception:
+    #             wcut = None
+
+    #     # --- optional sky subtraction on the cutout ---
+    #     skycfg = skycfg or {}
+    #     if subtract_sky:
+ 
+    #         cutout_data, med, std = estimate_and_subtract_sky(
+    #             cutout.data,
+    #             weightimage=wcut,
+    #             subtract=subtract_sky
+    #             )
+        
+    #     if output_name is None:
+    #         base = os.path.basename(self.image_file).replace('.fits', '')
+    #         output_name = f"{base}-cutout.fits"
+
+
+
+    #     outheader = self.header.copy()
+    #     outheader.update(cutout.wcs.to_header())
+    #     #outheader = cutout.wcs.to_header()
+        
+    #     if self.psf_image_name is not None:
+    #         outheader.set('PSFIMAGE',self.psf_image_name)
+
+    #     # TODO - propagate header keywords to the cutout
+
+        
+    #     # record sky stats
+
+    #     if subtract_sky:
+    #         parent_hdr = self.header
+    #         # check for previous values of SKYMED in header
+    #         if "SKYMED" in parent_hdr:
+    #             outheader["PSKYMED"] = (self.header["SKYMED"], "Parent coadd SKYMED")
+    #         if "SKYSTD" in parent_hdr:
+    #             outheader["PSKYSTD"] = (self.header["SKYSTD"], "Parent coadd SKYSTD")
+
+    #         outheader["CUTSKY"] = (True, "Sky median subtracted from cutout")
+    #         outheader["CSKYSRC"] = ("CUTOUT", "Sky measured on cutout")
+    #         _safe_set_float_header(outheader, "CSKYMED", med, "Median sky (ADU) subtracted")
+    #         _safe_set_float_header(outheader, "CSKYSTD", std, "Std sky (ADU)")
+    #         #_safe_set_float_header(outheader, "CSKYMEA", mean, "Mean sky (ADU)")
+    #         #outheader["CSKYMED"] = (float(med), "Median sky (ADU) subtracted")
+    #         #outheader["CSKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
+    #         outheader["CSKYMETH"] = ("PHOTUTILS", "Background estimation method")
+    #         outheader["CSKYOK"] = (bool(np.isfinite(med) and np.isfinite(std)), "Sky estimate finite")
+    #     # fix gain
+    #     if fix_gain:
+    #         newheader = fix_header_gain(outheader)
+    #         if newheader is not None:
+    #             outheader = newheader
+    #     hdu = fits.PrimaryHDU(data=cutout_data, header=outheader)                    
+    #     hdu.writeto(output_name, overwrite=True)
+
+    #     if self.verbose:
+    #         print(f"Cutout saved to {output_name}")
+
+    #     if return_cutout:
+    #         return cutout_data, outheader
+    #     return None
         
 class HalphaImageSet:
     def __init__(self, rcoadd_fname, hacoadd_fname, psfdir=None):
