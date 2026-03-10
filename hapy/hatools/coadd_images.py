@@ -273,8 +273,8 @@ class CoaddImage:
             _safe_set_float_header(outheader, "CSKYMED", med, "Median sky (ADU) subtracted")
             _safe_set_float_header(outheader, "CSKYSTD", std, "Std sky (ADU)")
             #_safe_set_float_header(outheader, "CSKYMEA", mean, "Mean sky (ADU)")
-            outheader["CSKYMED"] = (float(med), "Median sky (ADU) subtracted")
-            outheader["CSKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
+            #outheader["CSKYMED"] = (float(med), "Median sky (ADU) subtracted")
+            #outheader["CSKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
             outheader["CSKYMETH"] = ("PHOTUTILS", "Background estimation method")
             outheader["CSKYOK"] = (bool(np.isfinite(med) and np.isfinite(std)), "Sky estimate finite")
         # fix gain
