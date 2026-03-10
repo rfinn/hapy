@@ -136,7 +136,7 @@ def check_cutouts(coadd_list: str | Path, cutout_dir: str | Path) -> None:
     for d in cutdirs:
         tag = d.name
         rfile = d / f"{tag}-R.fits"
-        csfile = d / f"{tag}-CS.fits"
+        csfile = d / f"{tag}-CS-ZP.fits"
 
         if not rfile.exists():
             missing_r.append(d)
