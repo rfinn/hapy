@@ -158,9 +158,9 @@ def main():
 
     args = parser.parse_args()
 
-    if args.mode == "get_cutouts"
+    if args.mode == "get_cutouts":
         pattern = "cutouts_summary*.ecsv"
-    elif args.mode == "run_analysis"
+    elif args.mode == "run_analysis":
         pattern = "*results.ecsv"
     files = find_result_files(args.indir, pattern)
 
