@@ -140,25 +140,79 @@ Final table columns: 19
 
 # Run Analysis 
 
-### Run on One Cutout
+## Run on One Cutout
 
 
 ```
-run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --diagnostic-plots
+run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
+--make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
+--galfit --convflag --log-to-console --gaia-dir
+/data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
 ```
 
 
 
-### Running on a larger sample
+## Running on a larger sample
 
-
-#### Run in Parallel
+### Create a list of cutouts:
 
 ```bash
-parallel --eta -j 0 --joblog run_analysis_joblog.tsv  run_analysis --cutout-dir {} --make-mask --psf-dir
-.  --log-to-console :::: cutout_list.txt 2>&1 | tee screen_dump.out
+find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_list.txt
 ```
 
+check that the file contains, e.g., `cutouts/VFID2943-NGC2604-INT-20190204-p010`
+```
+head cutout_list.txt
+wc -l cutout_list.txt
+```
+
+### Test smaller samples
+Test on 5 galaxies:
+```
+head -5 cutout_list.txt | parallel --bar -j 2 --joblog run_analysis.joblog \
+  --results parallel-logs \
+  run_analysis --cutout-dir "{}" --make-mask \
+  --psf-dir /data-pool/Halpha/psf-images/ \
+  --statmorph --galfit --convflag \
+  --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+```
+
+Test on 20 galaxies:
+```
+head -5 cutout_list.txt | parallel --bar -j 4 --joblog run_analysis.joblog \
+  --results parallel-logs \
+  run_analysis --cutout-dir "{}" --make-mask \
+  --psf-dir /data-pool/Halpha/psf-images/ \
+  --statmorph --galfit --convflag \
+  --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+```
+
+Run the next 20 galaxies:
+```
+sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+```
+
+### Run in Parallel
+
+```bash
+parallel --bar  -j 16  --memfree 40G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutout_list.txt
+```
+
+```bash
+parallel --eta -j 4 \
+  --joblog run_analysis.joblog \
+  --results parallel-logs \
+  run_analysis --cutout-dir "{}" --make-mask \
+  --psf-dir /data-pool/Halpha/psf-images/ \
+  --statmorph --galfit --convflag \
+  --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ \
+  :::: cutout_list.txt
+```
+
+You can monitor memory usage with 
+```
+htop
+```
 
 
 # Merge Results
