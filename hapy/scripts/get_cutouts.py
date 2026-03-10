@@ -251,6 +251,7 @@ def main(args=None):
         # --------------------------------------------------
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
 
+        filter_warning = float(filter_corrections[i]) > 2
         rows.append(dict(
             objid=str(galid[i]),
             tag=Path(rootname).name,
@@ -262,6 +263,9 @@ def main(args=None):
             scheme=args.scheme,
             ra=float(gra[i]),
             dec=float(gdec[i]),
+            hafilter=image_set.h.filter if himage else None,
+            filter_correction=float(filter_corrections[i]),
+            filter_warning=filter_warning,
             size_arcsec=float(size_arcsec),
             cutout_root=str(rootname),
             x_parent=float(x),
@@ -281,7 +285,12 @@ def main(args=None):
     tag= Path(args.rimage).name.replace("-R.fits","").replace("-r.fits","")
     #summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.fits"
     #tab.write(summary_path, overwrite=True)
-    summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.ecsv"
+    summary_dir = Path(outdir) / "cutouts_summary"
+    summary_dir.mkdir(parents=True, exist_ok=True)
+
+    summary_file = f"cutouts_summary-{tag}-{user}-{ts}.ecsv"
+    summary_path = summary_dir / summary_file
+    #summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.ecsv"
     tab.write(summary_path, overwrite=True, format="ascii.ecsv")
     print(f"Wrote summary table: {summary_path}")
 if __name__ == '__main__':
