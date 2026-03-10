@@ -25,6 +25,7 @@ import sys
 
 def find_result_files(indir, pattern="*-results.ecsv"):
     """Recursively locate result files under indir."""
+    print("Searching for files ",pattern)
     files = sorted(Path(indir).rglob(pattern))
     if not files:
         raise RuntimeError(f"No files matching '{pattern}' found in {indir}")
