@@ -81,13 +81,43 @@ options:
 
 ```bash
 get_cutouts --rimage
-/data-pool/Halpha/coadds-2025DEC/VF-126.291+27.988-HDI-20180313-p004-R.fits --catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
+/data-pool/Halpha/coadds-2025DEC/VF-126.291+27.988-HDI-20180313-p004-R.fits
+--catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits
+--scheme virgo --maxcorrection 5
 ```
 
 ### Run on full Virgo sample
 
 ```bash
-cat fullpath_rcoadds_hapy_ready.txt | parallel -j 32 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo
+cat fullpath_rcoadds_hapy_ready.txt | parallel -j 32 --bar --joblog
+cutouts_parallel.log get_cutouts --rimage {} --catalog
+~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+```
+
+### Check output
+```
+python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cutouts
+```
+
+Example output:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260310$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cutouts
+
+CUTOUT SUMMARY
+--------------
+Input coadds:              211
+Cutout directories:        768
+Coadds with no cutouts:    0
+Cutout dirs missing R:     0
+Cutout dirs missing CS:    0
+Bad coadd names:           0
+Bad cutout dir names:      0
+
+```
+
+## Merge get_cutouts tables
+```
+
 ```
 
 # Run Analysis 
