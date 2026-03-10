@@ -179,7 +179,7 @@ def main(args=None):
         )
 
         if not ok:
-            print(f"Skipping {galid[i]}: invalid cutout region ({status})")
+            print(f"Skipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}")
             continue
 
         # --------------------------------------------------
