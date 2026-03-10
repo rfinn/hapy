@@ -195,7 +195,7 @@ sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.jobl
 ### Run in Parallel
 
 ```bash
-parallel --bar  -j 16  --memfree 40G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutout_list.txt
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutout_list.txt
 ```
 
 ```bash
