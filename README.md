@@ -252,21 +252,16 @@ Ellipse angles are 180° periodic.
 ```
 hapy/
 │
-├── scripts/
-│   ├── get_cutouts.py
-│   ├── run_analysis.py
-│   ├── merge_results.py
-│   └── run_maskgui.py
-│
+├── scripts/          command-line survey drivers
 ├── hapy/
-│   ├── hatools/
-│   ├── catools/
-│   ├── imagetools/
-│   ├── masktools/
-│   ├── maskgui/
-│   ├── galfittools/
-│   └── astromatic/
-│
+│   ├── hatools/      Hα-specific analysis tools
+│   ├── catools/      catalog utilities
+│   ├── imagetools/   image download, cutout, and plotting helpers
+│   ├── masktools/    segmentation and masking tools
+│   ├── maskgui/      interactive mask GUI
+│   ├── galfittools/  GALFIT helpers and wrappers
+│   ├── astromatic/   astromatic / SExtractor-related tools
+│   └── external/     interfaces to external packages and compatibility wrappers
 ├── docs/
 └── tests/
 ```
