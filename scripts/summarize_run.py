@@ -152,7 +152,7 @@ def main():
         help="Pipeline stage whose results should be merged."
     )
 
-
+    args = parser.parse_args()
     summarize(args.infile, args.scheme)
 
 
