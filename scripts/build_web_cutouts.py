@@ -359,6 +359,37 @@ class cutout_dir():
         self.outdir = outdir
         self.cutoutdir = cutoutdir
 
+        # optional products that may or may not be created
+        self.results = None
+        self.results_file = None
+
+        self.legacy_jpg = None
+
+        self.galimage = None
+        self.galmodel = None
+        self.galresidual = None
+
+        self.cgalimage = None
+        self.cgalmodel = None
+        self.cgalresidual = None
+
+        self.r_phot = None
+        self.cs_phot = None
+        self.phot_tables_ok = False
+
+        self.efluxsma_png = None
+        self.emagsma_png = None
+        self.sbfluxsma_png = None
+        self.sbmagsma_png = None
+
+        self.ellipseparams = None
+        self.galfit_ellipseparams = None
+
+        self.legacy_flag = False
+        self.wise_flag = False
+        self.galex_flag = False
+        self.nuv_flag = False
+        
     def get_results_table(self):
         """Read the per-galaxy HAPY results table."""
         from astropy.table import Table
@@ -745,47 +776,64 @@ class cutout_dir():
     def get_galfit_ellipse_params(self):
         """Construct ellipse parameters from GALFIT results."""
 
+        if getattr(self, "results", None) is None:
+            self.galfit_ellipseparams = None
+            return
+
         r = self.results
 
-        if r["GAL_CV_OK"]:
-            xc = r["GAL_CXC"]
-            yc = r["GAL_CYC"]
-            sma = r["GAL_CRE"]
-            ba = r["GAL_CBA"]
-            pa = r["GAL_CPA"]
-        else:
-            xc = r["GAL_XC"]
-            yc = r["GAL_YC"]
-            sma = r["GAL_RE"]
-            ba = r["GAL_BA"]
-            pa = r["GAL_PA"]
+        try:
+            if r["GAL_CV_OK"]:
+                xc = r["GAL_CXC"]
+                yc = r["GAL_CYC"]
+                sma = r["GAL_CRE"]
+                ba = r["GAL_CBA"]
+                pa = r["GAL_CPA"]
+            else:
+                xc = r["GAL_XC"]
+                yc = r["GAL_YC"]
+                sma = r["GAL_RE"]
+                ba = r["GAL_BA"]
+                pa = r["GAL_PA"]
 
-        self.galfit_ellipseparams = [xc, yc, sma, ba, pa]
-    
+            self.galfit_ellipseparams = [xc, yc, sma, ba, pa]
 
-    
+        except Exception:
+            self.galfit_ellipseparams = None
+        
+
     def get_galfit_images(self):
-        ''' read in galfit model and make png '''
-        self.galfit = self.rimage.replace('.fits','-1Comp-galfit-out.fits')
+        """Read in GALFIT model and make png."""
+        self.galfit = self.rimage.replace('.fits', '-1Comp-galfit-out.fits')
         if not os.path.exists(self.galfit):
-            self.galfit = self.rimage.replace('-R.fits','-1Comp-galfit-out.fits')
-        self.get_galfit_ellipse_params()
-        if os.path.exists(self.galfit):
-            # store fit results
+            self.galfit = self.rimage.replace('-R.fits', '-1Comp-galfit-out.fits')
 
+        self.get_galfit_ellipse_params()
+
+        if os.path.exists(self.galfit):
             mask = fits.getdata(self.maskimage)
             mask = mask > 0
 
+            display_galfit_model(
+                self.galfit,
+                outdir=self.outdir,
+                mask=mask,
+                ellipseparams=self.galfit_ellipseparams
+            )
 
-            display_galfit_model(self.galfit,outdir=self.outdir,mask=mask,ellipseparams=self.galfit_ellipseparams)
+            outim = ['galfit_image.png', 'galfit_model.png', 'galfit_residual.png']
 
-            outim = ['galfit_image.png','galfit_model.png','galfit_residual.png']
-        
-            self.galimage = os.path.join(self.outdir,outim[0])
-            self.galmodel = os.path.join(self.outdir,outim[1])
-            self.galresidual = os.path.join(self.outdir,outim[2])        
+            self.galimage = os.path.join(self.outdir, outim[0])
+            self.galmodel = os.path.join(self.outdir, outim[1])
+            self.galresidual = os.path.join(self.outdir, outim[2])
 
-            # store fitted parameters
+        else:
+            warnings.warn(f"No image {self.galfit}")
+            self.galimage = None
+            self.galmodel = None
+            self.galresidual = None
+    
+
 
 
     def get_cgalfit_images(self):
