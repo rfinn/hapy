@@ -340,3 +340,13 @@ Planned improvements include:
 - freeze the HAPY Conda environment now that the required dependencies are working
   
 ---
+
+# Environment Management
+
+Once the HAPY environment is stable, export it so the pipeline can be reproduced on other systems.
+
+Example:
+
+```bash
+conda env export --name hapy > environment.yml
+```
