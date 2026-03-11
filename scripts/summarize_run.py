@@ -10,7 +10,7 @@ Usage
 -----
 python summarize_run.py merged_results.fits
 """
-
+import argparse
 import sys
 import numpy as np
 from astropy.table import Table
@@ -24,7 +24,7 @@ def find_status_columns(tab):
             cols.append(name)
     return sorted(cols)
 
-def summarize(tablefile):
+def summarize(tablefile, scheme):
 
     tab = Table.read(tablefile)
 
@@ -34,9 +34,14 @@ def summarize(tablefile):
     print("HAPY RUN SUMMARY")
     print("----------------")
     print(f"Total galaxies: {n}")
-    if "VFID" in tab.colnames:
-        print(f"Unique galaxies: {len(set(tab['VFID']))}")
-    print()
+    if scheme == "virgo":
+        if "VFID" in tab.colnames:
+            print(f"Unique galaxies: {len(set(tab['VFID']))}")
+        print()
+    elif scheme == "agc":
+        if "OBJID" in tab.colnames:
+            print(f"Unique galaxies: {len(set(tab['OBJID']))}")
+        print()
 
     # ---------- pipeline flags ----------
     print("Pipeline completion")
@@ -131,12 +136,24 @@ def summarize(tablefile):
     print(f"Number with bad phot = {len(bad)}")
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Merge per-galaxy ECSV results into a single FITS table."
+    )
+    parser.add_argument(
+        "--infile",
+        required=True,
+        help="file to pass in, e.g. merged_results.fits."
+    )
 
-    if len(sys.argv) < 2:
-        print("Usage: summarize_run.py merged_results.fits")
-        sys.exit()
+    parser.add_argument(
+        "--scheme",
+        choices=["virgo", "agc"],
+        required=True,
+        help="Pipeline stage whose results should be merged."
+    )
 
-    summarize(sys.argv[1])
+
+    summarize(args.infile, args.scheme)
 
 
 if __name__ == "__main__":
