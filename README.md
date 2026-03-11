@@ -329,14 +329,14 @@ This enables:
 * reproducible science pipelines
 
 ---
-
-# Roadmap   
+# Roadmap
 
 Planned improvements include:
 
-* improved documentation
-* enhanced QC and analysis scripts
-* automated survey summary plots
-* improved pipeline architecture and module interfaces
-
+- improved documentation
+- enhanced QC and analysis scripts
+- automated survey summary plots
+- improved pipeline architecture and module interfaces
+- freeze the HAPY Conda environment now that the required dependencies are working
+  
 ---
