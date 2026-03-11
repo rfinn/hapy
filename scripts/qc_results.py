@@ -180,14 +180,22 @@ def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[st
 # text summaries
 # ----------------------------------------------------------------------
 
-def write_text_summary(tab: Table, masks: dict[str, np.ndarray], outpath: Path) -> None:
+def write_text_summary(tab: Table, masks: dict[str, np.ndarray], outpath: Path, scheme) -> None:
     n = len(tab)
     with open(outpath, "w") as fh:
         fh.write("HAPY QC SUMMARY\n")
         fh.write("================\n\n")
         fh.write(f"Total rows: {n}\n")
-        if "VFID" in tab.colnames:
-            fh.write(f"Unique VFIDs: {len(set(tab['VFID']))}\n")
+        if scheme == "virgo":
+            if "VFID" in tab.colnames:
+                fh.write(f"Unique galaxies: {len(set(tab['VFID']))}")
+        elif scheme == "agc":
+            if "OBJID" in tab.colnames:
+                fh.write(f"Unique galaxies: {len(set(tab['OBJID']))}")
+
+        
+        #if "VFID" in tab.colnames:
+        #    fh.write(f"Unique VFIDs: {len(set(tab['VFID']))}\n")
         fh.write("\n")
 
         fh.write("Pipeline flags\n")
@@ -379,6 +387,12 @@ def main():
     parser.add_argument("table", help="Merged HAPY results table, e.g. merged_results.fits")
     parser.add_argument("--outdir", default="qc", help="Output directory")
     parser.add_argument(
+        "--scheme",
+        choices=["virgo", "agc"],
+        required=True,
+        help="Pipeline stage whose results should be merged."
+    )
+    parser.add_argument(
         "--max-ha-filter-correction",
         type=float,
         default=1.2,
@@ -395,7 +409,7 @@ def main():
     masks = build_qc_masks(tab, max_ha_filter_correction=args.max_ha_filter_correction)
 
     # write text summary
-    write_text_summary(tab, masks, outdir / "qc_summary.txt")
+    write_text_summary(tab, masks, outdir / "qc_summary.txt", args.scheme)
 
     # write subsets
     write_subsets(tab, masks, outdir)
