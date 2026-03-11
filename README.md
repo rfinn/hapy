@@ -1,10 +1,16 @@
-
-
 # hapy
 
 **hapy** (pronounced *happy*) is a Python package for astronomical image processing and survey-scale galaxy analysis.
 
-Originally developed for Hα imaging, hapy now provides a full cutout-based analysis pipeline including masking, photometry, structural measurements, and GALFIT modeling.
+Originally developed for **Hα imaging surveys**, hapy now provides a **cutout-based analysis pipeline** including:
+
+* automated masking
+* elliptical photometry
+* structural measurements
+* statmorph morphology metrics
+* GALFIT modeling
+
+Each galaxy is processed independently, enabling **robust parallel processing of large surveys**.
 
 ---
 
@@ -13,10 +19,11 @@ Originally developed for Hα imaging, hapy now provides a full cutout-based anal
 The typical survey workflow is:
 
 1. Generate galaxy cutouts from coadded images
-2. Run automated analysis (masking, photometry, statmorph, GALFIT)
+2. Run automated analysis for each galaxy
 3. Merge per-galaxy results into a survey-level table
+4. Inspect results using automatically generated webpages
 
-Each galaxy is processed independently, enabling parallel execution.
+Because every galaxy is analyzed independently, the pipeline scales well using **GNU Parallel or cluster schedulers**.
 
 ---
 
@@ -30,37 +37,27 @@ python scripts/get_cutouts.py \
     --scheme virgo \
     --outdir survey_run
 
-# 2️⃣ Run automated analysis (repeat in parallel for all cutouts)
+# 2️⃣ Run automated analysis (parallel over galaxies)
 python scripts/run_analysis.py \
     --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
-    --make-mask --statmorph --galfit
+    --make-mask --statmorph --galfit --convflag
 
-# 3️⃣ Merge all galaxy results into one table
+# 3️⃣ Merge per-galaxy results
 python scripts/merge_results.py \
     --indir survey_run/cutouts \
     --out merged_results.fits \
     --outdir survey_run
 ```
 
-After this, your survey directory will contain:
-
-```
-survey_run/
-    cutouts/
-        <galaxy_tag>/
-            metadata.json
-            <tag>-results.ecsv
-            <tag>-diagnostic.png
-    merged_results.fits
-```
+After this step you will have a **survey-level results table** ready for analysis.
 
 ---
 
 # ⚡ Parallel Processing Example
 
-After generating cutouts, you can run analysis on all galaxies in parallel:
+After generating cutouts, run analysis on all galaxies:
 
-```bash id="n1hsu3"
+```bash
 find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d | \
 parallel -j 8 \
 'python scripts/run_analysis.py \
@@ -68,38 +65,9 @@ parallel -j 8 \
     --make-mask --statmorph --galfit --convflag'
 ```
 
-Explanation:
-
-* Each galaxy has its own directory inside `cutouts/`
-* The cutout root is `<dir>/<basename>`
-* `-j 8` runs 8 galaxies simultaneously (adjust for your machine)
+This runs **8 galaxies simultaneously** (adjust to match available CPU and RAM).
 
 ---
-
-If you prefer creating a list first:
-
-```bash id="4wzqet"
-find survey_run/cutouts -mindepth 1 -maxdepth 1 -type d > cutout_list.txt
-
-parallel -j 8 \
-'python scripts/run_analysis.py \
-    --root {}/$(basename {}) \
-    --make-mask --statmorph --galfit --convflag' \
-:::: cutout_list.txt
-```
-
----
-
-This keeps the workflow:
-
-1. Cutouts
-2. Parallel analysis
-3. Merge
-
-clean and reproducible.
-
----
-
 
 # Installation
 
@@ -115,6 +83,11 @@ External dependencies:
 * GALFIT
 * PyQt5 (for GUI tools)
 
+Optional:
+
+* statmorph
+* GNU Parallel (recommended for large surveys)
+
 ---
 
 # Survey Workflow
@@ -123,46 +96,42 @@ External dependencies:
 
 ## 1️⃣ Generate Cutouts
 
-Create per-galaxy cutouts from a coadded image and catalog:
+Create per-galaxy cutouts from a coadded image and catalog.
 
 ```bash
 python scripts/get_cutouts.py \
     --rimage /path/to/R_coadd.fits \
     --catalog /path/to/catalog.fits \
     --scheme virgo \
-    --outdir /path/to/survey_run
+    --outdir survey_run
 ```
-
-If `--outdir` is not provided, cutouts are written to the current working directory.
 
 Output structure:
 
 ```
 survey_run/
     cutouts/
-        <galaxy_tag>/
+        <tag>/
             metadata.json
             <tag>-R.fits
-            <tag>-mask.fits
+            <tag>-Ha.fits
+            <tag>-CS-ZP.fits
 ```
 
-Each galaxy directory contains a `metadata.json` file describing:
+Each galaxy directory contains:
 
-* Object ID
-* Sky coordinates
-* Initial ellipse parameters
-* Parent image information
-* PSF and image metadata
+* image cutouts
+* metadata describing the observation and initial ellipse parameters
 
 ---
 
 ## 2️⃣ Run Automated Analysis
 
-Run masking, ellipse photometry, statmorph, and GALFIT:
+Run masking, photometry, statmorph, and GALFIT.
 
 ```bash
 python scripts/run_analysis.py \
-    --root survey_run/cutouts/<galaxy_tag>/<galaxy_tag> \
+    --root survey_run/cutouts/<tag>/<tag> \
     --make-mask \
     --statmorph \
     --galfit --convflag
@@ -170,38 +139,109 @@ python scripts/run_analysis.py \
 
 Outputs include:
 
-* Updated mask image
-* Per-galaxy results table (`*-results.ecsv`)
-* Optional diagnostic plot showing:
+```
+cutouts/<tag>/
+    metadata.json
+    <tag>-results.ecsv
+    <tag>-mask.fits
+    <tag>-diagnostic.png
+```
 
-  * Input mask ellipse
-  * Photutils-derived ellipse
-
-GALFIT runs in two stages:
-
-* NC (no convolution)
-* CV (PSF convolution, optional)
-
-If convolution fails, processing continues and the failure is recorded in the results table.
+The `results.ecsv` file contains all measurements and status flags for that galaxy.
 
 ---
 
 ## 3️⃣ Merge Results
 
-Merge all per-galaxy results into a single table:
+Merge all per-galaxy results into a survey table.
 
 ```bash
 python scripts/merge_results.py \
     --indir survey_run/cutouts \
-    --out merged_results.fits \
-    --outdir survey_run
+    --mode run_analysis \
+    --out merged_results.fits
 ```
 
-* `--indir` specifies where to search for `*-results.ecsv` files.
-* `--outdir` specifies where the merged FITS table will be written.
-* If `--outdir` is not provided, the merged table is written to the current directory.
+Each row corresponds to **one observation of one galaxy**.
 
-Each row corresponds to one independent observation.
+---
+
+# Result Inspection Webpages  ⭐ 
+
+hapy can generate inspection webpages for each cutout.
+
+These pages show:
+
+* Legacy Survey color images
+* R and Hα cutouts
+* photometry profiles
+* statmorph results
+* GALFIT model images
+* pipeline status flags
+
+Typical workflow:
+
+### Download Legacy images
+
+```bash
+python scripts/fetch_legacy_cutouts.py \
+    --cutout-root survey_run/cutouts
+```
+
+### Build webpages
+
+```bash
+parallel -j 8 \
+python scripts/build_web_cutouts.py \
+    --cutoutdir survey_run/cutouts \
+    --oneimage "{}" \
+    --outdir survey_run/html/cutouts \
+:::: cutout_list.txt
+```
+
+### Build index page
+
+```bash
+python scripts/build_cutout_index.py \
+    --runroot survey_run
+```
+
+Final structure:
+
+```
+survey_run/
+    cutouts/
+        <tag>/
+    html/
+        cutouts/
+            <tag>/
+                <tag>.html
+            index.html
+```
+
+The `index.html` page provides a **dashboard view of the entire survey**.
+
+---
+
+# Pipeline Status Flags  
+
+Each galaxy includes boolean flags describing pipeline success.
+
+Important flags include:
+
+| Flag            | Meaning                                |
+| --------------- | -------------------------------------- |
+| `MASK_OK`       | segmentation mask successfully created |
+| `PHOT_OK`       | elliptical photometry succeeded        |
+| `PSF_OK`        | PSF successfully built                 |
+| `R_PROFILE_OK`  | R-band profile computed                |
+| `HA_PROFILE_OK` | Hα profile computed                    |
+| `R_SM_FLAG`     | statmorph measurement succeeded (R)    |
+| `H_SM_FLAG`     | statmorph measurement succeeded (Hα)   |
+| `GAL_NC_OK`     | GALFIT non-convolved fit succeeded     |
+| `GAL_CV_OK`     | GALFIT PSF-convolved fit succeeded     |
+
+These flags are used for **quality control and sample selection**.
 
 ---
 
@@ -215,10 +255,10 @@ python scripts/run_maskgui.py
 
 Features:
 
-* Segmentation mask creation
+* segmentation mask creation
 * Gaia star masking
-* Mask growth tools
-* Interactive editing (Qt-based)
+* mask growth tools
+* interactive editing (Qt-based)
 
 See `docs/masking.md` for details.
 
@@ -237,18 +277,17 @@ Internal convention:
 
 * `PA_DEG` = degrees CCW from North
 
-Conversion to photutils theta:
+Conversion to photutils angle:
 
 ```python
 theta_deg = (90 + PA_DEG) % 180
 ```
 
-Ellipse angles are 180° periodic.
+Ellipse angles are **180° periodic**.
 
 ---
 
 # Project Structure
-
 ```
 hapy/
 │
@@ -256,6 +295,8 @@ hapy/
 │   ├── get_cutouts.py
 │   ├── run_analysis.py
 │   ├── merge_results.py
+│   ├── build_web_cutouts.py
+│   ├── build_cutout_index.py
 │   └── run_maskgui.py
 │
 ├── hapy/
@@ -277,14 +318,25 @@ hapy/
 
 hapy separates:
 
-* Core engines (masking, photometry, modeling)
-* GUI tools
-* Survey orchestration
+* **core analysis engines**
+* **GUI tools**
+* **survey orchestration scripts**
 
 This enables:
 
-* Fully automated batch processing
-* Interactive workflows
-* Reproducible survey analysis
+* automated survey processing
+* interactive inspection
+* reproducible science pipelines
 
+---
+# Roadmap
+
+Planned improvements include:
+
+- improved documentation
+- enhanced QC and analysis scripts
+- automated survey summary plots
+- improved pipeline architecture and module interfaces
+- freeze the HAPY Conda environment now that the required dependencies are working
+  
 ---
