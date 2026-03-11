@@ -3,13 +3,13 @@
 # Download the gaia files
 Move to directory containing coadded images
 
-```
+```bash
 cd /data-pool/Halpha/coadds-2025DEC
 ```
 
 Then start the download.
 
-```
+```bash
 python ~/github/hapy/scripts/download_gaia_coadd_catalogs.py 
 ```
 
@@ -34,7 +34,7 @@ cd hapy-output-20260309
 find /data-pool/Halpha/coadds-2025DEC/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
 
-If you have coadds that are still under review, kake a copy of the
+If you have coadds that are still under review, make a copy of the
 full list and remove any coadds that are not ready.
 ```bash
 cp fullpath_rcoadds_all.txt fullpath_rcoadds_hapy_ready.txt
@@ -95,12 +95,12 @@ cutouts_parallel.log get_cutouts --rimage {} --catalog
 ```
 
 ### Check output
-```
+```bash
 python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cutouts
 ```
 
 Example output:
-```
+```bash
 (hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260310$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cutouts
 
 CUTOUT SUMMARY
@@ -117,12 +117,12 @@ Bad cutout dir names:      0
 
 
 ## Merge get_cutouts tables
-```
+```bash
 merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
 ```
 
 Example output:
-```
+```bash
 (hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260310$ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
 Searching for files  cutouts_summary*.ecsv
 Found 211 result files.
@@ -143,7 +143,7 @@ Final table columns: 19
 ## Run on One Cutout
 
 
-```
+```bash
 run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
 --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
 --galfit --convflag --log-to-console --gaia-dir
@@ -161,14 +161,14 @@ find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort >
 ```
 
 check that the file contains, e.g., `cutouts/VFID2943-NGC2604-INT-20190204-p010`
-```
+```bash
 head cutout_list.txt
 wc -l cutout_list.txt
 ```
 
 ### Test smaller samples
 Test on 5 galaxies:
-```
+```bash
 head -5 cutout_list.txt | parallel --bar -j 2 --joblog run_analysis.joblog \
   --results parallel-logs \
   run_analysis --cutout-dir "{}" --make-mask \
@@ -178,7 +178,7 @@ head -5 cutout_list.txt | parallel --bar -j 2 --joblog run_analysis.joblog \
 ```
 
 Test on 20 galaxies:
-```
+```bash
 head -5 cutout_list.txt | parallel --bar -j 4 --joblog run_analysis.joblog \
   --results parallel-logs \
   run_analysis --cutout-dir "{}" --make-mask \
@@ -188,7 +188,7 @@ head -5 cutout_list.txt | parallel --bar -j 4 --joblog run_analysis.joblog \
 ```
 
 Run the next 20 galaxies:
-```
+```bash
 sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
 ```
 
@@ -230,13 +230,15 @@ python ~/github/hapy/scripts/summarize_run.py  merged_results.fits
 # Build Webpages to review Cutouts
 
 ## Download Legacy Images
-```
+
+To test on one cutout:
+```bash
 python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
 ```
 
 ### To run on full sample
 
-```
+```bash
 find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
 ```
 
@@ -244,7 +246,7 @@ find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -typ
 RUNROOT=/data-pool/Halpha/hapy-output-20260310
 ```
 then
-```
+```bash
 parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$RUNROOT/cutouts/{}" --layer ls-dr10 : cutout_list.txt
 ```
   
@@ -257,21 +259,20 @@ parallel --resume-failed --joblog fetch_legacy.joblog \
   :::: cutout_list.txt
 ```
 ## Build cutout webpages
-
-```
+Create a list of the cutout images:
+```bash
 find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
 ```
 
-```
-```
-```
+Test on one directory:
+```bash
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
 /data-pool/Halpha/hapy-output-20260310/cutouts --oneimage
 VFID2891-UGC04559-HDI-20200225-p004 --outdir
 /data-pool/Halpha/hapy-output-20260310/html/cutouts
 ```
 
-```
+```bash
 parallel --bar -j 8 --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir /data-pool/Halpha/hapy-output-20260310/cutouts --oneimage "{}" --outdir /data-pool/Halpha/hapy-output-20260310/html/cutouts :::: cutout_list.txt
 ```
 
