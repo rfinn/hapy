@@ -100,7 +100,7 @@ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cu
 ```
 
 Example output:
-```bash
+```
 (hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260310$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cutouts
 
 CUTOUT SUMMARY
@@ -122,7 +122,7 @@ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_re
 ```
 
 Example output:
-```bash
+```
 (hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260310$ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
 Searching for files  cutouts_summary*.ecsv
 Found 211 result files.
