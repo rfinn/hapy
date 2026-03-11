@@ -227,3 +227,26 @@ merge_results --indir cutouts --mode run_analysis
 python ~/github/hapy/scripts/summarize_run.py  merged_results.fits
 ```
 
+# Build Webpages to review Cutouts
+
+## Download Legacy Images
+```
+python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
+```
+## Build webpage
+```
+python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
+/data-pool/Halpha/hapy-output-20260310/cutouts --oneimage
+VFID2891-UGC04559-HDI-20200225-p004 --outdir
+/data-pool/Halpha/hapy-output-20260310/html/cutouts
+```
+
+## Build cutout index
+
+```
+python ~/github/hapy/scripts/build_cutout_index.py --help
+```
+
+```
+python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260310/
+```
