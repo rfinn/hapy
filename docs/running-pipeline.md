@@ -233,12 +233,28 @@ python ~/github/hapy/scripts/summarize_run.py  merged_results.fits
 ```
 python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
 ```
+
+```
+parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$RUNROOT/cutouts/{}" --layer ls-dr10 : cutout_list.txt
+```
+  
 ## Build webpage
+
+```
+find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
+```
+
+```
+```
 ```
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
 /data-pool/Halpha/hapy-output-20260310/cutouts --oneimage
 VFID2891-UGC04559-HDI-20200225-p004 --outdir
 /data-pool/Halpha/hapy-output-20260310/html/cutouts
+```
+
+```
+parallel --bar -j 8 --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir /data-pool/Halpha/hapy-output-20260310/cutouts --oneimage "{}" --outdir /data-pool/Halpha/hapy-output-20260310/html/cutouts :::: cutout_list.txt
 ```
 
 ## Build cutout index
