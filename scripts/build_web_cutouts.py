@@ -413,8 +413,13 @@ class cutout_dir():
         self.get_galfit_results_nc()
         self.get_galfit_results_cv()        
         
+
         self.read_phot_tables()
-        self.plot_phot_tables()
+        if getattr(self, "phot_tables_ok", False):
+            self.plot_phot_tables()
+        else:
+            print("WARNING: skipping phot profile plots because phot tables are missing")
+        
         #try:
         #    self.get_phot_tables()
         #except FileNotFoundError:
@@ -817,14 +822,48 @@ class cutout_dir():
 
         self.r_phot_file = self.rimage.replace('.fits', '_phot.fits')
         self.cs_phot_file = self.csimage.replace('.fits', '_phot.fits')
-        print("phot files = ",self.cs_phot_file)
 
-        self.r_phot = Table.read(self.r_phot_file)
-        self.cs_phot = Table.read(self.cs_phot_file)
+        print("phot files = ", self.cs_phot_file)
+
+        self.r_phot = None
+        self.cs_phot = None
+        self.phot_tables_ok = False
+
+        missing = []
+
+        if os.path.exists(self.r_phot_file):
+            try:
+                self.r_phot = Table.read(self.r_phot_file)
+            except Exception as e:
+                print(f"WARNING: could not read {self.r_phot_file}: {e}")
+        else:
+            missing.append(self.r_phot_file)
+
+        if os.path.exists(self.cs_phot_file):
+            try:
+                self.cs_phot = Table.read(self.cs_phot_file)
+            except Exception as e:
+                print(f"WARNING: could not read {self.cs_phot_file}: {e}")
+        else:
+            missing.append(self.cs_phot_file)
+
+        if missing:
+            print("WARNING: missing phot tables:")
+            for m in missing:
+                print("   ", m)
+
+        if (self.r_phot is not None) and (self.cs_phot is not None):
+            self.phot_tables_ok = True
+
+
 
     def plot_phot_tables(self):
         """Plot flux, magnitude, and surface-brightness profiles from photutils tables."""
 
+        if (self.r_phot is None) or (self.cs_phot is None):
+            print("WARNING: phot tables not available; skipping profile plots")
+            return
+        
         tabs = [self.r_phot, self.cs_phot]
         labels = ['photutils r', 'photutils Halpha x100']
         alphas = [1.0, 0.4]
@@ -1205,10 +1244,12 @@ class build_html_cutout():
         #if self.cutout.galimage is not None:
         #    self.write_galfit_images()
         #    self.write_galfit_table()
-        try:
+        if getattr(self.cutout, "phot_tables_ok", False):
             self.write_phot_profiles()
-        except AttributeError:
-            pass
+        else:
+            self.html.write('<h2>Elliptical Photometry</h2>\n')
+            self.html.write('<p>Photometry profile files not available.</p>\n')
+    
         self.write_mag_table()
         self.write_morph_table()
         self.write_statmorph_table()
