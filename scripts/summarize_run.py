@@ -66,6 +66,8 @@ def summarize(tablefile):
     if "R_SM_FLAG" in tab.colnames and "H_SM_FLAG" in tab.colnames:
         both = np.logical_and(tab["R_SM_FLAG"], tab["H_SM_FLAG"])
         print(f"{'STATMORPH_BOTH':18s}: {np.sum(both):4d}")
+
+    print()
     # ---------- STATUS ----------
     if "STATUS" in tab.colnames:
 
