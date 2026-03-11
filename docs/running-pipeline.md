@@ -234,11 +234,29 @@ python ~/github/hapy/scripts/summarize_run.py  merged_results.fits
 python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
 ```
 
+### To run on full sample
+
+```
+find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
+```
+
+```bash
+RUNROOT=/data-pool/Halpha/hapy-output-20260310
+```
+then
 ```
 parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$RUNROOT/cutouts/{}" --layer ls-dr10 : cutout_list.txt
 ```
   
-## Build webpage
+### to resume any failed jobs
+```
+parallel --resume-failed --joblog fetch_legacy.joblog \
+  python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py \
+    --cutout-dir "$RUNROOT/cutouts/{}" \
+    --layer ls-dr10 \
+  :::: cutout_list.txt
+```
+## Build cutout webpages
 
 ```
 find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
