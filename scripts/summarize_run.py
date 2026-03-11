@@ -16,6 +16,13 @@ import numpy as np
 from astropy.table import Table
 from collections import Counter
 
+def find_status_columns(tab):
+    """Return boolean-style pipeline status columns."""
+    cols = []
+    for name in tab.colnames:
+        if name.endswith("_OK") or name.endswith("_FLAG"):
+            cols.append(name)
+    return sorted(cols)
 
 def summarize(tablefile):
 
@@ -32,6 +39,25 @@ def summarize(tablefile):
     print()
 
     # ---------- pipeline flags ----------
+    print("Pipeline completion")
+    print("-------------------")    
+    flags = find_status_columns(tab)
+
+    for f in flags:
+        try:
+            col = np.array(tab[f], dtype=bool)
+        except Exception:
+            print(f"{f:18s}: could not interpret as boolean")
+            continue
+
+        ntrue = np.sum(col)
+        nfalse = np.sum(~col)
+        pct = 100 * ntrue / n
+
+        print(f"{f:18s}: {ntrue:4d} OK  | {nfalse:4d} FAIL  ({pct:5.1f}%)")
+
+    print()
+
     flags = [
         "MASK_OK",
         "PHOT_OK",
@@ -41,21 +67,6 @@ def summarize(tablefile):
         "R_PROFILE_OK",
         "HA_PROFILE_OK",
     ]
-
-    print("Pipeline completion")
-    print("-------------------")
-
-    for f in flags:
-        if f in tab.colnames:
-            col = np.array(tab[f], dtype=bool)
-
-            ntrue = np.sum(col)
-            nfalse = np.sum(~col)
-
-            pct = 100 * ntrue / n
-
-            print(f"{f:18s}: {ntrue:4d} OK  | {nfalse:4d} FAIL  ({pct:5.1f}%)")
-        
 
 
     print()
