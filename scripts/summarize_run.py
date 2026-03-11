@@ -61,7 +61,9 @@ def summarize(tablefile):
     print()
     if "R_PROFILE_OK" in tab.colnames and "HA_PROFILE_OK" in tab.colnames:
         both = np.logical_and(tab["R_PROFILE_OK"], tab["HA_PROFILE_OK"])
-        print(f"{'PROFILES_BOTH':18s}: {np.sum(both):4d}")
+        pct = 100 * np.sum(both) / n
+        print(f"{'PROFILES_BOTH':18s}: {np.sum(both):4d} ({pct:5.1f}%)")
+        print()
 
     if "R_SM_FLAG" in tab.colnames and "H_SM_FLAG" in tab.colnames:
         both = np.logical_and(tab["R_SM_FLAG"], tab["H_SM_FLAG"])
