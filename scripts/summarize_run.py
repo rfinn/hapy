@@ -27,6 +27,8 @@ def summarize(tablefile):
     print("HAPY RUN SUMMARY")
     print("----------------")
     print(f"Total galaxies: {n}")
+    if "VFID" in tab.colnames:
+        print(f"Unique galaxies: {len(set(tab['VFID']))}")
     print()
 
     # ---------- pipeline flags ----------
@@ -45,11 +47,25 @@ def summarize(tablefile):
 
     for f in flags:
         if f in tab.colnames:
-            ntrue = np.sum(tab[f])
-            print(f"{f:18s}: {ntrue}")
+            col = np.array(tab[f], dtype=bool)
+
+            ntrue = np.sum(col)
+            nfalse = np.sum(~col)
+
+            pct = 100 * ntrue / n
+
+            print(f"{f:18s}: {ntrue:4d} OK  | {nfalse:4d} FAIL  ({pct:5.1f}%)")
+        
+
 
     print()
+    if "R_PROFILE_OK" in tab.colnames and "HA_PROFILE_OK" in tab.colnames:
+        both = np.logical_and(tab["R_PROFILE_OK"], tab["HA_PROFILE_OK"])
+        print(f"{'PROFILES_BOTH':18s}: {np.sum(both):4d}")
 
+    if "R_SM_FLAG" in tab.colnames and "H_SM_FLAG" in tab.colnames:
+        both = np.logical_and(tab["R_SM_FLAG"], tab["H_SM_FLAG"])
+        print(f"{'STATMORPH_BOTH':18s}: {np.sum(both):4d}")
     # ---------- STATUS ----------
     if "STATUS" in tab.colnames:
 
@@ -96,7 +112,8 @@ def summarize(tablefile):
                 print(f"{col:12s}: {np.median(vals):.2f}")
 
     print()
-
+    bad = tab[~tab["PHOT_OK"]]
+    print(f"Number with bad phot = {len(bad)}")
 
 def main():
 

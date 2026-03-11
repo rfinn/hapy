@@ -8,6 +8,11 @@ import numpy as np
 from astropy.table import Table
 from pathlib import Path
 
+def any_flag(*flags):
+    present = [f for f in flags if f is not None]
+    if len(present) == 0:
+        return None
+    return any(bool(f) for f in present)
 
 def read_results_row(results_file):
     """

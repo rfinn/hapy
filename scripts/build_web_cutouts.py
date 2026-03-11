@@ -1266,26 +1266,26 @@ class build_html_cutout():
             'Stage',
         ]
 
-        pointing = self._get_result("POINTING", "")
+        pointing = get_result("POINTING", "")
         if isinstance(pointing, str) and len(pointing) > 0:
             pointing_str = f'<a href="../../coadds/{pointing}/{pointing}.html">{pointing}</a>'
         else:
             pointing_str = "--"
 
         data = [
-            self._get_result("VFID", self.cutout.vfid),
-            self._get_result("GALNAME", self.cutout.gname),
-            self._get_result("HAPY_VERSION", ""),
-            self._get_result("RUN_DATE", ""),
-            self._get_result("TELESCOPE", self.telescope),
+            get_result(self.cutout.results,"VFID", self.cutout.vfid),
+            get_result(self.cutout.results,"GALNAME", self.cutout.gname),
+            get_result(self.cutout.results,"HAPY_VERSION", ""),
+            get_result(self.cutout.results,"RUN_DATE", ""),
+            get_result(self.cutout.results,"TELESCOPE", self.telescope),
             self.run,
             pointing_str,
-            self._fmt_result("R_FWHM", "{:.2f}"),
-            self._fmt_result("H_FWHM", "{:.2f}"),
-            self._fmt_result("FILTER_RATIO", "{:.4f}"),
-            self._fmt_result("FILTER_CORRECTION", "{:.2f}"),
-            self._get_result("STATUS", ""),
-            self._get_result("STAGE", ""),
+            fmt_result(self.cutout.results,"R_FWHM", "{:.2f}"),
+            fmt_result(self.cutout.results,"H_FWHM", "{:.2f}"),
+            fmt_result(self.cutout.results,"FILTER_RATIO", "{:.4f}"),
+            fmt_result(self.cutout.results,"FILTER_CORRECTION", "{:.2f}"),
+            get_result(self.cutout.results,"STATUS", ""),
+            get_result(self.cutout.results,"STAGE", ""),
         ]
 
         write_text_table(self.html, labels, data)
@@ -1307,15 +1307,15 @@ class build_html_cutout():
             ]
 
         data = [
-            self._status_cell(self._get_result('MASK_OK')),
-            self._status_cell(self._get_result('PHOT_OK')),
-            self._status_cell(self._get_result('PSF_OK')),
-            self._status_cell(self._get_result('R_PROFILE_OK')),
-            self._status_cell(self._get_result('HA_PROFILE_OK')),
-            self._status_cell(self._get_result('R_SM_FLAG')),
-            self._status_cell(self._get_result('H_SM_FLAG')),            
-            self._status_cell(self._get_result('GAL_NC_OK')),
-            self._status_cell(self._get_result('GAL_CV_OK')),
+            status_cell(get_result(self.cutout.results,'MASK_OK')),
+            status_cell(get_result(self.cutout.results,'PHOT_OK')),
+            status_cell(get_result(self.cutout.results,'PSF_OK')),
+            status_cell(get_result(self.cutout.results,'R_PROFILE_OK')),
+            status_cell(get_result(self.cutout.results,'HA_PROFILE_OK')),
+            status_cell(get_result(self.cutout.results,'R_SM_FLAG')),
+            status_cell(get_result(self.cutout.results,'H_SM_FLAG')),            
+            status_cell(get_result(self.cutout.results,'GAL_NC_OK')),
+            status_cell(get_result(self.cutout.results,'GAL_CV_OK')),
             ]
 
         write_text_table(self.html, labels, data)
@@ -1478,32 +1478,32 @@ class build_html_cutout():
 
         data = [
             'NC',
-            self._status_cell(self._get_result('GAL_NC_OK')),
-            self._fmt_result('GAL_XC', '{:.2f}'),
-            self._fmt_result('GAL_YC', '{:.2f}'),
-            self._fmt_result('GAL_MAG', '{:.2f}'),
-            self._fmt_result('GAL_RE', '{:.2f}'),
-            self._fmt_result('GAL_N', '{:.2f}'),
-            self._fmt_result('GAL_BA', '{:.2f}'),
-            self._fmt_result('GAL_PA', '{:.1f}'),
-            self._fmt_result('GAL_SKY', '{:.2f}'),
-            self._fmt_result('GAL_CHISQ', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'GAL_NC_OK')),
+            fmt_result(self.cutout.results,'GAL_XC', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_YC', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_RE', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_N', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_BA', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_PA', '{:.1f}'),
+            fmt_result(self.cutout.results,'GAL_SKY', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CHISQ', '{:.2f}'),
             ]
 
 
 
         data2 = [
             'CV',
-            self._status_cell(self._get_result('GAL_CV_OK')),
-            self._fmt_result('GAL_CXC', '{:.2f}'),
-            self._fmt_result('GAL_CYC', '{:.2f}'),
-            self._fmt_result('GAL_CMAG', '{:.2f}'),
-            self._fmt_result('GAL_CRE', '{:.2f}'),
-            self._fmt_result('GAL_CN', '{:.2f}'),
-            self._fmt_result('GAL_CBA', '{:.2f}'),
-            self._fmt_result('GAL_CPA', '{:.1f}'),
-            self._fmt_result('GAL_CSKY', '{:.2f}'),
-            self._fmt_result('GAL_CCHISQ', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'GAL_CV_OK')),
+            fmt_result(self.cutout.results,'GAL_CXC', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CYC', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CMAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CRE', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CN', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CBA', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CPA', '{:.1f}'),
+            fmt_result(self.cutout.results,'GAL_CSKY', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_CCHISQ', '{:.2f}'),
             ]
 
         write_text_table(self.html, labels, data, data2=data2)
@@ -1525,12 +1525,12 @@ class build_html_cutout():
 
         labels = ['R24', 'R25 iso', 'R25.5', 'Petro', 'GALFIT', 'Segment']
         data = [
-            self._fmt_result('R24_MAG', '{:.2f}'),
-            self._fmt_result('R25_ISO_MAG', '{:.2f}'),
-            self._fmt_result('R25P5_MAG', '{:.2f}'),
-            self._fmt_result('R_PETRO_MAG', '{:.2f}'),
-            self._fmt_result('GAL_MAG', '{:.2f}'),
-            self._fmt_result('ELLIP_SEGMENT_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'R24_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'R25_ISO_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'R25P5_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_PETRO_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'GAL_MAG', '{:.2f}'),
+            fmt_result(self.cutout.results,'ELLIP_SEGMENT_MAG', '{:.2f}'),
         ]
         write_text_table(self.html, labels, data)
 
@@ -1545,12 +1545,12 @@ class build_html_cutout():
             'H&alpha; Max Det Radius',
         ]
         data = [
-            self._fmt_result('HA_TOT_FLUX_CGS', '{:.2e}'),
-            self._fmt_result('HA_ISO5E17_FLUX_CGS', '{:.2e}'),
-            self._fmt_result('HA_ISO17E18_FLUX_CGS', '{:.2e}'),
-            self._fmt_result('HA_R24_FLUX_CGS', '{:.2e}'),
-            self._fmt_result('HA_C30_R24', '{:.2f}'),
-            self._fmt_result('HA_MAXDET_ARCSEC', '{:.1f}'),
+            fmt_result(self.cutout.results,'HA_TOT_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'HA_ISO5E17_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'HA_ISO17E18_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'HA_R24_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'HA_C30_R24', '{:.2f}'),
+            fmt_result(self.cutout.results,'HA_MAXDET_ARCSEC', '{:.1f}'),
         ]
         write_text_table(self.html, labels, data)
         
@@ -1561,22 +1561,22 @@ class build_html_cutout():
 
         data = [
             'r',
-            self._fmt_result('ELLIP_GINI_DET', '{:.2f}'),
-            self._fmt_result('R_M20', '{:.2f}'),
-            self._fmt_result('R_ASYM', '{:.2f}'),
-            self._fmt_result('R_C30', '{:.2f}'),
-            self._fmt_result('R_PETRO_CON', '{:.2f}'),
-            str(bool(self._get_result('R_PROFILE_OK', False))),
+            fmt_result(self.cutout.results,'ELLIP_GINI_DET', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_ASYM', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_C30', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_PETRO_CON', '{:.2f}'),
+            str(bool(get_result(self.cutout.results,'R_PROFILE_OK', False))),
         ]
 
         data2 = [
             'Halpha',
             '--',
-            self._fmt_result('H_M20', '{:.2f}'),
-            self._fmt_result('H_ASYM', '{:.2f}'),
-            self._fmt_result('HA_C30_R24', '{:.2f}'),
-            self._fmt_result('HA_PETRO_CON', '{:.2f}'),
-            str(bool(self._get_result('HA_PROFILE_OK', False))),
+            fmt_result(self.cutout.results,'H_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_ASYM', '{:.2f}'),
+            fmt_result(self.cutout.results,'HA_C30_R24', '{:.2f}'),
+            fmt_result(self.cutout.results,'HA_PETRO_CON', '{:.2f}'),
+            str(bool(get_result(self.cutout.results,'HA_PROFILE_OK', False))),
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
@@ -1588,26 +1588,26 @@ class build_html_cutout():
 
         data = [
             'r',
-            self._fmt_result('R_SM_XCENTROID', '{:.2f}'),
-            self._fmt_result('R_SM_YCENTROID', '{:.2f}'),
-            self._fmt_result('R_SM_GINI', '{:.2f}'),
-            self._fmt_result('R_SM_M20', '{:.2f}'),
-            self._fmt_result('R_SM_C', '{:.2f}'),
-            self._fmt_result('R_SM_A', '{:.2f}'),
-            self._fmt_result('R_SM_S', '{:.2f}'),
-            self._fmt_result('R_SM_RHALF_ELLIP', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_XCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_YCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_C', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_A', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_S', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_SM_RHALF_ELLIP', '{:.2f}'),
         ]
 
         data2 = [
             'Halpha',
-            self._fmt_result('H_SM_XCENTROID', '{:.2f}'),
-            self._fmt_result('H_SM_YCENTROID', '{:.2f}'),
-            self._fmt_result('H_SM_GINI', '{:.2f}'),
-            self._fmt_result('H_SM_M20', '{:.2f}'),
-            self._fmt_result('H_SM_C', '{:.2f}'),
-            self._fmt_result('H_SM_A', '{:.2f}'),
-            self._fmt_result('H_SM_S', '{:.2f}'),
-            self._fmt_result('H_SM_RHALF_ELLIP', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_XCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_YCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_C', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_A', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_S', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_SM_RHALF_ELLIP', '{:.2f}'),
         ]
 
         write_text_table(self.html, labels, data, data2=data2)

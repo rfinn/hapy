@@ -32,7 +32,11 @@ vmax = 50.
 UNWISE_PIXSCALE = 2.75
 LEGACY_PIXSCALE = 1
 
-def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
+#def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
+def get_legacy_images(
+    ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='g',
+    makeplots=False, subfolder=None, verbose=False, layer='ls-dr10'
+):
     """
     Download legacy image for a particular ra, dec
     
@@ -71,7 +75,17 @@ def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makep
     if not(os.path.exists(jpeg_name)):
         if verbose:
             print('retrieving ',jpeg_name)
-        url='http://legacysurvey.org/viewer/jpeg-cutout?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr8&size='+str(imsize)+'&pixscale='+str(pixscale)
+        url = (
+            'https://www.legacysurvey.org/viewer/jpeg-cutout?'
+            + urlencode({
+                'ra': ra,
+                'dec': dec,
+                'layer': layer,
+                'size': imsize,
+                'pixscale': pixscale,
+                })
+            )
+        #url='http://legacysurvey.org/viewer/jpeg-cutout?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr9&size='+str(imsize)+'&pixscale='+str(pixscale)
         urlretrieve(url, jpeg_name)
     else:
         if verbose:
@@ -79,7 +93,18 @@ def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makep
     if not(os.path.exists(fits_name)):
         if verbose:
             print('retrieving ',fits_name)
-        url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr8&size='+str(imsize)+'&pixscale='+str(pixscale)+'&bands='+band
+        url = (
+            'https://www.legacysurvey.org/viewer/cutout.fits?'
+            + urlencode({
+                'ra': ra,
+                'dec': dec,
+                'layer': layer,
+                'size': imsize,
+                'pixscale': pixscale,
+                'bands': band,
+                })
+            )
+        #url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr8&size='+str(imsize)+'&pixscale='+str(pixscale)+'&bands='+band
         if verbose:
             print(url)
         urlretrieve(url, fits_name)
@@ -94,7 +119,7 @@ def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makep
     except IndexError:
         print('problem accessing image')
         print(fits_name)
-        url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra1)+'&dec='+str(dec1)+'&layer=dr8&size='+str(image_size)+'&pixscale=1.00'
+        #url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra1)+'&dec='+str(dec1)+'&layer=dr8&size='+str(image_size)+'&pixscale=1.00'
         print(url)
         return None
 
