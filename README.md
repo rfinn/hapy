@@ -283,3 +283,15 @@ This enables:
 * Reproducible survey analysis
 
 ---
+
+# Roadmap ⭐ 
+
+Planned improvements include:
+
+improved documentation
+
+enhanced QC and analysis scripts
+
+automated survey summary plots
+
+improved pipeline architecture and module interfaces
