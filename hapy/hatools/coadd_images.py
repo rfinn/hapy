@@ -108,7 +108,7 @@ def fix_header_exptime(input_header):
         
 
     # mv GAIN to GAINORIG
-    header["EXPTORIG"] = (expt_f, "Original exposure time of coadd (sec)")
+    header["EXPTORIG"] = (exptime_f, "Original exposure time of coadd (sec)")
 
     # set newgain to gain * exptime
     header["EXPTIME"] = (1, "new exptime=1 to match PHOTZP")
