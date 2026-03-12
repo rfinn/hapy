@@ -148,9 +148,9 @@ def merge_tables(files, output, mode):
     print("Stacking tables...")
     merged = vstack(tables, metadata_conflicts="silent")
 
-    if mode == "run_analysis":
-        if "OBJID" in merged.colnames:
-            merged["obs_id"] = [Path(str(r)).name for r in merged["OBJID"]]
+    #if mode == "run_analysis":
+    #    if "OBJID" in merged.colnames:
+    #        merged["obs_id"] = [Path(str(r)).name for r in merged["OBJID"]]
 
     if "SIGMA_FITS" in merged.colnames:
         merged.remove_column("SIGMA_FITS")
