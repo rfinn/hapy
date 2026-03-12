@@ -1098,7 +1098,7 @@ def main():
         logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
 
         # convert gaia min radius to get
-        gaia_min_radius_deg = gaia_min_radius/3600.
+        gaia_min_radius_deg = gaia_min_radius_arcsec/3600.
         mask = engine.build_initial_mask(
             galaxy_ellipse=galaxy_ellipse,
             progress_callback=_progress_cb,
