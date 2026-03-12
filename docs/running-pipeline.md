@@ -224,7 +224,7 @@ merge_results --indir cutouts --mode run_analysis
 ## Summarize statistics in merged_results.py
 
 ```
-python ~/github/hapy/scripts/summarize_run.py  merged_results.fits
+python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --scheme virgo
 ```
 
 # Build Webpages to review Cutouts

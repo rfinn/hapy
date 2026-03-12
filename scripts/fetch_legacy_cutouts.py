@@ -102,7 +102,7 @@ def main():
                         help="Root directory containing cutout subdirectories")
     parser.add_argument("--pixscale", type=float, default=0.262,
                         help="Legacy cutout pixel scale in arcsec/pixel.  Default is 0.262")
-    parser.add_argument("--layer", default="ls-dr10",
+    parser.add_argument("--layer", default="ls-dr9",
                         help="Legacy Survey viewer layer")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
