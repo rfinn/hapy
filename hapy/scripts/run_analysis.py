@@ -972,8 +972,8 @@ def main():
     row["DEC"] = dec
     row["OBJID"] = objid
 
-    row["R_FWHM"] = float(params.get("rimage_fwhm_pixels"))
-    row["H_FWHM"] = float(params.get("himage_fwhm_pixels"))
+    row["R_FWHM"] = float(params.get("rimage_fwhm_arcsec"))
+    row["H_FWHM"] = float(params.get("himage_fwhm_arcsec"))
 
     if ra is not None and dec is not None:
         try:
@@ -1092,9 +1092,11 @@ def main():
             minarea=args.seminarea,
             add_gaia_stars=(not args.no_gaia),
         )
-
+        # calculate the min radius to use for gaia stars
         max_fwhm = max(row["R_FWHM"], row["H_FWHM"])
         gaia_min_radius = 4 * max_fwhm
+        logger.info(f"Gaia min radius = {gaia_min_radius}")
+        
         mask = engine.build_initial_mask(
             galaxy_ellipse=galaxy_ellipse,
             progress_callback=_progress_cb,
