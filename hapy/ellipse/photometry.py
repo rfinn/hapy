@@ -60,8 +60,32 @@ from hapy.io.schemas import PHOT_TABLE_SCHEMA
 ## from https://www.noao.edu/kpno/mosaic/filters/
 
 translate_filter = {'ha4':'4'}
-central_wavelength = {'4':6620.52,'8':6654.19,'12':6698.53,'16':6730.72,'R':6513.5,'r':6292.28,'inthalpha':6568.,'intha6657':6657,'intr':6240} # angstrom
-dwavelength = {'4':80.48,'8':81.33,'12':82.95,'16':81.1,'R':1511.3,'r':1475.17,'inthalpha':95.,'intha6657':80,'intr':1347} # angstrom
+
+# TODO:
+# calculate central wavelength and width of these filters from new filter traces
+
+central_wavelength = {'4':6620.52,'8':6654.19,'12':6698.53,'16':6730.72,\
+                          'ha4':6620.52,'ha8':6654.19,'ha12':6698.53,'ha16':6730.72,\
+                          'ha4 H-alpha+4nm k1010':6620.52,'ha8 H-alpha+8nm k1011':6654.19,\
+                          'ha12 H-alpha+12nm k1012':6698.53,'ha16 H-alpha+16nm k1013':6730.72,\
+                          'inthalpha':6568.,\
+                          'intha6657':6657,\
+                          'R':6513.5,\
+                          'r':6292.28,\
+                          'intr':6240,
+                          'r SDSS k1018':6292.28,\
+                          'r Harris k1004':6513.5,} # angstrom
+dwavelength = {'4':80.48,'8':81.33,'12':82.95,'16':81.1,\
+                   'ha4':80.48,'ha8':81.33,'ha12':82.95,'ha16':81.1,\
+                   'ha4 H-alpha+4nm k1010':80.48,'ha8 H-alpha+8nm k1011':81.33,\
+                   'ha12 H-alpha+12nm k1012':82.95,'ha16 H-alpha+16nm k1013':81.1,\
+                   'inthalpha':95.,\
+                   'intha6657':80,
+                   'R':1511.3,\
+                   'r':1475.17,
+                   'intr':1347,\
+                   'r SDSS k1018':1475.17,\
+                   'r Harris k1004':1511.3,} # angstrom
 
 # define colors - need this for plotting line and fill_between in the same color
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
