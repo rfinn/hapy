@@ -127,7 +127,8 @@ class MaskEngine:
         grow_iterations: int = 4,
         output_prefix: Optional[str] = None,
         progress_callback=None,
-        gaia_table = None, 
+        gaia_table = None,
+        gaia_min_radius = None
         
         
     ):
@@ -214,6 +215,10 @@ class MaskEngine:
                 y_pixels = y_pixels[keep]
 
             if brightstar is not None and len(brightstar) > 0:
+                if gaia_min_radius is not None:
+                    # set min radius to gaia_min_radius supplied by user
+                    toosmall = brightstar["radius"] < gaia_min_radius
+                    brightstar["radius"][toosmall] = gaia_min_radius
                 self.gaia_mask, star_masks = make_gaia_mask(
                     self.maskdat,
                     x_pixels,

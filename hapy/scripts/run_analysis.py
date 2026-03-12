@@ -1093,12 +1093,15 @@ def main():
             add_gaia_stars=(not args.no_gaia),
         )
 
+        max_fwhm = max(row["R_FWHM"], row["H_FWHM"])
+        gaia_min_radius = 4 * max_fwhm
         mask = engine.build_initial_mask(
             galaxy_ellipse=galaxy_ellipse,
             progress_callback=_progress_cb,
             grow_size=int(args.grow_size),
             grow_iterations=int(args.grow_iterations),
             gaia_table = gaia_table,
+            gaia_min_radius = gaia_min_radius,
         )
 
         #mask_out = mask_fits or (root + "-mask.fits")
