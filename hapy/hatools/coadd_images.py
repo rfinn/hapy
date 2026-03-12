@@ -80,7 +80,7 @@ def fix_header_gain(input_header):
 def fix_header_exptime(input_header):
     header = input_header.copy()
     # if FIXGAIN is in header, return
-    if "FIXGAIN" in header:
+    if "FIXEXPT" in header:
         return None
 
     # otherwise get EXPTIME and GAIN from header
@@ -268,7 +268,7 @@ class CoaddImage:
         
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
                     subtract_sky=False, skycfg=None, return_cutout=True,
-                    fix_gain=True, fix_exposure_time=True, overwrite=False):
+                    fix_gain=True, fix_exptime=True, overwrite=False):
 
         """
         Create a cutout centered at (ra, dec) with size in arcsec.
@@ -354,10 +354,11 @@ class CoaddImage:
             if newheader is not None:
                 outheader = newheader
 
-        if fix_exposure_time:
+        if fix_exptime:
             newheader = fix_header_exptime(outheader)
             if newheader is not None:
                 outheader = newheader
+                
         fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
 
         if self.verbose:

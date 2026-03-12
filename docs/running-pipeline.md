@@ -82,7 +82,7 @@ options:
 ```bash
 get_cutouts --rimage
 /data-pool/Halpha/coadds-2025DEC/VF-126.291+27.988-HDI-20180313-p004-R.fits
---catalog /Users/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits
+--catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
 --scheme virgo --maxcorrection 5
 ```
 
