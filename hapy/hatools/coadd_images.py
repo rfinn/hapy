@@ -77,6 +77,41 @@ def fix_header_gain(input_header):
     header["FIXGAIN"] = (True, "GAIN was multiplied by EXPTIME")
     return header
 
+def fix_header_exptime(input_header):
+    header = input_header.copy()
+    # if FIXGAIN is in header, return
+    if "FIXGAIN" in header:
+        return None
+
+    # otherwise get EXPTIME and GAIN from header
+    exptime = header.get("EXPTIME")
+    
+    # Missing keywords → warn and mark skipped
+    if exptime is None:
+        log.warning(f"fix_exptime: missing EXPTIME (EXPTIME={exptime}); leaving EXPTIME unchanged")
+        header["FIXEXPT"] = (False, "EXPTIME not set to 1")
+        return None
+
+    # Coerce to floats
+    try:
+        exptime_f = float(exptime)
+    except Exception:
+
+    # Invalid EXPTIME → warn and mark skipped
+    if exptime_f <= 0:
+        log.warning(f"fix_exptime: negative EXPTIME (EXPTIME={exptime}; leaving EXPTIME unchanged")
+        header["FIXEXPT"] = (False, "EXPTIME not set to 1")
+        return
+        
+
+    # mv GAIN to GAINORIG
+    header["EXPTORIG"] = (expt_f, "Original exposure time of coadd (sec)")
+
+    # set newgain to gain * exptime
+    header["EXPTIME"] = (1, "new exptime=1 to match PHOTZP")
+
+    return header
+
 
 def zp_scale_r_to_ha(zp_ha, zp_r):
     """Scale factor α so that CS = Ha - α * R."""
@@ -230,7 +265,7 @@ class CoaddImage:
         
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
                     subtract_sky=False, skycfg=None, return_cutout=True,
-                    fix_gain=True, overwrite=False):
+                    fix_gain=True, fix_exposure_time=True, overwrite=False):
 
         """
         Create a cutout centered at (ra, dec) with size in arcsec.
@@ -316,6 +351,10 @@ class CoaddImage:
             if newheader is not None:
                 outheader = newheader
 
+        if fix_exposure_time:
+            newheader = fix_header_exptime(outheader)
+            if newheader is not None:
+                outheader = newheader
         fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
 
         if self.verbose:
