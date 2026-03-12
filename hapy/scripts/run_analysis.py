@@ -1394,11 +1394,15 @@ def main():
         init0 = dict(xobj=xc, yobj=yc, mag=10.0, rad=rad_init, nsersic=2.0, BA=0.7, PA=0.0, first_time=1)
         
         # --- No convolution ---
-        res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False, logger=logger)
-        _store_galfit(row, res_nc, "GAL_")
-        row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
-        row["GAL_NC_OK"] = not meta_nc["unstable"]
+        try:
+            res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False, logger=logger)
+            _store_galfit(row, res_nc, "GAL_")
+            row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
+            row["GAL_NC_OK"] = not meta_nc["unstable"]
 
+        except Exception as e:
+            logger.exception(f"GALFIT NC failed: {e}")
+            row["GAL_NC_OK"] = False
         write_result_row_ecsv(results_path, row)
 
         # print this by setting --log-to-console at command line
@@ -1413,7 +1417,7 @@ def main():
         if args.convflag and not psf_ok:
             logger.warning("convflag requested but PSF not available; skipping convolution.")
         
-        if psf_ok and args.convflag:
+        if psf_ok and args.convflag and row["GAL_NC_OK"]:
             # --- Convolution (init from NC) ---
             row["STAGE"] = "galfit_cv"
             logger.info("STAGE: galfit CV")
