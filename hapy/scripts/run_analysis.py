@@ -1136,7 +1136,7 @@ def main():
         objra=ra,
         objdec=dec,
         fixcenter=args.fixcenter,
-        run_statmorph=args.statmorph,
+        #run_statmorph=args.statmorph,
         #write_prefix=prefix,
     )
 
@@ -1248,39 +1248,11 @@ def main():
         # if any missing keys, just don't set mismatch fields
         pass
 
-    # print()
-    # print("DEBUG: morph")
-    # print_statmorph(e.morph)
-
-    # print()
-    # print("DEBUG: morph2")
-    # print_statmorph(e.morph2)    
-    # _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
-    # row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
-
-    try:
-        _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
-        row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
-    except Exception:
-        pass
-
-    try:
-        _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
-        row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
-    except Exception:
-        pass
-
-    # Write/update per-galaxy results row
-    write_result_row_ecsv(results_path, row)
-
-
- 
     # ---- FIT PROFILES!  ----------- #
 
     if valid_file(e.photfile) and valid_file(e.photfile2):
         row["PHOT_OK"] = True
 
-    
         rtab = Table.read(e.photfile)
         hatab = Table.read(e.photfile2)
 
@@ -1294,6 +1266,26 @@ def main():
 
     # Write/update per-galaxy results row
     write_result_row_ecsv(results_path, row)
+
+
+    if args.statmorph:
+        logger.info("STAGE: statmorph")
+        e.run_statmorph_supervisor()
+        if e.statmorph_flag:
+            try:
+                _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
+                row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
+            except Exception:
+                pass
+
+            try:
+                _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
+                row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
+            except Exception:
+                pass
+        # write table after statmorph
+        write_result_row_ecsv(results_path, row)
+ 
     
     if not args.no_diagnostic_plots:
         print("making diagnostic plots...")

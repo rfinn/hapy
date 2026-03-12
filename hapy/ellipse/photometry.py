@@ -478,21 +478,6 @@ class EllipsePhotometry():
             self.asym2_err = -99
         #self.run_statmorph()
 
-        print("runStatmorphFlag = ",runStatmorphFlag)
-        if runStatmorphFlag:
-            #print("running statmorph - please be patient...")
-            #self.run_statmorph()
-            #self.statmorph_flag = True
-
-            
-            self.run_statmorph(save_figs=True)
-            try:
-                print("running statmorph - please be patient...")
-                print()
-                self.statmorph_flag = True
-            except:
-                self.statmorph_flag = False            
-                print("WARNING: problem running statmorph")
         self.get_sky_noise()
         print("writing tables")
         #self.write_phot_tables()
@@ -506,6 +491,17 @@ class EllipsePhotometry():
         #    self.draw_phot_results_mpl()
         #else:
         #    self.draw_phot_results()
+
+    def run_statmorph_supervisor(self):
+        try:
+            self.run_statmorph(save_figs=True)
+            print("running statmorph - please be patient...")
+            print()
+            self.statmorph_flag = True
+        except:
+            self.statmorph_flag = False            
+            print("WARNING: problem running statmorph")
+
     def run_with_galfit_ellipse(self, xc,yc,BA=1,THETA=0):
         '''
         replicating run_for_gui(), but taking input ellipse geometry from galfit

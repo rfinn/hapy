@@ -285,3 +285,5 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 ```
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260310/
 ```
+
+# Make qc plots
