@@ -421,16 +421,18 @@ def initialize_result_row():
         row[k] = np.nan    
    
     # ---------- pipeline status ----------
-    for k in ["MASK_OK", "PHOT_OK", "PSF_OK", "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
+    for k in ["PSF_OK", "MASK_OK", "PHOT_OK", \
+                  "R_PROFILE_OK","HA_PROFILE_OK",\
+                  "R_SM_FLAG", "HA_SM_FLAG",\
+                  "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
         row[k] = False
     row["GAL_CV_INIT_FROM_NC"] = False
+    row["GAL_NC_RERUN_FIXEDN"] = False
+    row["GAL_CV_RERUN_FIXEDN"] = False
 
-
-    for band in ["R", "H"]:
-        row[f"{band}_SM_FLAG"] = False
+    row["ELL_MISMATCH"] = False
 
     for k in [
-        "R_PROFILE_OK",            
         "R_PETRO_OK",
         "R_EXPFIT_OK",
         "R_LOGFIT_OK",
@@ -438,15 +440,12 @@ def initialize_result_row():
         row[k] = False
 
     for k in [
-        "HA_PROFILE_OK",
         "HA_PETRO_OK",
         "HA_EXPFIT_OK",
         "HA_LOGFIT_OK",
     ]:
         row[k] = False
 
-    row["GAL_NC_RERUN_FIXEDN"] = False
-    row["GAL_CV_RERUN_FIXEDN"] = False
  
 
 
@@ -498,7 +497,6 @@ def initialize_result_row():
     # ---------- mismatch ----------
     for k in ["ELL_DC_PX", "ELL_DBA", "ELL_DPA_DEG", "ELL_SMA_RATIO"]:
         row[k] = np.nan
-    row["ELL_MISMATCH"] = False
 
     # ---------- statmorph ----------
     sm_suffixes = [
@@ -1280,7 +1278,7 @@ def main():
 
             try:
                 _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
-                row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
+                row["HA_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
             except Exception:
                 pass
         # write table after statmorph
