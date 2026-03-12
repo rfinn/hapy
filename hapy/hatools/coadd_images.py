@@ -96,6 +96,9 @@ def fix_header_exptime(input_header):
     try:
         exptime_f = float(exptime)
     except Exception:
+        log.warning(f"fix_exptime: non numerical EXPTIME (EXPTIME={exptime}); leaving EXPTIME unchanged")
+        header["FIXEXPT"] = (False, "EXPTIME not set to 1")
+        return None
 
     # Invalid EXPTIME → warn and mark skipped
     if exptime_f <= 0:
