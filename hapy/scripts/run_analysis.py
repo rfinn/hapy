@@ -1094,16 +1094,18 @@ def main():
         )
         # calculate the min radius to use for gaia stars
         max_fwhm = max(row["R_FWHM"], row["H_FWHM"])
-        gaia_min_radius = 4 * max_fwhm
-        logger.info(f"Gaia min radius = {gaia_min_radius}")
-        
+        gaia_min_radius_arcsec = 4 * max_fwhm
+        logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
+
+        # convert gaia min radius to get
+        gaia_min_radius_deg = gaia_min_radius/3600.
         mask = engine.build_initial_mask(
             galaxy_ellipse=galaxy_ellipse,
             progress_callback=_progress_cb,
             grow_size=int(args.grow_size),
             grow_iterations=int(args.grow_iterations),
             gaia_table = gaia_table,
-            gaia_min_radius = gaia_min_radius,
+            gaia_min_radius = gaia_min_radius_deg,
         )
 
         #mask_out = mask_fits or (root + "-mask.fits")
