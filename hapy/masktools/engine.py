@@ -219,7 +219,7 @@ class MaskEngine:
                     # set min radius to gaia_min_radius supplied by user
                     toosmall = brightstar["radius"] < gaia_min_radius
                     brightstar["radius"][toosmall] = gaia_min_radius
-                    print("DEBUG: gaia_min_radius = ",gaia_min_radius)
+                    #print("DEBUG: gaia_min_radius (deg) = ",gaia_min_radius)
                 self.gaia_mask, star_masks = make_gaia_mask(
                     self.maskdat,
                     x_pixels,
