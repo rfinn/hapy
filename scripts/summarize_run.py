@@ -56,7 +56,7 @@ def summarize(tablefile, scheme):
             print(f"{f:18s}: could not interpret as boolean")
             continue
 
-        if 'SM_FLAG' in f:
+        if ('SM_FLAG' in f) or ('SM_SERSIC_FLAG' in f):
             ntrue = np.sum(col)
             nfalse = np.sum(~col)
             pct = 100 * nfalse / n
