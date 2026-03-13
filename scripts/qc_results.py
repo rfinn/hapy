@@ -105,10 +105,10 @@ def first_populated_col(tab: Table, names: list[str]) -> str | None:
 # ----------------------------------------------------------------------
 
 def find_status_columns(tab: Table) -> list[str]:
-    return sorted([
+    return [
         c for c in tab.colnames
         if c.endswith("_OK") or c.endswith("_FLAG")
-    ])
+    ]
 
 
 def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:

@@ -217,17 +217,13 @@ htop
 ```
 
 
-# Merge Results
+# Merge Results From `run_analysis`
 
 ```bash
 merge_results --indir cutouts --mode run_analysis
 ```
 
-## Summarize statistics in merged_results.py
-
-```
-python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --scheme virgo
-```
+## Summarize statistics in  `merged_results.py`
 
 # Build Webpages to review Cutouts
 
@@ -249,7 +245,7 @@ RUNROOT=/data-pool/Halpha/hapy-output-20260310
 ```
 then
 ```bash
-parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$RUNROOT/cutouts/{}" --layer ls-dr10 : cutout_list.txt
+parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$RUNROOT/cutouts/{}" --layer ls-dr10 :::: cutout_list.txt
 ```
   
 ### to resume any failed jobs
@@ -291,7 +287,7 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/h
 # Make qc plots
 
 ```
-
+python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
 ```
 
 
