@@ -76,7 +76,7 @@ from hapy.imagetools.imutils import get_pixel_scale_from_filename
 from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
 from hapy.masktools.api import MaskEngine, EllipseParams
 from hapy.masktools.gaia import make_gaia_mask,  get_gaia_stars, galaxy_overlaps_bright_star
-from hapy.masktools.maskops import distance_to_nearest_mask, largest_mask_region
+from hapy.masktools.maskops import distance_to_nearest_mask, largest_mask_region, ellipse_mask_fraction
 #from hapy.masktools.types import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
