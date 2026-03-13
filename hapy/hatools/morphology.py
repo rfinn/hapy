@@ -95,7 +95,7 @@ def run_statmorph_for_photometry(
     morph2 = fig2 = None
     if image2 is not None:
         morph2, fig2 = run_statmorph_single(
-            image=image2, segmap=segmap, gain=gain, mask=mask, psf=psf2, make_fig=make_fig
+            image=image2, segmap=segmap, gain=gain, mask=mask, psf=psf2, make_fig=make_fig)
         print("STATMORPH RESULTS IMAGE2")
         morph2.print()
         )
