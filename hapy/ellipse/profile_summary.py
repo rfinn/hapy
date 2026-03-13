@@ -688,93 +688,93 @@ def summarize_ha_profile(
     raw_detect = np.isfinite(sb_snr) & np.isfinite(sb_cgs) & (sb_snr > min_snr) & (sb_cgs > 0)
     runs = _significant_runs(sb_snr, sb_cgs, min_snr=min_snr, min_run=min_run)
 
-    results["HA_PROFILE_NGOOD"] = int(np.sum(raw_detect))
-    results["HA_PROFILE_LONGRUN"] = _longest_true_run(raw_detect)
-    results["HA_NDET_RUNS"] = int(len(runs))
-    results["HA_PROFILE_OK"] = bool(len(runs) > 0)
+    results["H_PROFILE_NGOOD"] = int(np.sum(raw_detect))
+    results["H_PROFILE_LONGRUN"] = _longest_true_run(raw_detect)
+    results["H_NDET_RUNS"] = int(len(runs))
+    results["H_PROFILE_OK"] = bool(len(runs) > 0)
 
     if masked_fraction is not None and np.any(np.isfinite(masked_fraction)):
-        results["HA_PROFILE_MASKFRAC_MAX"] = float(np.nanmax(masked_fraction))
+        results["H_PROFILE_MASKFRAC_MAX"] = float(np.nanmax(masked_fraction))
     else:
-        results["HA_PROFILE_MASKFRAC_MAX"] = np.nan
+        results["H_PROFILE_MASKFRAC_MAX"] = np.nan
 
     if len(runs) == 0:
-        results["HA_MAXDET_ARCSEC"] = np.nan
-        results["HA_MAXDET_PIX"] = np.nan
-        results["HA_TOT_FLUX_CGS"] = np.nan
-        results["HA_TOT_FLUX_CGS_ERR"] = np.nan
-        results["HA_SNR_TRUNC_ARCSEC"] = np.nan
+        results["H_MAXDET_ARCSEC"] = np.nan
+        results["H_MAXDET_PIX"] = np.nan
+        results["H_TOT_FLUX_CGS"] = np.nan
+        results["H_TOT_FLUX_CGS_ERR"] = np.nan
+        results["H_SNR_TRUNC_ARCSEC"] = np.nan
 
         # no trustworthy profile structure
-        results["HA25_ARCSEC"] = np.nan
-        results["HA25_PIX"] = np.nan
-        results["HA50_ARCSEC"] = np.nan
-        results["HA50_PIX"] = np.nan
-        results["HA75_ARCSEC"] = np.nan
-        results["HA75_PIX"] = np.nan
+        results["H25_ARCSEC"] = np.nan
+        results["H25_PIX"] = np.nan
+        results["H50_ARCSEC"] = np.nan
+        results["H50_PIX"] = np.nan
+        results["H75_ARCSEC"] = np.nan
+        results["H75_PIX"] = np.nan
 
-        for prefix in ["HA_ISO5E17", "HA_ISO17E18"]:
+        for prefix in ["H_ISO5E17", "H_ISO17E18"]:
             results[f"{prefix}_ARCSEC"] = np.nan
             results[f"{prefix}_ARCSEC_ERR"] = np.nan
             results[f"{prefix}_FLUX_CGS"] = np.nan
             results[f"{prefix}_FLUX_CGS_ERR"] = np.nan
 
-        results["HA30R24_FLUX_CGS"] = np.nan
-        results["HA30R24_FLUX_CGS_ERR"] = np.nan
-        results["HA_R24_FLUX_CGS"] = np.nan
-        results["HA_R24_FLUX_CGS_ERR"] = np.nan
-        results["HA_C30_R24"] = np.nan
-        results["HA_C30_R24_ERR"] = np.nan
-        results["HA_R95_R24_ARCSEC"] = np.nan
+        results["H30R24_FLUX_CGS"] = np.nan
+        results["H30R24_FLUX_CGS_ERR"] = np.nan
+        results["H_R24_FLUX_CGS"] = np.nan
+        results["H_R24_FLUX_CGS_ERR"] = np.nan
+        results["H_C30_R24"] = np.nan
+        results["H_C30_R24_ERR"] = np.nan
+        results["H_R95_R24_ARCSEC"] = np.nan
 
         # fits/petrosian also not trustworthy
         for prefix in [
-            "HA_PETRO_RAD_ARCSEC", "HA_PETRO_FLUX", "HA_PETRO_FLUX_CGS",
-            "HA_PETRO_FLUX_CGS_ERR", "HA_PETRO_MAG", "HA_PETRO_R50_ARCSEC",
-            "HA_PETRO_R90_ARCSEC", "HA_PETRO_CON"
+            "H_PETRO_RAD_ARCSEC", "H_PETRO_FLUX", "H_PETRO_FLUX_CGS",
+            "H_PETRO_FLUX_CGS_ERR", "H_PETRO_MAG", "H_PETRO_R50_ARCSEC",
+            "H_PETRO_R90_ARCSEC", "H_PETRO_CON"
         ]:
             results[prefix] = np.nan
-        results["HA_PETRO_OK"] = False
+        results["H_PETRO_OK"] = False
 
         for prefix in [
-            "HA_EXPFIT_I0", "HA_EXPFIT_K", "HA_EXPFIT_RE_ARCSEC",
-            "HA_LOGFIT_SLOPE", "HA_LOGFIT_INTERCEPT", "HA_LOGFIT_RE_ARCSEC"
+            "H_EXPFIT_I0", "H_EXPFIT_K", "H_EXPFIT_RE_ARCSEC",
+            "H_LOGFIT_SLOPE", "H_LOGFIT_INTERCEPT", "H_LOGFIT_RE_ARCSEC"
         ]:
             results[prefix] = np.nan
-        results["HA_EXPFIT_OK"] = False
-        results["HA_LOGFIT_OK"] = False
+        results["H_EXPFIT_OK"] = False
+        results["H_LOGFIT_OK"] = False
 
         return results
 
     # Outer edge of last significant run
     last_i0, last_i1 = runs[-1]
-    results["HA_MAXDET_ARCSEC"] = float(sma_arcsec[last_i1]) if np.isfinite(sma_arcsec[last_i1]) else np.nan
-    results["HA_MAXDET_PIX"] = float(sma_pix[last_i1]) if np.isfinite(sma_pix[last_i1]) else np.nan
+    results["H_MAXDET_ARCSEC"] = float(sma_arcsec[last_i1]) if np.isfinite(sma_arcsec[last_i1]) else np.nan
+    results["H_MAXDET_PIX"] = float(sma_pix[last_i1]) if np.isfinite(sma_pix[last_i1]) else np.nan
 
     # Integrated Halpha quantities: use cumulative profile evaluated at outermost significant radius
-    maxdet_r = results["HA_MAXDET_ARCSEC"]
-    results["HA_TOT_FLUX_CGS"] = _interp_monotonic(maxdet_r, sma_arcsec, flux_cgs)
-    results["HA_TOT_FLUX_CGS_ERR"] = _interp_monotonic(maxdet_r, sma_arcsec, flux_cgs_err)
-    results["HA_SNR_TRUNC_ARCSEC"] = maxdet_r
+    maxdet_r = results["H_MAXDET_ARCSEC"]
+    results["H_TOT_FLUX_CGS"] = _interp_monotonic(maxdet_r, sma_arcsec, flux_cgs)
+    results["H_TOT_FLUX_CGS_ERR"] = _interp_monotonic(maxdet_r, sma_arcsec, flux_cgs_err)
+    results["H_SNR_TRUNC_ARCSEC"] = maxdet_r
 
     # Flux radii relative to cumulative profile out to outermost detected extent
-    tot_flux = results["HA_TOT_FLUX_CGS"]
+    tot_flux = results["H_TOT_FLUX_CGS"]
     if np.isfinite(tot_flux) and tot_flux > 0:
-        for frac, label in [(0.25, "HA25"), (0.50, "HA50"), (0.75, "HA75")]:
+        for frac, label in [(0.25, "H25"), (0.50, "H50"), (0.75, "H75")]:
             target = frac * tot_flux
             r_arcsec = _interp_monotonic(target, flux_cgs, sma_arcsec)
             r_pix = _interp_monotonic(target, flux_cgs, sma_pix)
             results[f"{label}_ARCSEC"] = float(r_arcsec) if np.isfinite(r_arcsec) else np.nan
             results[f"{label}_PIX"] = float(r_pix) if np.isfinite(r_pix) else np.nan
     else:
-        for label in ["HA25", "HA50", "HA75"]:
+        for label in ["H25", "H50", "H75"]:
             results[f"{label}_ARCSEC"] = np.nan
             results[f"{label}_PIX"] = np.nan
 
     # Isophotal Halpha radii: use outermost crossing
     iso_map = {
-        "HA_ISO5E17": 5.0e-17,
-        "HA_ISO17E18": 1.7e-17,
+        "H_ISO5E17": 5.0e-17,
+        "H_ISO17E18": 1.7e-17,
     }
 
     for prefix, level in iso_map.items():
@@ -798,29 +798,29 @@ def summarize_ha_profile(
         inner_err = _interp_monotonic(0.3 * r24_arcsec, sma_arcsec, flux_cgs_err)
         outer_err = _interp_monotonic(r24_arcsec, sma_arcsec, flux_cgs_err)
 
-        results["HA30R24_FLUX_CGS"] = float(inner) if np.isfinite(inner) else np.nan
-        results["HA30R24_FLUX_CGS_ERR"] = float(inner_err) if np.isfinite(inner_err) else np.nan
-        results["HA_R24_FLUX_CGS"] = float(outer) if np.isfinite(outer) else np.nan
-        results["HA_R24_FLUX_CGS_ERR"] = float(outer_err) if np.isfinite(outer_err) else np.nan
+        results["H30R24_FLUX_CGS"] = float(inner) if np.isfinite(inner) else np.nan
+        results["H30R24_FLUX_CGS_ERR"] = float(inner_err) if np.isfinite(inner_err) else np.nan
+        results["H_R24_FLUX_CGS"] = float(outer) if np.isfinite(outer) else np.nan
+        results["H_R24_FLUX_CGS_ERR"] = float(outer_err) if np.isfinite(outer_err) else np.nan
 
         c30 = _safe_ratio(inner, outer)
         c30_err = ratio_error(inner, outer, inner_err, outer_err)
-        results["HA_C30_R24"] = float(c30) if np.isfinite(c30) else np.nan
-        results["HA_C30_R24_ERR"] = float(c30_err) if np.isfinite(c30_err) else np.nan
+        results["H_C30_R24"] = float(c30) if np.isfinite(c30) else np.nan
+        results["H_C30_R24_ERR"] = float(c30_err) if np.isfinite(c30_err) else np.nan
 
         if np.isfinite(outer) and outer > 0:
             r95 = _interp_monotonic(0.95 * outer, flux_cgs, sma_arcsec)
-            results["HA_R95_R24_ARCSEC"] = float(r95) if np.isfinite(r95) else np.nan
+            results["H_R95_R24_ARCSEC"] = float(r95) if np.isfinite(r95) else np.nan
         else:
-            results["HA_R95_R24_ARCSEC"] = np.nan
+            results["H_R95_R24_ARCSEC"] = np.nan
     else:
-        results["HA30R24_FLUX_CGS"] = np.nan
-        results["HA30R24_FLUX_CGS_ERR"] = np.nan
-        results["HA_R24_FLUX_CGS"] = np.nan
-        results["HA_R24_FLUX_CGS_ERR"] = np.nan
-        results["HA_C30_R24"] = np.nan
-        results["HA_C30_R24_ERR"] = np.nan
-        results["HA_R95_R24_ARCSEC"] = np.nan
+        results["H30R24_FLUX_CGS"] = np.nan
+        results["H30R24_FLUX_CGS_ERR"] = np.nan
+        results["H_R24_FLUX_CGS"] = np.nan
+        results["H_R24_FLUX_CGS_ERR"] = np.nan
+        results["H_C30_R24"] = np.nan
+        results["H_C30_R24_ERR"] = np.nan
+        results["H_R95_R24_ARCSEC"] = np.nan
 
     # Petrosian quantities are not especially natural for multi-run Halpha, but keep them
     # for simple cases only
@@ -833,36 +833,36 @@ def summarize_ha_profile(
             magzp=None,
         )
         for key, val in petro.items():
-            results[f"HA_{key}"] = val
+            results[f"H_{key}"] = val
     else:
-        results["HA_PETRO_RAD_ARCSEC"] = np.nan
-        results["HA_PETRO_FLUX"] = np.nan
-        results["HA_PETRO_FLUX_CGS"] = np.nan
-        results["HA_PETRO_FLUX_CGS_ERR"] = np.nan
-        results["HA_PETRO_MAG"] = np.nan
-        results["HA_PETRO_R50_ARCSEC"] = np.nan
-        results["HA_PETRO_R90_ARCSEC"] = np.nan
-        results["HA_PETRO_CON"] = np.nan
-        results["HA_PETRO_OK"] = False
+        results["H_PETRO_RAD_ARCSEC"] = np.nan
+        results["H_PETRO_FLUX"] = np.nan
+        results["H_PETRO_FLUX_CGS"] = np.nan
+        results["H_PETRO_FLUX_CGS_ERR"] = np.nan
+        results["H_PETRO_MAG"] = np.nan
+        results["H_PETRO_R50_ARCSEC"] = np.nan
+        results["H_PETRO_R90_ARCSEC"] = np.nan
+        results["H_PETRO_CON"] = np.nan
+        results["H_PETRO_OK"] = False
 
     # Fits only for simple single-run profiles
     if len(runs) == 1:
         expfit = fit_exponential_profile(sma_arcsec, sb_cgs, sb_snr=sb_snr, min_snr=min_snr)
         logfit = fit_log_linear_profile(sma_arcsec, sb_cgs, sb_snr=sb_snr, min_snr=min_snr)
         for key, val in expfit.items():
-            results[f"HA_{key}"] = val
+            results[f"H_{key}"] = val
         for key, val in logfit.items():
-            results[f"HA_{key}"] = val
+            results[f"H_{key}"] = val
     else:
-        results["HA_EXPFIT_I0"] = np.nan
-        results["HA_EXPFIT_K"] = np.nan
-        results["HA_EXPFIT_RE_ARCSEC"] = np.nan
-        results["HA_EXPFIT_OK"] = False
+        results["H_EXPFIT_I0"] = np.nan
+        results["H_EXPFIT_K"] = np.nan
+        results["H_EXPFIT_RE_ARCSEC"] = np.nan
+        results["H_EXPFIT_OK"] = False
 
-        results["HA_LOGFIT_SLOPE"] = np.nan
-        results["HA_LOGFIT_INTERCEPT"] = np.nan
-        results["HA_LOGFIT_RE_ARCSEC"] = np.nan
-        results["HA_LOGFIT_OK"] = False
+        results["H_LOGFIT_SLOPE"] = np.nan
+        results["H_LOGFIT_INTERCEPT"] = np.nan
+        results["H_LOGFIT_RE_ARCSEC"] = np.nan
+        results["H_LOGFIT_OK"] = False
 
     return results
 
