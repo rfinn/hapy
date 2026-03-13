@@ -19,7 +19,7 @@ def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
     )
 
 
-def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None,cmap='gray_r'):
+def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None,cmap='gray_r',zoom=None):
     masked=False
     if mask is not None:
         #image = np.ma.array(image, mask=mask)
