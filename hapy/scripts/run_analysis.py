@@ -407,6 +407,8 @@ def initialize_result_row():
         "TAG", "CUTDIR",
          "MASK_FITS","PSF_FITS",
          "R_FITS", "CS_FITS","SIGMA_FITS"
+         "RFILTER_FILENAME", "RFILTER_CENTER","RFILTER_WIDTH",
+         "HAFILTER_FILENAME", "HAFILTER_CENTER","HAFILTER_WIDTH",         
             ]:
         row[k] = ""
         
@@ -974,6 +976,13 @@ def main():
 
     row["R_FWHM"] = float(params.get("rimage_fwhm_arcsec"))
     row["H_FWHM"] = float(params.get("himage_fwhm_arcsec"))
+    row["RFILTER_NAME"] = params.get("rfilter_name")
+    row["RFILTER_CENTER"] = float(params.get("rfilter_center_A"))
+    row["RFILTER_WIDTH"] = float(params.get("rfilter_width_A"))    
+    row["HAFILTER_NAME"] = params.get("hafilter_name")
+    row["HAFILTER_CENTER"] = float(params.get("hafilter_center_A"))
+    row["HAFILTER_WIDTH"] = float(params.get("hafilter_width_A"))    
+
 
     if ra is not None and dec is not None:
         try:

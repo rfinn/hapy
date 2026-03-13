@@ -15,6 +15,116 @@ wave_halpha = 6563. # angstrom
 from . import utils
 
 
+# --- Filter central wavelength and width --- #
+#
+# We calculate these in github/filter_transformations/filtertrans-dev.ipynb
+# Becky cross checked with plots that she has
+
+filter_center_width = {
+    'BOK90prime-BASSr.fits':(6410.8, 1398.8),
+    'BOK90prime-Ha+4nm.fits':(6620.8, 83.3),
+    'MOS-Ha+12nm.fits':(6698.8, 86.1),
+    'MOS-Ha+16nm.fits':(6730.8, 83.9),
+    'MOS-Ha+4nm.fits':(6620.8, 83.3),
+    'MOS-Ha+8nm.fits':(6654.4, 84.1),
+    'MOS-HarrisR.fits':(6653.9, 1551.1),
+    'MOS-SDSSr.fits':(6287.6, 1382.5),
+    'HDI-Ha+12nm.fits':(6701.7, 61.5),
+    'HDI-Ha+16nm.fits':(6742.1, 59.3),
+    'HDI-Ha+4nm.fits':(6618.5, 60.4),
+    'HDI-Ha+8nm.fits':(6660.0, 59.8),
+    'HDI-Ha.fits':(6580.0, 58.8),
+    'HDI-HarrisR.fits':(6605.3, 1576.1),
+    'HDI-SDSSr.fits':(6242.3, 1425.5),
+    'WFC-Ha-197.fits':(6568.0, 92.9),
+    'WFC-Ha-227.fits':(6666.2, 80.9),
+    'WFC-SDSSr-214.fits':(6230.1, 1219.8),
+    'panstarrs-g.fits':(4866.5, 1166.4),
+    'panstarrs-r.fits':(6214.6, 1318.0),
+}
+
+instrument_to_prefix = {'INT':'WFC','BOK':'90prime','HDI':'HDI','MOS':'MOS'}
+
+hafilter_to_suffix = {4:'Ha+4nm',8:'Ha+8nm',12:'Ha+12nm',16:'Ha+16nm',\
+                        '4':'Ha+4nm','8':'Ha+8nm','12':'Ha+12nm','16':'Ha+16nm',\
+                        'ha4':'Ha+4nm','ha8':'Ha+8nm','ha12':'Ha+12nm','ha16':'Ha+16nm','ha':'Ha-197',\
+                        'Ha+4nm':'Ha+4nm','Ha4nm':'Ha+4nm',\
+                        'Halpha':'Ha-197','Ha6657':'Ha-227',\
+                        'ha4 H-alpha+4nm k1010':'Ha+4nm',
+                        'ha8 H-alpha+8nm k1011':'Ha+8nm',
+                        'ha12 H-alpha+12nm k1012':'Ha+12nm',
+                        'ha16 H-alpha+16nm k1013':'Ha+16nm',}
+
+def get_halpha_filtername(instrument, hfilter):
+    print("testing, self.hafilter = ",self.hafilter, self.instrument)
+    halpha_filtername = f"{instrument_to_prefix[self.instrument]}-{hafilter_to_suffix[self.hafilter]}.fits"
+
+def get_rband_filtername(instrument, rfilter):
+    """
+    Normalize instrument + FILTER keyword into the canonical r-band filter filename.
+    """
+
+    instrument = str(instrument).strip()
+    rfilter = str(rfilter).strip()
+
+    # exact / common aliases
+    filter_map = {
+        ("BOK", "r"): "BOK90prime-BASSr.fits",
+        #("BOK", "BASSr"): "BOK90prime-BASSr.fits",
+        #("BOK", "BASS-r"): "BOK90prime-BASSr.fits",
+
+        ("HDI", "R"): "HDI-HarrisR.fits",
+        ("HDI", "r"): "HDI-SDSSr.fits",
+        #("HDI", "HarrisR"): "HDI-HarrisR.fits",
+        #("HDI", "SDSSr"): "HDI-SDSSr.fits",
+
+        #("MOS", "R"): "MOS-HarrisR.fits",
+        ("MOS", "r SDSS k1018"): "MOS-SDSSr.fits",
+        ("MOS", "R Harris k1004"): "MOS-HarrisR.fits",
+        #("MOS", "SDSSr"): "MOS-SDSSr.fits",
+
+        ("INT", "r"): "WFC-SDSSr-214.fits",
+        #("INT", "SDSSr"): "WFC-SDSSr-214.fits",
+        #("WFC", "r"): "WFC-SDSSr-214.fits",
+        #("WFC", "SDSSr"): "WFC-SDSSr-214.fits",
+
+        ("PANSTARRS", "r"): "panstarrs-r.fits",
+        ("PS1", "r"): "panstarrs-r.fits",
+    }
+
+    key = (instrument, rfilter)
+    if key in filter_map:
+        return filter_map[key]
+
+    # more permissive fallback logic
+    rf = rfilter.lower()
+
+    if instrument == "BOK":
+        return "BOK90prime-BASSr.fits"
+
+    if instrument == "HDI":
+        if "harris" in rf or rf == "r":
+            return "HDI-HarrisR.fits" if rfilter == "R" else "HDI-SDSSr.fits"
+
+    if instrument == "MOS":
+        if "harris" in rf or rfilter == "R":
+            return "MOS-HarrisR.fits"
+        if "sdss" in rf or rfilter == "r":
+            return "MOS-SDSSr.fits"
+
+    if instrument in ("INT", "WFC"):
+        return "WFC-SDSSr-214.fits"
+
+    if instrument in ("PANSTARRS", "PS1"):
+        return "panstarrs-r.fits"
+
+    raise KeyError(f"Could not determine r-band filter filename for instrument={instrument}, FILTER={rfilter}")
+
+
+def get_filter_wavelength_info(filter_name):
+    if filter_name not in filter_wavelengths:
+        raise KeyError(f"No wavelength info for filter {filter_name}")
+    return filter_wavelengths[filter_name]
 
 class FilterTrace():
     def __init__(self,hafilter,filterpath=None,instrument=None,mintrans=10.):
@@ -39,19 +149,8 @@ class FilterTrace():
 
         
     def get_halpha_filtername(self):
-        instrument_to_prefix = {'INT':'WFC','BOK':'90prime','HDI':'HDI','MOS':'MOS'}
-
-        filter_to_suffix = {4:'Ha+4nm',8:'Ha+8nm',12:'Ha+12nm',16:'Ha+16nm',\
-                                '4':'Ha+4nm','8':'Ha+8nm','12':'Ha+12nm','16':'Ha+16nm',\
-                                'ha4':'Ha+4nm','ha8':'Ha+8nm','ha12':'Ha+12nm','ha16':'Ha+16nm','ha':'Ha-197',\
-                                'Ha+4nm':'Ha+4nm','Ha4nm':'Ha+4nm',\
-                                'Halpha':'Ha-197','Ha6657':'Ha-227',\
-                                'ha4 H-alpha+4nm k1010':'Ha+4nm',
-                                'ha8 H-alpha+8nm k1011':'Ha+8nm',
-                                'ha12 H-alpha+12nm k1012':'Ha+12nm',
-                                'ha16 H-alpha+16nm k1013':'Ha+16nm',}
         print("testing, self.hafilter = ",self.hafilter, self.instrument)
-        self.halpha_filtername = utils.get_filter_file(f"{instrument_to_prefix[self.instrument]}-{filter_to_suffix[self.hafilter]}.fits")
+        self.halpha_filtername = utils.get_filter_file(f"{instrument_to_prefix[self.instrument]}-{hafilter_to_suffix[self.hafilter]}.fits")
 
     def read_filter(self):
         """ updating to use the new filter curves """
@@ -121,6 +220,7 @@ class FilterTrace():
         # calculate min and max redshifts that correspond to transmission cut
         self.minz_trans10max = (self.wave[ids[0][0]]/wave_halpha -1.)
         self.maxz_trans10max = (self.wave[ids[0][-1]]/wave_halpha -1.)
+
         
     def spline_fit(self):
         

@@ -17,6 +17,11 @@ from pathlib import Path
 from hapy.imagetools.imutils import get_pixel_scale
 #from hapy.imagetools.imutils import calculate_background_photutils
 from hapy.imagetools.imutils import estimate_and_subtract_sky
+from hapy.hatools.filter_transmission import (
+    get_halpha_filtername,
+    get_rband_filtername,
+    get_filter_wavelength_info,
+)
 instruments = ['BOK','INT','HDI','MOS']
 
 
@@ -233,6 +238,20 @@ class CoaddImage:
                 break
     def get_filter(self):
         self.filter = self.header['FILTER']
+    def get_filter_center_width(self):
+        if self.filter in ["r","R","r SDSS k1018", "R Harris k1004"]:
+            filter_file = get_rband_filtername(self.instrument, self.filter)
+            fcenter_wave, fwidth = filter_center_width(filter_file)
+        else:
+            filter_file = get_halpha_filtername(self.instrument,self.filter)
+            fcenter_wave, fwidth = filter_center_width(filter_file)
+        # add center wavelength and width to header
+        self.header['FILTNAME'] = (filter_file, "Normalized filter filename")
+        self.header["FILTWCEN"] = (fcenter_wave,"Filter Center Wavelength (A)")
+        self.header["FILTWID"] = (fwidth, "Filter Width (A)")
+        self.filter_file = filter_file
+        self.filter_center = fcenter_wave
+        self.filter_width = fwidth
     def get_target(self):
         self.target = self.header['OBJECT']
         
@@ -275,6 +294,9 @@ class CoaddImage:
 
         If a weight image exists, reject cutouts whose central region falls in
         a chip gap or off the valid image area.
+
+        If a weight image exists and the cutout is valid, also write a weight-image
+        cutout with filename output_name.replace(".fits", ".weight.fits").
         """
 
         if output_name is not None:
@@ -282,7 +304,6 @@ class CoaddImage:
             if outpath.is_file() and not overwrite:
                 print(f"Skipping existing cutout: {outpath}")
                 return ("skipped", None, None)
-
 
         if self.data is None or self.wcs is None:
             self.load_image()
@@ -295,19 +316,25 @@ class CoaddImage:
 
         # --- optional weight cutout ---
         wcut = None
+        weight_header = None
+        weight_output_name = None
+
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
             try:
-                wdata = fits.getdata(self.weight_image)
-                wcut = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs).data
+                wdata, wheader = fits.getdata(self.weight_image, header=True)
+                wcut_obj = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs)
+                wcut = wcut_obj.data.copy()
+                weight_header = wheader.copy()
+                weight_header.update(wcut_obj.wcs.to_header())
             except Exception:
                 wcut = None
+                weight_header = None
 
         # --- reject edge / chip-gap cases based on weight image ---
         weight_ok, weight_stats = _weight_ok(wcut, central_frac=0.25, min_center_frac=0.8)
         if not weight_ok:
             print(f"Rejecting cutout due to invalid central weight region: {output_name}")
             return ("invalid", None, None)
-
 
         # --- optional sky subtraction ---
         skycfg = skycfg or {}
@@ -324,11 +351,21 @@ class CoaddImage:
             base = os.path.basename(self.image_file).replace('.fits', '')
             output_name = f"{base}-cutout.fits"
 
+        # weight cutout filename
+        if wcut is not None:
+            if output_name.endswith(".fits"):
+                weight_output_name = output_name.replace(".fits", ".weight.fits")
+            else:
+                weight_output_name = output_name + ".weight.fits"
+
         outheader = self.header.copy()
         outheader.update(cutout.wcs.to_header())
 
         if self.psf_image_name is not None:
             outheader.set('PSFIMAGE', self.psf_image_name)
+
+        if self.weight_image is not None:
+            outheader.set('WGTIMAGE', str(self.weight_image))
 
         # record weight diagnostics
         outheader["WGTCUTOK"] = (bool(weight_ok), "Central weight region valid")
@@ -358,16 +395,24 @@ class CoaddImage:
             newheader = fix_header_exptime(outheader)
             if newheader is not None:
                 outheader = newheader
-                
+
+        # write science cutout
         fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
+
+        # write weight cutout if available
+        if wcut is not None and weight_header is not None and weight_output_name is not None:
+            weight_header["WGTCUT"] = (True, "This file is a weight-image cutout")
+            weight_header["SCIIM"] = (os.path.basename(output_name), "Associated science-image cutout")
+            fits.PrimaryHDU(data=wcut, header=weight_header).writeto(weight_output_name, overwrite=True)
 
         if self.verbose:
             print(f"Cutout saved to {output_name}")
+            if weight_output_name is not None:
+                print(f"Weight cutout saved to {weight_output_name}")
 
         if return_cutout:
             return ("ok", cutout_data, outheader)
         return None
-
 
     # #def make_cutout(self, ra, dec, size_arcsec, output_name=None):
     # def make_cutout(self, ra, dec, size_arcsec, output_name=None,
@@ -375,7 +420,7 @@ class CoaddImage:
 
     #     """
     #     Create a cutout centered act (ra, dec) with size in arcsec.
-    #     """
+   #     """
 
     #     # --- check if output_name exists, return if it does
     #     if output_name is not None:
@@ -489,13 +534,23 @@ class HalphaImageSet:
             
         self.r.check_for_psf(psfdir=self.psfdir)
         self.h.check_for_psf(psfdir=self.psfdir)
-        
+
+        self.r.get_instrument()
         self.h.get_instrument()
+        self.r.get_filter()
         self.h.get_filter()    
 
+        self.r.get_filter_center_width()
+        self.h.get_filter_center_width()
+
+        if self.cs_flag:
+            self.cs.header["FILTNAME"] = self.h.header["FILTNAME"]
+            self.cs.header["FILTWCEN"] = self.h.header["FILTWCEN"]
+            self.cs.header["FILTWID"] = self.h.header["FILTWID"]
         # get fwhm if
         self.r.get_fwhm()
         self.h.get_fwhm()
+
 
         # fix gain
         #self.r.fix_gain()
