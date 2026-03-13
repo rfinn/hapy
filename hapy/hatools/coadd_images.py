@@ -38,7 +38,7 @@ instruments = ['BOK','INT','HDI','MOS']
 
 
 
-def _safe_set_float_header(header, key, value, comment, ndec=4):
+def _safe_set_float_header(header, key, value, comment, ndec=6):
     if value is not None and np.isfinite(value):
         header[key] = (round(float(value), ndec), comment)
     else:
