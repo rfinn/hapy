@@ -1399,10 +1399,10 @@ def main():
 
         # set convolution box size
         nconvolution_scale = 10
-        if params['himage_fwhm_pixels'] is not None:
-            convolution_size = nconvolution_scale * float(params['himage_fwhm_pixels'])
-        elif params['rimage_fwhm_arcsec'] is not None:
-            convolution_size = nconvolution_scale * float(params['rimage_fwhm_arcsec'])
+        if params['himage_fwhm_psf'] is not None:
+            convolution_size = nconvolution_scale * float(params['himage_fwhm_psf'])*pixscale
+        elif params['rimage_fwhm_psf'] is not None:
+            convolution_size = nconvolution_scale * float(params['rimage_fwhm_psf'])*pixscale
         else:
             # set to the number of pixels with
             # assume seeing = 2 arcsec, and 0.4"/pixels
