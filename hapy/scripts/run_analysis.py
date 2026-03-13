@@ -395,8 +395,8 @@ def initialize_result_row():
         "POINTING",
         "SCHEME",
         "PARENT_RIMAGE",
-        "PARENT_HAIMAGE",
-        "HAFILTER"
+        "PARENT_HIMAGE",
+        "HFILTER"
     ]:
         row[k] = ""
 
@@ -409,7 +409,7 @@ def initialize_result_row():
          "MASK_FITS","PSF_FITS",
          "R_FITS", "CS_FITS","SIGMA_FITS",
          "RFILTER_FILENAME", "RFILTER_CENTER","RFILTER_WIDTH",
-         "HAFILTER_FILENAME", "HAFILTER_CENTER","HAFILTER_WIDTH",         
+         "HFILTER_FILENAME", "HFILTER_CENTER","HFILTER_WIDTH",         
             ]:
         row[k] = ""
         
@@ -425,8 +425,8 @@ def initialize_result_row():
    
     # ---------- pipeline status ----------
     for k in ["PSF_OK", "MASK_OK", "PHOT_OK", \
-                  "R_PROFILE_OK","HA_PROFILE_OK",\
-                  "R_SM_FLAG", "HA_SM_FLAG",\
+                  "R_PROFILE_OK","H_PROFILE_OK",\
+                  "R_SM_FLAG", "H_SM_FLAG",\
                   "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
         row[k] = False
     row["GAL_CV_INIT_FROM_NC"] = False
@@ -443,9 +443,9 @@ def initialize_result_row():
         row[k] = False
 
     for k in [
-        "HA_PETRO_OK",
-        "HA_EXPFIT_OK",
-        "HA_LOGFIT_OK",
+        "H_PETRO_OK",
+        "H_EXPFIT_OK",
+        "H_LOGFIT_OK",
     ]:
         row[k] = False
 
@@ -499,7 +499,7 @@ def initialize_result_row():
 
     # ---------- H band ----------
     for k in [
-        "HA_FWHM_PSF", "HA_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
+        "H_FWHM_PSF", "H_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
         "H_SKYSTD_PHYS", "H_M20", "H_ASYM", "H_ASYM_ERR"
     ]:
         row[k] = np.nan
@@ -567,33 +567,50 @@ def initialize_result_row():
 
     # ---------- Halpha profile summary ----------
     for k in [
-        "HA_PROFILE_NGOOD",
-        "HA_PROFILE_LONGRUN",
-        "HA_NDET_RUNS",
-        "HA_PROFILE_MASKFRAC_MAX",
-        "HA_MAXDET_ARCSEC", "HA_MAXDET_PIX",
-        "HA_TOT_FLUX_CGS", "HA_TOT_FLUX_CGS_ERR",
-        "HA_SNR_TRUNC_ARCSEC",
-        "HA25_ARCSEC", "HA25_PIX",
-        "HA50_ARCSEC", "HA50_PIX",
-        "HA75_ARCSEC", "HA75_PIX",
-        "HA_ISO5E17_ARCSEC", "HA_ISO5E17_ARCSEC_ERR",
-        "HA_ISO5E17_FLUX_CGS", "HA_ISO5E17_FLUX_CGS_ERR",
-        "HA_ISO17E18_ARCSEC", "HA_ISO17E18_ARCSEC_ERR",
-        "HA_ISO17E18_FLUX_CGS", "HA_ISO17E18_FLUX_CGS_ERR",
-        "HA30R24_FLUX_CGS", "HA30R24_FLUX_CGS_ERR",
-        "HA_R24_FLUX_CGS", "HA_R24_FLUX_CGS_ERR",
-        "HA_C30_R24", "HA_C30_R24_ERR",
-        "HA_R95_R24_ARCSEC",
-        "HA_PETRO_RAD_ARCSEC",
-        "HA_PETRO_FLUX",
-        "HA_PETRO_FLUX_CGS", "HA_PETRO_FLUX_CGS_ERR",
-        "HA_PETRO_MAG",
-        "HA_PETRO_R50_ARCSEC",
-        "HA_PETRO_R90_ARCSEC",
-        "HA_PETRO_CON",
-        "HA_EXPFIT_I0", "HA_EXPFIT_K", "HA_EXPFIT_RE_ARCSEC",
-        "HA_LOGFIT_SLOPE", "HA_LOGFIT_INTERCEPT", "HA_LOGFIT_RE_ARCSEC",
+        "H_PROFILE_NGOOD",
+        "H_PROFILE_LONGRUN",
+        "H_NDET_RUNS",
+        "H_PROFILE_MASKFRAC_MAX",
+        "H_MAXDET_ARCSEC",
+        "H_MAXDET_PIX",
+        "H_TOT_FLUX_CGS",
+        "H_TOT_FLUX_CGS_ERR",
+        "H_SNR_TRUNC_ARCSEC",
+        "H25_ARCSEC",
+        "H25_PIX",
+        "H50_ARCSEC",
+        "H50_PIX",
+        "H75_ARCSEC",
+        "H75_PIX",
+        "H_ISO5E17_ARCSEC",
+        "H_ISO5E17_ARCSEC_ERR",
+        "H_ISO5E17_FLUX_CGS",
+        "H_ISO5E17_FLUX_CGS_ERR",
+        "H_ISO17E18_ARCSEC",
+        "H_ISO17E18_ARCSEC_ERR",
+        "H_ISO17E18_FLUX_CGS",
+        "H_ISO17E18_FLUX_CGS_ERR",
+        "H30R24_FLUX_CGS",
+        "H30R24_FLUX_CGS_ERR",
+        "H_R24_FLUX_CGS",
+        "H_R24_FLUX_CGS_ERR",
+        "H_C30_R24",
+        "H_C30_R24_ERR",
+        "H_R95_R24_ARCSEC",
+        "H_PETRO_RAD_ARCSEC",
+        "H_PETRO_FLUX",
+        "H_PETRO_FLUX_CGS",
+        "H_PETRO_FLUX_CGS_ERR",
+        "H_PETRO_MAG",
+        "H_PETRO_R50_ARCSEC",
+        "H_PETRO_R90_ARCSEC",
+        "H_PETRO_CON",
+        "H_EXPFIT_I0",
+        "H_EXPFIT_K",
+        "H_EXPFIT_RE_ARCSEC",
+        "H_LOGFIT_SLOPE",
+        "H_LOGFIT_INTERCEPT",
+        "H_LOGFIT_RE_ARCSEC",
     ]:
         row[k] = np.nan
 
@@ -952,7 +969,7 @@ def main():
     row["PARENT_RIMAGE"]  = params.get("parent_rimage", "")
     row["PARENT_HAIMAGE"] = params.get("parent_haimage", "")
 
-    row["HAFILTER"] = params.get("hafilter")
+    row["HFILTER"] = params.get("hafilter")
     row["CUTOUT_SCALE"] = params.get("cutout_scale")
     row["FILTER_CORRECTION"] = params.get("filter_correction")
 
@@ -984,14 +1001,14 @@ def main():
 
     row["R_FWHM_SE"] = float(params.get("rimage_fwhm_se_arcsec"))
     row["R_FWHM_PSF"] = float(params.get("rimage_fwhm_psf_arcsec"))    
-    row["HA_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
-    row["HA_FWHM_PSF"] = float(params.get("himage_fwhm_psf_arcsec"))    
+    row["H_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
+    row["H_FWHM_PSF"] = float(params.get("himage_fwhm_psf_arcsec"))    
     row["RFILTER_FILENAME"] = params.get("rfilter_name")
     row["RFILTER_CENTER"] = float(params.get("rfilter_center_A"))
     row["RFILTER_WIDTH"] = float(params.get("rfilter_width_A"))    
-    row["HAFILTER_FILENAME"] = params.get("hafilter_name")
-    row["HAFILTER_CENTER"] = float(params.get("hafilter_center_A"))
-    row["HAFILTER_WIDTH"] = float(params.get("hafilter_width_A"))    
+    row["HFILTER_FILENAME"] = params.get("hafilter_name")
+    row["HFILTER_CENTER"] = float(params.get("hafilter_center_A"))
+    row["HFILTER_WIDTH"] = float(params.get("hafilter_width_A"))    
 
 
     if ra is not None and dec is not None:
@@ -1112,7 +1129,7 @@ def main():
             add_gaia_stars=(not args.no_gaia),
         )
         # calculate the min radius to use for gaia stars
-        max_fwhm = max(row["R_FWHM_PSF"], row["HA_FWHM_PSF"])
+        max_fwhm = max(row["R_FWHM_PSF"], row["H_FWHM_PSF"])
         gaia_min_radius_arcsec = 4 * max_fwhm
         logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
 
@@ -1184,10 +1201,10 @@ def main():
     
     t0 = time.perf_counter()
 
-    hafilter = row["HAFILTER"]
+    hafilter = row["HFILTER"]
     if args.image2_filter is not None:
         hafilter = args.image2_filter
-        row["HAFILTER"] = hafilter
+        row["HFILTER"] = hafilter
         
     e = run_ellipse_photometry(
         r_fits=r_fits,
@@ -1342,7 +1359,7 @@ def main():
 
             try:
                 _pull_statmorph(row,"HA_SM", getattr(e, "morph2", None))
-                row["HA_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
+                row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
             except Exception:
                 pass
         # write table after statmorph
@@ -1398,7 +1415,7 @@ def main():
         convflag = bool(args.convflag)
 
         # set convolution box size
-        nconvolution_scale = 10
+        nconvolution_scale = 20 # galfit manual says use box size of 20 or more seeing diameters
         if params['himage_fwhm_psf_arcsec'] is not None:
             convolution_size = nconvolution_scale * float(params['himage_fwhm_psf_arcsec'])/pixscale
         elif params['rimage_fwhm_psf_arcsec'] is not None:
