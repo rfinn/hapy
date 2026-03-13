@@ -166,7 +166,7 @@ def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[st
     masks["science_ready"] = (
         masks["profile_ok"] &
         masks["R_SM_FLAG"] &
-        masks["H_SM_FLAG"] &
+        masks["HA_SM_FLAG"] &
         (masks["GAL_NC_OK"] | masks["GAL_CV_OK"]) &
         (~masks["FILTER_WARNING"])
     )
@@ -542,8 +542,8 @@ def main():
                  mask=masks["galfit_any_ok"])
 
     plot_failure_fraction_vs_bright_star_distance(tab, outdir / "FAILURES_VS_BRIGHT_STAR_DIST.png")
-    plot_raincloud_by_telescope(tab, "R_FWHM", outdir / "raincloud_R_FWHM_by_telescope.png")
-    plot_raincloud_by_telescope(tab, "H_FWHM", outdir / "raincloud_H_FWHM_by_telescope.png")
+    plot_raincloud_by_telescope(tab, "R_FWHM_PSF", outdir / "raincloud_R_FWHM_by_telescope.png")
+    plot_raincloud_by_telescope(tab, "HA_FWHM_PSF", outdir / "raincloud_HA_FWHM_by_telescope.png")
     plot_raincloud_by_telescope(tab, "FILTER_CORRECTION", outdir / "raincloud_FILTER_CORRECTION_by_telescope.png")
     plot_raincloud_by_telescope(tab, "HA_TOT_FLUX_CGS", outdir / "raincloud_HA_TOT_FLUX_by_telescope.png", logx=True)
 
