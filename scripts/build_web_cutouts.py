@@ -48,6 +48,7 @@ import warnings
 
 import multiprocessing as mp
 
+from hapy.imagetools.plotting import display_image
 from PIL import Image
 
 homedir = os.getenv("HOME")
@@ -135,71 +136,71 @@ def buildone(subdir,outdir,flist):
         #    print('WARNING: problem building webpage for ',subdir)
     
 
-def display_image(image,percentile1=.5,percentile2=99.5,stretch='asinh',mask=None,sigclip=True,zoom=None):
-    if zoom is not None:
-        print("who's zoomin' who?")
-        # display central region of image
+# def display_image(image,percentile1=.5,percentile2=99.5,stretch='asinh',mask=None,sigclip=True,zoom=None):
+#     if zoom is not None:
+#         print("who's zoomin' who?")
+#         # display central region of image
         
-        # get image dimensions and center
-        xmax,ymax = image.shape
-        xcenter = int(xmax/2)
-        ycenter = int(ymax/2)
+#         # get image dimensions and center
+#         xmax,ymax = image.shape
+#         xcenter = int(xmax/2)
+#         ycenter = int(ymax/2)
         
-        # calculate new size to display based on zoom factor
-        new_xradius = int(xmax/2/(float(zoom)))
-        new_yradius = int(ymax/2/(float(zoom)))
+#         # calculate new size to display based on zoom factor
+#         new_xradius = int(xmax/2/(float(zoom)))
+#         new_yradius = int(ymax/2/(float(zoom)))
         
-        # calculate pixels to keep based on zoom factor
-        x1 = xcenter - new_xradius
-        x2 = xcenter + new_xradius
-        y1 = ycenter - new_yradius
-        y2 = ycenter + new_yradius
+#         # calculate pixels to keep based on zoom factor
+#         x1 = xcenter - new_xradius
+#         x2 = xcenter + new_xradius
+#         y1 = ycenter - new_yradius
+#         y2 = ycenter + new_yradius
         
-        # check to make sure limits are not outsize image dimensions
-        if (x1 < 1):
-            x1 = 1
-        if (y1 < 1):
-            y1 = 1
-        if (x2 > xmax):
-            x2 = xmax
-        if (y2 > ymax):
-            y2 = ymax
+#         # check to make sure limits are not outsize image dimensions
+#         if (x1 < 1):
+#             x1 = 1
+#         if (y1 < 1):
+#             y1 = 1
+#         if (x2 > xmax):
+#             x2 = xmax
+#         if (y2 > ymax):
+#             y2 = ymax
 
-        # cut images to new size
-        image = image[x1:x2,y1:y2]
-        if mask is not None:
-            mask = mask[x1:x2,y1:y2]
-    # use inner 80% of image
-    xdim,ydim = image.shape
-    xmin = int(.1*xdim)
-    xmax = int(.9*xdim)    
-    ymin = int(.1*ydim)
-    ymax = int(.9*ydim)
-    if mask is not None:
-        imdata = np.ma.array(image,mask=mask)
+#         # cut images to new size
+#         image = image[x1:x2,y1:y2]
+#         if mask is not None:
+#             mask = mask[x1:x2,y1:y2]
+#     # use inner 80% of image
+#     xdim,ydim = image.shape
+#     xmin = int(.1*xdim)
+#     xmax = int(.9*xdim)    
+#     ymin = int(.1*ydim)
+#     ymax = int(.9*ydim)
+#     if mask is not None:
+#         imdata = np.ma.array(image,mask=mask)
         
-    else:
-        imdata = image
-    v1 = scoreatpercentile(imdata,percentile1)    
-    v2 = scoreatpercentile(imdata,percentile2)
+#     else:
+#         imdata = image
+#     v1 = scoreatpercentile(imdata,percentile1)    
+#     v2 = scoreatpercentile(imdata,percentile2)
     
-    if mask is not None:
-        statim = image[~mask]
-    else:
-        statim = image
+#     if mask is not None:
+#         statim = image[~mask]
+#     else:
+#         statim = image
 
-    if sigclip:
-        if mask is not None:
-            clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax][~mask[xmin:xmax,ymin:ymax]],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')
-        else:
-            clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')            
-    else:
-        clipped_data = image[xmin:xmax,ymin:ymax]
+#     if sigclip:
+#         if mask is not None:
+#             clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax][~mask[xmin:xmax,ymin:ymax]],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')
+#         else:
+#             clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')            
+#     else:
+#         clipped_data = image[xmin:xmax,ymin:ymax]
 
-    norm = simple_norm(clipped_data, stretch=stretch,max_percent=percentile2,min_percent=percentile1)
+#     norm = simple_norm(clipped_data, stretch=stretch,max_percent=percentile2,min_percent=percentile1)
 
-    plt.imshow(image, norm=norm,cmap='gray_r',origin='lower')#,vmin=v1,vmax=v2)
-    #plt.imshow(imdata, norm=norm,origin='lower')#,vmin=v1,vmax=v2)
+#     plt.imshow(image, norm=norm,cmap='gray_r',origin='lower')#,vmin=v1,vmax=v2)
+#     #plt.imshow(imdata, norm=norm,origin='lower')#,vmin=v1,vmax=v2)
     
 
 def make_png(fitsimage,outname,mask=None,ellipseparams=None,zoom=None):

@@ -7,7 +7,6 @@ from astropy.stats import sigma_clip
 from astropy.io import fits
 
 from matplotlib.patches import Ellipse
-
 def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
     # matplotlib Ellipse needs angle relative to +x axis
     return Ellipse(
