@@ -119,7 +119,7 @@ def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[st
     masks["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
     masks["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
     masks["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
-    masks["HA_PROFILE_OK"] = safe_bool_array(tab, "HA_PROFILE_OK")
+    masks["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
     masks["R_SM_FLAG"] = safe_bool_array(tab, "R_SM_FLAG")
     masks["H_SM_FLAG"] = safe_bool_array(tab, "H_SM_FLAG")
     masks["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
@@ -140,7 +140,7 @@ def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[st
         masks["MASK_OK"] &
         masks["PHOT_OK"] &
         masks["R_PROFILE_OK"] &
-        masks["HA_PROFILE_OK"]
+        masks["H_PROFILE_OK"]
     )
 
     masks["statmorph_ok"] = (
@@ -166,7 +166,7 @@ def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[st
     masks["science_ready"] = (
         masks["profile_ok"] &
         masks["R_SM_FLAG"] &
-        masks["HA_SM_FLAG"] &
+        masks["H_SM_FLAG"] &
         (masks["GAL_NC_OK"] | masks["GAL_CV_OK"]) &
         (~masks["FILTER_WARNING"])
     )
@@ -333,11 +333,11 @@ def plot_compare(tab: Table, xcol: str, ycol: str, outpath: Path, title: str | N
 
 def plot_filter_warning_vs_ha(tab: Table, masks: dict[str, np.ndarray], outpath: Path) -> None:
     col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
-    if col is None or "HA_TOT_FLUX_CGS" not in tab.colnames:
+    if col is None or "H_TOT_FLUX_CGS" not in tab.colnames:
         return
 
     x = safe_float_array(tab, col)
-    y = safe_float_array(tab, "HA_TOT_FLUX_CGS")
+    y = safe_float_array(tab, "H_TOT_FLUX_CGS")
 
     good = np.isfinite(x) & np.isfinite(y) & (y > 0)
     if np.sum(good) == 0:
@@ -351,7 +351,7 @@ def plot_filter_warning_vs_ha(tab: Table, masks: dict[str, np.ndarray], outpath:
     ax.scatter(x[good & warn], y[good & warn], s=12, alpha=0.7, label="filter warning")
     ax.set_yscale("log")
     ax.set_xlabel(col)
-    ax.set_ylabel("HA_TOT_FLUX_CGS")
+    ax.set_ylabel("H_TOT_FLUX_CGS")
     ax.set_title("Hα flux vs filter correction")
     ax.legend()
     plt.tight_layout()
@@ -393,7 +393,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
         "BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC",
         "PHOT_OK",
         "R_PROFILE_OK",
-        "HA_PROFILE_OK",
+        "H_PROFILE_OK",
         "R_SM_FLAG",
         "H_SM_FLAG",
         "GAL_NC_OK",
@@ -417,7 +417,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
     failure_defs = {
         "phot fail": ~np.array(tab["PHOT_OK"][good], dtype=bool),
         "r profile fail": ~np.array(tab["R_PROFILE_OK"][good], dtype=bool),
-        "ha profile fail": ~np.array(tab["HA_PROFILE_OK"][good], dtype=bool),
+        "ha profile fail": ~np.array(tab["H_PROFILE_OK"][good], dtype=bool),
         "r statmorph fail": ~np.array(tab["R_SM_FLAG"][good], dtype=bool),
         "ha statmorph fail": ~np.array(tab["H_SM_FLAG"][good], dtype=bool),
         "galfit nc fail": ~np.array(tab["GAL_NC_OK"][good], dtype=bool),
@@ -508,7 +508,7 @@ def main():
     plot_flag_completion(tab, outdir / "flag_completion.png")
 
     r_fwhm_col = first_populated_col(tab, ["R_FWHM_PSF", "R_FHWM_PSF"])
-    h_fwhm_col = first_populated_col(tab, ["HA_FWHM_PSF", "HA_FHWM_PSF"])
+    h_fwhm_col = first_populated_col(tab, ["H_FWHM_PSF", "H_FHWM_PSF"])
 
     if r_fwhm_col is not None:
         plot_hist(tab, r_fwhm_col, outdir / "r_fwhm_hist.png", title="R-band FWHM")
@@ -519,12 +519,12 @@ def main():
     plot_hist(tab, "R25_ISO_MAG", outdir / "R25_ISO_MAG_hist.png", title="R25 isophotal magnitude", mask=masks["mask_phot_ok"])
     plot_hist(tab, "GAL_MAG", outdir / "GAL_MAG_hist.png", title="GALFIT magnitude", mask=masks["galfit_any_ok"])
 
-    plot_hist(tab, "HA_TOT_FLUX_CGS", outdir / "HA_TOT_FLUX_CGS_hist.png",
+    plot_hist(tab, "H_TOT_FLUX_CGS", outdir / "H_TOT_FLUX_CGS_hist.png",
               title="Halpha total flux", logx=True, mask=masks["mask_phot_ok"])
-    plot_hist(tab, "HA_R24_FLUX_CGS", outdir / "HA_R24_FLUX_CGS_hist.png",
+    plot_hist(tab, "H_R24_FLUX_CGS", outdir / "H_R24_FLUX_CGS_hist.png",
               title="Halpha R24 flux", logx=True, mask=masks["mask_phot_ok"])
 
-    plot_hist(tab, "HA_MAXDET_ARCSEC", outdir / "HA_MAXDET_ARCSEC_hist.png",
+    plot_hist(tab, "H_MAXDET_ARCSEC", outdir / "H_MAXDET_ARCSEC_hist.png",
               title="Halpha max detection radius", mask=masks["mask_phot_ok"])
     plot_hist(tab, "GAL_RE", outdir / "GAL_RE_hist.png",
               title="GALFIT effective radius", mask=masks["galfit_any_ok"])
@@ -533,7 +533,7 @@ def main():
                  title="R24 magnitude vs GALFIT magnitude",
                  mask=masks["galfit_any_ok"])
 
-    plot_compare(tab, "HA_R24_FLUX_CGS", "HA_TOT_FLUX_CGS", outdir / "HA_R24_vs_HA_TOT.png",
+    plot_compare(tab, "H_R24_FLUX_CGS", "H_TOT_FLUX_CGS", outdir / "H_R24_vs_H_TOT.png",
                  title="Halpha R24 flux vs total flux",
                  logx=True, logy=True, mask=masks["mask_phot_ok"])
 
@@ -543,9 +543,9 @@ def main():
 
     plot_failure_fraction_vs_bright_star_distance(tab, outdir / "FAILURES_VS_BRIGHT_STAR_DIST.png")
     plot_raincloud_by_telescope(tab, "R_FWHM_PSF", outdir / "raincloud_R_FWHM_by_telescope.png")
-    plot_raincloud_by_telescope(tab, "HA_FWHM_PSF", outdir / "raincloud_HA_FWHM_by_telescope.png")
+    plot_raincloud_by_telescope(tab, "H_FWHM_PSF", outdir / "raincloud_H_FWHM_by_telescope.png")
     plot_raincloud_by_telescope(tab, "FILTER_CORRECTION", outdir / "raincloud_FILTER_CORRECTION_by_telescope.png")
-    plot_raincloud_by_telescope(tab, "HA_TOT_FLUX_CGS", outdir / "raincloud_HA_TOT_FLUX_by_telescope.png", logx=True)
+    plot_raincloud_by_telescope(tab, "H_TOT_FLUX_CGS", outdir / "raincloud_H_TOT_FLUX_by_telescope.png", logx=True)
 
     plot_filter_warning_vs_ha(tab, masks, outdir / "filter_correction_vs_ha_flux.png")
 

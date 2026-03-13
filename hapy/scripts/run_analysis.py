@@ -967,7 +967,7 @@ def main():
     row["POINTING"]  = params.get("pointing", "")
     row["SCHEME"]    = params.get("scheme", "")
     row["PARENT_RIMAGE"]  = params.get("parent_rimage", "")
-    row["PARENT_HAIMAGE"] = params.get("parent_haimage", "")
+    row["PARENT_HIMAGE"] = params.get("parent_haimage", "")
 
     row["HFILTER"] = params.get("hafilter")
     row["CUTOUT_SCALE"] = params.get("cutout_scale")
