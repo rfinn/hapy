@@ -347,8 +347,8 @@ def _pull_statmorph(row, prefix, mobj):
             ("R20", "r20"),
             ("R50", "r50"),
             ("R80", "r80"),
-            ("RMAX_CIRCLE",rmax_circle),
-            ("RMAX_ELLIP",rmax_ellip),            
+            ("RMAX_CIRCLE","rmax_circle"),
+            ("RMAX_ELLIP","rmax_ellip"),            
             ("SERSIC_AMP", "sersic_amplitude"),
             ("SERSIC_RHALF","sersic_rhalf"),
             ("SERSIC_N","sersic_n"),
@@ -1361,6 +1361,7 @@ def main():
         logger.info("STAGE: statmorph")
         e.run_statmorph_supervisor()
         if e.statmorph_flag:
+            _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
             try:
                 _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
                 # statmorph sets flag == 1 for a problem, so need to negate it
