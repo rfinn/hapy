@@ -608,6 +608,10 @@ class cutout_dir():
 
         mask = fits.getdata(self.maskimage)
         mask = mask > 0
+        plt.figure()
+        plt.imshow(mask)
+        plt.savefig("mask.png")
+        plt.close("all")
             
         for i,f in enumerate(self.fitsimages): # loop over keys
 
@@ -620,9 +624,9 @@ class cutout_dir():
                     make_png(self.fitsimages[f],pngfile,mask=mask)
                 elif i == (len(self.fitsimages)-2): # add ellipse to mask image
                     if self.ellipseparams is not None:
-                        make_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom)
+                        make_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom,mask=mask)
                     else:
-                        make_png(self.fitsimages[f],pngfile,zoom=zoom)
+                        make_png(self.fitsimages[f],pngfile,zoom=zoom,mask=mask)
                 else:
                     make_png(self.fitsimages[f],pngfile,zoom=zoom)                    
                 self.pngimages[f] = pngfile
