@@ -1112,7 +1112,7 @@ def main():
             add_gaia_stars=(not args.no_gaia),
         )
         # calculate the min radius to use for gaia stars
-        max_fwhm = max(row["R_FWHM_PSF"], row["H_FWHM_PSF"])
+        max_fwhm = max(row["R_FWHM_PSF"], row["HA_FWHM_PSF"])
         gaia_min_radius_arcsec = 4 * max_fwhm
         logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
 
