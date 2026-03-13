@@ -26,7 +26,10 @@ class MyStatmorph(statmorph.SourceMorphology):
             if k.startswith('_'):
                 continue
             print(f"{k}: {self.__dict__[k]}")
-            
+
+    #def plot_segmap_weightmap(self):
+    #    plt.figure()
+        
         
 
 @dataclass

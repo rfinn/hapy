@@ -124,10 +124,10 @@ def merge_tables(files, output, mode):
 
     tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
-    if mode == "run_analysis":
-        for t in tables:
-            _coerce_bool_col(t, "R_SM_FLAG", default=False)
-            _coerce_bool_col(t, "H_SM_FLAG", default=False)
+    #if mode == "run_analysis":
+        #for t in tables:
+        #    _coerce_bool_col(t, "R_SM_FLAG", default=False)
+        #    _coerce_bool_col(t, "H_SM_FLAG", default=False)
         
     print("Validating schema...")
     keepflag = validate_schema(tables,files)

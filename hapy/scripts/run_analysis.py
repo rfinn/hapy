@@ -1361,7 +1361,7 @@ def main():
         logger.info("STAGE: statmorph")
         e.run_statmorph_supervisor()
         if e.statmorph_flag:
-            _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
+            #_pull_statmorph(row,"R_SM", getattr(e, "morph", None))
             try:
                 _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
                 # statmorph sets flag == 1 for a problem, so need to negate it
