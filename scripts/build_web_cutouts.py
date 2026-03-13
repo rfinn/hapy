@@ -620,6 +620,7 @@ class cutout_dir():
                 pngfile = os.path.join(self.outdir,os.path.basename(self.fitsimages[f]).replace('.fits','.png'))
             except TypeError:
                 continue
+            make_png(self.fitsimages[f],pngfile,zoom=zoom)                    
             try:
                 if i < 4:
                     make_png(self.fitsimages[f],pngfile,mask=mask)
@@ -663,8 +664,11 @@ class cutout_dir():
             plt.subplots_adjust(bottom=.15,left=.2,right=.95,top=.95)
             ax = plt.gca()
             
-            #clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')            
-            display_image(csdata,stretch=s,percentile1=.5,percentile2=p2[i],mask=mask,zoom=zoom)
+            #clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')
+            if s == "linear":
+                display_image(csdata,percentile1=.5,percentile2=p2[i],mask=mask,zoom=zoom,lowrange=True)
+            else:
+                display_image(csdata,percentile1=.5,percentile2=p2[i],mask=mask,zoom=zoom)
             # mark VF galaxies
             #plot_vf_gals(imx,imy,keepflag,vfmain,ax,galsize=galsize)
             suffix = "-{}.png".format(p2[i])
