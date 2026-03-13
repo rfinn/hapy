@@ -620,7 +620,7 @@ class cutout_dir():
                 pngfile = os.path.join(self.outdir,os.path.basename(self.fitsimages[f]).replace('.fits','.png'))
             except TypeError:
                 continue
-            make_png(self.fitsimages[f],pngfile,zoom=zoom)                    
+            make_png(self.fitsimages[f],pngfile,zoom=zoom, mask=mask)                    
             try:
                 if i < 4:
                     make_png(self.fitsimages[f],pngfile,mask=mask)
