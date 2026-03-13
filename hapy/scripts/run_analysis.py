@@ -1153,13 +1153,14 @@ def main():
         row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
         row["BRIGHT_STAR_MAG"] = bright_mag        
 
-        # under development
-        # res = ellipse_mask_fraction(mask, ell0_params)
-        # row["ELL0_MASKFRAC"] = res.frac_masked
-        # row["ELL0_MASK_WARN"] = res.frac_masked > 0.5        
-        # row["ELL0_NMASKPIX"] = res.n_masked
-        # row["ELL0_NTOTPIX"] = res.n_total
 
+        res = ellipse_mask_fraction(mask, ell0_params)
+        row["ELL0_MASKFRAC"] = res.frac_masked
+        row["ELL0_MASK_WARN"] = res.frac_masked > 0.5        
+        row["ELL0_NMASKPIX"] = res.n_masked
+        row["ELL0_NTOTPIX"] = res.n_total
+
+        # under development
         # largest_blob = largest_mask_region(mask_image, ellipse_pixels)
 
         # row["ELL_LARGEST_MASK"] = largest_blob
