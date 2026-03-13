@@ -213,6 +213,7 @@ def make_png(fitsimage,outname,mask=None,ellipseparams=None,zoom=None):
     plt.ylabel('DEC (deg)',fontsize=16)
     if ellipseparams is not None:
         ax = plt.gca()
+        ellipseparams[-1] += 90
         plot_ellipse(ax,ellipseparams)
     plt.savefig(outname)        
     plt.close(fig)
@@ -609,10 +610,10 @@ class cutout_dir():
 
         mask = fits.getdata(self.maskimage)
         mask = mask > 0
-        plt.figure()
-        plt.imshow(mask)
-        plt.savefig("mask.png")
-        plt.close("all")
+        # plt.figure()
+        # plt.imshow(mask)
+        # plt.savefig("mask.png")
+        # plt.close("all")
             
         for i,f in enumerate(self.fitsimages): # loop over keys
 
