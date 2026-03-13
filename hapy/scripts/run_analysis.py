@@ -1358,7 +1358,7 @@ def main():
                 pass
 
             try:
-                _pull_statmorph(row,"HA_SM", getattr(e, "morph2", None))
+                _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
                 row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
             except Exception:
                 pass

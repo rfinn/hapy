@@ -30,6 +30,10 @@ cd hapy-output-20260309
 
 
 ### make a list of coadds to analyze
+Testing directories
+```
+find /data-pool/Halpha/hapy-test1/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
+```
 ```bash
 find /data-pool/Halpha/coadds-2025DEC/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
@@ -287,3 +291,7 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/h
 ```
 
 # Make qc plots
+
+```
+
+```
