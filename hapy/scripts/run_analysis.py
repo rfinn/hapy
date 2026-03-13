@@ -491,14 +491,14 @@ def initialize_result_row():
 
     # ---------- R band ----------
     for k in [
-        "R_FWHM_PHOT","R_FWHM_SE", "R_SKYSTD_ADU", "R_SKYMED_ADU",
+        "R_FWHM_PSF","R_FWHM_SE", "R_SKYSTD_ADU", "R_SKYMED_ADU",
         "R_SKYSTD_PHYS", "R_M20", "R_ASYM", "R_ASYM_ERR"
     ]:
         row[k] = np.nan
 
     # ---------- H band ----------
     for k in [
-        "H_FWHM_PHOT", "H_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
+        "H_FWHM_PSF", "H_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
         "H_SKYSTD_PHYS", "H_M20", "H_ASYM", "H_ASYM_ERR"
     ]:
         row[k] = np.nan
@@ -982,9 +982,9 @@ def main():
     row["OBJID"] = objid
 
     row["R_FWHM_SE"] = float(params.get("rimage_fwhm_se_arcsec"))
-    row["R_FWHM_PHOT"] = float(params.get("rimage_fwhm_phot_arcsec"))    
+    row["R_FWHM_PSF"] = float(params.get("rimage_fwhm_psf_arcsec"))    
     row["H_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
-    row["H_FWHM_PHOT"] = float(params.get("himage_fwhm_phot_arcsec"))    
+    row["H_FWHM_PSF"] = float(params.get("himage_fwhm_psf_arcsec"))    
     row["RFILTER_NAME"] = params.get("rfilter_name")
     row["RFILTER_CENTER"] = float(params.get("rfilter_center_A"))
     row["RFILTER_WIDTH"] = float(params.get("rfilter_width_A"))    
