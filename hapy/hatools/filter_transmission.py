@@ -56,8 +56,8 @@ hafilter_to_suffix = {4:'Ha+4nm',8:'Ha+8nm',12:'Ha+12nm',16:'Ha+16nm',\
                         'ha16 H-alpha+16nm k1013':'Ha+16nm',}
 
 def get_halpha_filtername(instrument, hfilter):
-    print("testing, self.hafilter = ",self.hafilter, self.instrument)
-    halpha_filtername = f"{instrument_to_prefix[self.instrument]}-{hafilter_to_suffix[self.hafilter]}.fits"
+    print("testing, self.hafilter = ",hfilter, instrument)
+    halpha_filtername = f"{instrument_to_prefix[instrument]}-{hafilter_to_suffix[hfilter]}.fits"
 
 def get_rband_filtername(instrument, rfilter):
     """
