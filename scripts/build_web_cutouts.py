@@ -198,8 +198,8 @@ def display_image(image,percentile1=.5,percentile2=99.5,stretch='asinh',mask=Non
 
     norm = simple_norm(clipped_data, stretch=stretch,max_percent=percentile2,min_percent=percentile1)
 
-    #plt.imshow(image, norm=norm,cmap='gray_r',origin='lower')#,vmin=v1,vmax=v2)
-    plt.imshow(imdata, norm=norm,origin='lower')#,vmin=v1,vmax=v2)
+    plt.imshow(image, norm=norm,cmap='gray_r',origin='lower',vmin=v1,vmax=v2)
+    #plt.imshow(imdata, norm=norm,origin='lower')#,vmin=v1,vmax=v2)
     
 
 def make_png(fitsimage,outname,mask=None,ellipseparams=None,zoom=None):
@@ -574,7 +574,7 @@ class cutout_dir():
 
     def define_png_names(self):
         pass
-    def make_png_plots(self):
+    def make_png_plots(self, zoom=None):
         # fitsimages and pngimages should be dictionaries
         # so I am not relying on where they are in the list
         imnames = ['r','ha','cs','csgr','csgr_auto','legacy_g','legacy_r','legacy_z',\
@@ -620,11 +620,11 @@ class cutout_dir():
                     make_png(self.fitsimages[f],pngfile,mask=mask)
                 elif i == (len(self.fitsimages)-2): # add ellipse to mask image
                     if self.ellipseparams is not None:
-                        make_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=2)
+                        make_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom)
                     else:
-                        make_png(self.fitsimages[f],pngfile,zoom=2)
+                        make_png(self.fitsimages[f],pngfile,zoom=zoom)
                 else:
-                    make_png(self.fitsimages[f],pngfile,zoom=2)                    
+                    make_png(self.fitsimages[f],pngfile,zoom=zoom)                    
                 self.pngimages[f] = pngfile
             except FileNotFoundError:
                 print('WARNING: can not find ',self.fitsimages[f])
@@ -633,7 +633,7 @@ class cutout_dir():
                 print('WARNING: problem making png for ',self.fitsimages[f])
 
 
-    def make_cs_png(self,gr=False,grauto=False):
+    def make_cs_png(self,gr=False,grauto=False,zoom=None):
         if gr:
             csdata,csheader = fits.getdata(self.csgrimage,header=True)
             #imx,imy,keepflag = get_galaxies_fov(self.csimage,vfmain['RA'],vfmain['DEC'])
@@ -659,7 +659,7 @@ class cutout_dir():
             ax = plt.gca()
             
             #clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')            
-            display_image(csdata,stretch=s,percentile1=.5,percentile2=p2[i],mask=mask,zoom=2)
+            display_image(csdata,stretch=s,percentile1=.5,percentile2=p2[i],mask=mask,zoom=zoom)
             # mark VF galaxies
             #plot_vf_gals(imx,imy,keepflag,vfmain,ax,galsize=galsize)
             suffix = "-{}.png".format(p2[i])
