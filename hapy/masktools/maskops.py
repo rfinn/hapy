@@ -303,3 +303,76 @@ def ellipse_mask_fraction(mask, ell: EllipseParams):
             n_unmasked=n_unmasked
             )
 
+import numpy as np
+
+
+def distance_to_nearest_mask(mask, xc, yc):
+    """
+    Distance from (xc, yc) to nearest masked pixel.
+
+    Parameters
+    ----------
+    mask : 2D ndarray
+        Boolean or integer mask image. True/nonzero = masked.
+
+    xc, yc : float
+        Pixel coordinates of galaxy center.
+
+    Returns
+    -------
+    dist_pix : float
+        Distance in pixels to nearest masked pixel.
+        Returns np.nan if no masked pixels exist.
+    """
+
+    mask_bool = np.asarray(mask) > 0
+
+    if not mask_bool.any():
+        return np.nan
+
+    y_mask, x_mask = np.where(mask_bool)
+
+    dx = x_mask - xc
+    dy = y_mask - yc
+
+    dist2 = dx**2 + dy**2
+
+    return np.sqrt(dist2.min())
+
+
+from scipy.ndimage import label
+
+
+def largest_mask_region(mask, ellipse_mask=None):
+    """
+    Size of largest contiguous masked region.
+
+    Parameters
+    ----------
+    mask : 2D ndarray
+        Boolean or integer mask image.
+
+    ellipse_mask : ndarray, optional
+        Boolean mask defining region of interest (e.g., ellipse).
+
+    Returns
+    -------
+    max_pixels : int
+        Size of largest connected masked region.
+    """
+
+    mask_bool = np.asarray(mask) > 0
+
+    if ellipse_mask is not None:
+        mask_bool = mask_bool & ellipse_mask
+
+    if not mask_bool.any():
+        return 0
+
+    labeled, nlab = label(mask_bool)
+
+    sizes = np.bincount(labeled.ravel())
+
+    sizes[0] = 0  # background
+
+    return sizes.max()

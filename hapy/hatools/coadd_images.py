@@ -261,13 +261,13 @@ class CoaddImage:
         
     def get_fwhm(self):
         try:
-            self.fwhm_arcsec = float(self.header['SEFWHM'])
+            self.fwhm_se_arcsec = float(self.header['SEFWHM'])
         except KeyError:
-            self.fwhm_arcsec = None
+            self.fwhm_se_arcsec = None
         try:
-            self.fwhm_pixels = float(self.header['FWHM'])
+            self.fwhm_phot_arcsec = float(self.header['FWHM'])*self.pixelscale
         except KeyError:
-            self.fwhm_pixels = None
+            self.fwhm_phot_arcsec = None
 
     def cutout_region_is_valid(self, ra, dec, size_arcsec, central_frac=0.25, min_center_frac=0.8):
         """

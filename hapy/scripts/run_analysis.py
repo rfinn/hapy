@@ -491,14 +491,14 @@ def initialize_result_row():
 
     # ---------- R band ----------
     for k in [
-        "R_FWHM", "R_SKYSTD_ADU", "R_SKYMED_ADU",
+        "R_FWHM_PHOT","R_FWHM_SE", "R_SKYSTD_ADU", "R_SKYMED_ADU",
         "R_SKYSTD_PHYS", "R_M20", "R_ASYM", "R_ASYM_ERR"
     ]:
         row[k] = np.nan
 
     # ---------- H band ----------
     for k in [
-        "H_FWHM", "H_SKYSTD_ADU", "H_SKYMED_ADU",
+        "H_FWHM_PHOT", "H_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
         "H_SKYSTD_PHYS", "H_M20", "H_ASYM", "H_ASYM_ERR"
     ]:
         row[k] = np.nan
@@ -981,8 +981,10 @@ def main():
     row["DEC"] = dec
     row["OBJID"] = objid
 
-    row["R_FWHM"] = float(params.get("rimage_fwhm_arcsec"))
-    row["H_FWHM"] = float(params.get("himage_fwhm_arcsec"))
+    row["R_FWHM_SE"] = float(params.get("rimage_fwhm_se_arcsec"))
+    row["R_FWHM_PHOT"] = float(params.get("rimage_fwhm_phot_arcsec"))    
+    row["H_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
+    row["H_FWHM_PHOT"] = float(params.get("himage_fwhm_phot_arcsec"))    
     row["RFILTER_NAME"] = params.get("rfilter_name")
     row["RFILTER_CENTER"] = float(params.get("rfilter_center_A"))
     row["RFILTER_WIDTH"] = float(params.get("rfilter_width_A"))    
@@ -1151,14 +1153,25 @@ def main():
         row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
         row["BRIGHT_STAR_MAG"] = bright_mag        
 
-        res = ellipse_mask_fraction(mask, ell0_params)
-        row["ELL0_MASKFRAC"] = res.frac_masked
-        row["ELL0_MASK_WARN"] = res.frac_masked > 0.5        
-        row["ELL0_NMASKPIX"] = res.n_masked
-        row["ELL0_NTOTPIX"] = res.n_total
+        # under development
+        # res = ellipse_mask_fraction(mask, ell0_params)
+        # row["ELL0_MASKFRAC"] = res.frac_masked
+        # row["ELL0_MASK_WARN"] = res.frac_masked > 0.5        
+        # row["ELL0_NMASKPIX"] = res.n_masked
+        # row["ELL0_NTOTPIX"] = res.n_total
+
+        # largest_blob = largest_mask_region(mask_image, ellipse_pixels)
+
+        # row["ELL_LARGEST_MASK"] = largest_blob
+        
+        # dmask = distance_to_nearest_mask(mask_image, ell0.xc, ell0.yc)
+
+        # row["NEAR_MASK_DIST_PIX"] = dmask
+        # row["NEAR_MASK_WARN"] = dmask < (2 * ell0.sma_pix)
+        
 
 
-
+        
     row["STAGE"] = "phot"
     logger.info("STAGE: phot")
     
