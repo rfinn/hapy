@@ -666,10 +666,10 @@ class cutout_dir():
             
             #clipped_data = sigma_clip(image[xmin:xmax,ymin:ymax],sigma_lower=1.5,sigma_upper=1.5,grow=10,stdfunc='mad_std')
             if s == "linear":
-                display_image(csdata,percentile1=.5,percentile2=p2[i],mask=mask,zoom=zoom,lowrange=True)
+                display_image(csdata,percent=p2[i],mask=mask,zoom=zoom,lowrange=True)
             else:
-                display_image(csdata,percentile1=.5,percentile2=p2[i],mask=mask,zoom=zoom)
-            # mark VF galaxies
+                display_image(csdata,percent=p2[i],mask=mask,zoom=zoom)
+            # mark VF galaxie
             #plot_vf_gals(imx,imy,keepflag,vfmain,ax,galsize=galsize)
             suffix = "-{}.png".format(p2[i])
             if gr:
