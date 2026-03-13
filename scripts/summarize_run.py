@@ -22,7 +22,7 @@ def find_status_columns(tab):
     for name in tab.colnames:
         if name.endswith("_OK") or name.endswith("_FLAG"):
             cols.append(name)
-    return sorted(cols)
+    return cols
 
 def summarize(tablefile, scheme):
 
@@ -48,6 +48,7 @@ def summarize(tablefile, scheme):
     print("-------------------")    
     flags = find_status_columns(tab)
 
+
     for f in flags:
         try:
             col = np.array(tab[f], dtype=bool)
@@ -55,28 +56,25 @@ def summarize(tablefile, scheme):
             print(f"{f:18s}: could not interpret as boolean")
             continue
 
-        ntrue = np.sum(col)
-        nfalse = np.sum(~col)
-        pct = 100 * ntrue / n
+        if 'SM_FLAG' in f:
+            ntrue = ~np.sum(col)
+            nfalse = ~np.sum(~col)
+            pct = 100 * ntrue / n
+            
+        else:
+            ntrue = np.sum(col)
+            nfalse = np.sum(~col)
+            pct = 100 * ntrue / n
 
         print(f"{f:18s}: {ntrue:4d} OK  | {nfalse:4d} FAIL  ({pct:5.1f}%)")
 
     print()
 
-    flags = [
-        "MASK_OK",
-        "PHOT_OK",
-        "PSF_OK",
-        "GAL_NC_OK",
-        "GAL_CV_OK",
-        "R_PROFILE_OK",
-        "HA_PROFILE_OK",
-    ]
 
 
     print()
-    if "R_PROFILE_OK" in tab.colnames and "HA_PROFILE_OK" in tab.colnames:
-        both = np.logical_and(tab["R_PROFILE_OK"], tab["HA_PROFILE_OK"])
+    if "R_PROFILE_OK" in tab.colnames and "H_PROFILE_OK" in tab.colnames:
+        both = np.logical_and(tab["R_PROFILE_OK"], tab["H_PROFILE_OK"])
         pct = 100 * np.sum(both) / n
         print(f"{'PROFILES_BOTH':18s}: {np.sum(both):4d} ({pct:5.1f}%)")
         print()
