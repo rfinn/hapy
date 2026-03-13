@@ -507,8 +507,8 @@ def main():
     # plots
     plot_flag_completion(tab, outdir / "flag_completion.png")
 
-    r_fwhm_col = first_populated_col(tab, ["R_FWHM", "R_FHWM"])
-    h_fwhm_col = first_populated_col(tab, ["H_FWHM", "H_FHWM"])
+    r_fwhm_col = first_populated_col(tab, ["R_FWHM_PSF", "R_FHWM_PSF"])
+    h_fwhm_col = first_populated_col(tab, ["HA_FWHM_PSF", "HA_FHWM_PSF"])
 
     if r_fwhm_col is not None:
         plot_hist(tab, r_fwhm_col, outdir / "r_fwhm_hist.png", title="R-band FWHM")
