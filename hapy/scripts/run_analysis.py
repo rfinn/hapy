@@ -1141,12 +1141,12 @@ def main():
         write_result_row_ecsv(results_path, row)
 
         bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
-            ra_deg,
-            dec_deg,
-            gaia_tab,
+            ra,
+            dec,
+            gaia_table,
             mag_limit=10,
             radius_col="radius",
-            min_radius_arcsec=4.0 * image_fwhm_arcsec,
+            min_radius_arcsec = gaia_min_radius_arcsec
             )
         
         row["BRIGHT_STAR_FLAG"] = bright_flag
