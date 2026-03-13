@@ -381,7 +381,8 @@ def galaxy_overlaps_bright_star(
         radii_deg = np.maximum(radii_deg, min_radius_deg)
 
     galcoord = SkyCoord(ra_deg * u.deg, dec_deg * u.deg, frame="icrs")
-    starcoord = SkyCoord(bright[ra_col] * u.deg, bright[dec_col] * u.deg, frame="icrs")
+    #starcoord = SkyCoord(bright[ra_col] * u.deg, bright[dec_col] * u.deg, frame="icrs")
+    starcoord = SkyCoord(bright[ra_col], bright[dec_col], frame="icrs")
 
     sep = galcoord.separation(starcoord)
     sep_arcsec = sep.arcsec
