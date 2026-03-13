@@ -245,6 +245,7 @@ class CoaddImage:
             fcenter_wave, fwidth = filter_center_width[filter_file]
         else:
             filter_file = get_halpha_filtername(self.instrument,self.filter)
+            print("filter file = ",filter_file)
             fcenter_wave, fwidth = filter_center_width[filter_file]
         # add center wavelength and width to header
         self.header['FILTNAME'] = (filter_file, "Normalized filter filename")
