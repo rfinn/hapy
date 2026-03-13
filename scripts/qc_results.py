@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from astropy.table import Table
 import matplotlib.pyplot as plt
-
+from hapy.utils.plotting import raincloud_by_group
 
 # ----------------------------------------------------------------------
 # helpers
@@ -358,7 +358,97 @@ def plot_filter_warning_vs_ha(tab: Table, masks: dict[str, np.ndarray], outpath:
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
 
+def plot_raincloud_by_telescope(tab, col, outpath, logx=False):
+    if col not in tab.colnames or "TELESCOPE" not in tab.colnames:
+        print(f"WARNING: missing {col} or TELESCOPE")
+        return
 
+    telescopes = sorted(set(np.array(tab["TELESCOPE"]).astype(str)))
+    values = []
+
+    x = np.array(tab[col], dtype=float)
+    tel = np.array(tab["TELESCOPE"]).astype(str)
+
+    for t in telescopes:
+        vals = x[tel == t]
+        vals = vals[np.isfinite(vals)]
+        if logx:
+            vals = vals[vals > 0]
+            vals = np.log10(vals)
+        values.append(vals)
+
+    xlabel = f"log10({col})" if logx else col
+    fig, ax = raincloud_by_group(values, telescopes, xlabel=xlabel, title=f"{col} by telescope")
+    if fig is not None:
+        fig.savefig(outpath, dpi=150)
+        plt.close(fig)
+
+def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
+    """
+    Plot failure fraction vs normalized distance to nearest bright star.
+    """
+
+    required = [
+        "BRIGHT_STAR_DIST_ARCSEC",
+        "BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC",
+        "PHOT_OK",
+        "R_PROFILE_OK",
+        "HA_PROFILE_OK",
+        "R_SM_FLAG",
+        "H_SM_FLAG",
+        "GAL_NC_OK",
+        "GAL_CV_OK",
+    ]
+    for col in required:
+        if col not in tab.colnames:
+            print(f"WARNING: missing {col}, skipping bright-star failure plot")
+            return
+
+    dist = np.array(tab["BRIGHT_STAR_DIST_ARCSEC"], dtype=float)
+    rad = np.array(tab["BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC"], dtype=float)
+
+    good = np.isfinite(dist) & np.isfinite(rad) & (rad > 0)
+    if np.sum(good) == 0:
+        print("WARNING: no valid bright-star distance data")
+        return
+
+    x = dist[good] / rad[good]
+
+    failure_defs = {
+        "phot fail": ~np.array(tab["PHOT_OK"][good], dtype=bool),
+        "r profile fail": ~np.array(tab["R_PROFILE_OK"][good], dtype=bool),
+        "ha profile fail": ~np.array(tab["HA_PROFILE_OK"][good], dtype=bool),
+        "r statmorph fail": ~np.array(tab["R_SM_FLAG"][good], dtype=bool),
+        "ha statmorph fail": ~np.array(tab["H_SM_FLAG"][good], dtype=bool),
+        "galfit nc fail": ~np.array(tab["GAL_NC_OK"][good], dtype=bool),
+        "galfit cv fail": ~np.array(tab["GAL_CV_OK"][good], dtype=bool),
+    }
+
+    bins = np.array([0, 0.5, 1, 1.5, 2, 3, 5, 10])
+    xcen = 0.5 * (bins[:-1] + bins[1:])
+
+    fig = plt.figure(figsize=(8, 6))
+    ax = plt.gca()
+
+    for label, failflag in failure_defs.items():
+        frac = np.full(len(xcen), np.nan)
+
+        for i in range(len(bins) - 1):
+            m = (x >= bins[i]) & (x < bins[i+1])
+            if np.sum(m) > 0:
+                frac[i] = np.mean(failflag[m])
+
+        ax.plot(xcen, frac, marker="o", label=label)
+
+    ax.axvline(1.0, color="k", ls="--", lw=1)
+    ax.set_xlabel("Nearest bright-star distance / mask radius")
+    ax.set_ylabel("Failure fraction")
+    ax.set_title("Pipeline failure rate vs bright-star proximity")
+    ax.legend(fontsize=8)
+    plt.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)
+    
 # ----------------------------------------------------------------------
 # subset writing
 # ----------------------------------------------------------------------
@@ -450,6 +540,12 @@ def main():
     plot_compare(tab, "R24_ARCSEC", "GAL_RE", outdir / "R24_ARCSEC_vs_GAL_RE.png",
                  title="R24 radius vs GALFIT Re",
                  mask=masks["galfit_any_ok"])
+
+    plot_failure_fraction_vs_bright_star_distance(tab, outdir / "FAILURES_VS_BRIGHT_STAR_DIST.png"outpath)
+    plot_raincloud_by_telescope(tab, "R_FWHM", outdir / "raincloud_R_FWHM_by_telescope.png")
+    plot_raincloud_by_telescope(tab, "H_FWHM", outdir / "raincloud_H_FWHM_by_telescope.png")
+    plot_raincloud_by_telescope(tab, "FILTER_CORRECTION", outdir / "raincloud_FILTER_CORRECTION_by_telescope.png")
+    plot_raincloud_by_telescope(tab, "HA_TOT_FLUX_CGS", outdir / "raincloud_HA_TOT_FLUX_by_telescope.png", logx=True)
 
     plot_filter_warning_vs_ha(tab, masks, outdir / "filter_correction_vs_ha_flux.png")
 

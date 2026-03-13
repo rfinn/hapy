@@ -37,6 +37,7 @@ from pathlib import Path
 import numpy as np
 from astropy.table import Table, vstack
 import matplotlib.pyplot as plt
+from hapy.utils.plotting import raincloud_by_group
 
 
 # ----------------------------------------------------------------------
@@ -628,6 +629,22 @@ def plot_telescope_group_residuals(
     plt.tight_layout()
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
+
+def plot_rainclouds(unique_pairs, pair_names, residual):
+    values_by_group = []
+    labels = []
+
+    for pair_name in unique_pairs:
+        mask = pair_names == pair_name
+        values_by_group.append(residual[mask])
+        labels.append(pair_name)
+
+    fig, ax = raincloud_by_group(
+        values_by_group,
+        labels,
+        xlabel="obs2 - obs1",
+        title="Cross-telescope residuals: R24_MAG"
+        )
 # ----------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------

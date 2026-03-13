@@ -448,8 +448,15 @@ def initialize_result_row():
     ]:
         row[k] = False
 
- 
-
+    row["BRIGHT_STAR_FLAG"] = False
+    row["BRIGHT_STAR_DIST"] = np.nan
+    row["BRIGHT_STAR_MASKRAD_ARCSEC"] = np.nan
+    row["BRIGHT_STAR_MAG"] = np.nan 
+    row["ELL0_MASKFRAC"] = np.nan
+    row["ELL0_MASK_WARN"] = False
+    row["ELL0_NMASKPIX"] = np.nan
+    row["ELL0_NTOTPIX"] = np.nan
+    
 
     # ---------- cutout properties ----------
     for k in [
@@ -1129,6 +1136,27 @@ def main():
         row["MASK_SEC"] = time.perf_counter() - t0
         #row["mask_ok"] = True
         write_result_row_ecsv(results_path, row)
+
+        bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
+            ra_deg,
+            dec_deg,
+            gaia_tab,
+            mag_limit=10,
+            radius_col="radius",
+            min_radius_arcsec=4.0 * image_fwhm_arcsec,
+            )
+        
+        row["BRIGHT_STAR_FLAG"] = bright_flag
+        row["BRIGHT_STAR_DIST"] = distance_arcsec
+        row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
+        row["BRIGHT_STAR_MAG"] = bright_mag        
+
+        res = ellipse_mask_fraction(mask, ell0_params)
+        row["ELL0_MASKFRAC"] = res.frac_masked
+        row["ELL0_MASK_WARN"] = res.frac_masked > 0.5        
+        row["ELL0_NMASKPIX"] = res.n_masked
+        row["ELL0_NTOTPIX"] = res.n_total
+
 
 
     row["STAGE"] = "phot"

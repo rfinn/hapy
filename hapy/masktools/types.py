@@ -11,6 +11,13 @@ class EllipseParams:
     theta_deg: float # angle in deg from +x axis
 
 
+@dataclass(frozen=True)
+class MaskFractionResult:
+    frac_masked: float
+    n_total: int
+    n_masked: int
+    n_unmasked: int
+    
 def build_ell0_from_metadata(params, pixscale):
     # params: dict from metadata.json
     sma_pix = params["sma_arcsec"] / pixscale

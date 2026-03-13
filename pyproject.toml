@@ -11,10 +11,12 @@ authors = [
 ]
 dependencies = [
   "astropy",
+  "astroquery",
   "numpy",
   "matplotlib",
   "photutils",
   "scipy",
+  
 ]
 
 # Include scripts as console commands

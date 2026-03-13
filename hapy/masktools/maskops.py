@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Iterable, List
 import numpy as np
 
-from .types import EllipseParams
+from photutils.aperture import EllipticalAperture
+from .types import EllipseParams, MaskFractionResult
 
 defaultcat='default.sex.HDI.mask'
 
@@ -225,4 +226,80 @@ def remove_objects_in_ellipse(mask_array, ellipse_params):
 
 
 
+
+
+def ellipse_mask_fraction(mask, ell: EllipseParams):
+    """
+    Compute fraction of masked pixels inside an ellipse.
+
+    Parameters
+    ----------
+    mask : 2D ndarray
+        Boolean or integer mask image. Nonzero / True = masked.
+    ell : EllipseParams
+        Ellipse definition in pixel coordinates.
+
+    Returns
+    -------
+    frac_masked : float
+        Fraction of ellipse pixels that are masked.
+    n_total : int
+        Total number of pixels in ellipse.
+    n_masked : int
+        Number of masked pixels in ellipse.
+    n_unmasked : int
+        Number of unmasked pixels in ellipse.
+    """
+    mask_bool = np.asarray(mask) > 0
+
+    if not np.isfinite(ell.xc) or not np.isfinite(ell.yc):
+        return np.nan, 0, 0, 0
+    if not np.isfinite(ell.sma_pix) or ell.sma_pix <= 0:
+        return np.nan, 0, 0, 0
+    if not np.isfinite(ell.ba) or ell.ba <= 0:
+        return np.nan, 0, 0, 0
+    if not np.isfinite(ell.theta_deg):
+        return np.nan, 0, 0, 0
+
+    smb_pix = ell.sma_pix * ell.ba
+    theta_rad = np.deg2rad(ell.theta_deg)
+
+    aper = EllipticalAperture(
+        (ell.xc, ell.yc),
+        a=ell.sma_pix,
+        b=smb_pix,
+        theta=theta_rad,
+    )
+
+    aper_mask = aper.to_mask(method="center")
+    aper_image = aper_mask.to_image(mask_bool.shape)
+
+    if aper_image is None:
+        return np.nan, 0, 0, 0
+
+    inside = aper_image > 0
+    n_total = int(np.sum(inside))
+
+    if n_total == 0:
+        return np.nan, 0, 0, 0
+
+
+    n_masked = int(np.sum(mask_bool[inside]))
+    n_unmasked = n_total - n_masked
+    frac_masked = n_masked / n_total
+
+    if n_total == 0:
+        return MaskFractionResult(
+            frac_masked=np.nan,
+            n_total=0,
+            n_masked=0,
+            n_unmasked=0
+            )
+    else:
+        return MaskFractionResult(
+            frac_masked=frac_masked,
+            n_total=n_total,
+            n_masked=n_masked,
+            n_unmasked=n_unmasked
+            )
 

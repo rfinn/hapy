@@ -238,6 +238,10 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     brightstar["xpixel"] = xpix
     brightstar["ypixel"] = ypix
 
+    # convert star radius to pixels
+    
+    
+
 
  
 
@@ -316,6 +320,81 @@ def make_gaia_mask(
     updated_mask = mask_array + gaia_mask
 
     return updated_mask, gaia_mask
+
+
+def galaxy_overlaps_bright_star(
+    ra_deg,
+    dec_deg,
+    gaia_table,
+    mag_limit=10,
+    radius_col=None,
+    min_radius_arcsec=None,
+):
+    """
+    Check whether galaxy center overlaps a bright-star mask.
+
+    Input
+    -----
+    min_radius_arcsec: float
+       minimum size of gaia mask.  could be e.g. 4x the image FWHM
+    Returns
+    -------
+    overlap_flag : bool
+    min_distance_arcsec : float
+    nearest_radius_arcsec : float
+    nearest_mag : float
+    """
+    if len(gaia_table) == 0:
+        return False, np.nan, np.nan, np.nan
+
+    # magnitude column
+    if "phot_g_mean_mag" in gaia_table.colnames:
+        mag_col = "phot_g_mean_mag"
+    elif "Gmag" in gaia_table.colnames:
+        mag_col = "Gmag"
+    else:
+        raise KeyError("Could not find Gaia magnitude column")
+
+    # coordinates
+    if "ra" in gaia_table.colnames and "dec" in gaia_table.colnames:
+        ra_col, dec_col = "ra", "dec"
+    elif "RA" in gaia_table.colnames and "DEC" in gaia_table.colnames:
+        ra_col, dec_col = "RA", "DEC"
+    else:
+        raise KeyError("Could not find Gaia RA/DEC columns")
+
+    # cut table to include bright stars
+    bright = gaia_table[np.isfinite(gaia_table[mag_col]) & (gaia_table[mag_col] <= mag_limit)]
+
+    if len(bright) == 0:
+        return False, np.nan, np.nan, np.nan
+
+    # radii in degrees
+    if radius_col is not None and radius_col in bright.colnames:
+        radii_deg = np.array(bright[radius_col], dtype=float)
+    else:
+        radii_deg = np.array(mask_radius_for_mag(bright[mag_col]), dtype=float)
+
+    # use min radius provided, relevant for fainter stars
+    if min_radius_arcsec is not None:
+        min_radius_deg = min_radius_arcsec / 3600.0
+        radii_deg = np.maximum(radii_deg, min_radius_deg)
+
+    galcoord = SkyCoord(ra_deg * u.deg, dec_deg * u.deg, frame="icrs")
+    starcoord = SkyCoord(bright[ra_col] * u.deg, bright[dec_col] * u.deg, frame="icrs")
+
+    sep = galcoord.separation(starcoord)
+    sep_arcsec = sep.arcsec
+
+    imin = np.argmin(sep_arcsec)
+    min_distance_arcsec = float(sep_arcsec[imin])
+    nearest_radius_arcsec = float(radii_deg[imin] * 3600.0)
+    nearest_mag = float(bright[mag_col][imin])
+
+    overlap_flag = np.any(sep.degree < radii_deg)
+
+    return overlap_flag, min_distance_arcsec, nearest_radius_arcsec, nearest_mag
+
 
 
 
