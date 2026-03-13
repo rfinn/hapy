@@ -23,6 +23,8 @@ from . import utils
 filter_center_width = {
     '90prime-BASSr.fits':(6410.8, 1398.8),
     '90prime-Ha+4nm.fits':(6620.8, 83.3),
+    'BOK90prime-BASSr.fits':(6410.8, 1398.8),
+    'BOK90prime-Ha+4nm.fits':(6620.8, 83.3),
     'MOS-Ha+12nm.fits':(6698.8, 86.1),
     'MOS-Ha+16nm.fits':(6730.8, 83.9),
     'MOS-Ha+4nm.fits':(6620.8, 83.3),
