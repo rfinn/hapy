@@ -30,10 +30,7 @@ cd hapy-output-20260309
 
 
 ### make a list of coadds to analyze
-Testing directories
-```
-find /data-pool/Halpha/hapy-test1/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
-```
+
 ```bash
 find /data-pool/Halpha/coadds-2025DEC/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
@@ -89,6 +86,7 @@ get_cutouts --rimage
 --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
 --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images/
 ```
+
 
 ### Run on full Virgo sample
 
@@ -295,3 +293,31 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/h
 ```
 
 ```
+
+
+# Commands for Testing a Virgo Subsample
+Testing directories
+```
+find /data-pool/Halpha/hapy-test1/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
+```
+```bash
+cat fullpath_rcoadds_all.txt | parallel -j 32 --bar --joblog
+cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
+--scheme virgo --psfdir /data-pool/Halpha/psf-images/
+```
+
+```
+python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
+```
+
+```
+find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_list.txt
+```
+
+```
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutout_list.txt
+```
+```
+merge_results --indir cutouts --mode run_analysis
+```
+
