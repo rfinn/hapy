@@ -36,9 +36,11 @@ instruments = ['BOK','INT','HDI','MOS']
 # BOK using the NOAO filter, so Halpha 4
 # 
 
-def _safe_set_float_header(header, key, value, comment):
+
+
+def _safe_set_float_header(header, key, value, comment, ndec=4):
     if value is not None and np.isfinite(value):
-        header[key] = (float(value), comment)
+        header[key] = (round(float(value), ndec), comment)
     else:
         header[key] = ("NaN", f"{comment} (not measurable)")
         
@@ -404,7 +406,7 @@ class CoaddImage:
         # write weight cutout if available
         if wcut is not None and weight_header is not None and weight_output_name is not None:
             weight_header["WGTCUT"] = (True, "This file is a weight-image cutout")
-            weight_header["SCIIM"] = (os.path.basename(output_name), "Associated science-image cutout")
+            weight_header["SCIIM"] = (os.path.basename(output_name), "science-image cutout")
             fits.PrimaryHDU(data=wcut, header=weight_header).writeto(weight_output_name, overwrite=True)
 
         if self.verbose:
