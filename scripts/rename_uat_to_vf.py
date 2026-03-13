@@ -18,7 +18,7 @@ def convert_name(fname):
 
     # Replace last -NN- pattern with _NN-
     #name = re.sub(r'-(\d+)-', r'_\1-', name, count=1)
-    for s in ['01','02','03','04','05','06','07']
+    for s in ['01','02','03','04','05','06','07']:
         
         name = name.replace('-'+s,'_'+s).replace('-h'+s,'_h'+s)
         
