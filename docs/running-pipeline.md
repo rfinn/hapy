@@ -217,13 +217,47 @@ htop
 ```
 
 
-# Merge Results From `run_analysis`
+## Merge Results From `run_analysis`
 
 ```bash
 merge_results --indir cutouts --mode run_analysis
 ```
 
-## Summarize statistics in  `merged_results.py`
+### Summarize statistics in  `merged_results.py`
+```
+python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --scheme virgo
+```
+
+## Make qc plots
+
+Create some basic qc plots:
+```
+python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
+```
+
+Inspecting duplicate observations:
+```
+usage: qc_duplicates.py [-h] [--outdir OUTDIR] [--max-ha-filter-correction MAX_HA_FILTER_CORRECTION] table
+
+QC analysis for duplicate HAPY observations.
+
+positional arguments:
+  table                 Merged HAPY results table (e.g. merged_results.fits)
+
+options:
+  -h, --help            show this help message and exit
+  --outdir OUTDIR       Output directory
+  --max-ha-filter-correction MAX_HA_FILTER_CORRECTION
+                        Maximum Halpha filter correction for 'good' Halpha duplicate comparisons
+
+```
+
+To run:
+```
+python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits
+```
+
+
 
 # Build Webpages to review Cutouts
 
@@ -284,11 +318,6 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260310/
 ```
 
-# Make qc plots
-
-```
-python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
-```
 
 
 # Commands for Testing a Virgo Subsample
