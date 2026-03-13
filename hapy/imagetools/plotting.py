@@ -34,9 +34,10 @@ def display_image(image, percent=99.9, lowrange=False, sigclip=True,mask=None,cm
     stretch = "linear" if lowrange else "asinh"
     if mask is not None:
         norm = simple_norm(statarray, stretch=stretch, percent=percent)
+        plt.imshow(image[mask], norm=norm,origin="lower", cmap=cmap)#, origin="lower")
     else:
         norm = simple_norm(clipped_data, stretch=stretch, percent=percent)
-    plt.imshow(image, norm=norm,origin="lower", cmap=cmap)#, origin="lower")
+        plt.imshow(image, norm=norm,origin="lower", cmap=cmap)#, origin="lower")
 
 
 def display_unwise(ra,dec,galname,imsize_arcsec=60):
