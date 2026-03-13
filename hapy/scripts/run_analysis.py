@@ -407,7 +407,7 @@ def initialize_result_row():
     for k in [
         "TAG", "CUTDIR",
          "MASK_FITS","PSF_FITS",
-         "R_FITS", "CS_FITS","SIGMA_FITS"
+         "R_FITS", "CS_FITS","SIGMA_FITS",
          "RFILTER_FILENAME", "RFILTER_CENTER","RFILTER_WIDTH",
          "HAFILTER_FILENAME", "HAFILTER_CENTER","HAFILTER_WIDTH",         
             ]:
@@ -499,7 +499,7 @@ def initialize_result_row():
 
     # ---------- H band ----------
     for k in [
-        "H_FWHM_PSF", "H_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
+        "HA_FWHM_PSF", "HA_FWHM_SE", "H_SKYSTD_ADU", "H_SKYMED_ADU",
         "H_SKYSTD_PHYS", "H_M20", "H_ASYM", "H_ASYM_ERR"
     ]:
         row[k] = np.nan
@@ -984,12 +984,12 @@ def main():
 
     row["R_FWHM_SE"] = float(params.get("rimage_fwhm_se_arcsec"))
     row["R_FWHM_PSF"] = float(params.get("rimage_fwhm_psf_arcsec"))    
-    row["H_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
-    row["H_FWHM_PSF"] = float(params.get("himage_fwhm_psf_arcsec"))    
-    row["RFILTER_NAME"] = params.get("rfilter_name")
+    row["HA_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
+    row["HA_FWHM_PSF"] = float(params.get("himage_fwhm_psf_arcsec"))    
+    row["RFILTER_FILENAME"] = params.get("rfilter_name")
     row["RFILTER_CENTER"] = float(params.get("rfilter_center_A"))
     row["RFILTER_WIDTH"] = float(params.get("rfilter_width_A"))    
-    row["HAFILTER_NAME"] = params.get("hafilter_name")
+    row["HAFILTER_FILENAME"] = params.get("hafilter_name")
     row["HAFILTER_CENTER"] = float(params.get("hafilter_center_A"))
     row["HAFILTER_WIDTH"] = float(params.get("hafilter_width_A"))    
 
@@ -1162,9 +1162,14 @@ def main():
         row["ELL0_NTOTPIX"] = res.n_total
 
         # under development
-        # largest_blob = largest_mask_region(mask_image, ellipse_pixels)
+        #ellipse_pixels = aper_image > 0
 
-        # row["ELL_LARGEST_MASK"] = largest_blob
+        #largest_blob = largest_mask_region(mask_image, ellipse_pixels)
+
+        #row["ELL_LARGEST_MASK"] = largest_blob
+        #largest_blob = largest_mask_region(mask_image, ellipse_pixels)
+
+        #row["ELL0_LARGEST_MASK"] = largest_blob
         
         # dmask = distance_to_nearest_mask(mask_image, ell0.xc, ell0.yc)
 

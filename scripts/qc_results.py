@@ -541,7 +541,7 @@ def main():
                  title="R24 radius vs GALFIT Re",
                  mask=masks["galfit_any_ok"])
 
-    plot_failure_fraction_vs_bright_star_distance(tab, outdir / "FAILURES_VS_BRIGHT_STAR_DIST.png"outpath)
+    plot_failure_fraction_vs_bright_star_distance(tab, outdir / "FAILURES_VS_BRIGHT_STAR_DIST.png")
     plot_raincloud_by_telescope(tab, "R_FWHM", outdir / "raincloud_R_FWHM_by_telescope.png")
     plot_raincloud_by_telescope(tab, "H_FWHM", outdir / "raincloud_H_FWHM_by_telescope.png")
     plot_raincloud_by_telescope(tab, "FILTER_CORRECTION", outdir / "raincloud_FILTER_CORRECTION_by_telescope.png")
