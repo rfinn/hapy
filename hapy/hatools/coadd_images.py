@@ -242,10 +242,10 @@ class CoaddImage:
     def get_filter_center_width(self):
         if self.filter in ["r","R","r SDSS k1018", "R Harris k1004"]:
             filter_file = get_rband_filtername(self.instrument, self.filter)
-            fcenter_wave, fwidth = filter_center_width(filter_file)
+            fcenter_wave, fwidth = filter_center_width[filter_file]
         else:
             filter_file = get_halpha_filtername(self.instrument,self.filter)
-            fcenter_wave, fwidth = filter_center_width(filter_file)
+            fcenter_wave, fwidth = filter_center_width[filter_file]
         # add center wavelength and width to header
         self.header['FILTNAME'] = (filter_file, "Normalized filter filename")
         self.header["FILTWCEN"] = (fcenter_wave,"Filter Center Wavelength (A)")
