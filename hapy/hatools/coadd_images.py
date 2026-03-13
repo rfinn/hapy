@@ -21,6 +21,7 @@ from hapy.hatools.filter_transmission import (
     get_halpha_filtername,
     get_rband_filtername,
     get_filter_wavelength_info,
+    filter_center_width,
 )
 instruments = ['BOK','INT','HDI','MOS']
 
