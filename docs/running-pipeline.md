@@ -91,9 +91,7 @@ get_cutouts --rimage
 ### Run on full Virgo sample
 
 ```bash
-cat fullpath_rcoadds_hapy_ready.txt | parallel -j 32 --bar --joblog
-cutouts_parallel.log get_cutouts --rimage {} --catalog
-~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+cat fullpath_rcoadds_hapy_ready.txt | parallel -j 16 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
 ```
 
 ### Check output
