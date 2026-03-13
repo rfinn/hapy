@@ -223,10 +223,10 @@ def main(args=None):
             cutout_sky_subtracted=bool(subtract_sky),
             valid_region=True,
             valid_status=str(status),
-            rfilter_name = image_set.r.filter_name,
+            rfilter_name = image_set.r.filter_file,
             rfilter_center_A = image_set.r.filter_center,
             rfilter_width_A = image_set.r.filter_width,
-            hafilter_name = image_set.h.filter_name,
+            hafilter_name = image_set.h.filter_file,
             hafilter_center_A = image_set.h.filter_center,
             hafilter_width_A = image_set.h.filter_width,
         )
