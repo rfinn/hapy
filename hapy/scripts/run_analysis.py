@@ -347,7 +347,7 @@ def _pull_statmorph(row, prefix, mobj):
             ("R20", "r20"),
             ("R50", "r50"),
             ("R80", "r80"),
-            ("RMAX_CIRCLE","rmax_circle"),
+            ("RMAX_CIRCLE","rmax_circ"),
             ("RMAX_ELLIP","rmax_ellip"),            
             ("SERSIC_AMP", "sersic_amplitude"),
             ("SERSIC_RHALF","sersic_rhalf"),
