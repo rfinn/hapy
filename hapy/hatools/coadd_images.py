@@ -265,10 +265,16 @@ class CoaddImage:
         except KeyError:
             self.fwhm_se_arcsec = None
         try:
-            self.fwhm_phot_arcsec = float(self.header['FWHM'])*self.pixelscale
+            self.fwhm_psf_arcsec = float(self.header['FWHM'])*self.pixelscale
         except KeyError:
-            self.fwhm_phot_arcsec = None
+            self.fwhm_psf_arcsec = None
 
+        # clean up header
+
+        # replace SEFWHM with FWHM_SE
+        self.header.rename_keyword("SEFWHM","FWHM_SE")#] = (self.fwhm_se_arcsec, "SE FWHM in arcsec")
+        # add FWHM_PSF
+        self.header["FWHM_PSF"] = (self.fwhm_psf_arcsec, "PSF FWHM in arcsec")
     def cutout_region_is_valid(self, ra, dec, size_arcsec, central_frac=0.25, min_center_frac=0.8):
         """
         Quick validity check using the weight image at a proposed cutout location.
