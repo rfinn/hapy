@@ -135,7 +135,7 @@ def buildone(subdir,outdir,flist):
         #    print('WARNING: problem building webpage for ',subdir)
     
 
-def display_image(image,percentile1=.5,percentile2=99.5,stretch='asinh',mask=None,sigclip=True,zoom=2):
+def display_image(image,percentile1=.5,percentile2=99.5,stretch='asinh',mask=None,sigclip=True,zoom=None):
     if zoom is not None:
         print("who's zoomin' who?")
         # display central region of image
