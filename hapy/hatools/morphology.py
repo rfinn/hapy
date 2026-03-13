@@ -90,7 +90,7 @@ def run_statmorph_for_photometry(
     )
 
     # debugging
-    print("STATMORPH RESULTS IMAGE2")    
+    print("STATMORPH RESULTS IMAGE1")    
     morph_r.print()
     morph2 = fig2 = None
     if image2 is not None:

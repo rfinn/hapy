@@ -332,7 +332,9 @@ def print_statmorph(mobj):
 def _pull_statmorph(row, prefix, mobj):
     if mobj is None:
         return
+    
     for outk, attr in [
+            ("FLAG", "flag"),
             ("XCENTROID", "xc_centroid"),
             ("YCENTROID", "yc_centroid"),
             ("GINI", "gini"),
@@ -345,7 +347,8 @@ def _pull_statmorph(row, prefix, mobj):
             ("R20", "r20"),
             ("R50", "r50"),
             ("R80", "r80"),
-            ("FLAG", "flag"),
+            ("RMAX_CIRCLE",rmax_circle),
+            ("RMAX_ELLIP",rmax_ellip),            
             ("SERSIC_AMP", "sersic_amplitude"),
             ("SERSIC_RHALF","sersic_rhalf"),
             ("SERSIC_N","sersic_n"),
@@ -354,6 +357,8 @@ def _pull_statmorph(row, prefix, mobj):
             ("SERSIC_ELLIP","sersic_ellip"),
             ("SERSIC_THETA","sersic_theta"),
             ("SERSIC_CHISQ_DOF","sersic_chi2_dof"),
+            ("SERSIC_FLAG","flag_sersic"),
+            ("SN_PER_PIXEL","sn_per_pixel"),
                     ]:
         row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         try:
@@ -426,9 +431,10 @@ def initialize_result_row():
     # ---------- pipeline status ----------
     for k in ["PSF_OK", "MASK_OK", "PHOT_OK", \
                   "R_PROFILE_OK","H_PROFILE_OK",\
-                  "R_SM_FLAG", "H_SM_FLAG",\
+                  "R_SM_OK","H_SM_OK",\
                   "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
         row[k] = False
+
     row["GAL_CV_INIT_FROM_NC"] = False
     row["GAL_NC_RERUN_FIXEDN"] = False
     row["GAL_CV_RERUN_FIXEDN"] = False
@@ -510,10 +516,12 @@ def initialize_result_row():
 
     # ---------- statmorph ----------
     sm_suffixes = [
+        "FLAG",
         "XCENTROID", "YCENTROID", "GINI", "M20",
         "C", "A", "S",
         "RPETRO_ELLIP", "RHALF_ELLIP",
         "R20", "R50", "R80",
+        "RMAX_CIRCLE", "RMAX_ELLIP",
         "SERSIC_AMP", 
         "SERSIC_RHALF",
         "SERSIC_N",
@@ -522,6 +530,8 @@ def initialize_result_row():
         "SERSIC_ELLIP",
         "SERSIC_THETA",
         "SERSIC_CHISQ_DOF",
+        "SERSIC_FLAG",
+        "SN_PER_PIXEL",
     ]
 
     for band in ["R", "H"]:
@@ -1353,13 +1363,14 @@ def main():
         if e.statmorph_flag:
             try:
                 _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
-                #row["R_SM_FLAG"] = bool(getattr(e, "statmorph_flag", False))
+                # statmorph sets flag == 1 for a problem, so need to negate it
+                row["R_SM_OK"] = True
             except Exception:
                 pass
 
             try:
                 _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
-                #row["H_SM_FLAG"] = bool(getattr(e, "statmorph_flag2", False))
+                row["H_SM_OK"] = True
             except Exception:
                 pass
         # write table after statmorph
