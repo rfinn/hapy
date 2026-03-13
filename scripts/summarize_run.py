@@ -57,9 +57,9 @@ def summarize(tablefile, scheme):
             continue
 
         if 'SM_FLAG' in f:
-            ntrue = ~np.sum(col)
-            nfalse = ~np.sum(~col)
-            pct = 100 * ntrue / n
+            ntrue = np.sum(col)
+            nfalse = np.sum(~col)
+            pct = 100 * nfalse / n
             
         else:
             ntrue = np.sum(col)
