@@ -1150,7 +1150,7 @@ def main():
             )
         
         row["BRIGHT_STAR_FLAG"] = bright_flag
-        row["BRIGHT_STAR_DIST"] = distance_arcsec
+        row["BRIGHT_STAR_DIST"] = dist_arcsec
         row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
         row["BRIGHT_STAR_MAG"] = bright_mag        
 
