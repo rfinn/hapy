@@ -321,3 +321,6 @@ parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results para
 merge_results --indir cutouts --mode run_analysis
 ```
 
+```
+python ~/github/hapy/scripts/summarize_run.py merged_results.fits --scheme virgo
+```
