@@ -89,10 +89,15 @@ def run_statmorph_for_photometry(
         image=image, segmap=segmap, gain=gain, mask=mask, psf=psf, make_fig=make_fig
     )
 
+    # debugging
+    print("STATMORPH RESULTS IMAGE2")    
+    morph_r.print()
     morph2 = fig2 = None
     if image2 is not None:
         morph2, fig2 = run_statmorph_single(
             image=image2, segmap=segmap, gain=gain, mask=mask, psf=psf2, make_fig=make_fig
+        print("STATMORPH RESULTS IMAGE2")
+        morph2.print()
         )
 
     return MorphologyResult(morph_r=morph_r, morph_img2=morph2, fig_r=fig_r, fig_img2=fig2)
