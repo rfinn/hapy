@@ -274,7 +274,8 @@ class CoaddImage:
         # replace SEFWHM with FWHM_SE
         self.header.rename_keyword("SEFWHM","FWHM_SE")#] = (self.fwhm_se_arcsec, "SE FWHM in arcsec")
         # add FWHM_PSF
-        self.header["FWHM_PSF"] = (self.fwhm_psf_arcsec, "PSF FWHM in arcsec")
+        fwhm = round(float(self.fwhm_psf_arcsec),2) if self.fwhm_psf_arcsec is not None else None
+        self.header["FWHM_PSF"] = (fwhm, "PSF FWHM in arcsec")
     def cutout_region_is_valid(self, ra, dec, size_arcsec, central_frac=0.25, min_center_frac=0.8):
         """
         Quick validity check using the weight image at a proposed cutout location.
