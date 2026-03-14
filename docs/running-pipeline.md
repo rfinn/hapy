@@ -145,9 +145,7 @@ Final table columns: 19
 
 ```bash
 run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
---make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
---galfit --convflag --log-to-console --gaia-dir
-/data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+--make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --log-to-console --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
 ```
 
 
@@ -303,7 +301,11 @@ VFID2891-UGC04559-HDI-20200225-p004 --outdir
 ```
 
 ```bash
-parallel --bar -j 8 --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir /data-pool/Halpha/hapy-output-20260310/cutouts --oneimage "{}" --outdir /data-pool/Halpha/hapy-output-20260310/html/cutouts :::: cutout_list.txt
+RUNROOT=/data-pool/Halpha/hapy-output-20260310
+```
+
+```bash 
+parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $RUNROOT/cutouts --oneimage "{}" --outdir $RUNROOT/html/cutouts :::: cutout_list.txt
 ```
 
 ## Build cutout index
