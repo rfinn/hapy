@@ -255,7 +255,7 @@ python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits
 
 
 
-# Build Webpages to review Cutouts
+# Build Webpages to Review Cutouts
 
 ## Download Legacy Images
 
@@ -291,7 +291,7 @@ rsync -av hapy-output-20260310/cutouts/ hapy-output-20260313/cutouts/
 --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
 --ignore-existing --prune-empty-dirs
 
-## Build cutout webpages
+## Build Cutout Webpages
 Create a list of the cutout images:
 ```bash
 find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
