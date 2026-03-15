@@ -286,6 +286,11 @@ parallel --resume-failed --joblog fetch_legacy.joblog \
     --layer ls-dr10 \
   :::: cutout_list.txt
 ```
+
+rsync -av hapy-output-20260310/cutouts/ hapy-output-20260313/cutouts/
+--include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
+--ignore-existing --prune-empty-dirs
+
 ## Build cutout webpages
 Create a list of the cutout images:
 ```bash
@@ -294,10 +299,13 @@ find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -typ
 
 Test on one directory:
 ```bash
+RUNROOT=/data-pool/Halpha/hapy-output-20260313
+```
+```bash
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
-/data-pool/Halpha/hapy-output-20260310/cutouts --oneimage
+$ROOTDIR/cutouts --oneimage
 VFID2891-UGC04559-HDI-20200225-p004 --outdir
-/data-pool/Halpha/hapy-output-20260310/html/cutouts
+$ROOTDIR/html/cutouts
 ```
 
 ```bash
