@@ -271,18 +271,18 @@ find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -typ
 ```
 
 ```bash
-RUNROOT=/data-pool/Halpha/hapy-output-20260310
+ROOTDIR=/data-pool/Halpha/hapy-output-20260310
 ```
 then
 ```bash
-parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$RUNROOT/cutouts/{}" --layer ls-dr10 :::: cutout_list.txt
+parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$ROOTDIR/cutouts/{}" --layer ls-dr10 :::: cutout_list.txt
 ```
   
 ### to resume any failed jobs
 ```
 parallel --resume-failed --joblog fetch_legacy.joblog \
   python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py \
-    --cutout-dir "$RUNROOT/cutouts/{}" \
+    --cutout-dir "$ROOTDIR/cutouts/{}" \
     --layer ls-dr10 \
   :::: cutout_list.txt
 ```
@@ -299,7 +299,7 @@ find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -typ
 
 Test on one directory:
 ```bash
-RUNROOT=/data-pool/Halpha/hapy-output-20260313
+ROOTDIR=/data-pool/Halpha/hapy-output-20260313
 ```
 ```bash
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
@@ -309,11 +309,11 @@ $ROOTDIR/html/cutouts
 ```
 
 ```bash
-RUNROOT=/data-pool/Halpha/hapy-output-20260310
+ROOTDIR=/data-pool/Halpha/hapy-output-20260310
 ```
 
 ```bash 
-parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $RUNROOT/cutouts --oneimage "{}" --outdir $RUNROOT/html/cutouts :::: cutout_list.txt
+parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage "{}" --outdir $ROOTDIR/html/cutouts :::: cutout_list.txt
 ```
 
 ## Build cutout index
