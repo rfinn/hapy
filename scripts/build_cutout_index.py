@@ -70,7 +70,7 @@ def collect_entries(runroot):
         psf_ok = get_result(results_row, "PSF_OK", None)
 
         r_prof_ok = get_result(results_row, "R_PROFILE_OK", None)
-        h_prof_ok = get_result(results_row, "HA_PROFILE_OK", None)
+        h_prof_ok = get_result(results_row, "H_PROFILE_OK", None)
         profile_ok = combined_flag(r_prof_ok, h_prof_ok)
 
         r_sm_ok = get_result(results_row, "R_SM_FLAG", None)
@@ -127,14 +127,17 @@ def write_index(entries, outfile):
         "GALID",
         "Legacy",
         "Cutout Page",
-        "Mask",
-        "Phot",
         "PSF",
-        "Profiles",
-        "Statmorph",
-        "GALFIT",
         "R FWHM",
-        "Hα FWHM",
+        "H FWHM",        
+        "Mask",
+        "Phot",  
+        "R Prof",
+        "H Prof",        
+        "R SM",
+        "H SM",        
+        "NC GALFIT",
+        "CV GALFIT",        
         "Status",
         "Stage",
     ]
@@ -158,16 +161,21 @@ def write_index(entries, outfile):
 
         rel_html = f"{e['tag']}/{e['tag']}.html"
         lines.append(f"<td><a href='{rel_html}'>{e['tag']}</a></td>")
-
+        
+        lines.append(f"<td>{status_cell(e['psf_ok'])}</td>")
+        lines.append(f"<td>{e['r_fwhm']}</td>")
+        lines.append(f"<td>{e['h_fwhm']}</td>")        
         lines.append(f"<td>{status_cell(e['mask_ok'])}</td>")
         lines.append(f"<td>{status_cell(e['phot_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['psf_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['profile_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['statmorph_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['galfit_ok'])}</td>")
 
-        lines.append(f"<td>{e['r_fwhm']}</td>")
-        lines.append(f"<td>{e['h_fwhm']}</td>")
+        lines.append(f"<td>{status_cell(e['r_profile_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['h_profile_ok'])}</td>")
+        
+        lines.append(f"<td>{status_cell(e['r_statmorph_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['h_statmorph_ok'])}</td>")        
+        lines.append(f"<td>{status_cell(e['galfit_nc_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['galfit_cv_ok'])}</td>")        
+
         lines.append(f"<td>{e['status']}</td>")
         lines.append(f"<td>{e['stage']}</td>")
         lines.append("</tr>")
