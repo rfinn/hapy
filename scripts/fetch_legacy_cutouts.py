@@ -118,7 +118,7 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
         ra=ra,
         dec=dec,
         galid=tag,
-        pixscale=np.round(pixscale, decimals=3),
+        pixscale=np.round(pixscale, decimals=4),
         imsize=imsize,
         band="grz",
         makeplots=False,

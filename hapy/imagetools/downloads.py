@@ -157,6 +157,8 @@ def get_legacy_images(
     else:
         for i, b in enumerate(band, start=1):
             outname = band_fits_names[b]
+            if verbose:
+                print(f"working on extracting {outname} from MEF {fits_name}")
 
             if os.path.exists(outname):
                 if verbose:
