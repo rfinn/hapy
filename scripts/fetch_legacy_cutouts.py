@@ -12,7 +12,7 @@ Outputs are written to:
 import argparse
 import json
 from pathlib import Path
-
+import numpy as np
 from astropy.io import fits
 
 from hapy.imagetools.downloads import get_legacy_images
@@ -89,7 +89,7 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
             ra=ra,
             dec=dec,
             galid=tag,
-            pixscale=pixscale,
+            pixscale=np.round(pixscale,decimals=3),
             imsize=imsize,
             band=band,
             makeplots=False,

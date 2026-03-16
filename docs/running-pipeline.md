@@ -283,7 +283,7 @@ parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs pyt
 parallel --resume-failed --joblog fetch_legacy.joblog \
   python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py \
     --cutout-dir "$ROOTDIR/cutouts/{}" \
-    --layer ls-dr10 \
+    --layer ls-dr9 \
   :::: cutout_list.txt
 ```
 
