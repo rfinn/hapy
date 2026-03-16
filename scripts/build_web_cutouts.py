@@ -637,6 +637,7 @@ class cutout_dir():
             try:
                 pngfile = os.path.join(self.outdir,os.path.basename(self.fitsimages[f]).replace('.fits','.png'))
             except TypeError:
+                print(f"WARNING: problem with {f}")
                 continue
 
             try:
