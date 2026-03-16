@@ -114,6 +114,7 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
         print(f"  imsize  = {imsize}")
         print(f"  outdir  = {legacy_dir}")
 
+        
     result = get_legacy_images(
         ra=ra,
         dec=dec,

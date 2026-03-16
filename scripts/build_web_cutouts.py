@@ -1289,15 +1289,15 @@ class build_html_cutout():
         #    print(k, self._get_result(k))
         self.write_pipeline_status()
         #self.write_galfit_images()        
-        if self.cutout.legacy_flag:
-            self.write_legacy_images()
             
 
-        self.write_sfr_images()
-        if self.cutout.wise_flag:
-            self.write_wise_images()
+        #self.write_sfr_images()
+        #if self.cutout.wise_flag:
+        #    self.write_wise_images()
         self.write_halpha_images()
         
+        #if self.cutout.legacy_flag:
+        #    self.write_legacy_images()
         
         #if self.cutout.galimage is not None:
         #    self.write_galfit_images()
@@ -1461,7 +1461,7 @@ class build_html_cutout():
     def write_halpha_images(self):
         '''  r, halpha, cs, and mask images '''
         self.html.write('<h2>Halpha Images</h2>\n')        
-        images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
+        images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
         #images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1,self.cutout.csgr_png1,self.cutout.csgrauto_png1]
 
         # removing r-band

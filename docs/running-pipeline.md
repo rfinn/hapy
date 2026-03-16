@@ -51,31 +51,6 @@ As of 2026-Mar-09:
 ```
 # Make Cutouts
 
-```bash
-(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260309$ get_cutouts --help
-usage: get_cutouts [-h] [--rimage RIMAGE] [--outdir OUTDIR] [--psfdir PSFDIR] [--cutout_scale CUTOUT_SCALE] [--overwrite_metadata] [--no-skysub]
-                   [--catalog CATALOG] [--scheme {generic,virgo,agc}] [--maxcorrection MAXCORRECTION]
-
-create psf image from image that contains stars
-
-options:
-  -h, --help            show this help message and exit
-  --rimage RIMAGE       r-band image name
-  --outdir OUTDIR       Directory where cutouts/ will be created (default: current working directory).
-  --psfdir PSFDIR       set to coadd directory
-  --cutout_scale CUTOUT_SCALE
-                        multiplicative scale factor for increasing the size of cutout images
-  --overwrite_metadata  Set this to overwrite metadata.json. Will store a *.bak file.
-  --no-skysub           Disable local sky subtraction in cutouts (default: sky is subtracted).
-  --catalog CATALOG     full path to galaxy catalog to use for cutouts.
-  --scheme {generic,virgo,agc}
-                        Filename parsing scheme for coadd images.
-  --maxcorrection MAXCORRECTION
-                        maximum filter correction for galaxies in FOV. default is 3, so galaxies whose redshift falls where filter transmission < 33 percent will
-                        be skipped.
-
-```
-
 ### Test on One Image
 
 ### 
