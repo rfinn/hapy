@@ -35,7 +35,7 @@ LEGACY_PIXSCALE = 1
 #def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
 def get_legacy_images(
     ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='g',
-    makeplots=False, subfolder=None, verbose=False, layer='ls-dr9')
+    makeplots=False, subfolder=None, verbose=False, layer='ls-dr9'):
     """
     Download legacy image for a particular ra, dec
     
