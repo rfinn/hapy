@@ -125,6 +125,8 @@ def get_legacy_images(
 
     # try to read the data in
     try:
+        if verbose:
+            print(f"reading {fits_name}, band={band}")
         hdul = fits.open(fits_name)
 
     except Exception:
