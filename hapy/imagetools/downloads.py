@@ -34,7 +34,7 @@ LEGACY_PIXSCALE = 1
 
 #def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
 def get_legacy_images(
-    ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='g',
+    ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='grz',
     makeplots=False, subfolder=None, verbose=False, layer='ls-dr9'):
     """
     Download legacy image for a particular ra, dec
@@ -44,13 +44,14 @@ def get_legacy_images(
     * dec
     * galid = galaxy id (e.g. VFID0001); used for naming the image files
     * imsize = size of cutout in pixels
-    * band = filter for the fits images that will be returned.  e.g. 'g' or 'r' or 'z'. 
+    * band = filter(s) for the fits images that will be returned.
++             e.g. 'g' or 'r' or 'z' or 'grz'
     * pixscale = pixel scale of cutout in arcsec; native is 0.262 for legacy
     * makeplots = boolean, generate plot of image
     * subfolder = default is None; you can specify a name of a subfolder to 
                   save the data in, e.g., subfolder='legacy-images'
     Returns:
-    * fits_name = fits image name
+    * fits_name = fits image name (single band) or dict of band:file names (multi-band)
     * jpeg_name = jpeg image name
     """
     imsize = int(imsize)
@@ -65,6 +66,7 @@ def get_legacy_images(
         rootname = str(galid)+'-legacy-'+str(imsize)        
     jpeg_name = rootname+'.jpg'
     fits_name = rootname+'-'+band+'.fits'
+    band_fits_names = {b: rootname+'-'+b+'.fits' for b in band}
 
 
     #print('legacy imsize = ',imsize)
@@ -90,7 +92,16 @@ def get_legacy_images(
     else:
         if verbose:
             print('previously downloaded ',jpeg_name)
-    if not(os.path.exists(fits_name)):
+
+    need_fits_download = False
+    if len(band) == 1:
+        need_fits_download = not os.path.exists(fits_name)
+    else:
+        # download the combined MEF if it does not exist
+        need_fits_download = not os.path.exists(fits_name)
+
+    if need_fits_download:
+    #if not(os.path.exists(fits_name)):
         if verbose:
             print('retrieving ',fits_name)
         url = (
@@ -114,30 +125,82 @@ def get_legacy_images(
 
     # try to read the data in
     try:
-        t,h = fits.getdata(fits_name,header=True)
-        
-    except IndexError:
+        hdul = fits.open(fits_name)
+
+    except Exception:
         print('problem accessing image')
         print(fits_name)
-        #url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra1)+'&dec='+str(dec1)+'&layer=dr8&size='+str(image_size)+'&pixscale=1.00'
         print(url)
         return None
 
-    # this will trigger if the image is outside the legacy footprint
-    if np.mean(t[1]) == 0:
-        return None
+    # single-band case
+    if len(band) == 1:
+        try:
+            if len(hdul) > 1 and hdul[1].data is not None:
+                t = hdul[1].data
+                h = hdul[1].header
+            else:
+                t = hdul[0].data
+                h = hdul[0].header
+        except Exception:
+            print('problem accessing image data')
+            print(fits_name)
+            hdul.close()
+            return None
+
+        # trigger if image is outside footprint
+        if t is None or np.all(np.asarray(t) == 0):
+            hdul.close()
+            return None
+
+    # multi-band case: split extensions 1..N into separate files
+    else:
+        for i, b in enumerate(band, start=1):
+            outname = band_fits_names[b]
+
+            if os.path.exists(outname):
+                if verbose:
+                    print('previously downloaded ', outname)
+                continue
+
+            if i >= len(hdul) or hdul[i].data is None:
+                print(f'problem accessing extension {i} for band {b}')
+                print(fits_name)
+                hdul.close()
+                return None
+
+            data = hdul[i].data
+            hdr = hdul[i].header
+
+            # outside footprint
+            if data is None or np.all(np.asarray(data) == 0):
+                hdul.close()
+                return None
+
+            fits.writeto(outname, data, header=hdr, overwrite=True)
+            if verbose:
+                print('wrote ', outname)
+
+        # use g-band as default image for plotting
+        t = hdul[1].data
+        h = hdul[1].header
+
+    hdul.close()
 
     # plot the images
     if makeplots:
-        if jpeg:
+        if os.path.exists(jpeg_name):
             t = Image.open(jpeg_name)
             plt.imshow(t,origin='upper')
         else:
-            norm = simple_norm(t[1],stretch='asinh',percent=99.5)            
-            plt.imshow(t[1],origin='upper',cmap='gray_r', norm=norm)
+            norm = simple_norm(t,stretch='asinh',percent=99.5)            
+            plt.imshow(t,origin='upper',cmap='gray_r', norm=norm)
 
     # return the name of the fits images and jpeg image
-    return fits_name, jpeg_name
+    if len(band) == 1:
+        return fits_name, jpeg_name
+    else:
+        return band_fits_names, jpeg_name
 
 
 def get_unwise_image(ra,dec,galid='VFID0',pixscale=2.75,imsize='60',bands='1234',makeplots=False,subfolder=None,verbose=False):

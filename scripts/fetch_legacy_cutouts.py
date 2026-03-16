@@ -69,6 +69,35 @@ def get_cutout_pixscale(cutout_dir, tag, fallback=512):
    
     return pixscale
 
+# def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
+#     cutout_dir = Path(cutout_dir).resolve()
+#     tag = cutout_dir.name
+#     legacy_dir = cutout_dir / "legacy"
+#     legacy_dir.mkdir(parents=True, exist_ok=True)
+
+#     ra, dec = read_metadata(cutout_dir)
+#     imsize = get_cutout_imsize(cutout_dir, tag)
+#     pixscale = get_cutout_pixscale(cutout_dir, tag)
+#     if verbose:
+#         print(f"\n{tag}")
+#         print(f"  ra, dec = {ra:.6f}, {dec:.6f}")
+#         print(f"  imsize  = {imsize}")
+#         print(f"  outdir  = {legacy_dir}")
+
+#     for band in ["g", "r", "z"]:
+#         get_legacy_images(
+#             ra=ra,
+#             dec=dec,
+#             galid=tag,
+#             pixscale=np.round(pixscale,decimals=3),
+#             imsize=imsize,
+#             band=band,
+#             makeplots=False,
+#             subfolder=str(legacy_dir),
+#             verbose=verbose,
+#             layer=layer,
+#         )
+
 def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
     cutout_dir = Path(cutout_dir).resolve()
     tag = cutout_dir.name
@@ -78,26 +107,43 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
     ra, dec = read_metadata(cutout_dir)
     imsize = get_cutout_imsize(cutout_dir, tag)
     pixscale = get_cutout_pixscale(cutout_dir, tag)
+
     if verbose:
         print(f"\n{tag}")
         print(f"  ra, dec = {ra:.6f}, {dec:.6f}")
         print(f"  imsize  = {imsize}")
         print(f"  outdir  = {legacy_dir}")
 
-    for band in ["g", "r", "z"]:
-        get_legacy_images(
-            ra=ra,
-            dec=dec,
-            galid=tag,
-            pixscale=np.round(pixscale,decimals=3),
-            imsize=imsize,
-            band=band,
-            makeplots=False,
-            subfolder=str(legacy_dir),
-            verbose=verbose,
-            layer=layer,
-        )
+    result = get_legacy_images(
+        ra=ra,
+        dec=dec,
+        galid=tag,
+        pixscale=np.round(pixscale, decimals=3),
+        imsize=imsize,
+        band="grz",
+        makeplots=False,
+        subfolder=str(legacy_dir),
+        verbose=verbose,
+        layer=layer,
+    )
 
+    if result is None:
+        if verbose:
+            print(f"  failed to fetch Legacy images for {tag}")
+        return None
+
+    fits_names, jpeg_name = result
+
+    if verbose:
+        print("  downloaded:")
+        if isinstance(fits_names, dict):
+            for b in ["g", "r", "z"]:
+                print(f"    {b}: {fits_names.get(b)}")
+        else:
+            print(f"    fits: {fits_names}")
+        print(f"    jpg:  {jpeg_name}")
+
+    return fits_names, jpeg_name
 
 def iter_cutout_dirs(cutout_root):
     cutout_root = Path(cutout_root)
