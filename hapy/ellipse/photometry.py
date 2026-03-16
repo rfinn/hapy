@@ -1889,7 +1889,7 @@ class EllipsePhotometry():
         # -- should be stored in the image header and read in init
         self.get_filter_properties()
 
-        if self.filter_cwavelength is not None:
+        if self.filter_cwavelength_A is not None:
             cwave = self.filter_cwavelength_A * 1.e-10 # convert A to m
             dwave = self.filter_width_A * 1.e-10 # convert A to m
         else:
@@ -1908,7 +1908,7 @@ class EllipsePhotometry():
 
         
         if self.image2_filter:
-            if self.filte2r_cwavelength is not None:
+            if self.filter2_cwavelength_A is not None:
                 cwave = self.filter2_cwavelength_A * 1.e-10 # convert A to m
                 dwave = self.filter2_width_A * 1.e-10 # convert A to m
             else:
