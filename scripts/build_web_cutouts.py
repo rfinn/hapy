@@ -427,7 +427,7 @@ class cutout_dir():
         tab = Table.read(self.results_file, format="ascii.ecsv")
         self.results = tab[0] if len(tab) > 0 else None
         parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
-        self.parent_url = "../../coadds/{parent_dir}/"
+        self.parent_url = f"../../coadds/{parent_dir}/"
         print("DEBUG: parent_url = ",self.parent_url)
         #print("DEBUG: found results.ecsv file", self.results_file)
         #print("DEBUD: results colnames:")
