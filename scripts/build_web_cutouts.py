@@ -512,7 +512,7 @@ class cutout_dir():
                 yc = self.results["ELLIP_YCENTROID"]
                 r  = self.results["ELLIP_SMA_PIX"]
                 ba = self.results["ELLIP_BA"]
-                pa = np.degrees(self.results["ELLIP_THETA_RAD"])+90
+                pa = np.degrees(self.results["ELLIP_THETA_RAD"])
 
                 if np.isfinite(r) and r > 0:
                     self.ellipseparams = [xc, yc, r, ba, pa]
