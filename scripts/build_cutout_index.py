@@ -101,8 +101,8 @@ def collect_entries(runroot):
             gal_cv_ok=gal_cv_ok,            
             status=get_result(results_row, "STATUS", ""),
             stage=get_result(results_row, "STAGE", ""),
-            r_fwhm=fmt_result(results_row, "R_FWHM", "{:.2f}"),
-            h_fwhm=fmt_result(results_row, "H_FWHM", "{:.2f}"),
+            r_fwhm=fmt_result(results_row, "R_FWHM_PSF", "{:.2f}"),
+            h_fwhm=fmt_result(results_row, "H_FWHM_PSF", "{:.2f}"),
         )
         entries.append(entry)
 
