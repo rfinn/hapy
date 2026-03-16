@@ -67,6 +67,8 @@ translate_filter = {'ha4':'4'}
 # HDI are 4, 8,
 #'ha4 s2k':(6615.45, 60.80)
 
+# TODO - photometry should take the center wavelength and dwavelength from image header
+# or pass into EllipsePhotometry
 central_wavelength = {'4':6620.52,\
                           '8':6656.68,\
                           '12':6697.77,\
@@ -281,7 +283,9 @@ class EllipsePhotometry():
         except KeyError:
             warnings.warn(f"No PHOTZP keyword in image {image} header. \nAssuming ZP=22.5")
             self.magzp = 22.5
-        
+
+
+
         # get image dimensions - will use this to determine the max sma to measure
         self.yimage_max, self.ximage_max = self.image.shape
 
@@ -1853,6 +1857,24 @@ class EllipsePhotometry():
                 self.sb2_err[i] = self.get_noise_in_aper((self.flux2[i] - self.flux2[i-1]),(self.area[i]-self.area[i-1]))/(self.area[i]-self.area[i-1])
             self.sb2_snr = np.abs(self.sb2/self.sb2_err)
 
+    def get_filter_properties(self):
+        try:
+            self.filter_cwavelength_A = self.header['FILTWCEN']
+            self.filter_width_A = self.header['FILTWCEN']            
+        except KeyError:
+            print("WARNING: no center wavelength in header FILTWCEN")
+            self.filter_cwavelength_A = None
+            self.filter_width_A = None
+
+        if self.header2 is not None:
+            try:
+                self.filter2_cwavelength_A = self.header2['FILTWCEN']
+                self.filter2_width_A = self.header2['FILTWCEN']            
+            except KeyError:
+                print("WARNING: no center wavelength in header FILTWCEN")
+                self.filter2_cwavelength_A = None
+                self.filter2_width_A = None
+            
     def convert_units(self):
         '''
         ###########################################################
@@ -1862,33 +1884,56 @@ class EllipsePhotometry():
         '''
 
         self.pixel_scale = imutils.get_pixel_scale(self.header)
-        #print('mag zp = ',self.magzp)
-        filter1 = self.header['FILTER']
-        # multiply by bandwidth of filter to convert from Jy to erg/s/cm^2
-        try:
-            # get width of filter in Hz
-            bandwidth1 = 3.e8*dwavelength[filter1]*1.e-10/(central_wavelength[filter1]*1.e-10)**2
-        except KeyError:
-            print("WARNING: no bandwidth for filter ",filter1, " setting dwavelength to 1500.")
-            dwave = 1500
-            cwavelength = 6500
-            bandwidth1 = 3.e8*dwave*1.e-10/(cwavelength*1.e-10)**2
 
-        self.uconversion1 = 3631.*10**(self.magzp/-2.5)*1.e-23*bandwidth1
-        if self.image2_filter:
+        # -- make use of newly calculated filter centers and widths
+        # -- should be stored in the image header and read in init
+        self.get_filter_properties()
+
+        if self.filter_cwavelength is not None:
+            cwave = self.filter_cwavelength_A * 1.e-10 # convert A to m
+            dwave = self.filter_width_A * 1.e-10 # convert A to m
+        else:
+            # fall back on filter dictionaries, but use with caution!
+            print("WARNING: no filter information - using outdated dictionaries!")
             try:
-                bandwidth2 = 3.e8*dwavelength[self.image2_filter]*1.e-10/(central_wavelength[self.image2_filter]*1.e-10)**2
+                cwave = central_wavelength[self.header["FILTER"]] * 1.e-10
+                dwave = dwavelength[self.header["FILTER"]] * 1.e-10
             except KeyError:
-                print("WARNING: no bandwidth for filter ",self.image2_filter, " setting dwavelength to 80.")
-                dwave = 80
-                cwavelength = 6600
-                bandwidth2 = 3.e8*dwave*1.e-10/(cwavelength*1.e-10)**2
+                cwave = 6500. * 1.e-10
+                dwave = 1500. * 1.e-10
+                                            
+        # multiply by bandwidth of filter to convert from Jy to erg/s/cm^2
+        bandwidth1 = 3.e8*dwave/cwave**2
+        self.uconversion1 = 3631.*10**(self.magzp/-2.5)*1.e-23*bandwidth1
+
+        
+        if self.image2_filter:
+            if self.filte2r_cwavelength is not None:
+                cwave = self.filter2_cwavelength_A * 1.e-10 # convert A to m
+                dwave = self.filter2_width_A * 1.e-10 # convert A to m
+            else:
+                # fall back on filter dictionaries, but use with caution!
+                print("WARNING: no filter information - using outdated dictionaries!")
+                try:
+                    cwave = central_wavelength[self.header2["FILTER"]] * 1.e-10
+                    dwave = dwavelength[self.header2["FILTER"]] * 1.e-10
+                except KeyError:
+                    cwave = 6600. * 1.e-10
+                    dwave = 80. * 1.e-10
                 
-            self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2
- 
+            bandwidth2 = 3.e8*dwave/(cwave)**2
+            try:
+                self.magzp2 = float(self.header2['PHOTZP'])
+                self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2
+            except:
+                # use 25 as default ZP if none is provided in header
+                self.uconversion2 = 3631.*10**(25/-2.5)*1.e-23*bandwidth2
+                print("WARNING: no PHOTZP keyword in image2 header. \nAssuming ZP=22.5")                
+                self.magzp2 = 22.5
         else:
             self.uconversion2 = None
-
+            
+ 
         if self.image2_flag:
             fr = self.filter_ratio
             self.uconversion2b = fr * self.uconversion1 #if fr is not None else np.nan
