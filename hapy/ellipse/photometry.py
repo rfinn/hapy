@@ -1859,8 +1859,9 @@ class EllipsePhotometry():
 
     def get_filter_properties(self):
         try:
-            self.filter_cwavelength_A = self.header['FILTWCEN']
-            self.filter_width_A = self.header['FILTWCEN']            
+            self.filter_cwavelength_A = float(self.header['FILTWCEN'])
+            self.filter_width_A = float(self.header['FILTWID'])
+            print(f"DEBUG: got cwave = {self.filter_cwavelength_A:.2f} in header")
         except KeyError:
             print("WARNING: no center wavelength in header FILTWCEN")
             self.filter_cwavelength_A = None
@@ -1869,7 +1870,8 @@ class EllipsePhotometry():
         if self.header2 is not None:
             try:
                 self.filter2_cwavelength_A = self.header2['FILTWCEN']
-                self.filter2_width_A = self.header2['FILTWCEN']            
+                self.filter2_width_A = self.header2['FILTWID']
+                print(f"DEBUG: got cwave = {self.filter3_cwavelength_A:.2f} in header")
             except KeyError:
                 print("WARNING: no center wavelength in header FILTWCEN")
                 self.filter2_cwavelength_A = None
@@ -1909,6 +1911,7 @@ class EllipsePhotometry():
         
         if self.image2_filter:
             if self.filter2_cwavelength_A is not None:
+
                 cwave = self.filter2_cwavelength_A * 1.e-10 # convert A to m
                 dwave = self.filter2_width_A * 1.e-10 # convert A to m
             else:
