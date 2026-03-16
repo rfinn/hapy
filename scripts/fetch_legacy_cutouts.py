@@ -16,7 +16,7 @@ from pathlib import Path
 from astropy.io import fits
 
 from hapy.imagetools.downloads import get_legacy_images
-
+from hapy.imagetools.utils import get_pixel_scale_from_filename
 
 def read_metadata(cutout_dir):
     meta_file = Path(cutout_dir) / "metadata.json"
@@ -52,6 +52,22 @@ def get_cutout_imsize(cutout_dir, tag, fallback=512):
     ny, nx = data.shape
     return int(max(nx, ny))
 
+def get_cutout_pixscale(cutout_dir, tag, fallback=512):
+    """
+    Determine Legacy cutout size in pixels based on the HAPY R-band cutout.
+    Uses the larger image dimension.
+    """
+    rfiles = sorted(Path(cutout_dir).glob(f"{tag}*-R.fits"))
+    if len(rfiles) == 0:
+        rfiles = sorted(Path(cutout_dir).glob(f"{tag}*-r.fits"))
+
+    if len(rfiles) == 0:
+        return fallback
+
+    
+    pixscale = get_pixel_scale_from_filename(rfiles[0])
+   
+    return pixscale
 
 def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
     cutout_dir = Path(cutout_dir).resolve()
@@ -61,7 +77,7 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
 
     ra, dec = read_metadata(cutout_dir)
     imsize = get_cutout_imsize(cutout_dir, tag)
-
+    pixscale = get_cutout_pixscale(cutout_dir, tag)
     if verbose:
         print(f"\n{tag}")
         print(f"  ra, dec = {ra:.6f}, {dec:.6f}")
