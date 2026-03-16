@@ -639,7 +639,8 @@ class cutout_dir():
             except TypeError:
                 print(f"WARNING: problem with {f}")
                 continue
-
+            if key_list[i] == 'mask':
+                make_mask_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom)
             try:
                 if i < 4:
                     make_png(self.fitsimages[f],pngfile,mask=mask)
