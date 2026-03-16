@@ -49,6 +49,7 @@ import warnings
 import multiprocessing as mp
 
 from hapy.imagetools.plotting import display_image
+from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta
 from PIL import Image
 
 homedir = os.getenv("HOME")
@@ -218,6 +219,21 @@ def make_png(fitsimage,outname,mask=None,ellipseparams=None,zoom=None):
     plt.savefig(outname)        
     plt.close(fig)
 
+def make_mask_png(fitsimage,outname,ellipseparams=None,zoom=None):
+    imdata,imheader = fits.getdata(fitsimage,header=True)
+    fig = plt.figure(figsize=(6,6))
+    ax = plt.subplot(projection=wcs.WCS(imheader))
+    plt.subplots_adjust(top=.95,right=.95,left=.2,bottom=.15)
+    plt.imshow(imdata, cmap='viridis')
+    plt.xlabel('RA (deg)',fontsize=16)
+    plt.ylabel('DEC (deg)',fontsize=16)
+    if ellipseparams is not None:
+        ax = plt.gca()
+        ellipseparams[-1] += 90
+        plot_ellipse(ax,ellipseparams)
+    plt.savefig(outname)        
+    plt.close(fig)
+    
 def plot_ellipse(ax,ellipseparams):
 
     xc,yc,r,BA,PA = ellipseparams
@@ -328,6 +344,7 @@ def display_galfit_model(galfile,prefix="",percentile1=.5,percentile2=99.5,p1res
           
           # TODO add ellipse to the residual image
           if (i == 2) and (ellipseparams is not None):
+
               # plot the ellipse
               plot_ellipse(plt.gca(),ellipseparams)
           plt.savefig(outim[i])
@@ -608,28 +625,29 @@ class cutout_dir():
         if self.nuv_flag:
             self.fitsimages['nuv'] = self.nuv
 
-        mask = fits.getdata(self.maskimage)
-        mask = mask > 0
+        #mask = fits.getdata(self.maskimage)
+        #mask = mask > 0
         # plt.figure()
         # plt.imshow(mask)
         # plt.savefig("mask.png")
         # plt.close("all")
-            
+        key_list = list(self.fitsimages.keys())
         for i,f in enumerate(self.fitsimages): # loop over keys
 
             try:
                 pngfile = os.path.join(self.outdir,os.path.basename(self.fitsimages[f]).replace('.fits','.png'))
             except TypeError:
                 continue
-            make_png(self.fitsimages[f],pngfile,zoom=zoom, mask=mask)                    
+
             try:
                 if i < 4:
                     make_png(self.fitsimages[f],pngfile,mask=mask)
-                elif i == (len(self.fitsimages)-2): # add ellipse to mask image
+
+                elif key_list[i] == 'mask':
                     if self.ellipseparams is not None:
-                        make_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom,mask=mask)
+                        make_mask_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom,mask=mask)
                     else:
-                        make_png(self.fitsimages[f],pngfile,zoom=zoom,mask=mask)
+                        make_mask_png(self.fitsimages[f],pngfile,zoom=zoom,mask=mask)
                 else:
                     make_png(self.fitsimages[f],pngfile,zoom=zoom)                    
                 self.pngimages[f] = pngfile
@@ -798,13 +816,13 @@ class cutout_dir():
                 yc = r["GAL_CYC"]
                 sma = r["GAL_CRE"]
                 ba = r["GAL_CBA"]
-                pa = r["GAL_CPA"]
+                pa = pa_ccw_north_to_photutils_theta(r["GAL_CPA"])
             else:
                 xc = r["GAL_XC"]
                 yc = r["GAL_YC"]
                 sma = r["GAL_RE"]
                 ba = r["GAL_BA"]
-                pa = r["GAL_PA"]
+                pa = pa_ccw_north_to_photutils_theta(r["GAL_PA"])
 
             self.galfit_ellipseparams = [xc, yc, sma, ba, pa]
 
@@ -1473,7 +1491,7 @@ class build_html_cutout():
         #images = [self.cutout.pngimages['ha'],self.cutout.pngimages['r'],self.cutout.cs_png1,self.cutout.cs_png2]        
         images = [os.path.basename(i) for i in images]
 
-        labels = ['R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
+        labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
 
         #labels = ['R-band Image','H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']
         #labels = ['H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']        
