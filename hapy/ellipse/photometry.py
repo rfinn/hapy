@@ -1943,22 +1943,26 @@ class EllipsePhotometry():
             self.mag2_err[good] = self.mag2[good] - (self.magzp2 - 2.5*np.log10(self.flux2[good] + self.flux2_err[good]))
         
 
-        
-            # this next set uses the filter ratio and the filter 1 flux conversion to
-            # convert narrow-band flux (filter 2) to physical units.
-            #if self.uconversion2b:
-            #    conversion = self.uconversion2b
-            #    self.flux2_erg = conversion*self.flux2
-            #    self.flux2_err_erg = conversion*self.flux2_err
-            self.sb2_erg_sqarcsec = self.uconversion2*self.sb2/self.pixel_scale**2
-            self.sb2_erg_sqarcsec_err = self.conversion2*self.sb2_err/self.pixel_scale**2
-
             self.sb2_mag_sqarcsec = np.full_like(self.sb2, np.nan)
             self.sb2_mag_sqarcsec_err = np.full_like(self.sb2, np.nan)
             sb2_arcsec = self.sb2/self.pixel_scale**2
             good = self.sb2 > 0
             self.sb2_mag_sqarcsec[good] = self.magzp2 - 2.5*np.log10(sb2_arcsec[good])
             self.sb2_mag_sqarcsec_err[good] = self.sb2_mag_sqarcsec[good] - (self.magzp2 - 2.5*np.log10((self.sb2[good] + self.sb2_err[good])/self.pixel_scale**2))
+
+            self.sb2_erg_sqarcsec = self.uconversion2*self.sb2/self.pixel_scale**2
+            self.sb2_erg_sqarcsec_err = self.uconversion2*self.sb2_err/self.pixel_scale**2
+            
+            
+            # this next set uses the filter ratio and the filter 1 flux conversion to
+            # convert narrow-band flux (filter 2) to physical units.
+            #if self.uconversion2b:
+            #    conversion = self.uconversion2b
+            #    self.flux2_erg = conversion*self.flux2
+            #    self.flux2_err_erg = conversion*self.flux2_err
+            #    self.sb2_erg_sqarcsec = self.uconversion2*self.sb2/self.pixel_scale**2
+            #    self.sb2_erg_sqarcsec_err = self.uconversion2*self.sb2_err/self.pixel_scale**2
+
                 
             #self.sb2_mag_sqarcsec = self.magzp2 - 2.5*np.log10(conversion*self.sb2/self.pixel_scale**2)
                 #self.sb2_mag_sqarcsec_err = self.sb2_mag_sqarcsec - (self.magzp2 - 2.5*np.log10(conversion*(self.sb2+self.sb2_err)/self.pixel_scale**2))
