@@ -1871,7 +1871,7 @@ class EllipsePhotometry():
             try:
                 self.filter2_cwavelength_A = self.header2['FILTWCEN']
                 self.filter2_width_A = self.header2['FILTWID']
-                print(f"DEBUG: got cwave = {self.filter3_cwavelength_A:.2f} in header")
+                print(f"DEBUG: got cwave2 = {self.filter2_cwavelength_A:.2f} in header")
             except KeyError:
                 print("WARNING: no center wavelength in header FILTWCEN")
                 self.filter2_cwavelength_A = None
