@@ -54,8 +54,8 @@ from PIL import Image
 
 homedir = os.getenv("HOME")
 
-os.sys.path.append(homedir+'/github/virgowise/')
-import rungalfit as rg #This code has galfit defined functions 
+#os.sys.path.append(homedir+'/github/virgowise/')
+#import rungalfit as rg #This code has galfit defined functions 
 
 #from build_web_coadds import get_galaxies_fov, plot_vf_gals
 from build_web_common import *
