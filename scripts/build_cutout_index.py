@@ -136,8 +136,8 @@ def write_index(entries, outfile):
         "H Prof",        
         "R SM",
         "H SM",        
-        "NC GALFIT",
-        "CV GALFIT",        
+        "GAL NC",
+        "GAL CV",        
         "Status",
         "Stage",
     ]
@@ -168,13 +168,13 @@ def write_index(entries, outfile):
         lines.append(f"<td>{status_cell(e['mask_ok'])}</td>")
         lines.append(f"<td>{status_cell(e['phot_ok'])}</td>")
 
-        lines.append(f"<td>{status_cell(e['r_profile_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['h_profile_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['r_prof_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['h_prof_ok'])}</td>")
         
-        lines.append(f"<td>{status_cell(e['r_statmorph_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['h_statmorph_ok'])}</td>")        
-        lines.append(f"<td>{status_cell(e['galfit_nc_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['galfit_cv_ok'])}</td>")        
+        lines.append(f"<td>{status_cell(e['r_sm_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['h_sm_ok'])}</td>")        
+        lines.append(f"<td>{status_cell(e['gal_nc_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['gal_cv_ok'])}</td>")        
 
         lines.append(f"<td>{e['status']}</td>")
         lines.append(f"<td>{e['stage']}</td>")
