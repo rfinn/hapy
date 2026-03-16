@@ -426,6 +426,8 @@ class cutout_dir():
         self.results_file = results_files[0]
         tab = Table.read(self.results_file, format="ascii.ecsv")
         self.results = tab[0] if len(tab) > 0 else None
+        parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
+        self.parent_url = "../../coadds/{parent_dir}/"
         #print("DEBUG: found results.ecsv file", self.results_file)
         #print("DEBUD: results colnames:")
         #print(self.results.colnames)
@@ -1231,7 +1233,7 @@ class cutout_dir():
     
 class build_html_cutout():
 
-    def __init__(self,cutoutdir,outdir,previous=None,next=None,tel=None,run=None):
+    def __init__(self,cutoutdir,outdir,previous=None,next=None,tel=None,run=None,parent=None):
         ''' pass in instance of cutout_dir class and output directory '''
         #print("in build_html_cutout!")
         self.cutout = cutoutdir
@@ -1251,6 +1253,7 @@ class build_html_cutout():
 
         self.telescope = tel
         self.run=run
+        self.parent=parent
         
         # for reference, this is the order of the png images
         #self.fitsimages = [self.rimage,self.haimage,self.csimage,\
@@ -1378,7 +1381,6 @@ class build_html_cutout():
             'Run Date',
             'Telescope',
             'Run',
-            'Pointing',
             'R FWHM <br> (arcsec)',
             'H&alpha; FWHM <br> (arcsec)',
             'Filter Ratio',
@@ -1399,10 +1401,10 @@ class build_html_cutout():
             get_result(self.cutout.results,"HAPY_VERSION", ""),
             get_result(self.cutout.results,"RUN_DATE", ""),
             get_result(self.cutout.results,"TELESCOPE", self.telescope),
-            self.run,
-            pointing_str,
-            fmt_result(self.cutout.results,"R_FWHM", "{:.2f}"),
-            fmt_result(self.cutout.results,"H_FWHM", "{:.2f}"),
+            f"<a href={self.cutout.parent_url>{self.run}</a>",
+            #pointing_str,
+            fmt_result(self.cutout.results,"R_FWHM_PSF", "{:.2f}"),
+            fmt_result(self.cutout.results,"H_FWHM_PSF", "{:.2f}"),
             fmt_result(self.cutout.results,"FILTER_RATIO", "{:.4f}"),
             fmt_result(self.cutout.results,"FILTER_CORRECTION", "{:.2f}"),
             get_result(self.cutout.results,"STATUS", ""),
