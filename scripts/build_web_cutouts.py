@@ -224,7 +224,7 @@ def make_mask_png(fitsimage,outname,ellipseparams=None,zoom=None):
     fig = plt.figure(figsize=(6,6))
     ax = plt.subplot(projection=wcs.WCS(imheader))
     plt.subplots_adjust(top=.95,right=.95,left=.2,bottom=.15)
-    plt.imshow(imdata, cmap='viridis')
+    plt.imshow(imdata, cmap='viridis',vmin=0)
     plt.xlabel('RA (deg)',fontsize=16)
     plt.ylabel('DEC (deg)',fontsize=16)
     if ellipseparams is not None:
