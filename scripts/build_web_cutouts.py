@@ -1401,7 +1401,7 @@ class build_html_cutout():
             get_result(self.cutout.results,"HAPY_VERSION", ""),
             get_result(self.cutout.results,"RUN_DATE", ""),
             get_result(self.cutout.results,"TELESCOPE", self.telescope),
-            f"<a href={self.cutout.parent_url>{self.run}</a>",
+            f"<a href={self.cutout.parent_url}>{self.run}</a>",
             #pointing_str,
             fmt_result(self.cutout.results,"R_FWHM_PSF", "{:.2f}"),
             fmt_result(self.cutout.results,"H_FWHM_PSF", "{:.2f}"),
