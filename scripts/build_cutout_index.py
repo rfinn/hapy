@@ -54,6 +54,7 @@ def collect_entries(runroot):
             continue
 
         tag = subdir.name
+        galname = tag.split('-')[0]
         html_file = subdir / f"{tag}.html"
         if not html_file.exists():
             continue
@@ -82,6 +83,7 @@ def collect_entries(runroot):
 
         entry = dict(
             tag=tag,
+            galname=galname,
             html_file=html_file,
             legacy_jpg=legacy_jpg,
             results_row=results_row,
@@ -122,7 +124,7 @@ def write_index(entries, outfile):
     lines.append("<tr>")
     headers = [
         "Index",
-        "Tag",
+        "GALID",
         "Legacy",
         "Cutout Page",
         "Mask",
@@ -143,7 +145,7 @@ def write_index(entries, outfile):
     for i, e in enumerate(entries, start=1):
         lines.append("<tr>")
         lines.append(f"<td>{i}</td>")
-        lines.append(f"<td>{e['tag']}</td>")
+        lines.append(f"<td>{e['galname']}</td>")
 
         if e["legacy_jpg"] is not None:
             rel_jpg = f"{e['tag']}/{e['legacy_jpg'].name}"
