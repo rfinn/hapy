@@ -646,9 +646,9 @@ class cutout_dir():
 
                 elif key_list[i] == 'mask':
                     if self.ellipseparams is not None:
-                        make_mask_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom,mask=mask)
+                        make_mask_png(self.fitsimages[f],pngfile,ellipseparams=self.ellipseparams,zoom=zoom)
                     else:
-                        make_mask_png(self.fitsimages[f],pngfile,zoom=zoom,mask=mask)
+                        make_mask_png(self.fitsimages[f],pngfile,zoom=zoom)
                 else:
                     make_png(self.fitsimages[f],pngfile,zoom=zoom)                    
                 self.pngimages[f] = pngfile
