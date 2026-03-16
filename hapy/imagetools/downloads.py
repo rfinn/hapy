@@ -155,39 +155,76 @@ def get_legacy_images(
             hdul.close()
             return None
 
-    # multi-band case: split extensions 1..N into separate files
+    # multi-band case: split cube in primary HDU into separate files
     else:
-        for i, b in enumerate(band, start=1):
+        try:
+            cube = hdul[0].data
+            hdr0 = hdul[0].header
+        except Exception:
+            print('problem accessing multi-band image cube')
+            print(fits_name)
+            hdul.close()
+            return None
+
+        if cube is None:
+            print('no data found in primary HDU')
+            print(fits_name)
+            hdul.close()
+            return None
+
+        if cube.ndim != 3:
+            print('expected 3D image cube for multi-band download')
+            print(f'found shape = {cube.shape}')
+            print(fits_name)
+            hdul.close()
+            return None
+
+        if cube.shape[0] < len(band):
+            print('fewer bands in cube than requested')
+            print(f'cube shape = {cube.shape}, requested bands = {band}')
+            print(fits_name)
+            hdul.close()
+            return None
+
+        # Optional: confirm header mapping if present
+        for i, b in enumerate(band):
+            band_key = f'BAND{i}'
+            if band_key in hdr0 and hdr0[band_key].strip().lower() != b.lower():
+                print(f'warning: header {band_key}={hdr0[band_key]} does not match requested band {b}')
+
+        for i, b in enumerate(band):
             outname = band_fits_names[b]
-            if verbose:
-                print(f"working on extracting {outname} from MEF {fits_name}")
 
             if os.path.exists(outname):
                 if verbose:
                     print('previously downloaded ', outname)
                 continue
 
-            if i >= len(hdul) or hdul[i].data is None:
-                print(f'problem accessing extension {i} for band {b}')
-                print(fits_name)
-                hdul.close()
-                return None
+            data = cube[i, :, :]
 
-            data = hdul[i].data
-            hdr = hdul[i].header
-
-            # outside footprint
             if data is None or np.all(np.asarray(data) == 0):
                 hdul.close()
                 return None
+
+            hdr = hdr0.copy()
+            hdr['BAND'] = b
+
+            # remove 3D-axis keywords if present
+            for key in ['NAXIS3', 'CTYPE3', 'CRVAL3', 'CRPIX3', 'CDELT3', 'CD3_3',
+                        'CD1_3', 'CD2_3', 'CD3_1', 'CD3_2', 'CUNIT3']:
+                if key in hdr:
+                    del hdr[key]
+            hdr['NAXIS'] = 2
 
             fits.writeto(outname, data, header=hdr, overwrite=True)
             if verbose:
                 print('wrote ', outname)
 
-        # use g-band as default image for plotting
-        t = hdul[1].data
-        h = hdul[1].header
+        # use first band for plotting
+        t = cube[0, :, :]
+        h = hdr0
+
+
 
     hdul.close()
 
