@@ -61,7 +61,7 @@ from hapy.io.schemas import PHOT_TABLE_SCHEMA
 
 translate_filter = {'ha4':'4'}
 
-# TODO:
+# TODONE:
 # calculate central wavelength and width of these filters from new filter traces
 
 # HDI are 4, 8,
@@ -97,6 +97,7 @@ dwavelength = {'4':60.44,\
                    'ha12':62.95,\
                    'ha16':61.80,\
                    'ha4 H-alpha+4nm k1010':80.48,\
+                   'Ha+4nm':80.48,\
                    'ha8 H-alpha+8nm k1011':81.33,\
                    'ha12 H-alpha+12nm k1012':82.53,\
                    'ha16 H-alpha+16nm k1013':80.77,\
@@ -1865,6 +1866,7 @@ class EllipsePhotometry():
         filter1 = self.header['FILTER']
         # multiply by bandwidth of filter to convert from Jy to erg/s/cm^2
         try:
+            # get width of filter in Hz
             bandwidth1 = 3.e8*dwavelength[filter1]*1.e-10/(central_wavelength[filter1]*1.e-10)**2
         except KeyError:
             print("WARNING: no bandwidth for filter ",filter1, " setting dwavelength to 1500.")
@@ -1931,7 +1933,7 @@ class EllipsePhotometry():
             self.flux2_err_erg = self.uconversion2*self.flux2_err
             self.source_sum2 = self.cat2.segment_flux[self.objectIndex]
             self.source_sum2_erg = self.uconversion2*self.cat2.segment_flux[self.objectIndex]
-            self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum)
+            self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum2)
             
             # limit mag calculations to values with positive values of flux/sb
             self.mag2 = np.full_like(self.flux2, np.nan)
@@ -1944,19 +1946,19 @@ class EllipsePhotometry():
         
             # this next set uses the filter ratio and the filter 1 flux conversion to
             # convert narrow-band flux (filter 2) to physical units.
-            if self.uconversion2b:
-                conversion = self.uconversion2b
-                self.flux2_erg = conversion*self.flux2
-                self.flux2_err_erg = conversion*self.flux2_err
-                self.sb2_erg_sqarcsec = conversion*self.sb2/self.pixel_scale**2
-                self.sb2_erg_sqarcsec_err = conversion*self.sb2_err/self.pixel_scale**2
+            # if self.uconversion2b:
+            #     conversion = self.uconversion2b
+            #     self.flux2_erg = conversion*self.flux2
+            #     self.flux2_err_erg = conversion*self.flux2_err
+            #     self.sb2_erg_sqarcsec = conversion*self.sb2/self.pixel_scale**2
+            #     self.sb2_erg_sqarcsec_err = conversion*self.sb2_err/self.pixel_scale**2
 
-                self.sb2_mag_sqarcsec = np.full_like(self.sb2, np.nan)
-                self.sb2_mag_sqarcsec_err = np.full_like(self.sb2, np.nan)
-                sb2_arcsec = self.sb2/self.pixel_scale**2
-                good = self.sb2 > 0
-                self.sb2_mag_sqarcsec[good] = self.magzp2 - 2.5*np.log10(sb2_arcsec[good])
-                self.sb2_mag_sqarcsec_err[good] = self.sb2_mag_sqarcsec[good] - (self.magzp2 - 2.5*np.log10((self.sb2[good] + self.sb2_err[good])/self.pixel_scale**2))
+            #     self.sb2_mag_sqarcsec = np.full_like(self.sb2, np.nan)
+            #     self.sb2_mag_sqarcsec_err = np.full_like(self.sb2, np.nan)
+            #     sb2_arcsec = self.sb2/self.pixel_scale**2
+            #     good = self.sb2 > 0
+            #     self.sb2_mag_sqarcsec[good] = self.magzp2 - 2.5*np.log10(sb2_arcsec[good])
+            #     self.sb2_mag_sqarcsec_err[good] = self.sb2_mag_sqarcsec[good] - (self.magzp2 - 2.5*np.log10((self.sb2[good] + self.sb2_err[good])/self.pixel_scale**2))
                 
                 #self.sb2_mag_sqarcsec = self.magzp2 - 2.5*np.log10(conversion*self.sb2/self.pixel_scale**2)
                 #self.sb2_mag_sqarcsec_err = self.sb2_mag_sqarcsec - (self.magzp2 - 2.5*np.log10(conversion*(self.sb2+self.sb2_err)/self.pixel_scale**2))
