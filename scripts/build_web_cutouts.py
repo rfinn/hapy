@@ -625,8 +625,8 @@ class cutout_dir():
         if self.nuv_flag:
             self.fitsimages['nuv'] = self.nuv
 
-        #mask = fits.getdata(self.maskimage)
-        #mask = mask > 0
+        mask = fits.getdata(self.maskimage)
+        mask = mask > 0
         # plt.figure()
         # plt.imshow(mask)
         # plt.savefig("mask.png")
