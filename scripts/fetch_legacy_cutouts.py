@@ -53,7 +53,7 @@ def get_cutout_imsize(cutout_dir, tag, fallback=512):
     return int(max(nx, ny))
 
 
-def fetch_one(cutout_dir, pixscale=1.0, layer="ls-dr10", verbose=False):
+def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
     cutout_dir = Path(cutout_dir).resolve()
     tag = cutout_dir.name
     legacy_dir = cutout_dir / "legacy"

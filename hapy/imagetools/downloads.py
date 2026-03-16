@@ -35,8 +35,7 @@ LEGACY_PIXSCALE = 1
 #def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
 def get_legacy_images(
     ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='g',
-    makeplots=False, subfolder=None, verbose=False, layer='ls-dr10'
-):
+    makeplots=False, subfolder=None, verbose=False, layer='ls-dr9')
     """
     Download legacy image for a particular ra, dec
     
@@ -85,6 +84,7 @@ def get_legacy_images(
                 'pixscale': pixscale,
                 })
             )
+        print("legacy download: \n\t",url)
         #url='http://legacysurvey.org/viewer/jpeg-cutout?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr9&size='+str(imsize)+'&pixscale='+str(pixscale)
         urlretrieve(url, jpeg_name)
     else:
