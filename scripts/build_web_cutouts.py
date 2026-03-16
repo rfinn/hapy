@@ -275,7 +275,7 @@ def display_galfit_model(galfile,prefix="",percentile1=.5,percentile2=99.5,p1res
       image,h = fits.getdata(galfile,1,header=True)
       model = fits.getdata(galfile,2)
       residual = fits.getdata(galfile,3)
-
+      mask = mask > 0
       if zoom is not None:
          print("who's zoomin' who?")
          # display central region of image
@@ -337,7 +337,7 @@ def display_galfit_model(galfile,prefix="",percentile1=.5,percentile2=99.5,p1res
           plt.subplot(1,1,1,projection=imwcs)
           plt.subplots_adjust(top=.95,right=.95,left=.2,bottom=.15)
           if i == 0 and mask is not None:
-              im = np.ma.array(im, mask)
+              im = np.ma.array(im, mask=mask)
           plt.imshow(im,origin='lower',cmap=cmap,norm=norms[i])
           #plt.colorbar(fraction=.08)
           plt.xlabel('RA (deg)',fontsize=16)
