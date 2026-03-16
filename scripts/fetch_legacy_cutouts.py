@@ -16,7 +16,7 @@ from pathlib import Path
 from astropy.io import fits
 
 from hapy.imagetools.downloads import get_legacy_images
-from hapy.imagetools.utils import get_pixel_scale_from_filename
+from hapy.imagetools.imutils import get_pixel_scale_from_filename
 
 def read_metadata(cutout_dir):
     meta_file = Path(cutout_dir) / "metadata.json"
