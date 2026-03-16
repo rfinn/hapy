@@ -336,6 +336,8 @@ def display_galfit_model(galfile,prefix="",percentile1=.5,percentile2=99.5,p1res
           fig = plt.figure(figsize=(6,6))          
           plt.subplot(1,1,1,projection=imwcs)
           plt.subplots_adjust(top=.95,right=.95,left=.2,bottom=.15)
+          if i == 0 and mask is not None:
+              im = np.ma.array(im, mask)
           plt.imshow(im,origin='lower',cmap=cmap,norm=norms[i])
           #plt.colorbar(fraction=.08)
           plt.xlabel('RA (deg)',fontsize=16)
