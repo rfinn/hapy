@@ -119,8 +119,9 @@ Final table columns: 19
 
 
 ```bash
-run_analysis --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
---make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --log-to-console --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
+--galfit --convflag --log-to-console --gaia-dir
+/data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
 ```
 
 
@@ -168,7 +169,7 @@ sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.jobl
 ### Run in Parallel
 
 ```bash
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutout_list.txt
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutouts_with_dir.txt
 ```
 
 ```bash
