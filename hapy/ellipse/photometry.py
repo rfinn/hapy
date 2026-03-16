@@ -102,7 +102,7 @@ dwavelength = {'4':60.44,\
                    'ha12 H-alpha+12nm k1012':82.53,\
                    'ha16 H-alpha+16nm k1013':80.77,\
                    'r SDSS k1018':1475.17,\
-                   'r Harris k1004':1474.04,                   
+                   'R Harris k1004':1474.04,                   
                    'HDI R':1508.19,\
                    'R':1511.3,\
                    'r':1475.17,
@@ -1946,21 +1946,21 @@ class EllipsePhotometry():
         
             # this next set uses the filter ratio and the filter 1 flux conversion to
             # convert narrow-band flux (filter 2) to physical units.
-            # if self.uconversion2b:
-            #     conversion = self.uconversion2b
-            #     self.flux2_erg = conversion*self.flux2
-            #     self.flux2_err_erg = conversion*self.flux2_err
-            #     self.sb2_erg_sqarcsec = conversion*self.sb2/self.pixel_scale**2
-            #     self.sb2_erg_sqarcsec_err = conversion*self.sb2_err/self.pixel_scale**2
+            #if self.uconversion2b:
+            #    conversion = self.uconversion2b
+            #    self.flux2_erg = conversion*self.flux2
+            #    self.flux2_err_erg = conversion*self.flux2_err
+            self.sb2_erg_sqarcsec = self.uconversion2*self.sb2/self.pixel_scale**2
+            self.sb2_erg_sqarcsec_err = self.conversion2*self.sb2_err/self.pixel_scale**2
 
-            #     self.sb2_mag_sqarcsec = np.full_like(self.sb2, np.nan)
-            #     self.sb2_mag_sqarcsec_err = np.full_like(self.sb2, np.nan)
-            #     sb2_arcsec = self.sb2/self.pixel_scale**2
-            #     good = self.sb2 > 0
-            #     self.sb2_mag_sqarcsec[good] = self.magzp2 - 2.5*np.log10(sb2_arcsec[good])
-            #     self.sb2_mag_sqarcsec_err[good] = self.sb2_mag_sqarcsec[good] - (self.magzp2 - 2.5*np.log10((self.sb2[good] + self.sb2_err[good])/self.pixel_scale**2))
+            self.sb2_mag_sqarcsec = np.full_like(self.sb2, np.nan)
+            self.sb2_mag_sqarcsec_err = np.full_like(self.sb2, np.nan)
+            sb2_arcsec = self.sb2/self.pixel_scale**2
+            good = self.sb2 > 0
+            self.sb2_mag_sqarcsec[good] = self.magzp2 - 2.5*np.log10(sb2_arcsec[good])
+            self.sb2_mag_sqarcsec_err[good] = self.sb2_mag_sqarcsec[good] - (self.magzp2 - 2.5*np.log10((self.sb2[good] + self.sb2_err[good])/self.pixel_scale**2))
                 
-                #self.sb2_mag_sqarcsec = self.magzp2 - 2.5*np.log10(conversion*self.sb2/self.pixel_scale**2)
+            #self.sb2_mag_sqarcsec = self.magzp2 - 2.5*np.log10(conversion*self.sb2/self.pixel_scale**2)
                 #self.sb2_mag_sqarcsec_err = self.sb2_mag_sqarcsec - (self.magzp2 - 2.5*np.log10(conversion*(self.sb2+self.sb2_err)/self.pixel_scale**2))
                 
     def write_phot_tables(self):
