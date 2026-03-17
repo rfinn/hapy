@@ -1430,16 +1430,16 @@ class build_html_cutout():
             'GALFIT CV',
             ]
 
-        print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')), self.cutout.results['R_SM_FLAG'])
-        print("DEBUG: H_SM_FLAG = ", status_cell(get_result(self.cutout.results,'H_SM_FLAG')), self.cutout.results['H_SM_FLAG'])
+        #print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')), self.cutout.results['R_SM_FLAG'])
+        #print("DEBUG: H_SM_FLAG = ", status_cell(get_result(self.cutout.results,'H_SM_FLAG')), self.cutout.results['H_SM_FLAG'])
         data = [
             status_cell(get_result(self.cutout.results,'MASK_OK')),
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
             status_cell(get_result(self.cutout.results,'PSF_OK')),
             status_cell(get_result(self.cutout.results,'R_PROFILE_OK')),
             status_cell(get_result(self.cutout.results,'H_PROFILE_OK')),
-            status_cell(get_result(self.cutout.results,'R_SM_FLAG')),
-            status_cell(get_result(self.cutout.results,'H_SM_FLAG')),            
+            status_cell(get_result(self.cutout.results,'R_SM_OK')),
+            status_cell(get_result(self.cutout.results,'H_SM_OK')),            
             status_cell(get_result(self.cutout.results,'GAL_NC_OK')),
             status_cell(get_result(self.cutout.results,'GAL_CV_OK')),
             ]
@@ -1710,7 +1710,7 @@ class build_html_cutout():
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')
 
-        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf']
+        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf','SM_FLAG']
 
         data = [
             'r',
@@ -1722,6 +1722,8 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'R_SM_A', '{:.2f}'),
             fmt_result(self.cutout.results,'R_SM_S', '{:.2f}'),
             fmt_result(self.cutout.results,'R_SM_RHALF_ELLIP', '{:.2f}'),
+            self.cutout.results['R_SM_FLAG'],
+            self.cutout.results['R_SM_SERSIC_FLAG'],
         ]
 
         data2 = [
@@ -1734,6 +1736,8 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'H_SM_A', '{:.2f}'),
             fmt_result(self.cutout.results,'H_SM_S', '{:.2f}'),
             fmt_result(self.cutout.results,'H_SM_RHALF_ELLIP', '{:.2f}'),
+            self.cutout.results['H_SM_FLAG'],
+            self.cutout.results['H_SM_SERSIC_FLAG'],
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
