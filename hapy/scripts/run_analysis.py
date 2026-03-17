@@ -425,7 +425,7 @@ def initialize_result_row():
     for k in ["STAGE", "STATUS"]:
         row[k] = ""
 
-    for k in ["MASK_SEC", "PHOT_SEC", "GALFIT_SEC", "TOTAL_SEC"]:
+    for k in ["MASK_SEC", "PHOT_SEC", "SM_SEC", "GAL_NC_SEC","GAL_CV_SEC", "TOTAL_SEC"]:
         row[k] = np.nan    
    
     # ---------- pipeline status ----------
@@ -898,7 +898,9 @@ def main():
     row["STATUS"] = "running"
     row["MASK_SEC"] = 0.0
     row["PHOT_SEC"] = 0.0
-    row["GALFIT_SEC"] = 0.0
+    row["GAL_NC_SEC"] = 0.0
+    row["GAL_CV_SEC"] = 0.0    
+    row["STATMORPH_SEC"] = 0.0    
     row["TOTAL_SEC"] = 0.0
 
     row["R_FITS"] = r_fits
@@ -1358,6 +1360,7 @@ def main():
 
 
     if args.statmorph:
+        t0 = time.perf_counter()
         logger.info("STAGE: statmorph")
         e.run_statmorph_supervisor()
         if e.statmorph_flag:
@@ -1375,6 +1378,7 @@ def main():
             except Exception:
                 pass
         # write table after statmorph
+        row["STATMORPH_SEC"] = _scalar(time.perf_counter() - t0)        
         write_result_row_ecsv(results_path, row)
  
     
@@ -1482,7 +1486,7 @@ def main():
             _store_galfit(row, res_nc, "GAL_")
             row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
             row["GAL_NC_OK"] = not meta_nc["unstable"]
-
+            row["GAL_NC_SEC"] = time.perf_counter() - t0
         except Exception as e:
             logger.exception(f"GALFIT NC failed: {e}")
             row["GAL_NC_OK"] = False
@@ -1502,6 +1506,7 @@ def main():
         
         if psf_ok and args.convflag and row["GAL_NC_OK"]:
             # --- Convolution (init from NC) ---
+            t0 = time.perf_counter()
             row["STAGE"] = "galfit_cv"
             logger.info("STAGE: galfit CV")
 
@@ -1537,7 +1542,7 @@ def main():
                 row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
                 row["GAL_CV_OK"] = not meta_cv["unstable"]
 
-                row["GALFIT_SEC"] = time.perf_counter() - t0
+                row["GAL_CV_SEC"] = time.perf_counter() - t0
                 #row["galfit_ok"] = row["GAL_CV_OK"]  # or (NC_OK and CV_OK) if you prefer
             except Exception as e:
                 logger.exception(f"GALFIT CV failed: {e}")
