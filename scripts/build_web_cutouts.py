@@ -1435,7 +1435,7 @@ class build_html_cutout():
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
             status_cell(get_result(self.cutout.results,'PSF_OK')),
             status_cell(get_result(self.cutout.results,'R_PROFILE_OK')),
-            status_cell(get_result(self.cutout.results,'HA_PROFILE_OK')),
+            status_cell(get_result(self.cutout.results,'H_PROFILE_OK')),
             status_cell(get_result(self.cutout.results,'R_SM_FLAG')),
             status_cell(get_result(self.cutout.results,'H_SM_FLAG')),            
             status_cell(get_result(self.cutout.results,'GAL_NC_OK')),
@@ -1669,12 +1669,12 @@ class build_html_cutout():
             'H&alpha; Max Det Radius',
         ]
         data = [
-            fmt_result(self.cutout.results,'HA_TOT_FLUX_CGS', '{:.2e}'),
-            fmt_result(self.cutout.results,'HA_ISO5E17_FLUX_CGS', '{:.2e}'),
-            fmt_result(self.cutout.results,'HA_ISO17E18_FLUX_CGS', '{:.2e}'),
-            fmt_result(self.cutout.results,'HA_R24_FLUX_CGS', '{:.2e}'),
-            fmt_result(self.cutout.results,'HA_C30_R24', '{:.2f}'),
-            fmt_result(self.cutout.results,'HA_MAXDET_ARCSEC', '{:.1f}'),
+            fmt_result(self.cutout.results,'H_TOT_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'H_ISO5E17_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'H_ISO17E18_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'H_R24_FLUX_CGS', '{:.2e}'),
+            fmt_result(self.cutout.results,'H_C30_R24', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_MAXDET_ARCSEC', '{:.1f}'),
         ]
         write_text_table(self.html, labels, data)
         
@@ -1698,9 +1698,9 @@ class build_html_cutout():
             '--',
             fmt_result(self.cutout.results,'H_M20', '{:.2f}'),
             fmt_result(self.cutout.results,'H_ASYM', '{:.2f}'),
-            fmt_result(self.cutout.results,'HA_C30_R24', '{:.2f}'),
-            fmt_result(self.cutout.results,'HA_PETRO_CON', '{:.2f}'),
-            str(bool(get_result(self.cutout.results,'HA_PROFILE_OK', False))),
+            fmt_result(self.cutout.results,'H_C30_R24', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_PETRO_CON', '{:.2f}'),
+            str(bool(get_result(self.cutout.results,'H_PROFILE_OK', False))),
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
