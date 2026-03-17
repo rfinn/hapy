@@ -1710,7 +1710,7 @@ class build_html_cutout():
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')
 
-        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf','SM_FLAG']
+        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf','FLAG', 'Sers FLAG']
 
         data = [
             'r',
