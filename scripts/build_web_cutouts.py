@@ -1430,7 +1430,7 @@ class build_html_cutout():
             'GALFIT CV',
             ]
 
-        print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')))
+        print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')), self.cutout.results['R_SM_FLAG'])
         data = [
             status_cell(get_result(self.cutout.results,'MASK_OK')),
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
