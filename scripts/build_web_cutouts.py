@@ -1431,6 +1431,7 @@ class build_html_cutout():
             ]
 
         print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')), self.cutout.results['R_SM_FLAG'])
+        print("DEBUG: H_SM_FLAG = ", status_cell(get_result(self.cutout.results,'H_SM_FLAG')), self.cutout.results['H_SM_FLAG'])
         data = [
             status_cell(get_result(self.cutout.results,'MASK_OK')),
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
