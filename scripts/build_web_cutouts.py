@@ -1423,13 +1423,14 @@ class build_html_cutout():
             'Photometry',
             'PSF',
             'R Profile',
-            'Hα Profile',
+            'H&alpha; Profile',
             'R Statmorph',
             'H&alpha; Statmorph',             
             'GALFIT NC',
             'GALFIT CV',
             ]
 
+        print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')))
         data = [
             status_cell(get_result(self.cutout.results,'MASK_OK')),
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
