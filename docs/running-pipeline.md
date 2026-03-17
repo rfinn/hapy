@@ -270,7 +270,7 @@ rsync -av hapy-output-20260310/cutouts/ hapy-output-20260313/cutouts/
 ## Build Cutout Webpages
 Create a list of the cutout images:
 ```bash
-find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
+find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
 
 Test on one directory:
@@ -287,7 +287,7 @@ ROOTDIR=/data-pool/Halpha/hapy-output-20260313
 ```
 
 ```bash 
-parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage "{}" --outdir $ROOTDIR/html/cutouts :::: cutout_list.txt
+parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage "{}" --outdir $ROOTDIR/html/cutouts :::: cutout_list_buildwebpages.txt
 ```
 
 ## Build cutout index
