@@ -498,7 +498,7 @@ def run_statmorph_single(
             show=False,
             )
 
-        return morph, fig, diag_fig, diag_snp
+    return morph, fig, diag_fig, diag_snp
 
 
 
