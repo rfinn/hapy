@@ -1605,7 +1605,7 @@ class build_html_cutout():
 
     def write_galfit_images(self):
         ''' display galfit model and fit parameters for r-band image '''
-        self.html.write('<h2>GALFIT r-band Modeling </h2>\n')                
+        self.html.write('<h2>GALFIT r-band Modeling - No Convolution </h2>\n')                
         if self.cutout.galimage is not None:
             
             images = [self.cutout.galimage,self.cutout.galmodel,self.cutout.galresidual,\
@@ -1808,7 +1808,8 @@ class build_html_cutout():
         if self.cutout.sm_h_pdf is not None:
             pdf_name = os.path.basename(self.cutout.sm_h_pdf)
             self.html.write(f'<p><b>Halpha statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
-            self.html.write(f'<iframe src="{pdf_name}" width="90%" height="700px" ></iframe>\n')
+            #self.html.write(f'<iframe src="{pdf_name}" width="90%" height="700px" ></iframe>\n')
+            self.html.write(f'<embed src="{pdf_name}" width="90%" height="700px" ></embed\n')
         
     # def write_statmorph_table(self):
     #     self.html.write('<h2>Statmorph Parameters</h2>\n')
