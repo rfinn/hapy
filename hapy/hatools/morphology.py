@@ -44,6 +44,40 @@ class MyStatmorph(statmorph.SourceMorphology):
         segmap = np.array(self._segmap.data == 1, dtype=int)
         return segmap[self._slice_stamp]
 
+
+    @lazyproperty
+    def sn_per_pixel(self):
+        sigma = np.asarray(self._weightmap_stamp)
+        img = np.asarray(self._cutout_stamp_maskzeroed)
+        seg = np.asarray(self._segmap_gini).astype(bool)
+
+        print("DEBUG sn_per_pixel")
+        print("  img shape:", img.shape)
+        print("  sigma shape:", sigma.shape)
+        print("  seg npix:", np.sum(seg))
+
+        locs_raw = seg & (img >= 0) & (sigma > 0)
+        print("  raw locs:", np.sum(locs_raw))
+
+        if np.any(locs_raw):
+            raw_ratio = img[locs_raw] / sigma[locs_raw]
+            print("  raw finite img:", np.all(np.isfinite(img[locs_raw])))
+            print("  raw finite sigma:", np.all(np.isfinite(sigma[locs_raw])))
+            print("  raw finite ratio:", np.all(np.isfinite(raw_ratio)))
+            print("  raw n bad ratio:", np.sum(~np.isfinite(raw_ratio)))
+
+        locs = seg & np.isfinite(img) & np.isfinite(sigma) & (img >= 0) & (sigma > 0)
+        print("  safe locs:", np.sum(locs))
+
+        if np.sum(locs) == 0:
+            self.flag = 2
+            return -99.0
+
+        ratio = img[locs] / sigma[locs]
+        print("  safe finite ratio:", np.all(np.isfinite(ratio)))
+
+        return float(np.mean(ratio))
+    
     def print(self):
         """Print public instance variables."""
         for k in self.__dict__.keys():
