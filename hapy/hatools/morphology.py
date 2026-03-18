@@ -371,6 +371,7 @@ def run_statmorph_for_photometry(
     make_fig: bool = True,
     make_diag: bool = False,
     diag_prefix: Optional[str] = None,
+    diag_outfile: Optional[str] = None,    
 ) -> MorphologyResult:
     """
     High-level helper: build single-object segmap and run statmorph
@@ -388,7 +389,7 @@ def run_statmorph_for_photometry(
         psf=psf,
         make_fig=make_fig,
         make_diag=make_diag,
-        diag_outfile=None,
+        diag_outfile=diag_outfile,
         diag_label=label1,
     )
 

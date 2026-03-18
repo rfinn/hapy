@@ -1015,6 +1015,7 @@ class EllipsePhotometry():
             psf2=getattr(self, "hpsf_data", None),
             make_fig=save_figs,
             make_diag=True,
+            diag_outfile= f"{self.image_name.split('.fits')[0]}-statmorph-diag.pdf"
         )
 
         self.morph = res.morph_r
