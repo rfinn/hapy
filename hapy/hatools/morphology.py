@@ -145,13 +145,16 @@ class MyStatmorph(statmorph.SourceMorphology):
         if sigma is not None:
             finite_sigma = np.isfinite(sigma)
             pos_sigma = sigma > 0
+            # statmorph criteria
+            locs2 = (seg_gini & (self._cutout_stamp_maskzeroed >= 0) & (sigma > 0))
+            # chatgpt version
             locs = seg_gini_bool & finite_img & finite_sigma & pos_sigma
             sn_map = np.full_like(img, np.nan, dtype=float)
             if np.any(locs):
                 # check img[locs] for nans
-                if not np.isfinite(img[locs]):
+                if not np.isfinite([locs2]):
                     print(f"WARNING: found nans in img[locs]")
-                if not np.isfinite(sigma[locs]):
+                if not np.isfinite(sigma[locs2]):
                     print(f"WARNING: found nans in sigma[locs]")
                 sn_map[locs] = img[locs] / sigma[locs]
                 snp = np.nanmean(sn_map[locs])
