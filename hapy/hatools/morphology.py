@@ -520,7 +520,7 @@ def run_statmorph_for_photometry(
     )
 
     print("STATMORPH RESULTS IMAGE1")
-    morph_r.print()
+    #morph_r.print()
     morph_r.print_diagnostic_summary()
 
     morph2 = fig2 = diag2 = None
@@ -539,7 +539,7 @@ def run_statmorph_for_photometry(
             diag_label=label2,
         )
         print("STATMORPH RESULTS IMAGE2")
-        morph2.print()
+        #morph2.print()
         morph2.print_diagnostic_summary()
 
     return MorphologyResult(
