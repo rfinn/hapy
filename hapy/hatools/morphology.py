@@ -14,16 +14,15 @@ import warnings
 import matplotlib.pyplot as plt
 from astropy.utils.exceptions import AstropyUserWarning
 
-
-class MyStatmorph(statmorph.SourceMorphology):
-     """Statmorph subclass that forces gini segmap behavior."""
-
 #     @lazyproperty
 #     def _segmap_gini(self):
 #         segmap = np.array(self._segmap.data == 1, "i")
 #         return segmap[self._slice_stamp]
 
-     def print(self):
+
+class MyStatmorph(statmorph.SourceMorphology):
+     """Statmorph subclass that forces gini segmap behavior."""
+    def print(self):
          ''' adding a print method to print out the instance variables '''
          for k in self.__dict__.keys():
              if k.startswith('_'):
