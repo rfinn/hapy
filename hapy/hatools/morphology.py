@@ -22,12 +22,7 @@ from astropy.utils.exceptions import AstropyUserWarning
 
 class MyStatmorph(statmorph.SourceMorphology):
      """Statmorph subclass that forces gini segmap behavior."""
-    def print(self):
-        ''' adding a print method to print out the instance variables '''
-        for k in self.__dict__.keys():
-            if k.startswith('_'):
-                continue
-            print(f"{k}: {self.__dict__[k]}")
+
 
 
 
@@ -64,7 +59,7 @@ class MyStatmorph(statmorph.SourceMorphology):
 
         return float(np.mean(ratio))
     
-    def print(self):
+    def print_diagnostic_summary(self):
         """Print public instance variables."""
         for k in self.__dict__.keys():
             if k.startswith('_'):
