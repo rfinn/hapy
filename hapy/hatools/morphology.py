@@ -148,6 +148,11 @@ class MyStatmorph(statmorph.SourceMorphology):
             locs = seg_gini_bool & finite_img & finite_sigma & pos_sigma
             sn_map = np.full_like(img, np.nan, dtype=float)
             if np.any(locs):
+                # check img[locs] for nans
+                if not np.isfinite(img[locs]):
+                    print(f"WARNING: found nans in img[locs]")
+                if not np.isfinite(sigma[locs]):
+                    print(f"WARNING: found nans in sigma[locs]")
                 sn_map[locs] = img[locs] / sigma[locs]
                 snp = np.nanmean(sn_map[locs])
             else:
