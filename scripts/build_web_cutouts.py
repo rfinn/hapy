@@ -1799,16 +1799,13 @@ class build_html_cutout():
         if self.cutout.sm_r_pdf is not None:
             pdf_name = os.path.basename(self.cutout.sm_r_pdf)
             self.html.write(f'<p><b>r-band statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
-            self.html.write(
-                f'<iframe src="{pdf_name}" width="800px" height="2100px"></iframe>\n'
-            )
+            #self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
+            self.html.write(f'<embed src="{pdf_name}" width="100%" "></embed>\n')
 
         if self.cutout.sm_h_pdf is not None:
             pdf_name = os.path.basename(self.cutout.sm_h_pdf)
             self.html.write(f'<p><b>Halpha statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
-            self.html.write(
-                f'<iframe src="{pdf_name}" width="800px" height="2100px"></iframe>\n'
-            )
+            self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
         
     # def write_statmorph_table(self):
     #     self.html.write('<h2>Statmorph Parameters</h2>\n')
