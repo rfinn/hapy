@@ -8,7 +8,7 @@ import numpy as np
 import os
 import warnings
 warnings.simplefilter("always", RuntimeWarning)
-
+from pathlib import Path
 try:
     from photutils import detect_threshold, detect_sources#, make_source_mask
 except ImportError:
@@ -1004,6 +1004,9 @@ class EllipsePhotometry():
         object_label = int(self.cat.label[self.objectIndex])
         mask = (self.mask_image > 0) if self.mask_image is not None else None
 
+        stem1 = str(Path(self.image_name).with_suffix(""))
+        stem2 = str(Path(self.image2_name).with_suffix("")) if self.image2_name else None
+
         res = run_statmorph_for_photometry(
             image=self.image,
             segmentation_data=self.segmentation.data,
@@ -1015,19 +1018,26 @@ class EllipsePhotometry():
             psf2=getattr(self, "hpsf_data", None),
             make_fig=save_figs,
             make_diag=True,
-            diag_outfile= f"{self.image_name.split('.fits')[0]}-statmorph-diag.pdf"
+            diag_outfile=f"{stem1}-statmorph-diag.pdf",
         )
 
         self.morph = res.morph_r
         self.morph2 = res.morph_img2
 
-        if save_figs and res.fig_r is not None:
-            figname = self.image_name.split(".fits")[0]
-            res.fig_r.savefig(figname + "statmorph-r.pdf")
+        print("res.fig_r is None?", res.fig_r is None)
+        print("res.fig_img2 is None?", res.fig_img2 is None)
 
-        if save_figs and res.fig_img2 is not None and self.image2_name:
-            figname2 = self.image2_name.split(".fits")[0]
-            res.fig_img2.savefig(figname2 + "statmorph-ha.pdf")
+        if save_figs and res.fig_r is not None:
+            out1 = f"{stem1}-statmorph-r.pdf"
+            print("Saving:", out1)
+            res.fig_r.savefig(out1)
+
+        if save_figs and res.fig_img2 is not None and stem2 is not None:
+            out2 = f"{stem2}-statmorph-ha.pdf"
+            print("Saving:", out2)
+            res.fig_img2.savefig(out2)
+
+
         
  
     def get_image2_gini(self, snrcut=1.5):

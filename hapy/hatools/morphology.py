@@ -10,30 +10,29 @@ from statmorph.utils.image_diagnostics import make_figure
 
 from astropy.utils import lazyproperty
 import scipy.ndimage as ndi
-
-
-class MyStatmorph(statmorph.SourceMorphology):
-    """Statmorph subclass that forces gini segmap behavior."""
-
-    @lazyproperty
-    def _segmap_gini(self):
-        segmap = np.array(self._segmap.data == 1, "i")
-        return segmap[self._slice_stamp]
-
-    def print(self):
-        ''' adding a print method to print out the instance variables '''
-        for k in self.__dict__.keys():
-            if k.startswith('_'):
-                continue
-            print(f"{k}: {self.__dict__[k]}")
-
-    #def plot_segmap_weightmap(self):
-    #    plt.figure()
-        
-    import warnings
-import numpy as np
+import warnings
 import matplotlib.pyplot as plt
 from astropy.utils.exceptions import AstropyUserWarning
+
+
+# class MyStatmorph(statmorph.SourceMorphology):
+#     """Statmorph subclass that forces gini segmap behavior."""
+
+#     @lazyproperty
+#     def _segmap_gini(self):
+#         segmap = np.array(self._segmap.data == 1, "i")
+#         return segmap[self._slice_stamp]
+
+#     def print(self):
+#         ''' adding a print method to print out the instance variables '''
+#         for k in self.__dict__.keys():
+#             if k.startswith('_'):
+#                 continue
+#             print(f"{k}: {self.__dict__[k]}")
+
+#     #def plot_segmap_weightmap(self):
+#     #    plt.figure()
+        
 
 
 class MyStatmorph(statmorph.SourceMorphology):
@@ -447,7 +446,9 @@ class MorphologyResult:
     diag_fig_img2: Optional[Any] = None
     snp_r: Optional[float] = None
     snp_img2: Optional[float] = None
-    
+
+
+
 def make_object_segmap(segmentation_data: np.ndarray, object_label: int, smooth_size: int = 10) -> np.ndarray:
     """Return a 0/1 segmap for the central object only."""
     segmap = segmentation_data == object_label
@@ -555,7 +556,7 @@ def run_statmorph_for_photometry(
             psf=psf2,
             make_fig=make_fig,
             make_diag=make_diag,
-            diag_outfile=None,
+            diag_outfile=diag_outfile.replace('.pdf','2.pdf'),
             diag_label=label2,
         )
         print("STATMORPH RESULTS IMAGE2")
@@ -569,9 +570,8 @@ def run_statmorph_for_photometry(
         fig_img2=fig2,
         diag_fig_r=diag_r,
         diag_fig_img2=diag2,
-        diag_snr_r=diag_snp,
-        diag_snr_img2=diag_snp2,
-    )
+        snr_r=diag_snp,
+        snr_img2=diag_snp2,)
 
 
 
@@ -630,3 +630,162 @@ def m20_from_sourcecatalog(cat, idx):
 
     m20 = np.log10(np.sum(flux_sorted[top20] * r2_sorted[top20]) / mtot)
     return float(m20)
+
+
+
+
+def compute_gini(values, allow_negative=False):
+    """
+    Compute the Gini coefficient for a 1D array of pixel values.
+
+    Parameters
+    ----------
+    values : array-like
+        Input pixel values.
+    allow_negative : bool, optional
+        If False, negative values are clipped to zero before computing Gini.
+        If True, negative values are kept. In most astronomical imaging
+        applications for flux-like quantities, False is the safer choice.
+
+    Returns
+    -------
+    gini : float
+        Gini coefficient in the range [0, 1] for non-negative inputs.
+        Returns np.nan if no finite values remain or if the sum is zero.
+
+    Notes
+    -----
+    For non-negative values, the Gini coefficient is:
+
+        G = sum_i (2i - n - 1) x_i / [n * sum_i x_i]
+
+    where x_i are the sorted values in ascending order.
+    """
+    x = np.asarray(values, dtype=float).ravel()
+    x = x[np.isfinite(x)]
+
+    if x.size == 0:
+        return np.nan
+
+    if not allow_negative:
+        x = np.clip(x, 0.0, None)
+
+    if x.size == 0:
+        return np.nan
+
+    total = np.sum(x)
+    if total <= 0:
+        return np.nan
+
+    x = np.sort(x)
+    n = x.size
+    index = np.arange(1, n + 1, dtype=float)
+
+    gini = np.sum((2.0 * index - n - 1.0) * x) / (n * total)
+    return float(gini)
+
+def compute_hapy_gini(
+    image,
+    r_segmap,
+    sigma_sky=None,
+    nsigma=3.0,
+    detection_segmap=None,
+    zero_below_threshold=False,
+):
+    """
+    Compute HAPY Gini over the r-band segmentation region.
+
+    Parameters
+    ----------
+    image : 2D array
+        Image on which to compute the Gini coefficient.
+        This can be the r-band or Halpha image.
+    r_segmap : 2D array-like
+        Boolean or integer segmentation map defining the stellar disk region.
+        Nonzero values are treated as inside the region.
+    sigma_sky : float, optional
+        Sky RMS for thresholding. Required if zero_below_threshold=True.
+    nsigma : float, optional
+        Threshold multiplier for sigma_sky. Default is 3.
+    detection_segmap : 2D array-like, optional
+        Optional second segmentation map describing detected emission.
+        If provided, pixels inside r_segmap but outside detection_segmap
+        are set to zero before computing Gini.
+    zero_below_threshold : bool, optional
+        If True, pixels inside r_segmap with image < nsigma*sigma_sky
+        are set to zero before computing Gini.
+
+    Returns
+    -------
+    gini : float
+        Gini coefficient computed over the r-band segmentation region.
+
+    processed_values : 1D ndarray
+        The values actually used in the Gini calculation.
+    """
+    img = np.asarray(image, dtype=float)
+    rmask = np.asarray(r_segmap).astype(bool)
+
+    if img.shape != rmask.shape:
+        raise ValueError("image and r_segmap must have the same shape")
+
+    vals = np.array(img[rmask], dtype=float)
+
+    if detection_segmap is not None:
+        dmask = np.asarray(detection_segmap).astype(bool)
+        if dmask.shape != img.shape:
+            raise ValueError("detection_segmap must have the same shape as image")
+        detvals = dmask[rmask]
+        vals[~detvals] = 0.0
+
+    if zero_below_threshold:
+        if sigma_sky is None:
+            raise ValueError("sigma_sky is required when zero_below_threshold=True")
+        threshold = nsigma * sigma_sky
+        vals[vals < threshold] = 0.0
+
+    gini = compute_gini(vals, allow_negative=False)
+    return gini, vals
+
+
+def compute_r_hapy_gini(r_image, r_segmap):
+    """
+    R_HAPY_GINI:
+    Gini of r-band image over the r-band segmentation region.
+    """
+    gini, _ = compute_hapy_gini(
+        image=r_image,
+        r_segmap=r_segmap,
+        zero_below_threshold=False,
+    )
+    return gini
+
+
+def compute_halpha_hapy_gini(ha_image, r_segmap, sigma_sky, nsigma=3.0):
+    """
+    H_HAPY_GINI:
+    Gini of Halpha image over the r-band segmentation region,
+    after setting pixels below nsigma*sigma_sky to zero.
+    """
+    gini, _ = compute_hapy_gini(
+        image=ha_image,
+        r_segmap=r_segmap,
+        sigma_sky=sigma_sky,
+        nsigma=nsigma,
+        zero_below_threshold=True,
+    )
+    return gini
+
+def compute_halpha_hapy_gini_with_segmaps(ha_image, r_segmap, ha_det_segmap):
+    """
+    H_HAPY_GINI using an explicit Halpha detection map.
+
+    Pixels inside r_segmap but outside ha_det_segmap are set to zero.
+    """
+    gini, _ = compute_hapy_gini(
+        image=ha_image,
+        r_segmap=r_segmap,
+        detection_segmap=ha_det_segmap,
+        zero_below_threshold=False,
+    )
+    return gini
