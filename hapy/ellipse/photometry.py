@@ -1014,6 +1014,7 @@ class EllipsePhotometry():
             image2=self.image2 if self.image2_flag else None,
             psf2=getattr(self, "hpsf_data", None),
             make_fig=save_figs,
+            make_diag=True,
         )
 
         self.morph = res.morph_r
