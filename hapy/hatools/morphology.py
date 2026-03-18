@@ -39,10 +39,10 @@ from astropy.utils.exceptions import AstropyUserWarning
 class MyStatmorph(statmorph.SourceMorphology):
     """Statmorph subclass that forces gini segmap behavior."""
 
-    @lazyproperty
-    def _segmap_gini(self):
-        segmap = np.array(self._segmap.data == 1, dtype=int)
-        return segmap[self._slice_stamp]
+    # @lazyproperty
+    # def _segmap_gini(self):
+    #     segmap = np.array(self._segmap.data == 1, dtype=int)
+    #     return segmap[self._slice_stamp]
 
 
     @lazyproperty
