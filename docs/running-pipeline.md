@@ -279,7 +279,7 @@ ROOTDIR=/data-pool/Halpha/hapy-output-20260313
 ```
 ```bash
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
-$ROOTDIR/cutouts --oneimage VFID2891-UGC04559-HDI-20200225-p004 --outdir $ROOTDIR/html/cutouts
+$ROOTDIR/cutouts --outdir $ROOTDIR/html/cutouts --oneimage VFID2891-UGC04559-HDI-20200225-p004
 ```
 
 ```bash

@@ -28,6 +28,7 @@ import os
 import sys
 import numpy as np
 import glob
+import shutil
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import Ellipse
@@ -410,6 +411,11 @@ class cutout_dir():
         self.wise_flag = False
         self.galex_flag = False
         self.nuv_flag = False
+
+        self.sm_r_flag = False
+        self.sm_h_flag = False
+        self.sm_r_fig = None
+        self.sm_h_fig = None        
         
     def get_results_table(self):
         """Read the per-galaxy HAPY results table."""
@@ -462,6 +468,8 @@ class cutout_dir():
         #self.make_cs_png(gr=True)
         #self.make_cs_png(grauto=True)                
         #self.get_galfit_model()
+
+        self.copy_statmorph_pdfs()
         self.get_galfit_images()
 
         self.get_cgalfit_images()
@@ -723,7 +731,47 @@ class cutout_dir():
                 else:
                     self.cs_png2 = pngfile 
 
- 
+    def copy_statmorph_pdfs(self):
+        """Copy statmorph PDFs from cutoutdir to outdir."""
+
+        
+        # ensure output directory exists
+        os.makedirs(self.outdir, exist_ok=True)
+
+        print("copying statmorph pdf files ...")
+        # --- R-band PDF ---
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*statmorph-r.pdf"))
+
+        if len(r_matches) > 0:
+            sm_r_pdf = r_matches[0]
+            self.sm_r_pdf = os.path.join(self.outdir, os.path.basename(sm_r_pdf))
+
+            try:
+                shutil.copy2(sm_r_pdf, self.sm_r_pdf)
+            except Exception as e:
+                print(f"Error copying R-band statmorph PDF: {sm_r_pdf}")
+                print(e)
+                self.sm_r_pdf = None
+        else:
+            print(f"No statmorph R PDF found in {self.cutoutdir}")
+
+        # --- Hα PDF ---
+        h_matches = glob.glob(os.path.join(self.cutoutdir, "*statmorph-ha.pdf"))
+
+        if len(h_matches) > 0:
+            sm_h_pdf = h_matches[0]
+            self.sm_h_pdf = os.path.join(self.outdir, os.path.basename(sm_h_pdf))
+
+            try:
+                shutil.copy2(sm_h_pdf, self.sm_h_pdf)
+            except Exception as e:
+                print(f"Error copying Hα statmorph PDF: {sm_h_pdf}")
+                print(e)
+                self.sm_h_pdf = None
+        else:
+            print(f"No statmorph Hα PDF found in {self.cutoutdir}")
+        
+
 
     def get_galfit_results_nc(self):
         """
@@ -1710,37 +1758,96 @@ class build_html_cutout():
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')
 
-        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf','FLAG', 'Sers FLAG']
+        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf', 'FLAG', 'Sers FLAG']
 
         data = [
             'r',
-            fmt_result(self.cutout.results,'R_SM_XCENTROID', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_YCENTROID', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_GINI', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_M20', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_C', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_A', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_S', '{:.2f}'),
-            fmt_result(self.cutout.results,'R_SM_RHALF_ELLIP', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_XCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_YCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_M20', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_C', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_A', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_S', '{:.2f}'),
+            fmt_result(self.cutout.results, 'R_SM_RHALF_ELLIP', '{:.2f}'),
             self.cutout.results['R_SM_FLAG'],
             self.cutout.results['R_SM_SERSIC_FLAG'],
         ]
 
         data2 = [
             'Halpha',
-            fmt_result(self.cutout.results,'H_SM_XCENTROID', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_YCENTROID', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_GINI', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_M20', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_C', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_A', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_S', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_SM_RHALF_ELLIP', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_XCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_YCENTROID', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_M20', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_C', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_A', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_S', '{:.2f}'),
+            fmt_result(self.cutout.results, 'H_SM_RHALF_ELLIP', '{:.2f}'),
             self.cutout.results['H_SM_FLAG'],
             self.cutout.results['H_SM_SERSIC_FLAG'],
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
+
+        # add statmorph figures
+        self.html.write('<h3>Statmorph Diagnostic PDFs</h3>\n')
+
+        if self.sm_r_pdf is not None:
+            pdf_name = os.path.basename(self.sm_r_pdf)
+            self.html.write(f'<p><b>r-band statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
+            self.html.write(
+                f'<iframe src="{pdf_name}" width="800px" height="2100px"></iframe>\n'
+            )
+
+        if self.sm_h_pdf is not None:
+            pdf_name = os.path.basename(self.sm_h_pdf)
+            self.html.write(f'<p><b>Halpha statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
+            self.html.write(
+                f'<iframe src="{pdf_name}" width="800px" height="2100px"></iframe>\n'
+            )
+        
+    # def write_statmorph_table(self):
+    #     self.html.write('<h2>Statmorph Parameters</h2>\n')
+
+    #     labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf','FLAG', 'Sers FLAG']
+
+    #     data = [
+    #         'r',
+    #         fmt_result(self.cutout.results,'R_SM_XCENTROID', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_YCENTROID', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_GINI', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_M20', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_C', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_A', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_S', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'R_SM_RHALF_ELLIP', '{:.2f}'),
+    #         self.cutout.results['R_SM_FLAG'],
+    #         self.cutout.results['R_SM_SERSIC_FLAG'],
+    #     ]
+
+    #     data2 = [
+    #         'Halpha',
+    #         fmt_result(self.cutout.results,'H_SM_XCENTROID', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_YCENTROID', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_GINI', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_M20', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_C', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_A', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_S', '{:.2f}'),
+    #         fmt_result(self.cutout.results,'H_SM_RHALF_ELLIP', '{:.2f}'),
+    #         self.cutout.results['H_SM_FLAG'],
+    #         self.cutout.results['H_SM_SERSIC_FLAG'],
+    #     ]
+
+    #     write_text_table(self.html, labels, data, data2=data2)
+
+    #     # add statmorph figures
+
+    #     if self.cutout.sm_r_pdf is not None:
+    #         self.html.write(f'< src="{os.path.basename(self.cutout.sm_r_pdf)}" width="800px" height="2100px" />')
+    #     if self.cutout.sm_h_pdf is not None:
+    #         self.html.write(f'<embed src="{os.path.basename(self.cutout.sm_h_pdf)}" width="800px" height="2100px" />')
 
     def close_html(self):
         self.html.close()
