@@ -1796,15 +1796,15 @@ class build_html_cutout():
         # add statmorph figures
         self.html.write('<h3>Statmorph Diagnostic PDFs</h3>\n')
 
-        if self.sm_r_pdf is not None:
-            pdf_name = os.path.basename(self.sm_r_pdf)
+        if self.cutout.sm_r_pdf is not None:
+            pdf_name = os.path.basename(self.cutout.sm_r_pdf)
             self.html.write(f'<p><b>r-band statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             self.html.write(
                 f'<iframe src="{pdf_name}" width="800px" height="2100px"></iframe>\n'
             )
 
-        if self.sm_h_pdf is not None:
-            pdf_name = os.path.basename(self.sm_h_pdf)
+        if self.cutout.sm_h_pdf is not None:
+            pdf_name = os.path.basename(self.cutout.sm_h_pdf)
             self.html.write(f'<p><b>Halpha statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             self.html.write(
                 f'<iframe src="{pdf_name}" width="800px" height="2100px"></iframe>\n'
