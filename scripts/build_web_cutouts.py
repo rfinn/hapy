@@ -1666,7 +1666,7 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'GAL_PA', '{:.1f}'),
             fmt_result(self.cutout.results,'GAL_SKY', '{:.2f}'),
             fmt_result(self.cutout.results,'GAL_CHISQ', '{:.2f}'),
-            _status_cell(self.cutout.results['GAL_NUMERR'] == 0),
+            self._status_cell(self.cutout.results['GAL_NUMERR'] == 0),
             ]
 
 
@@ -1683,7 +1683,7 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'GAL_CPA', '{:.1f}'),
             fmt_result(self.cutout.results,'GAL_CSKY', '{:.2f}'),
             fmt_result(self.cutout.results,'GAL_CCHISQ', '{:.2f}'),
-            _status_cell(self.cutout.results['GAL_CNUMERR'] == 0),            
+            self._status_cell(self.cutout.results['GAL_CNUMERR'] == 0),            
             ]
 
         write_text_table(self.html, labels, data, data2=data2)
