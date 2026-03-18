@@ -414,8 +414,8 @@ class cutout_dir():
 
         self.sm_r_flag = False
         self.sm_h_flag = False
-        self.sm_r_fig = None
-        self.sm_h_fig = None        
+        self.sm_r_pdf = None
+        self.sm_h_pdf = None        
         
     def get_results_table(self):
         """Read the per-galaxy HAPY results table."""
@@ -738,7 +738,10 @@ class cutout_dir():
         # ensure output directory exists
         os.makedirs(self.outdir, exist_ok=True)
 
-        print("copying statmorph pdf files ...")
+        # initialize attributes (important for downstream HTML logic)
+        self.sm_r_pdf = None
+        self.sm_h_pdf = None
+
         # --- R-band PDF ---
         r_matches = glob.glob(os.path.join(self.cutoutdir, "*statmorph-r.pdf"))
 
