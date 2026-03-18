@@ -393,7 +393,13 @@ class MyStatmorph(statmorph.SourceMorphology):
                 print("nonfinite img among only_in_locs2:", np.sum(~np.isfinite(img[only_in_locs2])))
                 print("nonfinite sigma among only_in_locs2:",np.sum(~np.isfinite(sigma[only_in_locs2])))
 
+            print(type(self._cutout_stamp_maskzeroed))
+            print(type(sigma))
 
+            print("img is masked array:", np.ma.isMaskedArray(self._cutout_stamp_maskzeroed))
+            print("sigma is masked array:", np.ma.isMaskedArray(sigma))
+            print()
+            print()
             return fig, axes, snp
             
 
