@@ -145,19 +145,49 @@ class MyStatmorph(statmorph.SourceMorphology):
         if sigma is not None:
             finite_sigma = np.isfinite(sigma)
             pos_sigma = sigma > 0
-            # statmorph criteria
-            locs2 = (seg_gini & (self._cutout_stamp_maskzeroed >= 0) & (sigma > 0))
-            # chatgpt version
-            locs = seg_gini_bool & finite_img & finite_sigma & pos_sigma
+
+            locs2 = (
+                seg_gini.astype(bool)
+                & (self._cutout_stamp_maskzeroed >= 0)
+                & (sigma > 0)
+            )
+
+            locs = (
+                seg_gini.astype(bool)
+                & np.isfinite(self._cutout_stamp_maskzeroed)
+                & np.isfinite(sigma)
+                & (sigma > 0)
+            )
+
+            print("Npix locs2 (statmorph):", np.sum(locs2))
+            print("Npix locs  (safe)     :", np.sum(locs))
+
+            if np.any(locs2):
+                vals_img2 = self._cutout_stamp_maskzeroed[locs2]
+                vals_sigma2 = sigma[locs2]
+                ratio2 = vals_img2 / vals_sigma2
+
+                print("locs2: finite img   :", np.all(np.isfinite(vals_img2)))
+                print("locs2: finite sigma :", np.all(np.isfinite(vals_sigma2)))
+                print("locs2: finite ratio :", np.all(np.isfinite(ratio2)))
+                print("locs2: n bad ratio  :", np.sum(~np.isfinite(ratio2)))
+
+                if not np.all(np.isfinite(vals_img2)):
+                    print("WARNING: non-finite values in img[locs2]")
+                if not np.all(np.isfinite(vals_sigma2)):
+                    print("WARNING: non-finite values in sigma[locs2]")
+
+                snp2 = np.mean(ratio2)
+            else:
+                snp2 = np.nan
+
             sn_map = np.full_like(img, np.nan, dtype=float)
             if np.any(locs):
-                # check img[locs] for nans
-                if not np.isfinite([locs2]):
-                    print(f"WARNING: found nans in img[locs]")
-                if not np.isfinite(sigma[locs2]):
-                    print(f"WARNING: found nans in sigma[locs]")
-                sn_map[locs] = img[locs] / sigma[locs]
-                snp = np.nanmean(sn_map[locs])
+                vals_img = img[locs]
+                vals_sigma = sigma[locs]
+                ratio = vals_img / vals_sigma
+                sn_map[locs] = ratio
+                snp = np.nanmean(ratio)
             else:
                 warnings.warn("Invalid sn_per_pixel: no valid pixels.", AstropyUserWarning)
                 try:
@@ -165,6 +195,34 @@ class MyStatmorph(statmorph.SourceMorphology):
                 except Exception:
                     pass
                 snp = np.nan
+
+            print("snp statmorph-style:", snp2)
+            print("snp safe version   :", snp)
+
+    
+        # if sigma is not None:
+        #     finite_sigma = np.isfinite(sigma)
+        #     pos_sigma = sigma > 0
+        #     # statmorph criteria
+        #     locs2 = (seg_gini & (self._cutout_stamp_maskzeroed >= 0) & (sigma > 0))
+        #     # chatgpt version
+        #     locs = seg_gini_bool & finite_img & finite_sigma & pos_sigma
+        #     sn_map = np.full_like(img, np.nan, dtype=float)
+        #     if np.any(locs):
+        #         # check img[locs] for nans
+        #         if not np.all(np.isfinite(img[locs2])):
+        #             print(f"WARNING: found nans in img[locs]")
+        #         if not np.all(np.isfinite(sigma[locs2])):
+        #             print(f"WARNING: found nans in sigma[locs]")
+        #         sn_map[locs] = img[locs] / sigma[locs]
+        #         snp = np.nanmean(sn_map[locs])
+        #     else:
+        #         warnings.warn("Invalid sn_per_pixel: no valid pixels.", AstropyUserWarning)
+        #         try:
+        #             self.flag = max(getattr(self, "flag", 0), 2)
+        #         except Exception:
+        #             pass
+        #         snp = np.nan
         else:
             locs = seg_gini_bool & finite_img
             sn_map = np.full_like(img, np.nan, dtype=float)
@@ -295,6 +353,46 @@ class MyStatmorph(statmorph.SourceMorphology):
             plt.show()
         else:
             plt.close(fig)
+
+
+    locs2 = (seg_gini.astype(bool) &
+             (self._cutout_stamp_maskzeroed >= 0) &
+             (sigma > 0))
+
+    print("npix locs2 =", np.sum(locs2))
+
+    if np.any(locs2):
+        bad_img = locs2 & ~np.isfinite(self._cutout_stamp_maskzeroed)
+        bad_sigma = locs2 & ~np.isfinite(sigma)
+        zero_sigma = locs2 & (sigma == 0)
+
+        print("bad img in locs2:", np.sum(bad_img))
+        print("bad sigma in locs2:", np.sum(bad_sigma))
+        print("zero sigma in locs2:", np.sum(zero_sigma))
+
+        vals_img = self._cutout_stamp_maskzeroed[locs2]
+        vals_sigma = sigma[locs2]
+
+        print("img finite?", np.all(np.isfinite(vals_img)))
+        print("sigma finite?", np.all(np.isfinite(vals_sigma)))
+        print("sigma min/max:", np.nanmin(vals_sigma), np.nanmax(vals_sigma))
+
+        ratio = vals_img / vals_sigma
+        print("ratio finite?", np.all(np.isfinite(ratio)))
+        print("n bad ratio:", np.sum(~np.isfinite(ratio)))
+
+        only_in_locs2 = locs2 & ~locs
+        only_in_locs = locs & ~locs2
+
+        print("npix locs2:", np.sum(locs2))
+        print("npix locs :", np.sum(locs))
+        print("npix only_in_locs2:", np.sum(only_in_locs2))
+        print("npix only_in_locs :", np.sum(only_in_locs))
+
+        if np.any(only_in_locs2):
+            print("nonfinite img among only_in_locs2:", np.sum(~np.isfinite(img[only_in_locs2])))
+            print("nonfinite sigma among only_in_locs2:",np.sum(~np.isfinite(sigma[only_in_locs2])))
+
 
         return fig, axes, snp
             
