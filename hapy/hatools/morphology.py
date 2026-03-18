@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from astropy.utils.exceptions import AstropyUserWarning
 
 
- class MyStatmorph(statmorph.SourceMorphology):
+class MyStatmorph(statmorph.SourceMorphology):
      """Statmorph subclass that forces gini segmap behavior."""
 
 #     @lazyproperty
