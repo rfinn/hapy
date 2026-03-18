@@ -1651,6 +1651,7 @@ class build_html_cutout():
             'PA',
             'SKY',
             'CHI2NU',
+            'NUMERR',
             ]
 
         data = [
@@ -1665,6 +1666,7 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'GAL_PA', '{:.1f}'),
             fmt_result(self.cutout.results,'GAL_SKY', '{:.2f}'),
             fmt_result(self.cutout.results,'GAL_CHISQ', '{:.2f}'),
+            _status_cell(self.cutout.results['GAL_NUMERR'] == 0),
             ]
 
 
@@ -1681,6 +1683,7 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'GAL_CPA', '{:.1f}'),
             fmt_result(self.cutout.results,'GAL_CSKY', '{:.2f}'),
             fmt_result(self.cutout.results,'GAL_CCHISQ', '{:.2f}'),
+            _status_cell(self.cutout.results['GAL_CNUMERR'] == 0),            
             ]
 
         write_text_table(self.html, labels, data, data2=data2)
@@ -1761,7 +1764,7 @@ class build_html_cutout():
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')
 
-        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf', 'FLAG', 'Sers FLAG']
+        labels = ['Band', 'XC', 'YC', 'Gini', 'M20', 'C', 'A', 'S', 'Rhalf', 'SM FLAG', 'Sersic FLAG']
 
         data = [
             'r',
