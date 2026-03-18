@@ -542,6 +542,7 @@ def run_statmorph_for_photometry(
         #morph2.print()
         morph2.print_diagnostic_summary()
 
+
     return MorphologyResult(
         morph_r=morph_r,
         morph_img2=morph2,
@@ -549,8 +550,8 @@ def run_statmorph_for_photometry(
         fig_img2=fig2,
         diag_fig_r=diag_r,
         diag_fig_img2=diag2,
-        snr_r=diag_snp,
-        snr_img2=diag_snp2,)
+        snp_r=diag_snp,
+        snp_img2=diag_snp2,)
 
 
 
