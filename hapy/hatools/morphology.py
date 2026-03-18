@@ -15,33 +15,21 @@ import matplotlib.pyplot as plt
 from astropy.utils.exceptions import AstropyUserWarning
 
 
-# class MyStatmorph(statmorph.SourceMorphology):
-#     """Statmorph subclass that forces gini segmap behavior."""
+ class MyStatmorph(statmorph.SourceMorphology):
+     """Statmorph subclass that forces gini segmap behavior."""
 
 #     @lazyproperty
 #     def _segmap_gini(self):
 #         segmap = np.array(self._segmap.data == 1, "i")
 #         return segmap[self._slice_stamp]
 
-#     def print(self):
-#         ''' adding a print method to print out the instance variables '''
-#         for k in self.__dict__.keys():
-#             if k.startswith('_'):
-#                 continue
-#             print(f"{k}: {self.__dict__[k]}")
+     def print(self):
+         ''' adding a print method to print out the instance variables '''
+         for k in self.__dict__.keys():
+             if k.startswith('_'):
+                 continue
+             print(f"{k}: {self.__dict__[k]}")
 
-#     #def plot_segmap_weightmap(self):
-#     #    plt.figure()
-        
-
-
-class MyStatmorph(statmorph.SourceMorphology):
-    """Statmorph subclass that forces gini segmap behavior."""
-
-    # @lazyproperty
-    # def _segmap_gini(self):
-    #     segmap = np.array(self._segmap.data == 1, dtype=int)
-    #     return segmap[self._slice_stamp]
 
 
     @lazyproperty
