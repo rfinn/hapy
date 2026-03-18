@@ -21,10 +21,7 @@ from astropy.utils.exceptions import AstropyUserWarning
 
 
 class MyStatmorph(statmorph.SourceMorphology):
-     """Statmorph subclass that forces gini segmap behavior."""
-
-
-
+    """Statmorph subclass that forces gini segmap behavior."""
 
     @lazyproperty
     def sn_per_pixel(self):
