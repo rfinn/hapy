@@ -519,9 +519,9 @@ def run_statmorph_for_photometry(
         diag_label=label1,
     )
 
-    print("STATMORPH RESULTS IMAGE1")
+    #print("STATMORPH RESULTS IMAGE1")
     #morph_r.print()
-    morph_r.print_diagnostic_summary()
+    #morph_r.print_diagnostic_summary()
 
     morph2 = fig2 = diag2 = None
     if image2 is not None:
@@ -538,9 +538,9 @@ def run_statmorph_for_photometry(
             diag_outfile=diag_outfile.replace('.pdf','2.pdf'),
             diag_label=label2,
         )
-        print("STATMORPH RESULTS IMAGE2")
+        #print("STATMORPH RESULTS IMAGE2")
         #morph2.print()
-        morph2.print_diagnostic_summary()
+        #morph2.print_diagnostic_summary()
 
 
     return MorphologyResult(

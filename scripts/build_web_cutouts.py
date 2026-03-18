@@ -743,7 +743,7 @@ class cutout_dir():
         self.sm_h_pdf = None
 
         # --- R-band PDF ---
-        r_matches = glob.glob(os.path.join(self.cutoutdir, "*statmorph-r.pdf"))
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-statmorph-r.pdf"))
 
         if len(r_matches) > 0:
             sm_r_pdf = r_matches[0]
@@ -759,7 +759,7 @@ class cutout_dir():
             print(f"No statmorph R PDF found in {self.cutoutdir}")
 
         # --- Hα PDF ---
-        h_matches = glob.glob(os.path.join(self.cutoutdir, "*statmorph-ha.pdf"))
+        h_matches = glob.glob(os.path.join(self.cutoutdir, "*-statmorph-ha.pdf"))
 
         if len(h_matches) > 0:
             sm_h_pdf = h_matches[0]

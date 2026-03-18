@@ -1025,8 +1025,8 @@ class EllipsePhotometry():
         self.morph = res.morph_r
         self.morph2 = res.morph_img2
 
-        print("res.fig_r is None?", res.fig_r is None)
-        print("res.fig_img2 is None?", res.fig_img2 is None)
+        #print("res.fig_r is None?", res.fig_r is None)
+        #print("res.fig_img2 is None?", res.fig_img2 is None)
 
         if save_figs and res.fig_r is not None:
             out1 = f"{stem1}-statmorph-r.pdf"
