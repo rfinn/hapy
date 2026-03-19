@@ -1796,7 +1796,7 @@ class build_html_cutout():
             pdf_name = os.path.basename(self.cutout.hapy_gini_pdf)
             self.html.write(f'<p><b>HAPY Gini</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             #self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
-            self.html.write(f'<embed src="{pdf_name}" width="90%" height="800px"></embed>\n')
+            self.html.write(f'<embed src="{pdf_name}" width="90%" height="600px"></embed>\n')
 
 
     def write_statmorph_table(self):
