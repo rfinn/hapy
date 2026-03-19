@@ -910,7 +910,7 @@ def plot_hapy_morphology_diagnostic(
     title=None,
     outfile=None,
     show=False,
-    dpi=150,
+    dpi=200,
 ):
     
     """

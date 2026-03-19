@@ -786,7 +786,7 @@ class cutout_dir():
 
 
         # --- R-band PDF ---
-        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-hapy-morphology-diag.pdf"))
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-hapy-morphology-diag.png"))
 
         if len(r_matches) > 0:
             hapy_gini_pdf = r_matches[0]
