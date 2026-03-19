@@ -954,7 +954,7 @@ class EllipsePhotometry():
         seg_for_statmorph = self.r_gini_mask.astype(int)
         res = run_statmorph_for_photometry(
             image=self.image,
-            segmentation_data=seg_fot_statmorph,
+            segmentation_data=seg_for_statmorph,
             object_label=1,
             gain=float(self.gain),
             mask=mask,
