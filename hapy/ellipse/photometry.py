@@ -545,7 +545,7 @@ class EllipsePhotometry():
         #    self.draw_phot_results()
 
     def run_statmorph_supervisor(self):
-        self.run_statmorph(save_figs=True)
+        #self.run_statmorph(save_figs=True)
         try:
             self.run_statmorph(save_figs=True)
             print("running statmorph - please be patient...")
