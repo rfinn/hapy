@@ -1144,7 +1144,7 @@ def plot_hapy_morphology_diagnostic(
     ax[3].text(
         0.98, 0.98,
         "\n".join(r_text_lines),
-        transform=ax[7].transAxes,
+        transform=ax[3].transAxes,
         ha="right", va="top",
         fontsize=9,
         bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
