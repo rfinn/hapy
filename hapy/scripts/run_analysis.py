@@ -514,12 +514,26 @@ def initialize_result_row():
         row[k] = np.nan
 
     row["R_SCALE_ADU_CGS"] = np.nan
-    row["H_SCALE_ADU_CGS"] = np.nan    
-    row["R_HAPY_GINI"] = np.nan
+    row["H_SCALE_ADU_CGS"] = np.nan
+
+    # geometry
     row["R_HAPY_NPIX"] = np.nan
-    row["H_HAPY_GINI"] = np.nan
     row["H_HAPY_NPIX"] = np.nan
     row["H_HAPY_FILLFRAC"] = np.nan
+
+    # snr
+    row["R_HAPY_SNP_ALL"] = np.nan    
+    row["H_HAPY_SNP_ALL"] = np.nan
+    row["H_HAPY_SNP_DET"] = np.nan
+    row["H_GINI_THRESHOLD"] = np.nan
+
+    # morphology
+    row["R_HAPY_GINI"] = np.nan
+    row["H_HAPY_GINI"] = np.nan
+    row["R_HAPY_M20"] = np.nan
+    row["H_HAPY_M20"] = np.nan
+
+
 
     # ---------- mismatch ----------
     for k in ["ELL_DC_PX", "ELL_DBA", "ELL_DPA_DEG", "ELL_SMA_RATIO"]:
@@ -1360,14 +1374,20 @@ def main():
 
     
     # calculate hapy gini
-    e.run_hapy_gini()
-    row["R_HAPY_GINI"] = e.R_HAPY_GINI
-    row["R_HAPY_NPIX"] = e.R_HAPY_NPIX 
-    row["H_HAPY_GINI"] = e.H_HAPY_GINI
+    e.run_hapy_morphology()
+    row["R_HAPY_NPIX"] = e.R_HAPY_NPIX     
     row["H_HAPY_NPIX"] = e.H_HAPY_NPIX
     row["H_HAPY_FILLFRAC"] = e.H_HAPY_FILLFRAC
-    row["R_HAPY_SNP"] = e.R_HAPY_SNP
-    row["H_HAPY_SNP"] = e.H_HAPY_SNP
+
+    row["R_HAPY_SNP_ALL"] = e.R_HAPY_SNP_DET
+    row["H_HAPY_SNP_ALL"] = e.H_HAPY_SNP_ALL
+    row["H_HAPY_SNP_DET"] = e.H_HAPY_SNP_DET    
+    row["H_GINI_THRESHOLD"] = e.ha_gini_threshold    
+    row["R_HAPY_GINI"] = e.R_HAPY_GINI
+    row["H_HAPY_GINI"] = e.H_HAPY_GINI
+    row["R_HAPY_M20"] = e.R_HAPY_M20
+    row["H_HAPY_M20"] = e.H_HAPY_M20
+    
 
     # TODO add HAPY SNP for H and R
     

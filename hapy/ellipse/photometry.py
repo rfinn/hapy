@@ -245,6 +245,24 @@ def get_M20(catalog,objectIndex):
 
     return M20
 
+def compute_flux_centroid(image, segmap):
+    img = np.asarray(image, dtype=float)
+    mask = np.asarray(segmap).astype(bool)
+
+    vals = np.array(img, copy=True)
+    vals[~np.isfinite(vals)] = 0.0
+    vals[vals < 0] = 0.0
+    vals[~mask] = 0.0
+
+    total = np.sum(vals[mask])
+    if total <= 0:
+        return np.nan, np.nan
+
+    y, x = np.indices(vals.shape)
+    xc = np.sum(vals[mask] * x[mask]) / total
+    yc = np.sum(vals[mask] * y[mask]) / total
+    return float(xc), float(yc)
+
 class EllipsePhotometry():
     '''
     class to run photometry routines on image
@@ -1045,7 +1063,7 @@ class EllipsePhotometry():
 
         return gini_mask, seg, threshold
 
-    def run_hapy_gini(self, nsigma=3.0, npixels=10):
+    def run_hapy_morphology(self, nsigma=3.0, npixels=10):
         """
         Compute custom HAPY Gini metrics.
 
@@ -1056,8 +1074,7 @@ class EllipsePhotometry():
             Gini of Halpha image over the r-band segmentation region,
             with Halpha pixels below nsigma * sky_sigma set to zero.
         """
-        from hapy.hatools.morphology import compute_gini, plot_hapy_gini_diagnostic
-        
+        from hapy.hatools.morphology import compute_gini, compute_m20, plot_hapy_morphology_diagnostic
 
         self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask()
         
@@ -1067,6 +1084,29 @@ class EllipsePhotometry():
         rvals = self.image[rmask]
         self.R_HAPY_GINI = compute_gini(rvals, allow_negative=False)
         self.R_HAPY_NPIX = int(np.sum(rmask))
+
+
+        # get R-band SNR per pixel
+        self.R_HAPY_SNP_ALL = np.nan
+        r_sigma_sky = getattr(self, "sky_noise", None)
+        if r_sigma_sky is not None and np.isfinite(r_sigma_sky) and r_sigma_sky > 0:
+            rvals_pos = np.clip(rvals, 0, None)
+            finite = np.isfinite(rvals_pos)
+            if np.any(finite):
+                self.R_HAPY_SNP_ALL = float(np.nanmean(rvals_pos[finite] / r_sigma_sky))
+
+        # get R-band centroid
+        xc_r, yc_r = compute_flux_centroid(self.image, rmask)
+
+        self.R_HAPY_M20, self.R_HAPY_MTOT, self.R_HAPY_M20SUM = compute_m20(
+            self.image, rmask, xc=xc_r, yc=yc_r
+        )
+
+        # or use the command below if we don't want same centers for H and R
+        # self.R_HAPY_M20, self.R_HAPY_MTOT, self.R_HAPY_M20SUM = compute_m20(
+        #     self.image,
+        #     rmask,
+        #     )
         
         # Default Halpha outputs
         self.H_HAPY_GINI = np.nan
@@ -1091,8 +1131,25 @@ class EllipsePhotometry():
         self.ha_gini_threshold = threshold
         hvals = np.array(self.image2[rmask], dtype=float)
 
+        # Default S/N outputs
+        self.H_HAPY_SNP_DET = np.nan
+        self.H_HAPY_SNP_ALL = np.nan
+        
         # 1D detection mask inside rmask
         det_mask_1d = hvals >= threshold
+
+        # Per-pixel S/N inside the r-band Gini mask, using sky RMS
+        hsnr = hvals / sigma_sky
+
+        # Mean S/N over detected Halpha pixels only
+        if np.any(det_mask_1d):
+            self.H_HAPY_SNP_DET = float(np.nanmean(hsnr[det_mask_1d]))
+
+        # Mean S/N over the full r-band mask, with non-detections counted as zero
+        hsnr_all = np.array(hsnr, copy=True)
+        hsnr_all[~det_mask_1d] = 0.0
+        if hsnr_all.size > 0:
+            self.H_HAPY_SNP_ALL = float(np.nanmean(hsnr_all))
 
         # Save detection mask for QC
         self.hapy_ha_detect = np.zeros_like(self.image2, dtype=bool)
@@ -1116,7 +1173,21 @@ class EllipsePhotometry():
         print("H_HAPY_GINI npix:", hvals.size)
         print("nonzero frac:", np.sum(hvals > 0) / hvals.size)
 
-        plot_hapy_gini_diagnostic(
+
+        ha_m20_image = np.zeros_like(self.image2, dtype=float)
+        ha_m20_image[rmask] = hvals
+
+        self.H_HAPY_M20, self.H_HAPY_MTOT, self.H_HAPY_M20SUM = compute_m20(
+            ha_m20_image, rmask, xc=xc_r, yc=yc_r
+        )
+
+        # uncomment below if we don't want to use the same centers for R and H
+        # self.H_HAPY_M20, self.H_HAPY_MTOT, self.H_HAPY_M20SUM = compute_m20(
+        #     ha_m20_image,
+        #     rmask,
+        # )
+
+        plot_hapy_morphology_diagnostic(
             r_image=self.image,
             ha_image=self.image2,
             r_gini_mask=self.r_gini_mask,
@@ -1128,8 +1199,13 @@ class EllipsePhotometry():
             ha_hapy_npix=self.H_HAPY_NPIX,
             ha_hapy_fillfrac=self.H_HAPY_FILLFRAC,
             ha_threshold=self.ha_gini_threshold,
+            ha_sigma_sky=sigma_sky,
+            ha_hapy_snp_det=self.H_HAPY_SNP_DET,
+            ha_hapy_snp_all=self.H_HAPY_SNP_ALL,
+            r_hapy_m20=self.R_HAPY_M20,
+            ha_hapy_m20=self.H_HAPY_M20,
             outfile=f"{self.image_name.split('.fits')[0]}-hapy-gini-diag.pdf",
-            )
+        )
 
 
     

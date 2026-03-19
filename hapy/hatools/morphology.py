@@ -774,7 +774,107 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_hapy_gini_diagnostic(
+
+
+def compute_m20(image, segmap, xc=None, yc=None):
+    """
+    Compute M20 on a specified image and segmentation mask.
+
+    Parameters
+    ----------
+    image : 2D ndarray
+        Image values used for the calculation.
+    segmap : 2D ndarray or bool array
+        Boolean or integer mask defining the pixels to include.
+        Nonzero values are treated as inside the object.
+    xc, yc : float, optional
+        Center coordinates in full-image pixel coordinates.
+        If not provided, the flux-weighted centroid is computed from the
+        positive flux inside the segmap.
+
+    Returns
+    -------
+    m20 : float
+        M20 value.
+    second_moment_tot : float
+        Total second-order moment.
+    second_moment_20 : float
+        Second-order moment of brightest 20% of the flux.
+
+    Notes
+    -----
+    M20 is defined as:
+
+        M20 = log10(sum(M_i brightest 20%) / M_tot)
+
+    where M_i = f_i * [(x_i - x_c)^2 + (y_i - y_c)^2]
+
+    This implementation uses only pixels inside `segmap`.
+    Negative values are clipped to zero.
+    """
+    img = np.asarray(image, dtype=float)
+    mask = np.asarray(segmap).astype(bool)
+
+    if img.shape != mask.shape:
+        raise ValueError("image and segmap must have the same shape")
+
+    vals = np.array(img, copy=True)
+    vals[~np.isfinite(vals)] = 0.0
+    vals[vals < 0] = 0.0
+    vals[~mask] = 0.0
+
+    if np.sum(mask) == 0:
+        return np.nan, np.nan, np.nan
+
+    total_flux = np.sum(vals[mask])
+    if total_flux <= 0:
+        return np.nan, np.nan, np.nan
+
+    y, x = np.indices(vals.shape)
+
+    # Compute centroid from masked positive flux if not supplied
+    if xc is None or yc is None:
+        flux = vals[mask]
+        xmask = x[mask]
+        ymask = y[mask]
+        xc = np.sum(flux * xmask) / np.sum(flux)
+        yc = np.sum(flux * ymask) / np.sum(flux)
+
+    distsq = (x - xc) ** 2 + (y - yc) ** 2
+    mi = vals * distsq
+
+    second_moment_tot = np.sum(mi[mask])
+    if second_moment_tot <= 0:
+        return np.nan, np.nan, np.nan
+
+    # Find pixels containing brightest 20% of total flux
+    pixvals = vals[mask]
+    pixmom = mi[mask]
+
+    order = np.argsort(pixvals)[::-1]   # descending
+    pixvals_sorted = pixvals[order]
+    pixmom_sorted = pixmom[order]
+
+    cumsum_flux = np.cumsum(pixvals_sorted)
+    flux_limit = 0.2 * np.sum(pixvals_sorted)
+
+    use = cumsum_flux <= flux_limit
+
+    # Ensure at least one pixel is included
+    if not np.any(use):
+        use[0] = True
+    else:
+        # Include the first pixel that crosses the threshold
+        first_over = np.argmax(cumsum_flux >= flux_limit)
+        use[first_over] = True
+
+    second_moment_20 = np.sum(pixmom_sorted[use])
+
+    m20 = np.log10(second_moment_20 / second_moment_tot)
+    return float(m20), float(second_moment_tot), float(second_moment_20)
+
+
+def plot_hapy_morphology_diagnostic(
     r_image,
     ha_image,
     r_gini_mask,
@@ -789,12 +889,14 @@ def plot_hapy_gini_diagnostic(
     ha_sigma_sky=None,
     ha_hapy_snp_det=None,
     ha_hapy_snp_all=None,
+    r_hapy_m20=None,
+    ha_hapy_m20=None,
     title=None,
     outfile=None,
     show=False,
     dpi=150,
 ):
-
+    
     """
     Make a 2x4 diagnostic plot for HAPY Gini measurements.
 
@@ -997,6 +1099,15 @@ def plot_hapy_gini_diagnostic(
     text_lines.extend([
         f"R_HAPY_GINI = {r_hapy_gini:.3f}",
         f"H_HAPY_GINI = {ha_hapy_gini:.3f}",
+        ])
+    
+    if r_hapy_m20 is not None and np.isfinite(r_hapy_m20):
+        text_lines.append(f"R_HAPY_M20 = {r_hapy_m20:.3f}")
+
+    if ha_hapy_m20 is not None and np.isfinite(ha_hapy_m20):
+        text_lines.append(f"H_HAPY_M20 = {ha_hapy_m20:.3f}")
+
+    text_lines.extend([
         f"R_HAPY_NPIX = {r_hapy_npix}",
         f"H_HAPY_NPIX = {ha_hapy_npix}",
         f"H_HAPY_FILLFRAC = {ha_hapy_fillfrac:.3f}",
@@ -1013,6 +1124,7 @@ def plot_hapy_gini_diagnostic(
 
     if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
         text_lines.append(f"H_HAPY_SNP_ALL = {ha_hapy_snp_all:.3f}")
+        
 
     
     ax[7].text(
@@ -1037,3 +1149,4 @@ def plot_hapy_gini_diagnostic(
         plt.close(fig)
 
     return fig, axes
+
