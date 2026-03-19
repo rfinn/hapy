@@ -1282,7 +1282,7 @@ def main():
         ("R_M20", "M20_1"),
         ("R_ASYM", "asym"),
         ("R_ASYM_ERR", "asym_err"),
-        ("R_SCALE_ADU_CGS", "uconversion1")
+        ("R_SCALE_ADU_CGS", "uconversion1"),
         ("AREA_GUESS_ELLIPSE_PIX", "area_guess_ellipse_pix"),
         ("AREA_GUESS_ELLIPSE_UNMASKED_PIX", "area_guess_ellipse_unmasked_pix"),
         ("MASKFRAC_GUESS_ELLIPSE", "maskfrac_guess_ellipse"),
