@@ -1379,7 +1379,7 @@ def main():
     row["H_HAPY_NPIX"] = e.H_HAPY_NPIX
     row["H_HAPY_FILLFRAC"] = e.H_HAPY_FILLFRAC
 
-    row["R_HAPY_SNP_ALL"] = e.R_HAPY_SNP_DET
+    row["R_HAPY_SNP_ALL"] = e.R_HAPY_SNP_ALL
     row["H_HAPY_SNP_ALL"] = e.H_HAPY_SNP_ALL
     row["H_HAPY_SNP_DET"] = e.H_HAPY_SNP_DET    
     row["H_GINI_THRESHOLD"] = e.ha_gini_threshold    
