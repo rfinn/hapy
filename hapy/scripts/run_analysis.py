@@ -433,6 +433,7 @@ def initialize_result_row():
    
     # ---------- pipeline status ----------
     for k in ["PSF_OK", "MASK_OK", "PHOT_OK", \
+                  "HAPY_MORPH_OK",\
                   "R_PROFILE_OK","H_PROFILE_OK",\
                   "R_SM_OK","H_SM_OK",\
                   "GAL_NC_OK", "GAL_CV_OK"]:#, "galfit_ok"]:
@@ -533,7 +534,13 @@ def initialize_result_row():
     row["R_HAPY_M20"] = np.nan
     row["H_HAPY_M20"] = np.nan
 
-
+    # HAPY_MORPH_FLAG bit meanings:
+    # 1  = empty or invalid r-band morphology mask
+    # 2  = no Halpha image available
+    # 4  = no Halpha pixels above threshold inside r-mask
+    # 8  = invalid/non-finite metric or sky noise
+    # 16 = exception during HAPY morphology calculation
+    row["HAPY_MORPH_FLAG"] = 0
 
     # ---------- mismatch ----------
     for k in ["ELL_DC_PX", "ELL_DBA", "ELL_DPA_DEG", "ELL_SMA_RATIO"]:
@@ -1387,9 +1394,9 @@ def main():
     row["H_HAPY_GINI"] = e.H_HAPY_GINI
     row["R_HAPY_M20"] = e.R_HAPY_M20
     row["H_HAPY_M20"] = e.H_HAPY_M20
-    
 
-    # TODO add HAPY SNP for H and R
+
+    # TODONE add HAPY SNP for H and R
     
     # ---- FIT PROFILES!  ----------- #
 

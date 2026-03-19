@@ -770,10 +770,25 @@ def compute_halpha_hapy_gini_with_segmaps(ha_image, r_segmap, ha_det_segmap):
     )
     return gini
 
-import numpy as np
-import matplotlib.pyplot as plt
 
 
+def compute_flux_centroid(image, segmap):
+    img = np.asarray(image, dtype=float)
+    mask = np.asarray(segmap).astype(bool)
+
+    vals = np.array(img, copy=True)
+    vals[~np.isfinite(vals)] = 0.0
+    vals[vals < 0] = 0.0
+    vals[~mask] = 0.0
+
+    total = np.sum(vals[mask])
+    if total <= 0:
+        return np.nan, np.nan
+
+    y, x = np.indices(vals.shape)
+    xc = np.sum(vals[mask] * x[mask]) / total
+    yc = np.sum(vals[mask] * y[mask]) / total
+    return float(xc), float(yc)
 
 
 def compute_m20(image, segmap, xc=None, yc=None):
@@ -889,6 +904,7 @@ def plot_hapy_morphology_diagnostic(
     ha_sigma_sky=None,
     ha_hapy_snp_det=None,
     ha_hapy_snp_all=None,
+    r_hapy_snp_all=None,    
     r_hapy_m20=None,
     ha_hapy_m20=None,
     title=None,
@@ -1129,6 +1145,9 @@ def plot_hapy_morphology_diagnostic(
 
     if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
         h_text_lines.append(f"H_HAPY_SNP_ALL = {ha_hapy_snp_all:.3f}")
+
+    if r_hapy_snp_all is not None and np.isfinite(r_hapy_snp_all):
+        r_text_lines.append(f"R_HAPY_SNP_ALL = {r_hapy_snp_all:.3f}")
         
 
     
