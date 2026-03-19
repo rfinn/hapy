@@ -654,6 +654,12 @@ def main():
     parser.add_argument("table", help="Merged HAPY results table (e.g. merged_results.fits)")
     parser.add_argument("--outdir", default="qc_duplicates", help="Output directory")
     parser.add_argument(
+        "--scheme",
+        choices=["virgo", "agc"],
+        required=True,
+        help="Pipeline stage whose results should be merged."
+    )    
+    parser.add_argument(
         "--max-ha-filter-correction",
         type=float,
         default=1.2,
@@ -670,7 +676,11 @@ def main():
     if "VFID" not in tab.colnames:
         raise RuntimeError("Merged results table must contain VFID for duplicate analysis.")
 
-    pairtab = build_duplicate_pairs(tab, id_col="VFID")
+    if args.scheme == "agc":
+        colid = "AGCnr"
+    else:
+        colid = "VFID"
+    pairtab = build_duplicate_pairs(tab, id_col=colid)
     print(f"Found {len(pairtab)} duplicate pairs")
 
     write_duplicate_pairs(outdir, pairtab)
