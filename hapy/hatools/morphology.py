@@ -1076,9 +1076,9 @@ def plot_hapy_morphology_diagnostic(
     title7 = f"Hα + overlays\nH_HAPY_GINI = {ha_hapy_gini:.3f}, fill = {ha_hapy_fillfrac:.3f}"
 
     if ha_hapy_snp_det is not None and np.isfinite(ha_hapy_snp_det):
-        title7 += f", S/N(det) = {ha_hapy_snp_det:.2f}"
+        title7 += f", \nS/N(det) = {ha_hapy_snp_det:.2f},"
     if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
-        title7 += f"\nS/N(all) = {ha_hapy_snp_all:.2f}"
+        title7 += f"S/N(all) = {ha_hapy_snp_all:.2f}"
 
     ax[6].set_title(title7)
 
