@@ -1757,7 +1757,7 @@ class build_html_cutout():
     def write_morph_table(self):
         self.html.write('<h2>Morphology / Profile Summary</h2>\n')
 
-        labels = ['Band', 'Gini', 'M20', 'Asym', 'C30', 'Petro Con', 'Profile OK']
+        labels = ['Band', 'Phot Gini', 'Phot M20','HAPY Gini', 'HAPY M20', 'Asym', 'C30', 'Petro Con', 'Profile OK']
 
         data = [
             'r',
