@@ -645,65 +645,7 @@ class EllipsePhotometry():
         you can specify the snrcut, and only pixels above this value will be counted.
         
         this also measures the sky noise as the mean of the threshold image
-        '''
-        # this is not right, because the mask does not include the galaxy
-        # updating based on photutils documentation
-        # https://photutils.readthedocs.io/en/stable/background.html
-        
-        # get a rough background estimate
-
-        # I already compute sky sigma and store it in header
-        # should look for that and use that as a threshold if it's available
-
-        # self.sky = np.nan
-        # self.sky_noise = np.nan
-        # self.sky2 = np.nan
-        # self.sky_noise2 = np.nan
-        
-        # try:
-            
-        #     skystd = self.header['SKYSTD']
-        #     self.sky_noise = skystd
-        #     self.sky = self.header['SKYMED']
-
-        # except KeyError:
-        #     print("WARNING: SKYSTD not found — computing via sigma clipping")
-
-        #     if self.mask_flag:
-        #         sample = self.image[~self.boolmask]
-        #     else:
-        #         sample = self.image
-
-        #     mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
-
-        #     self.sky = float(median)
-        #     self.sky_noise = float(std)
-
-        # # get the value for halpha
-        # if self.header2 is not None:
-        #     try:
-            
-        #         self.sky_noise2 = self.header2['SKYSTD']
-        #         self.sky2 = self.header2['SKYMED']
- 
-
-        #     except KeyError:
-        #         print("WARNING: SKYSTD not found — computing via sigma clipping")
-
-        #         if self.mask_flag:
-        #             sample = self.image2[~self.boolmask]
-        #         else:
-        #             sample = self.image2
-
-        #         mean, median, std = sigma_clipped_stats(sample, sigma=3.0, maxiters=5)
-
-        #         self.sky2 = float(median)
-        #         self.sky_noise2 = float(std)
-        # else:
-        #     self.sky2 = np.nan
-        #     self.sky_noise2 = np.nan
-
-                
+        '''               
         if self.mask_flag:
             if np.isfinite(self.sky_noise):
                 self.threshold = self.sky_noise
@@ -728,7 +670,6 @@ class EllipsePhotometry():
                 # measure halpha properties using same segmentation image
                 self.cat2 = SourceCatalog(self.image2, self.segmentation)
             
-
 
     def detect_objectsv2(self, snrcut=1.5,npixels=10):
         ''' 
@@ -1073,6 +1014,33 @@ class EllipsePhotometry():
         #self.source_sum2_erg = self.uconversion1*self.source_sum2
         #self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum2)
 
+
+    def build_rband_gini_mask(self, snrcut=2.5, npixels=10):
+        obj_label = int(self.cat.label[self.objectIndex])
+        base_mask = self.segmentation.data == obj_label
+
+        if self.mask_flag:
+            threshold = detect_threshold(self.image, nsigma=snrcut, mask=self.boolmask)
+            seg = detect_sources(self.image, threshold, npixels=npixels, mask=self.boolmask)
+        else:
+            threshold = detect_threshold(self.image, nsigma=snrcut)
+            seg = detect_sources(self.image, threshold, npixels=npixels)
+
+        if seg is None:
+            return base_mask, None, threshold
+
+        labels = seg.data[base_mask]
+        labels = labels[labels > 0]
+
+        if labels.size == 0:
+            # fallback to original mask if stricter segmap misses the target
+            return base_mask, seg, threshold
+
+        keep_label = np.bincount(labels).argmax()
+        gini_mask = seg.data == keep_label
+
+        return gini_mask, seg, threshold
+
     def run_hapy_gini(self, nsigma=3.0, npixels=10):
         """
         Compute custom HAPY Gini metrics.
@@ -1085,10 +1053,12 @@ class EllipsePhotometry():
             with Halpha pixels below nsigma * sky_sigma set to zero.
         """
         from hapy.hatools.morphology import compute_gini
-        import numpy as np
+        
 
-        rmask = (self.segmentation.data == self.cat.label[self.objectIndex])
-
+        self.r_gini_rmask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask()
+        
+        #rmask = (self.segmentation.data == self.cat.label[self.objectIndex])
+        rmask = self.r_gini_mask
         # R-band custom Gini over the r-band segmentation region
         rvals = self.image[rmask]
         self.R_HAPY_GINI = compute_gini(rvals, allow_negative=False)
