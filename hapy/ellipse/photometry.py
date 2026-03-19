@@ -1052,7 +1052,7 @@ class EllipsePhotometry():
             Gini of Halpha image over the r-band segmentation region,
             with Halpha pixels below nsigma * sky_sigma set to zero.
         """
-        from hapy.hatools.morphology import compute_gini
+        from hapy.hatools.morphology import compute_gini, plot_hapy_gini_diagnostic
         
 
         self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask()
@@ -1084,25 +1084,51 @@ class EllipsePhotometry():
             raise ValueError("Could not find Halpha sky RMS attribute for H_HAPY_GINI.")
 
         threshold = nsigma * sigma_sky
-
+        self.ha_gini_threshold = threshold
         hvals = np.array(self.image2[rmask], dtype=float)
 
-        # Save detection mask for QC if useful
-        self.hapy_ha_detect = np.zeros_like(self.image2, dtype=bool)
-        self.hapy_ha_detect[rmask] = hvals >= threshold
+        # 1D detection mask inside rmask
+        det_mask_1d = hvals >= threshold
 
-        self.H_HAPY_NPIX_DET =  np.sum(hvals >= threshold)
-        
-        # Fill fraction inside stellar disk
-        self.H_HAPY_FILLFRAC = self.H_HAPY_NPIX_DET/ np.sum(rmask)
+        # Save detection mask for QC
+        self.hapy_ha_detect = np.zeros_like(self.image2, dtype=bool)
+        self.hapy_ha_detect[rmask] = det_mask_1d
+
+        # Counts / fill fraction
+        self.H_HAPY_NPIX = int(np.sum(det_mask_1d))
+        self.H_HAPY_FILLFRAC = (
+            self.H_HAPY_NPIX / self.R_HAPY_NPIX if self.R_HAPY_NPIX > 0 else np.nan
+            )
 
         # Set sub-threshold pixels to zero
-        hvals[hvals < threshold] = 0.0
+        hvals[~det_mask_1d] = 0.0
+
+        # Build full-size 2D image used for HAPY Gini plotting/QC
+        self.ha_gini_image = np.full_like(self.image2, np.nan, dtype=float)
+        self.ha_gini_image[rmask] = hvals
 
         self.H_HAPY_GINI = compute_gini(hvals, allow_negative=False)
 
         print("H_HAPY_GINI npix:", hvals.size)
         print("nonzero frac:", np.sum(hvals > 0) / hvals.size)
+
+        plot_hapy_gini_diagnostic(
+            r_image=self.image,
+            ha_image=self.image2,
+            r_gini_mask=self.r_gini_mask,
+            ha_detect_mask=self.hapy_ha_detect,
+            ha_gini_image=self.ha_gini_image,
+            r_hapy_gini=self.R_HAPY_GINI,
+            ha_hapy_gini=self.H_HAPY_GINI,
+            r_hapy_npix=self.R_HAPY_NPIX,
+            ha_hapy_npix=self.H_HAPY_NPIX,
+            ha_hapy_fillfrac=self.H_HAPY_FILLFRAC,
+            ha_threshold=self.ha_gini_threshold,
+            outfile=f"{self.image_name.split('.fits')[0]}-hapy-gini-diag.pdf",
+            )
+
+
+    
     
     def get_asymmetry(self):
         '''

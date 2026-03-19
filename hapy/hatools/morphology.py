@@ -769,3 +769,237 @@ def compute_halpha_hapy_gini_with_segmaps(ha_image, r_segmap, ha_det_segmap):
         zero_below_threshold=False,
     )
     return gini
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def plot_hapy_gini_diagnostic(
+    r_image,
+    ha_image,
+    r_gini_mask,
+    ha_detect_mask,
+    ha_gini_image,
+    r_hapy_gini,
+    ha_hapy_gini,
+    r_hapy_npix,
+    ha_hapy_npix,
+    ha_hapy_fillfrac,
+    ha_threshold=None,
+    title=None,
+    outfile=None,
+    show=False,
+    dpi=150,
+):
+    """
+    Make a 2x4 diagnostic plot for HAPY Gini measurements.
+
+    Parameters
+    ----------
+    r_image : 2D ndarray
+        r-band image.
+    ha_image : 2D ndarray
+        Halpha image.
+    r_gini_mask : 2D ndarray (bool)
+        Mask defining the stellar-disk region used for HAPY Gini.
+    ha_detect_mask : 2D ndarray (bool)
+        Pixels within the r_gini_mask where Halpha is considered detected.
+    ha_gini_image : 2D ndarray
+        Halpha image used for Gini calculation. Typically identical to ha_image
+        inside r_gini_mask except that sub-threshold pixels are set to zero.
+        Pixels outside the mask may be left unchanged or set to NaN/zero.
+    r_hapy_gini : float
+        Custom r-band Gini.
+    ha_hapy_gini : float
+        Custom Halpha Gini.
+    r_hapy_npix : int
+        Number of pixels in the r-band Gini mask.
+    ha_hapy_npix : int
+        Number of detected Halpha pixels within the r-band Gini mask.
+    ha_hapy_fillfrac : float
+        Halpha filling factor within the r-band Gini mask.
+    ha_threshold : float, optional
+        Threshold applied to Halpha image for detection.
+    title : str, optional
+        Title to show in the figure.
+    outfile : str, optional
+        If provided, save the figure to this filename.
+    show : bool, optional
+        If True, call plt.show(); otherwise close the figure after saving.
+    dpi : int, optional
+        Figure save resolution.
+
+    Returns
+    -------
+    fig, axes
+        Matplotlib figure and axes array.
+    """
+    r_image = np.asarray(r_image, dtype=float)
+    ha_image = np.asarray(ha_image, dtype=float)
+    r_gini_mask = np.asarray(r_gini_mask).astype(bool)
+    ha_detect_mask = np.asarray(ha_detect_mask).astype(bool)
+    ha_gini_image = np.asarray(ha_gini_image, dtype=float)
+
+    if r_image.shape != ha_image.shape:
+        raise ValueError("r_image and ha_image must have the same shape")
+    if r_gini_mask.shape != r_image.shape:
+        raise ValueError("r_gini_mask must have same shape as images")
+    if ha_detect_mask.shape != r_image.shape:
+        raise ValueError("ha_detect_mask must have same shape as images")
+    if ha_gini_image.shape != r_image.shape:
+        raise ValueError("ha_gini_image must have same shape as images")
+
+    # Pixel values actually used in the Gini calculations
+    r_vals = r_image[r_gini_mask]
+    r_vals = r_vals[np.isfinite(r_vals)]
+
+    ha_vals = ha_gini_image[r_gini_mask]
+    ha_vals = ha_vals[np.isfinite(ha_vals)]
+
+    # Robust stretches
+    def _get_vrange(arr, positive_only=False, symmetric=False):
+        vals = arr[np.isfinite(arr)]
+        if vals.size == 0:
+            return 0.0, 1.0
+
+        if positive_only:
+            vals = vals[vals > 0]
+            if vals.size == 0:
+                vals = arr[np.isfinite(arr)]
+
+        if symmetric:
+            vmax = np.nanpercentile(np.abs(vals), 99)
+            if not np.isfinite(vmax) or vmax <= 0:
+                vmax = np.nanmax(np.abs(vals))
+            if not np.isfinite(vmax) or vmax <= 0:
+                vmax = 1.0
+            return -vmax, vmax
+
+        vmin = np.nanpercentile(vals, 5)
+        vmax = np.nanpercentile(vals, 99)
+        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+            vmin = np.nanmin(vals)
+            vmax = np.nanmax(vals)
+        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+            vmin, vmax = 0.0, 1.0
+        return vmin, vmax
+
+    r_vmin, r_vmax = _get_vrange(r_image)
+    ha_vmin, ha_vmax = _get_vrange(ha_image, symmetric=True)
+
+    # For thresholded Halpha image, focus on nonnegative range if possible
+    hagi_vals = ha_gini_image[np.isfinite(ha_gini_image)]
+    hagi_pos = hagi_vals[hagi_vals > 0]
+    if hagi_pos.size > 0:
+        hagi_vmin = 0.0
+        hagi_vmax = np.nanpercentile(hagi_pos, 99)
+        if not np.isfinite(hagi_vmax) or hagi_vmax <= 0:
+            hagi_vmax = np.nanmax(hagi_pos)
+        if not np.isfinite(hagi_vmax) or hagi_vmax <= 0:
+            hagi_vmax = 1.0
+    else:
+        hagi_vmin, hagi_vmax = 0.0, 1.0
+
+    fig, axes = plt.subplots(2, 4, figsize=(18, 9), constrained_layout=True)
+    ax = axes.ravel()
+
+    # 1. r-band image
+    im0 = ax[0].imshow(r_image, origin="lower", cmap="gray", vmin=r_vmin, vmax=r_vmax)
+    ax[0].set_title("r-band image")
+    plt.colorbar(im0, ax=ax[0], fraction=0.046)
+
+    # 2. r-band Gini mask
+    im1 = ax[1].imshow(r_gini_mask.astype(int), origin="lower", cmap="gray_r", vmin=0, vmax=1)
+    ax[1].set_title(f"r Gini mask\nNpix = {r_hapy_npix}")
+    plt.colorbar(im1, ax=ax[1], fraction=0.046)
+
+    # 3. r-band + mask overlay
+    ax[2].imshow(r_image, origin="lower", cmap="gray", vmin=r_vmin, vmax=r_vmax)
+    try:
+        ax[2].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0)
+    except Exception:
+        pass
+    ax[2].set_title(f"r + mask overlay\nR_HAPY_GINI = {r_hapy_gini:.3f}")
+
+    # 4. histogram of r pixels used in Gini
+    if r_vals.size > 0:
+        ax[3].hist(r_vals, bins=50)
+    ax[3].set_title("r-band Gini pixels")
+    ax[3].set_xlabel("r-band pixel value")
+    ax[3].set_ylabel("N")
+
+    # 5. Halpha image
+    im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
+    ax[4].set_title("Hα image")
+    plt.colorbar(im4, ax=ax[4], fraction=0.046)
+
+    # 6. thresholded Halpha image used in Gini
+    hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
+    hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
+    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="magma", vmin=hagi_vmin, vmax=hagi_vmax)
+    if ha_threshold is not None:
+        ax[5].set_title(f"Hα used for Gini\nthreshold = {ha_threshold:.3g}")
+    else:
+        ax[5].set_title("Hα used for Gini")
+    plt.colorbar(im5, ax=ax[5], fraction=0.046)
+
+    # 7. Halpha + overlays
+    ax[6].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
+    try:
+        ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0)
+    except Exception:
+        pass
+    try:
+        ax[6].contour(ha_detect_mask.astype(float), levels=[0.5], colors="red", linewidths=1.0)
+    except Exception:
+        pass
+    title7 = (
+        f"Hα + overlays\n"
+        f"H_HAPY_GINI = {ha_hapy_gini:.3f}, "
+        f"fill = {ha_hapy_fillfrac:.3f}"
+    )
+    ax[6].set_title(title7)
+
+    # 8. histogram of Halpha pixels used in Gini
+    if ha_vals.size > 0:
+        ax[7].hist(ha_vals, bins=50)
+    ax[7].set_title("Hα Gini pixels")
+    ax[7].set_xlabel("Hα pixel value (thresholded)")
+    ax[7].set_ylabel("N")
+
+    # Annotation box
+    text_lines = []
+    if title:
+        text_lines.append(title)
+    text_lines.extend([
+        f"R_HAPY_GINI = {r_hapy_gini:.3f}",
+        f"H_HAPY_GINI = {ha_hapy_gini:.3f}",
+        f"R_HAPY_NPIX = {r_hapy_npix}",
+        f"H_HAPY_NPIX = {ha_hapy_npix}",
+        f"H_HAPY_FILLFRAC = {ha_hapy_fillfrac:.3f}",
+    ])
+    if ha_threshold is not None:
+        text_lines.append(f"Hα threshold = {ha_threshold:.3g}")
+
+    ax[7].text(
+        0.98, 0.98,
+        "\n".join(text_lines),
+        transform=ax[7].transAxes,
+        ha="right", va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+    )
+
+    for a in ax[:7]:
+        a.set_xlabel("x [pix]")
+        a.set_ylabel("y [pix]")
+
+    if outfile is not None:
+        fig.savefig(outfile, dpi=dpi, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+
+    return fig, axes
