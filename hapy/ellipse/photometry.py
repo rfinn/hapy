@@ -1078,6 +1078,7 @@ class EllipsePhotometry():
             compute_m20,
             compute_flux_centroid,
             plot_hapy_morphology_diagnostic,
+            decode_hapy_flag,
         )
 
         # -----------------------------
@@ -1245,7 +1246,7 @@ class EllipsePhotometry():
             # -----------------------------
             core_r_ok = np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20)
             core_h_ok = np.isfinite(self.H_HAPY_GINI) and np.isfinite(self.H_HAPY_M20)
-
+            print("DEBUG: core_r_ok, core_h_ok = ",core_r_ok, core_h_ok)
             # Fatal problems are:
             # 1 = invalid r-mask
             # 8 = invalid sky / non-finite core metric
@@ -1303,6 +1304,8 @@ class EllipsePhotometry():
             self.HAPY_MORPH_FLAG |= 16
             self.HAPY_MORPH_OK = False
             raise
+        print("DEBUG: HAPY_MORPH_FLAG:")
+        print(decode_hapy_flag(self.HAPY_MORPH_FLAG))
 
 
     

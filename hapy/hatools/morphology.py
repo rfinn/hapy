@@ -791,6 +791,28 @@ def compute_flux_centroid(image, segmap):
     return float(xc), float(yc)
 
 
+def decode_hapy_flag(flag: int) -> list[str]:
+    """
+    Decode HAPY_MORPH_FLAG into human-readable messages.
+    """
+    meanings = {
+        1: "invalid or empty r-band morphology mask",
+        2: "no Halpha image available",
+        4: "no Halpha pixels above threshold inside r-mask",
+        8: "invalid/non-finite core morphology metric",
+        16: "exception during HAPY morphology calculation",
+    }
+
+    out = []
+    for bit, text in meanings.items():
+        if flag & bit:
+            out.append(text)
+
+    if not out:
+        out.append("OK")
+
+    return out
+
 def compute_m20(image, segmap, xc=None, yc=None):
     """
     Compute M20 on a specified image and segmentation mask.
