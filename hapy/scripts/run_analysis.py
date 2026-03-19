@@ -510,10 +510,17 @@ def initialize_result_row():
     ]:
         row[k] = np.nan
 
+    row["R_HAPY_GINI"] = np.nan
+    row["R_HAPY_NPIX"] = np.nan
+    row["H_HAPY_GINI"] = np.nan
+    row["H_HAPY_NPIX"] = np.nan
+    row["H_HAPY_FILLFRAC"] = np.nan
+
     # ---------- mismatch ----------
     for k in ["ELL_DC_PX", "ELL_DBA", "ELL_DPA_DEG", "ELL_SMA_RATIO"]:
         row[k] = np.nan
 
+    
     # ---------- statmorph ----------
     sm_suffixes = [
         "FLAG",
@@ -1339,6 +1346,14 @@ def main():
         # if any missing keys, just don't set mismatch fields
         pass
 
+    # calculate hapy gini
+    e.run_hapy_gini()
+    row["R_HAPY_GINI"] = e.R_HAPY_GINI
+    row["R_HAPY_NPIX"] = e.R_HAPY_NPIX 
+    row["H_HAPY_GINI"] = e.H_HAPY_GINI
+    row["H_HAPY_NPIX"] = e.H_HAPY_NPIX
+    row["H_HAPY_FILLFRAC"] = e.H_HAPY_FILLFRAC
+    
     # ---- FIT PROFILES!  ----------- #
 
     if valid_file(e.photfile) and valid_file(e.photfile2):
@@ -1354,6 +1369,7 @@ def main():
         )
 
         row.update(profile_results)
+
 
     # Write/update per-galaxy results row
     write_result_row_ecsv(results_path, row)

@@ -519,7 +519,7 @@ class EllipsePhotometry():
         print("convert units")                
         self.convert_units()
         print("get asym")        
-        #self.get_image2_gini()
+        self.get_image2_detected_gini()
         try:
             self.get_asymmetry()
         except:
@@ -1041,7 +1041,7 @@ class EllipsePhotometry():
 
         
  
-    def get_image2_gini(self, snrcut=1.5):
+    def get_image2_detected_gini(self, snrcut=1.5):
         ''' 
         calculate gini coefficient for image2 using pixels that are associated with r-band object ID
 
@@ -1072,6 +1072,68 @@ class EllipsePhotometry():
         #self.source_sum2 = np.sum(self.image2[self.gini_pixels])
         #self.source_sum2_erg = self.uconversion1*self.source_sum2
         #self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum2)
+
+    def run_hapy_gini(self, nsigma=3.0, npixels=10):
+        """
+        Compute custom HAPY Gini metrics.
+
+        R_HAPY_GINI:
+            Gini of r-band image over the r-band segmentation region.
+
+        H_HAPY_GINI:
+            Gini of Halpha image over the r-band segmentation region,
+            with Halpha pixels below nsigma * sky_sigma set to zero.
+        """
+        from hapy.hatools.morphology import compute_gini
+        import numpy as np
+
+        rmask = (self.segmentation.data == self.cat.label[self.objectIndex])
+
+        # R-band custom Gini over the r-band segmentation region
+        rvals = self.image[rmask]
+        self.R_HAPY_GINI = compute_gini(rvals, allow_negative=False)
+        self.R_HAPY_NPIX = int(np.sum(rmask))
+        
+        # Default Halpha outputs
+        self.H_HAPY_GINI = np.nan
+        self.H_HAPY_FILLFRAC = np.nan
+        self.H_HAPY_NPIX = int(np.sum(rmask))
+
+        if not getattr(self, "image2_flag", False):
+            return
+
+        if self.image2 is None:
+            return
+
+        # Set thresholding base on sky noise in halpha image
+        sigma_sky = getattr(self, "sky_noise2", None)
+        if sigma_sky is None:
+            sigma_sky = getattr(self, "sky2", None)
+
+        if sigma_sky is None:
+            raise ValueError("Could not find Halpha sky RMS attribute for H_HAPY_GINI.")
+
+        threshold = nsigma * sigma_sky
+
+        hvals = np.array(self.image2[rmask], dtype=float)
+
+        # Save detection mask for QC if useful
+        self.hapy_ha_detect = np.zeros_like(self.image2, dtype=bool)
+        self.hapy_ha_detect[rmask] = hvals >= threshold
+
+        self.H_HAPY_NPIX_DET =  np.sum(hvals >= threshold)
+        
+        # Fill fraction inside stellar disk
+        self.H_HAPY_FILLFRAC = self.H_HAPY_NPIX_DET/ np.sum(rmask)
+
+        # Set sub-threshold pixels to zero
+        hvals[hvals < threshold] = 0.0
+
+        self.H_HAPY_GINI = compute_gini(hvals, allow_negative=False)
+
+        print("H_HAPY_GINI npix:", hvals.size)
+        print("nonzero frac:", np.sum(hvals > 0) / hvals.size)
+    
     def get_asymmetry(self):
         '''
         * goal is to measure the assymetry of the galaxy about its center
