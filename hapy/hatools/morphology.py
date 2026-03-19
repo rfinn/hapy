@@ -1092,50 +1092,64 @@ def plot_hapy_morphology_diagnostic(
     ax[7].set_yscale("log")
 
     # Annotation box
-    text_lines = []
+    r_text_lines = []
+    h_text_lines = []
     if title:
-        text_lines.append(title)
+        r_text_lines.append(title)
 
-    text_lines.extend([
+    r_text_lines.extend([
         f"R_HAPY_GINI = {r_hapy_gini:.3f}",
+        ])
+    h_text_lines.extend([
         f"H_HAPY_GINI = {ha_hapy_gini:.3f}",
         ])
     
     if r_hapy_m20 is not None and np.isfinite(r_hapy_m20):
-        text_lines.append(f"R_HAPY_M20 = {r_hapy_m20:.3f}")
+        r_text_lines.append(f"R_HAPY_M20 = {r_hapy_m20:.3f}")
 
     if ha_hapy_m20 is not None and np.isfinite(ha_hapy_m20):
-        text_lines.append(f"H_HAPY_M20 = {ha_hapy_m20:.3f}")
+        h_text_lines.append(f"H_HAPY_M20 = {ha_hapy_m20:.3f}")
 
-    text_lines.extend([
+    r_text_lines.extend([
         f"R_HAPY_NPIX = {r_hapy_npix}",
+    ])
+    h_text_lines.extend([
         f"H_HAPY_NPIX = {ha_hapy_npix}",
         f"H_HAPY_FILLFRAC = {ha_hapy_fillfrac:.3f}",
     ])
 
     if ha_sigma_sky is not None and np.isfinite(ha_sigma_sky):
-        text_lines.append(f"Hα sigma_sky = {ha_sigma_sky:.3g}")
+        h_text_lines.append(f"Hα sigma_sky = {ha_sigma_sky:.3g}")
 
     if ha_threshold is not None and np.isfinite(ha_threshold):
-        text_lines.append(f"Hα threshold = {ha_threshold:.3g}")
+        h_text_lines.append(f"Hα threshold = {ha_threshold:.3g}")
 
     if ha_hapy_snp_det is not None and np.isfinite(ha_hapy_snp_det):
-        text_lines.append(f"H_HAPY_SNP_DET = {ha_hapy_snp_det:.3f}")
+        h_text_lines.append(f"H_HAPY_SNP_DET = {ha_hapy_snp_det:.3f}")
 
     if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
-        text_lines.append(f"H_HAPY_SNP_ALL = {ha_hapy_snp_all:.3f}")
+        h_text_lines.append(f"H_HAPY_SNP_ALL = {ha_hapy_snp_all:.3f}")
         
 
     
     ax[7].text(
         0.98, 0.98,
-        "\n".join(text_lines),
+        "\n".join(h_text_lines),
         transform=ax[7].transAxes,
         ha="right", va="top",
         fontsize=9,
         bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
     )
 
+    ax[3].text(
+        0.98, 0.98,
+        "\n".join(r_text_lines),
+        transform=ax[7].transAxes,
+        ha="right", va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+    )
+    
     for a in ax[:7]:
         a.set_xlabel("x [pix]")
         a.set_ylabel("y [pix]")
