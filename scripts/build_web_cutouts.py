@@ -1815,8 +1815,8 @@ class build_html_cutout():
             fmt_result(self.cutout.results, 'R_SM_A', '{:.2f}'),
             fmt_result(self.cutout.results, 'R_SM_S', '{:.2f}'),
             fmt_result(self.cutout.results, 'R_SM_RHALF_ELLIP', '{:.2f}'),
-            status_cell(bool(self.cutout.results['R_SM_FLAG'])),
-            status_cell(bool(self.cutout.results['R_SM_SERSIC_FLAG'])),
+            self.cutout.results['R_SM_FLAG'],
+            self.cutout.results['R_SM_SERSIC_FLAG'],
         ]
 
         data2 = [
@@ -1829,8 +1829,8 @@ class build_html_cutout():
             fmt_result(self.cutout.results, 'H_SM_A', '{:.2f}'),
             fmt_result(self.cutout.results, 'H_SM_S', '{:.2f}'),
             fmt_result(self.cutout.results, 'H_SM_RHALF_ELLIP', '{:.2f}'),
-            status_cell(bool(self.cutout.results['H_SM_FLAG'])),
-            status_cell(bool(self.cutout.results['H_SM_SERSIC_FLAG'])),
+            self.cutout.results['H_SM_FLAG'],
+            self.cutout.results['H_SM_SERSIC_FLAG'],
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
