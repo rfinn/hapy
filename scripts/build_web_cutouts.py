@@ -1766,7 +1766,7 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'R_ASYM', '{:.2f}'),
             fmt_result(self.cutout.results,'R_C30', '{:.2f}'),
             fmt_result(self.cutout.results,'R_PETRO_CON', '{:.2f}'),
-            str(bool(get_result(self.cutout.results,'R_PROFILE_OK', False))),
+            status_cell(bool(get_result(self.cutout.results,'R_PROFILE_OK'))),
         ]
 
         data2 = [
@@ -1776,7 +1776,7 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'H_ASYM', '{:.2f}'),
             fmt_result(self.cutout.results,'H_C30_R24', '{:.2f}'),
             fmt_result(self.cutout.results,'H_PETRO_CON', '{:.2f}'),
-            str(bool(get_result(self.cutout.results,'H_PROFILE_OK', False))),
+            status_cell(bool(get_result(self.cutout.results,'H_PROFILE_OK', False))),
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
