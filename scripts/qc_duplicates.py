@@ -677,7 +677,7 @@ def main():
         raise RuntimeError("Merged results table must contain VFID for duplicate analysis.")
 
     if args.scheme == "agc":
-        colid = "AGCnr"
+        colid = "OBJID"
     else:
         colid = "VFID"
     pairtab = build_duplicate_pairs(tab, id_col=colid)
