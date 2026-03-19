@@ -1204,7 +1204,7 @@ class EllipsePhotometry():
             ha_hapy_snp_all=self.H_HAPY_SNP_ALL,
             r_hapy_m20=self.R_HAPY_M20,
             ha_hapy_m20=self.H_HAPY_M20,
-            outfile=f"{self.image_name.split('.fits')[0]}-hapy-gini-diag.pdf",
+            outfile=f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.pdf",
         )
 
 
