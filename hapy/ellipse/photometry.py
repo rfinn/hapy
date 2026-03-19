@@ -1239,20 +1239,36 @@ class EllipsePhotometry():
                 ha_m20_image, rmask, xc=xc_r, yc=yc_r
             )
 
+
             # -----------------------------
-            # Validate core metrics
+            # Final status
             # -----------------------------
             core_r_ok = np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20)
             core_h_ok = np.isfinite(self.H_HAPY_GINI) and np.isfinite(self.H_HAPY_M20)
 
-            if not core_r_ok:
-                self.HAPY_MORPH_FLAG |= 8
+            # Fatal problems are:
+            # 1 = invalid r-mask
+            # 8 = invalid sky / non-finite core metric
+            # 16 = exception
+            fatal_bits = self.HAPY_MORPH_FLAG & (1 | 8 | 16)
 
-            # Halpha with no detections may legitimately produce NaN M20/Gini depending on implementation;
-            # allow that case as non-fatal if flag 4 is set.
-            if self.H_HAPY_NPIX > 0 and not core_h_ok:
-                self.HAPY_MORPH_FLAG |= 8
+            self.HAPY_MORPH_OK = False
 
+            if core_r_ok and fatal_bits == 0:
+                # No Halpha image: accept R-only morphology as valid
+                if self.HAPY_MORPH_FLAG & 2:
+                    self.HAPY_MORPH_OK = True
+
+                # Halpha available and metrics are valid
+                elif core_h_ok:
+                    self.HAPY_MORPH_OK = True
+
+                # Halpha available but no detections above threshold:
+                # treat as scientifically valid, not a failure
+                elif self.HAPY_MORPH_FLAG & 4:
+                    self.HAPY_MORPH_OK = True
+
+        
             # -----------------------------
             # Diagnostic plot
             # -----------------------------
@@ -1281,16 +1297,7 @@ class EllipsePhotometry():
                 # Plotting failure should not invalidate the measurements
                 pass
 
-            # -----------------------------
-            # Final status
-            # -----------------------------
-            # Treat "no Halpha detections" as scientifically valid, not fatal.
-            if core_r_ok and ((self.H_HAPY_NPIX == 0) or core_h_ok):
-                # OK if only nonfatal flags are present
-                fatal_bits = self.HAPY_MORPH_FLAG & (1 | 2 | 8 | 16)
-                self.HAPY_MORPH_OK = (fatal_bits == 0) or (
-                    core_r_ok and (self.HAPY_MORPH_FLAG == 4 or self.HAPY_MORPH_FLAG == 0)
-                )
+
 
         except Exception:
             self.HAPY_MORPH_FLAG |= 16

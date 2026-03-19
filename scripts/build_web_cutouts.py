@@ -1501,6 +1501,7 @@ class build_html_cutout():
             'Mask',
             'Photometry',
             "HAPY Morph",
+            "HAPY Morph Flag",
             'R Profile',
             'H&alpha; Profile',
             'R Statmorph',
