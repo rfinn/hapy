@@ -1497,9 +1497,10 @@ class build_html_cutout():
         self.html.write('<h2>Pipeline Status</h2>\n')
 
         labels = [
+            'PSF',
             'Mask',
             'Photometry',
-            'PSF',
+            "HAPY Morph",
             'R Profile',
             'H&alpha; Profile',
             'R Statmorph',
@@ -1511,9 +1512,10 @@ class build_html_cutout():
         #print("DEBUG: R_SM_FLAG = ", status_cell(get_result(self.cutout.results,'R_SM_FLAG')), self.cutout.results['R_SM_FLAG'])
         #print("DEBUG: H_SM_FLAG = ", status_cell(get_result(self.cutout.results,'H_SM_FLAG')), self.cutout.results['H_SM_FLAG'])
         data = [
+            status_cell(get_result(self.cutout.results,'PSF_OK')),
             status_cell(get_result(self.cutout.results,'MASK_OK')),
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
-            status_cell(get_result(self.cutout.results,'PSF_OK')),
+            status_cell(get_result(self.cutout.results,'HAPY_MORPH_OK')),
             status_cell(get_result(self.cutout.results,'R_PROFILE_OK')),
             status_cell(get_result(self.cutout.results,'H_PROFILE_OK')),
             status_cell(get_result(self.cutout.results,'R_SM_OK')),
