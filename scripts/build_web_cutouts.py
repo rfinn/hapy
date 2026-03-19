@@ -1761,8 +1761,10 @@ class build_html_cutout():
 
         data = [
             'r',
-            fmt_result(self.cutout.results,'ELLIP_GINI_DET', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_ELLIP_GINI', '{:.2f}'),
             fmt_result(self.cutout.results,'R_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_HAPY_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_HAPY_M20', '{:.2f}'),
             fmt_result(self.cutout.results,'R_ASYM', '{:.2f}'),
             fmt_result(self.cutout.results,'R_C30', '{:.2f}'),
             fmt_result(self.cutout.results,'R_PETRO_CON', '{:.2f}'),
@@ -1771,8 +1773,10 @@ class build_html_cutout():
 
         data2 = [
             'Halpha',
-            '--',
+            fmt_result(self.cutout.results,'H_ELLIP_GINI', '{:.2f}'),
             fmt_result(self.cutout.results,'H_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_HAPY_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_HAPY_M20', '{:.2f}'),
             fmt_result(self.cutout.results,'H_ASYM', '{:.2f}'),
             fmt_result(self.cutout.results,'H_C30_R24', '{:.2f}'),
             fmt_result(self.cutout.results,'H_PETRO_CON', '{:.2f}'),

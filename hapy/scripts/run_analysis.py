@@ -489,7 +489,7 @@ def initialize_result_row():
         "ELLIP_XCENTROID", "ELLIP_YCENTROID",
         "ELLIP_SMA_PIX", "ELLIP_B_PIX",
         "ELLIP_EPS", "ELLIP_THETA_RAD",
-        "ELLIP_GINI_DET", "ELLIP_SOURCE_SUM",
+        "R_ELLIP_GINI","H_ELLIP_GINI", "ELLIP_SOURCE_SUM",
         "ELLIP_BA", "ELLIP_SEGMENT_FLUX",
         "ELLIP_SEGMENT_MAG",
     ]:
@@ -1279,7 +1279,8 @@ def main():
         ("ELLIP_B_PIX", "b"),
         ("ELLIP_EPS", "eps"),
         ("ELLIP_THETA_RAD", "theta"),
-        ("ELLIP_GINI_DET", "gini"),
+        ("R_ELLIP_GINI", "gini"),
+        ("H_ELLIP_GINI", "gini2"),        
         ("ELLIP_SOURCE_SUM", "source_sum"),
         ("ELLIP_SEGMENT_FLUX", "photutils_segment_flux"),
         ("ELLIP_SEGMENT_MAG","photutils_segment_mag"),
