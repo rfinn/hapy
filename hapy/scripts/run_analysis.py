@@ -1396,7 +1396,9 @@ def main():
     row["R_HAPY_M20"] = e.R_HAPY_M20
     row["H_HAPY_M20"] = e.H_HAPY_M20
 
-
+    # set flags
+    row["H_HAPY_OK"] = e.HAPY_MORPH_OK       
+    row["H_HAPY_FLAG"] = e.HAPY_MORPH_FLAG   
     # TODONE add HAPY SNP for H and R
     
     # ---- FIT PROFILES!  ----------- #

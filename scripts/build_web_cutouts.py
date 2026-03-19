@@ -1516,6 +1516,7 @@ class build_html_cutout():
             status_cell(get_result(self.cutout.results,'MASK_OK')),
             status_cell(get_result(self.cutout.results,'PHOT_OK')),
             status_cell(get_result(self.cutout.results,'HAPY_MORPH_OK')),
+            fmt_result(self.cutout.results,"HAPY_MORPH_FLAG", "{:d}"),
             status_cell(get_result(self.cutout.results,'R_PROFILE_OK')),
             status_cell(get_result(self.cutout.results,'H_PROFILE_OK')),
             status_cell(get_result(self.cutout.results,'R_SM_OK')),
