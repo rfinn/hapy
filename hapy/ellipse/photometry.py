@@ -953,7 +953,7 @@ class EllipsePhotometry():
             self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(snrcut=2.5, npixels=10)
         res = run_statmorph_for_photometry(
             image=self.image,
-            segmentation_data=self.r_gini_mask,
+            segmentation_data=self.r_gini_seg,
             object_label=object_label,
             gain=float(self.gain),
             mask=mask,
