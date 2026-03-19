@@ -1055,7 +1055,7 @@ class EllipsePhotometry():
         from hapy.hatools.morphology import compute_gini
         
 
-        self.r_gini_rmask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask()
+        self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask()
         
         #rmask = (self.segmentation.data == self.cat.label[self.objectIndex])
         rmask = self.r_gini_mask
