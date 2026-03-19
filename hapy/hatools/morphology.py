@@ -927,6 +927,7 @@ def plot_hapy_gini_diagnostic(
     ax[3].set_title("r-band Gini pixels")
     ax[3].set_xlabel("r-band pixel value")
     ax[3].set_ylabel("N")
+    ax[3].set_yscale("log")
 
     # 5. Halpha image
     im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
@@ -966,7 +967,7 @@ def plot_hapy_gini_diagnostic(
     ax[7].set_title("Hα Gini pixels")
     ax[7].set_xlabel("Hα pixel value (thresholded)")
     ax[7].set_ylabel("N")
-
+    ax[7].set_yscale("log")
     # Annotation box
     text_lines = []
     if title:
