@@ -468,7 +468,7 @@ class cutout_dir():
         #self.make_cs_png(gr=True)
         #self.make_cs_png(grauto=True)                
         #self.get_galfit_model()
-
+        self.copy_hapy_gini_pdf()
         self.copy_statmorph_pdfs()
         self.get_galfit_images()
 
@@ -774,8 +774,8 @@ class cutout_dir():
         else:
             print(f"No statmorph Hα PDF found in {self.cutoutdir}")
 
-    def copy_hapy_gini_pdfs(self):
-        """Copy hapy gini PDFs from cutoutdir to outdir."""
+    def copy_hapy_gini_pdf(self):
+        """Copy hapy gini PDF from cutoutdir to outdir."""
 
         
         # ensure output directory exists
