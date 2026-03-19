@@ -1787,7 +1787,7 @@ class build_html_cutout():
 
     def write_hapy_gini_table(self):
                 # add statmorph figures
-        self.html.write('<h2>HAPY Gini Diagnostic PDF</h3>\n')
+        self.html.write('<h2>HAPY Gini Diagnostic Plot</h3>\n')
 
         if self.cutout.hapy_gini_pdf is not None:
             pdf_name = os.path.basename(self.cutout.hapy_gini_pdf)
