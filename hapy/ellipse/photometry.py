@@ -949,9 +949,11 @@ class EllipsePhotometry():
         stem1 = str(Path(self.image_name).with_suffix(""))
         stem2 = str(Path(self.image2_name).with_suffix("")) if self.image2_name else None
 
+        if self.r_gini_mask is None:
+            self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(snrcut=2.5, npixels=10)
         res = run_statmorph_for_photometry(
             image=self.image,
-            segmentation_data=self.segmentation.data,
+            segmentation_data=self.r_gini_mask,
             object_label=object_label,
             gain=float(self.gain),
             mask=mask,
@@ -1013,7 +1015,6 @@ class EllipsePhotometry():
         #self.source_sum2 = np.sum(self.image2[self.gini_pixels])
         #self.source_sum2_erg = self.uconversion1*self.source_sum2
         #self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum2)
-
 
     def build_rband_gini_mask(self, snrcut=2.5, npixels=10):
         obj_label = int(self.cat.label[self.objectIndex])
