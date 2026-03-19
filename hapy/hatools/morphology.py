@@ -786,11 +786,15 @@ def plot_hapy_gini_diagnostic(
     ha_hapy_npix,
     ha_hapy_fillfrac,
     ha_threshold=None,
+    ha_sigma_sky=None,
+    ha_hapy_snp_det=None,
+    ha_hapy_snp_all=None,
     title=None,
     outfile=None,
     show=False,
     dpi=150,
 ):
+
     """
     Make a 2x4 diagnostic plot for HAPY Gini measurements.
 
@@ -938,6 +942,17 @@ def plot_hapy_gini_diagnostic(
     hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
     hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
     im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", vmin=hagi_vmin, vmax=hagi_vmax)
+
+    if ha_threshold is not None and ha_sigma_sky is not None:
+        ax[5].set_title(
+            f"Hα used for Gini\n"
+            f"threshold = {ha_threshold:.3g} ({ha_threshold/ha_sigma_sky:.1f}σ)"
+        )
+    elif ha_threshold is not None:
+        ax[5].set_title(f"Hα used for Gini\nthreshold = {ha_threshold:.3g}")
+    else:
+        ax[5].set_title("Hα used for Gini")
+    
     if ha_threshold is not None:
         ax[5].set_title(f"Hα used for Gini\nthreshold = {ha_threshold:.3g}")
     else:
@@ -954,12 +969,17 @@ def plot_hapy_gini_diagnostic(
         ax[6].contour(ha_detect_mask.astype(float), levels=[0.5], colors="red", linewidths=1.0)
     except Exception:
         pass
-    title7 = (
-        f"Hα + overlays\n"
-        f"H_HAPY_GINI = {ha_hapy_gini:.3f}, "
-        f"fill = {ha_hapy_fillfrac:.3f}"
-    )
+
+
+    title7 = f"Hα + overlays\nH_HAPY_GINI = {ha_hapy_gini:.3f}, fill = {ha_hapy_fillfrac:.3f}"
+
+    if ha_hapy_snp_det is not None and np.isfinite(ha_hapy_snp_det):
+        title7 += f", S/N(det) = {ha_hapy_snp_det:.2f}"
+    if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
+        title7 += f"\nS/N(all) = {ha_hapy_snp_all:.2f}"
+
     ax[6].set_title(title7)
+
 
     # 8. histogram of Halpha pixels used in Gini
     if ha_vals.size > 0:
@@ -968,10 +988,12 @@ def plot_hapy_gini_diagnostic(
     ax[7].set_xlabel("Hα pixel value (thresholded)")
     ax[7].set_ylabel("N")
     ax[7].set_yscale("log")
+
     # Annotation box
     text_lines = []
     if title:
         text_lines.append(title)
+
     text_lines.extend([
         f"R_HAPY_GINI = {r_hapy_gini:.3f}",
         f"H_HAPY_GINI = {ha_hapy_gini:.3f}",
@@ -979,9 +1001,20 @@ def plot_hapy_gini_diagnostic(
         f"H_HAPY_NPIX = {ha_hapy_npix}",
         f"H_HAPY_FILLFRAC = {ha_hapy_fillfrac:.3f}",
     ])
-    if ha_threshold is not None:
+
+    if ha_sigma_sky is not None and np.isfinite(ha_sigma_sky):
+        text_lines.append(f"Hα sigma_sky = {ha_sigma_sky:.3g}")
+
+    if ha_threshold is not None and np.isfinite(ha_threshold):
         text_lines.append(f"Hα threshold = {ha_threshold:.3g}")
 
+    if ha_hapy_snp_det is not None and np.isfinite(ha_hapy_snp_det):
+        text_lines.append(f"H_HAPY_SNP_DET = {ha_hapy_snp_det:.3f}")
+
+    if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
+        text_lines.append(f"H_HAPY_SNP_ALL = {ha_hapy_snp_all:.3f}")
+
+    
     ax[7].text(
         0.98, 0.98,
         "\n".join(text_lines),

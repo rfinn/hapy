@@ -1565,21 +1565,14 @@ class build_html_cutout():
     
     def write_halpha_images(self):
         '''  r, halpha, cs, and mask images '''
-        self.html.write('<h2>Halpha Images</h2>\n')        
-        images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
-        #images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1,self.cutout.csgr_png1,self.cutout.csgrauto_png1]
-
-        # removing r-band
-        #images = [self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.csgr_png1,self.cutout.csgrauto_png1]
-        # just changing order to see if halpha image is still the biggest in the table, re issue #15
-        # the second was still the biggest
-        # so what if we also change the label
-        # seems to scale with label
-        #images = [self.cutout.pngimages['ha'],self.cutout.pngimages['r'],self.cutout.cs_png1,self.cutout.cs_png2]        
+        self.html.write('<h2>Halpha Images</h2>\n')
+        if self.cutout.legacy_jpg is not None:
+            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
+            labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
+        else:
+            images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
+            labels = ['R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
         images = [os.path.basename(i) for i in images]
-
-        labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
-
         #labels = ['R-band Image','H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']
         #labels = ['H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']        
         #labels = ['Halpha+Cont','R','CS, stretch 1','CS, stretch 2']        

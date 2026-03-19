@@ -359,6 +359,9 @@ def _pull_statmorph(row, prefix, mobj):
             ("SERSIC_CHISQ_DOF","sersic_chi2_dof"),
             ("SERSIC_FLAG","flag_sersic"),
             ("SN_PER_PIXEL","sn_per_pixel"),
+            ("SKY_MEAN","sky_mean"),
+            ("SKY_MEDIAN","sky_median"),
+            ("SKY_SIGMA","sky_sigma"),            
                     ]:
         row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         try:
@@ -487,7 +490,7 @@ def initialize_result_row():
         "ELLIP_EPS", "ELLIP_THETA_RAD",
         "ELLIP_GINI_DET", "ELLIP_SOURCE_SUM",
         "ELLIP_BA", "ELLIP_SEGMENT_FLUX",
-        "ELLIP_SEGMENT_MAG"
+        "ELLIP_SEGMENT_MAG",
     ]:
         row[k] = np.nan
 
@@ -510,6 +513,8 @@ def initialize_result_row():
     ]:
         row[k] = np.nan
 
+    row["R_SCALE_ADU_CGS"] = np.nan
+    row["H_SCALE_ADU_CGS"] = np.nan    
     row["R_HAPY_GINI"] = np.nan
     row["R_HAPY_NPIX"] = np.nan
     row["H_HAPY_GINI"] = np.nan
@@ -539,6 +544,9 @@ def initialize_result_row():
         "SERSIC_CHISQ_DOF",
         "SERSIC_FLAG",
         "SN_PER_PIXEL",
+        "SKY_MEAN",
+        "SKY_MEDIAN",
+        "SKY_SIGMA",        
     ]
 
     for band in ["R", "H"]:
@@ -1260,6 +1268,7 @@ def main():
         ("R_M20", "M20_1"),
         ("R_ASYM", "asym"),
         ("R_ASYM_ERR", "asym_err"),
+        ("R_SCALE_ADU_CGS", "uconversion1")
         ("AREA_GUESS_ELLIPSE_PIX", "area_guess_ellipse_pix"),
         ("AREA_GUESS_ELLIPSE_UNMASKED_PIX", "area_guess_ellipse_unmasked_pix"),
         ("MASKFRAC_GUESS_ELLIPSE", "maskfrac_guess_ellipse"),
@@ -1274,6 +1283,7 @@ def main():
 
     # add photutils B/A
     row["ELLIP_BA"] = 1. - float(row["ELLIP_EPS"])
+    
 
     # JSON field (stable schema)
     # mf = getattr(e, "masked_fraction", None)
@@ -1293,6 +1303,8 @@ def main():
                 ("H_M20", "M20_2"),
                 ("H_ASYM", "asym2"),
                 ("H_ASYM_ERR", "asym2_err"),
+                ("H_SCALE_ADU_CGS","uconversion2"),
+                
             ]
 
     if getattr(e, "image2", None) is not None:
@@ -1346,6 +1358,7 @@ def main():
         # if any missing keys, just don't set mismatch fields
         pass
 
+    
     # calculate hapy gini
     e.run_hapy_gini()
     row["R_HAPY_GINI"] = e.R_HAPY_GINI
@@ -1353,6 +1366,10 @@ def main():
     row["H_HAPY_GINI"] = e.H_HAPY_GINI
     row["H_HAPY_NPIX"] = e.H_HAPY_NPIX
     row["H_HAPY_FILLFRAC"] = e.H_HAPY_FILLFRAC
+    row["R_HAPY_SNP"] = e.R_HAPY_SNP
+    row["H_HAPY_SNP"] = e.H_HAPY_SNP
+
+    # TODO add HAPY SNP for H and R
     
     # ---- FIT PROFILES!  ----------- #
 
