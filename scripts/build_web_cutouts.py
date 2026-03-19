@@ -773,7 +773,33 @@ class cutout_dir():
                 self.sm_h_pdf = None
         else:
             print(f"No statmorph Hα PDF found in {self.cutoutdir}")
+
+    def copy_hapy_gini_pdfs(self):
+        """Copy hapy gini PDFs from cutoutdir to outdir."""
+
         
+        # ensure output directory exists
+        os.makedirs(self.outdir, exist_ok=True)
+
+        # initialize attributes (important for downstream HTML logic)
+        self.hapy_gini_pdf = None
+
+
+        # --- R-band PDF ---
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-hapy-gini-diag.pdf"))
+
+        if len(r_matches) > 0:
+            hapy_gini_pdf = r_matches[0]
+            self.hapy_gini_pdf = os.path.join(self.outdir, os.path.basename(hapy_gini_pdf))
+
+            try:
+                shutil.copy2(hapy_gini_pdf, self.hapy_gini_pdf)
+            except Exception as e:
+                print(f"Error copying hapy gini PDF: {hapy_gini_pdf}")
+                print(e)
+                self.sm_r_pdf = None
+        else:
+            print(f"No hapy gini PDF found in {self.cutoutdir}")
 
 
     def get_galfit_results_nc(self):
@@ -1387,6 +1413,7 @@ class build_html_cutout():
     
         self.write_mag_table()
         self.write_morph_table()
+        self.write_hapy_gini_table()
         self.write_statmorph_table()
         self.write_galfit_images()
         self.write_galfit_table()
@@ -1760,6 +1787,17 @@ class build_html_cutout():
         ]
 
         write_text_table(self.html, labels, data, data2=data2)
+
+    def write_hapy_gini_table(self):
+                # add statmorph figures
+        self.html.write('<h2>HAPY Gini Diagnostic PDF</h3>\n')
+
+        if self.cutout.hapy_gini_pdf is not None:
+            pdf_name = os.path.basename(self.cutout.hapy_gini_pdf)
+            self.html.write(f'<p><b>HAPY Gini</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
+            #self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
+            self.html.write(f'<embed src="{pdf_name}" width="90%" height="800px"></embed>\n')
+
 
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')
