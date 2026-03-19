@@ -949,6 +949,8 @@ class EllipsePhotometry():
         stem1 = str(Path(self.image_name).with_suffix(""))
         stem2 = str(Path(self.image2_name).with_suffix("")) if self.image2_name else None
 
+        # using higher snr segmentation map for statmorph
+        # same seg map we use for calculating hapy_gini
         if self.r_gini_mask is None:
             self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(snrcut=2.5, npixels=10)
         seg_for_statmorph = self.r_gini_mask.astype(int)
