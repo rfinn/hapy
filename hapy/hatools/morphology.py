@@ -936,7 +936,7 @@ def plot_hapy_gini_diagnostic(
     # 6. thresholded Halpha image used in Gini
     hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
     hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
-    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="magma", vmin=hagi_vmin, vmax=hagi_vmax)
+    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", vmin=hagi_vmin, vmax=hagi_vmax)
     if ha_threshold is not None:
         ax[5].set_title(f"Hα used for Gini\nthreshold = {ha_threshold:.3g}")
     else:
