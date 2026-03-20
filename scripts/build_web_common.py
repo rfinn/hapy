@@ -135,12 +135,12 @@ def write_table(html,images=None,labels=None,images2=None,width="100%"):
     html.write('</tr></p>\n')        
     html.write('<tr>')
     for i in images:
-        html.write(f'<td><a href="{0}"><img src="{i}" alt="Missing file {i}" height="auto" width={width}></a></td>')
+        html.write(f'<td style="text-align: left;"><a href="{0}"><img src="{i}" alt="Missing file {i}" height="auto" width={width}></a></td>')
     html.write('</tr>\n')
     if images2 is not None:
         html.write('<tr>')
         for i in images2:
-            html.write('<td><a href="{0}"><img src="{1}" alt="Missing file {0}" height="auto" width="100%"></a></td>'.format(i,i))            
+            html.write(f'<td style="text-align: left;"><a href="{0}"><img src="{i}" alt="Missing file {i}" height="auto" width={width}></a></td>')
 
         html.write('</tr>\n')            
     
