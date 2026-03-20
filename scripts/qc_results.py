@@ -26,154 +26,395 @@ import numpy as np
 from astropy.table import Table
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
-
+from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
+from qc_helpers import build_row_qc_flags
 # ----------------------------------------------------------------------
-# helpers
+# some science
 # ----------------------------------------------------------------------
+def get_ratio(a,b):
+    return a/b
 
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
+def add_science_columns(tab):
+    """
+    Add core science-ready derived columns to merged HAPY results table.
 
+    Columns added:
+      - H50_R50_RATIO
+      - H75_R75_RATIO
+      - H_MAXDET_R25_RATIO
+      - H_PETRO_R50_RATIO
+      - DELTA_GINI
+      - DELTA_M20
 
-def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarray:
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=bool)
+    Safe against missing columns and divide-by-zero.
+    """
 
-    col = tab[colname]
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
+    import numpy as np
 
-    out = np.zeros(len(tab), dtype=bool)
-    for i, v in enumerate(col):
-        if v is None:
-            out[i] = default
-        elif isinstance(v, (bool, np.bool_)):
-            out[i] = bool(v)
-        else:
-            s = str(v).strip().lower()
-            if s in ("true", "t", "1", "yes", "y"):
-                out[i] = True
-            elif s in ("false", "f", "0", "no", "n", "", "none", "nan"):
-                out[i] = False
+    def safe_float(colname):
+        if colname not in tab.colnames:
+            return np.full(len(tab), np.nan)
+        out = np.full(len(tab), np.nan)
+        for i, v in enumerate(tab[colname]):
+            try:
+                out[i] = float(v)
+            except Exception:
+                pass
+        return out
+
+    def safe_ratio(num, den):
+        out = np.full(len(num), np.nan)
+        good = np.isfinite(num) & np.isfinite(den) & (den > 0)
+        out[good] = num[good] / den[good]
+        return out
+
+    # --- load columns ---
+    R50 = safe_float("R50_ARCSEC")
+    H50 = safe_float("H50_ARCSEC")
+
+    R75 = safe_float("R75_ARCSEC")
+    H75 = safe_float("H75_ARCSEC")
+
+    R25 = safe_float("R25_ARCSEC")
+    HMAX = safe_float("H_MAXDET_ARCSEC")
+
+    R_P50 = safe_float("R_PETRO_R50_ARCSEC")
+    H_P50 = safe_float("H_PETRO_R50_ARCSEC")
+
+    R_GINI = safe_float("R_HAPY_GINI")
+    H_GINI = safe_float("H_HAPY_GINI")
+
+    R_M20 = safe_float("R_HAPY_M20")
+    H_M20 = safe_float("H_HAPY_M20")
+
+    # --- compute ratios ---
+    tab["H50_R50_RATIO"] = safe_ratio(H50, R50)
+    tab["H75_R75_RATIO"] = safe_ratio(H75, R75)
+    tab["H_MAXDET_R25_RATIO"] = safe_ratio(HMAX, R25)
+    tab["H_PETRO_R50_RATIO"] = safe_ratio(H_P50, R_P50)
+
+    # --- compute differences ---
+    tab["DELTA_GINI"] = H_GINI - R_GINI
+    tab["DELTA_M20"] = H_M20 - R_M20
+
+    return tab
+
+def add_qc_flags(tab):
+    """
+    Add QC warning and usability flags to HAPY merged results table.
+
+    Adds:
+      - WARN_MASK
+      - WARN_BRIGHT_STAR
+      - WARN_FILTER
+      - WARN_ELLIPSE
+      - WARN_WEAK_HA
+
+      - USE_R_STRUCTURE   (0/1/2)
+      - USE_HA_EXTENT     (0/1/2)
+      - USE_HA_MORPH      (0/1/2)
+      - USE_GALFIT        (0/1/2)
+
+      - QC_TIER           (string: F/D/C/B/A)
+    """
+
+    import numpy as np
+
+    n = len(tab)
+
+    def safe_bool(colname):
+        if colname not in tab.colnames:
+            return np.zeros(n, dtype=bool)
+        out = np.zeros(n, dtype=bool)
+        for i, v in enumerate(tab[colname]):
+            if isinstance(v, (bool, np.bool_)):
+                out[i] = v
             else:
-                out[i] = default
-    return out
+                s = str(v).strip().lower()
+                out[i] = s in ("true", "t", "1", "yes", "y")
+        return out
 
+    def safe_float(colname):
+        if colname not in tab.colnames:
+            return np.full(n, np.nan)
+        out = np.full(n, np.nan)
+        for i, v in enumerate(tab[colname]):
+            try:
+                out[i] = float(v)
+            except Exception:
+                pass
+        return out
 
-def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=float)
+    # -----------------------------
+    # load columns
+    # -----------------------------
+    mask_warn = safe_bool("ELL0_MASK_WARN")
+    bright_star = safe_bool("BRIGHT_STAR_FLAG")
+    ellipse_mismatch = safe_bool("ELL_MISMATCH")
 
-    col = tab[colname]
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
+    filt = safe_float("FILTER_CORRECTION")
 
-    out = np.full(len(tab), default, dtype=float)
-    for i, v in enumerate(col):
-        try:
-            out[i] = float(v)
-        except Exception:
-            out[i] = default
-    return out
+    r_maskfrac = safe_float("R_PROFILE_MASKFRAC_MAX")
+    h_maskfrac = safe_float("H_PROFILE_MASKFRAC_MAX")
 
+    h_npix = safe_float("H_HAPY_NPIX")
+    h_ngood = safe_float("H_PROFILE_NGOOD")
+    h_snr = safe_float("H_HAPY_SNP_DET")
 
-def first_existing_col(tab: Table, names: list[str]) -> str | None:
-    for name in names:
-        if name in tab.colnames:
-            return name
-    return None
+    r50 = safe_float("R50_ARCSEC")
+    h50 = safe_float("H50_ARCSEC")
+    hmax = safe_float("H_MAXDET_ARCSEC")
 
+    r_ngood = safe_float("R_PROFILE_NGOOD")
 
-def first_populated_col(tab: Table, names: list[str]) -> str | None:
-    for name in names:
-        if name not in tab.colnames:
-            continue
-        vals = safe_float_array(tab, name)
-        if np.any(np.isfinite(vals)):
-            return name
-    return None
+    phot_ok = safe_bool("PHOT_OK")
+    rprof_ok = safe_bool("R_PROFILE_OK")
+    hprof_ok = safe_bool("H_PROFILE_OK")
 
+    morph_ok = safe_bool("HAPY_MORPH_OK")
+    r_sm_ok = safe_bool("R_SM_OK")
+    h_sm_ok = safe_bool("H_SM_OK")
 
+    gal_nc_ok = safe_bool("GAL_NC_OK")
+    gal_cv_ok = safe_bool("GAL_CV_OK")
+
+    # -----------------------------
+    # warnings
+    # -----------------------------
+    tab["WARN_MASK"] = (
+        mask_warn |
+        (np.isfinite(r_maskfrac) & (r_maskfrac > 0.3)) |
+        (np.isfinite(h_maskfrac) & (h_maskfrac > 0.3))
+    )
+
+    tab["WARN_BRIGHT_STAR"] = bright_star
+
+    tab["WARN_FILTER"] = np.isfinite(filt) & (filt > 1.2)
+
+    tab["WARN_ELLIPSE"] = ellipse_mismatch
+
+    tab["WARN_WEAK_HA"] = (
+        (np.isfinite(h_npix) & (h_npix < 50)) |
+        (np.isfinite(h_ngood) & (h_ngood < 8)) |
+        (np.isfinite(h_snr) & (h_snr < 3))
+    )
+
+    # -----------------------------
+    # usability flags (0/1/2)
+    # -----------------------------
+    USE_R = np.zeros(n, dtype=int)
+    USE_HA = np.zeros(n, dtype=int)
+    USE_HM = np.zeros(n, dtype=int)
+    USE_GF = np.zeros(n, dtype=int)
+
+    # R structure
+    good_r = (
+        phot_ok & rprof_ok &
+        np.isfinite(r50) & (r50 > 0) &
+        np.isfinite(r_ngood) & (r_ngood >= 20)
+    )
+
+    USE_R[good_r] = 2
+    USE_R[good_r & tab["WARN_MASK"]] = 1
+
+    # Hα extent
+    good_ha = (
+        phot_ok & hprof_ok &
+        np.isfinite(h50) & (h50 > 0) &
+        np.isfinite(hmax) & (hmax > 0) &
+        np.isfinite(h_npix) & (h_npix >= 50) &
+        np.isfinite(h_ngood) & (h_ngood >= 8) &
+        (~tab["WARN_FILTER"])
+    )
+
+    USE_HA[good_ha] = 2
+    USE_HA[good_ha & tab["WARN_WEAK_HA"]] = 1
+
+    # Hα morphology
+    good_hm = (
+        morph_ok & h_sm_ok &
+        np.isfinite(h_npix) & (h_npix >= 100) &
+        (~tab["WARN_FILTER"])
+    )
+
+    USE_HM[good_hm] = 2
+    USE_HM[good_hm & tab["WARN_WEAK_HA"]] = 1
+
+    # GALFIT
+    good_gf = gal_nc_ok | gal_cv_ok
+    USE_GF[good_gf] = 2
+
+    # -----------------------------
+    # attach to table
+    # -----------------------------
+    tab["USE_R_STRUCTURE"] = USE_R
+    tab["USE_HA_EXTENT"] = USE_HA
+    tab["USE_HA_MORPH"] = USE_HM
+    tab["USE_GALFIT"] = USE_GF
+
+    # -----------------------------
+    # QC tier
+    # -----------------------------
+    tier = np.full(n, "F", dtype="U1")
+
+    technical_ok = phot_ok
+
+    for i in range(n):
+        if not technical_ok[i]:
+            tier[i] = "F"
+        elif USE_R[i] == 0 or USE_HA[i] == 0:
+            tier[i] = "D"
+        elif (
+            tab["WARN_MASK"][i] or
+            tab["WARN_BRIGHT_STAR"][i] or
+            tab["WARN_FILTER"][i] or
+            tab["WARN_ELLIPSE"][i]
+        ):
+            tier[i] = "C"
+        elif USE_HM[i] < 2:
+            tier[i] = "B"
+        else:
+            tier[i] = "A"
+
+    tab["QC_TIER"] = tier
+
+    return tab
 # ----------------------------------------------------------------------
 # flag discovery and masks
 # ----------------------------------------------------------------------
 
-def find_status_columns(tab: Table) -> list[str]:
-    return [
-        c for c in tab.colnames
-        if c.endswith("_OK") or c.endswith("_FLAG")
-    ]
+def find_ok_columns(tab: Table) -> list[str]:
+    return [c for c in tab.colnames if c.endswith("_OK") ]
 
+def find_flag_columns(tab: Table) -> list[str]:
+    return [c for c in tab.colnames if c.endswith("_FLAG")]
 
 def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
+    flags = build_row_qc_flags(tab, max_ha_filter_correction=max_ha_filter_correction)
+
     masks = {}
+    masks["MASK_OK"] = flags["MASK_OK"]
+    masks["PHOT_OK"] = flags["PHOT_OK"]
+    masks["PSF_OK"] = flags["PSF_OK"]
+    masks["R_PROFILE_OK"] = flags["R_PROFILE_OK"]
+    masks["H_PROFILE_OK"] = flags["H_PROFILE_OK"]
+    masks["R_SM_OK"] = flags["R_SM_OK"]
+    masks["H_SM_OK"] = flags["H_SM_OK"]
+    masks["GAL_NC_OK"] = flags["GAL_NC_OK"]
+    masks["GAL_CV_OK"] = flags["GAL_CV_OK"]
+    masks["FILTER_WARNING"] = flags["FILTER_WARNING"]
 
-    # core flags
-    masks["MASK_OK"] = safe_bool_array(tab, "MASK_OK")
-    masks["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
-    masks["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
-    masks["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
-    masks["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
-    masks["R_SM_FLAG"] = safe_bool_array(tab, "R_SM_FLAG")
-    masks["H_SM_FLAG"] = safe_bool_array(tab, "H_SM_FLAG")
-    masks["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
-    masks["GAL_CV_OK"] = safe_bool_array(tab, "GAL_CV_OK")
-
-    filt_col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
-    if filt_col is not None:
-        filtcor = safe_float_array(tab, filt_col)
-    else:
-        filtcor = np.full(len(tab), np.nan)
-
-    masks["FILTER_WARNING"] = np.isfinite(filtcor) & (filtcor > max_ha_filter_correction)
-
-    # science-oriented subsets
-    masks["mask_phot_ok"] = masks["MASK_OK"] & masks["PHOT_OK"]
-
-    masks["profile_ok"] = (
-        masks["MASK_OK"] &
-        masks["PHOT_OK"] &
-        masks["R_PROFILE_OK"] &
-        masks["H_PROFILE_OK"]
-    )
-
-    masks["statmorph_ok"] = (
-        masks["profile_ok"] &
-        masks["R_SM_FLAG"] &
-        masks["H_SM_FLAG"] &
-        (~masks["FILTER_WARNING"])
-    )
-
-    masks["galfit_any_ok"] = (
-        masks["MASK_OK"] &
-        masks["PHOT_OK"] &
-        (masks["GAL_NC_OK"] | masks["GAL_CV_OK"])
-    )
-
-    masks["galfit_both_ok"] = (
-        masks["MASK_OK"] &
-        masks["PHOT_OK"] &
-        masks["GAL_NC_OK"] &
-        masks["GAL_CV_OK"]
-    )
-
-    masks["science_ready"] = (
-        masks["profile_ok"] &
-        masks["R_SM_FLAG"] &
-        masks["H_SM_FLAG"] &
-        (masks["GAL_NC_OK"] | masks["GAL_CV_OK"]) &
-        (~masks["FILTER_WARNING"])
-    )
-
-    masks["problem"] = ~masks["mask_phot_ok"]
+    masks["mask_phot_ok"] = flags["MASK_PHOT_OK"]
+    masks["profile_ok"] = flags["PROFILE_OK"]
+    masks["statmorph_ok"] = flags["R_SM_OK"] & flags["H_SM_OK"] & (~flags["FILTER_WARNING"])
+    masks["galfit_any_ok"] = flags["GALFIT_ANY_OK"]
+    masks["galfit_both_ok"] = flags["GALFIT_BOTH_OK"]
+    masks["science_ready"] = flags["SCIENCE_READY"]
+    masks["problem"] = flags["TECHNICAL_PROBLEM"] | flags["SCIENCE_PROBLEM"]
 
     return masks
+
+# def build_qc_masks(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
+#     masks = {}
+
+#     # core flags
+#     masks["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
+#     masks["MASK_OK"] = safe_bool_array(tab, "MASK_OK")
+#     masks["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
+#     masks["HAPY_MORPH_OK"] = safe_bool_array(tab, "HAPY_MORPH_OK")    
+#     masks["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
+#     masks["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
+#     masks["R_SM_OK"] = safe_bool_array(tab, "R_SM_OK")
+#     masks["H_SM_OK"] = safe_bool_array(tab, "H_SM_OK")
+#     masks["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
+#     masks["GAL_CV_OK"] = safe_bool_array(tab, "GAL_CV_OK")
+
+#     filt_col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
+#     if filt_col is not None:
+#         filtcor = safe_float_array(tab, filt_col)
+#     else:
+#         filtcor = np.full(len(tab), np.nan)
+
+#     masks["FILTER_WARNING"] = np.isfinite(filtcor) & (filtcor > max_ha_filter_correction)
+
+#     # science-oriented subsets
+#     masks["mask_phot_ok"] = masks["MASK_OK"] & masks["PHOT_OK"]
+#     masks["technical_problem"] = ~(masks["MASK_OK"] & masks["PHOT_OK"])
+#     masks["science_problem"] = (
+#         ~masks["profile_ok"] |
+#         masks["FILTER_WARNING"] |
+#         safe_bool_array(tab, "ELL0_MASK_WARN") |
+#         safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+#         safe_bool_array(tab, "ELL_MISMATCH")
+#         )
+#     masks["profile_ok"] = (
+#         masks["MASK_OK"] &
+#         masks["PHOT_OK"] &
+#         masks["R_PROFILE_OK"] &
+#         masks["H_PROFILE_OK"]
+#     )
+
+#     masks["statmorph_ok"] = (
+#         masks["profile_ok"] &
+#         masks["R_SM_FLAG"] &
+#         masks["H_SM_FLAG"] &
+#         (~masks["FILTER_WARNING"])
+#     )
+
+#     masks["galfit_any_ok"] = (
+#         masks["MASK_OK"] &
+#         masks["PHOT_OK"] &
+#         (masks["GAL_NC_OK"] | masks["GAL_CV_OK"])
+#     )
+
+#     masks["galfit_both_ok"] = (
+#         masks["MASK_OK"] &
+#         masks["PHOT_OK"] &
+#         masks["GAL_NC_OK"] &
+#         masks["GAL_CV_OK"]
+#     )
+
+#     r50 = safe_float_array(tab, "R50_ARCSEC")
+#     h50 = safe_float_array(tab, "H50_ARCSEC")
+#     hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
+#     hnpix = safe_float_array(tab, "H_HAPY_NPIX")
+#     hngood = safe_float_array(tab, "H_PROFILE_NGOOD")
+#     rngood = safe_float_array(tab, "R_PROFILE_NGOOD")
+
+#     masks["r_structure_good"] = (
+#         masks["PHOT_OK"] &
+#         masks["R_PROFILE_OK"] &
+#         np.isfinite(r50) & (r50 > 0) &
+#         np.isfinite(rngood) & (rngood >= 20)
+#         )
+
+    
+#     masks["ha_extent_good"] = (
+#         masks["PHOT_OK"] &
+#         masks["H_PROFILE_OK"] &
+#         np.isfinite(h50) & (h50 > 0) &
+#         np.isfinite(hmax) & (hmax > 0) &
+#         np.isfinite(hnpix) & (hnpix >= 50) &
+#         np.isfinite(hngood) & (hngood >= 8) &
+#         (~masks["FILTER_WARNING"])
+#         )
+    
+#     masks["science_ready"] = (
+#         masks["r_structure_good"] &
+#         masks["ha_extent_good"]
+#         )
+    
+#     masks["morph_good"] = (
+#         masks["HAPY_MORPH_OK"] &
+#         masks["R_SM_OK"] &
+#         masks["H_SM_OK"] &
+#         (~masks["FILTER_WARNING"])
+#     )
+
+#     # TODO - may want to define this differently
+#     masks["problem"] = masks["technical_problem"]
+
+#     return masks
 
 
 # ----------------------------------------------------------------------
@@ -200,13 +441,22 @@ def write_text_summary(tab: Table, masks: dict[str, np.ndarray], outpath: Path, 
 
         fh.write("Pipeline flags\n")
         fh.write("--------------\n")
-        for f in find_status_columns(tab):
+        for f in find_ok_columns(tab):
             col = safe_bool_array(tab, f)
             ntrue = np.sum(col)
             nfalse = np.sum(~col)
             pct = 100.0 * ntrue / n if n > 0 else np.nan
             fh.write(f"{f:20s}: {ntrue:4d} OK  | {nfalse:4d} FAIL  ({pct:5.1f}%)\n")
 
+        fh.write("Warning flags\n")
+        fh.write("--------------\n")
+        for f in find_flag_columns(tab):
+            #col = safe_bool_array(tab, f)
+            nzero = np.sum(col == 0)
+            nfalse = np.sum(~col)
+            pct = 100.0 * ntrue / n if n > 0 else np.nan
+            fh.write(f"{f:20s}: {ntrue:4d} Clean  | {nfalse:4d} Flagged  ({pct:5.1f}%)\n")
+            
         fh.write("\nQC subsets\n")
         fh.write("----------\n")
         for name in ["mask_phot_ok", "profile_ok", "statmorph_ok", "galfit_any_ok", "galfit_both_ok", "science_ready", "problem"]:
@@ -448,7 +698,130 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
     plt.tight_layout()
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
-    
+
+def plot_qc_dashboard(tab, outpath):
+    """
+    Make a compact QC dashboard for HAPY merged results.
+
+    Requires:
+      - add_science_columns(tab)
+      - add_qc_flags(tab)
+
+    Output:
+      - one PNG summary figure
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    n = len(tab)
+
+    def safe_float(colname):
+        if colname not in tab.colnames:
+            return np.full(n, np.nan)
+        out = np.full(n, np.nan)
+        for i, v in enumerate(tab[colname]):
+            try:
+                out[i] = float(v)
+            except Exception:
+                pass
+        return out
+
+    def safe_str(colname, default=""):
+        if colname not in tab.colnames:
+            return np.full(n, default, dtype="U8")
+        out = np.full(n, default, dtype="U8")
+        for i, v in enumerate(tab[colname]):
+            out[i] = str(v)
+        return out
+
+    tier = safe_str("QC_TIER", default="?")
+    h50_r50 = safe_float("H50_R50_RATIO")
+    hmax_r25 = safe_float("H_MAXDET_R25_RATIO")
+    r50 = safe_float("R50_ARCSEC")
+    h50 = safe_float("H50_ARCSEC")
+    h_npix = safe_float("H_HAPY_NPIX")
+    h_snr = safe_float("H_HAPY_SNP_DET")
+    h_gini = safe_float("H_HAPY_GINI")
+    h_m20 = safe_float("H_HAPY_M20")
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
+    axes = axes.ravel()
+
+    # --------------------------------------------------
+    # 1. QC tier counts
+    # --------------------------------------------------
+    ax = axes[0]
+    tiers = ["A", "B", "C", "D", "F"]
+    counts = [np.sum(tier == t) for t in tiers]
+    ax.bar(range(len(tiers)), counts)
+    ax.set_xticks(range(len(tiers)))
+    ax.set_xticklabels(tiers)
+    ax.set_ylabel("N")
+    ax.set_title("QC tier counts")
+
+    # --------------------------------------------------
+    # 2. H50 / R50
+    # --------------------------------------------------
+    ax = axes[1]
+    good = np.isfinite(h50_r50) & (h50_r50 > 0)
+    if np.sum(good) > 0:
+        ax.hist(h50_r50[good], bins=30)
+    ax.set_xlabel("H50_R50_RATIO")
+    ax.set_ylabel("N")
+    ax.set_title("Hα / stellar half-light ratio")
+
+    # --------------------------------------------------
+    # 3. Hmax / R25
+    # --------------------------------------------------
+    ax = axes[2]
+    good = np.isfinite(hmax_r25) & (hmax_r25 > 0)
+    if np.sum(good) > 0:
+        ax.hist(hmax_r25[good], bins=30)
+    ax.set_xlabel("H_MAXDET_R25_RATIO")
+    ax.set_ylabel("N")
+    ax.set_title("Hα max extent / R25")
+
+    # --------------------------------------------------
+    # 4. H50 vs R50
+    # --------------------------------------------------
+    ax = axes[3]
+    good = np.isfinite(r50) & np.isfinite(h50) & (r50 > 0) & (h50 > 0)
+    if np.sum(good) > 0:
+        ax.scatter(r50[good], h50[good], s=12, alpha=0.7)
+        lo = np.nanmin([np.nanmin(r50[good]), np.nanmin(h50[good])])
+        hi = np.nanmax([np.nanmax(r50[good]), np.nanmax(h50[good])])
+        ax.plot([lo, hi], [lo, hi], "k--", lw=1)
+    ax.set_xlabel("R50_ARCSEC")
+    ax.set_ylabel("H50_ARCSEC")
+    ax.set_title("Hα vs stellar half-light radius")
+
+    # --------------------------------------------------
+    # 5. Halpha robustness
+    # --------------------------------------------------
+    ax = axes[4]
+    good = np.isfinite(h_npix) & np.isfinite(h_snr) & (h_npix > 0)
+    if np.sum(good) > 0:
+        ax.scatter(h_npix[good], h_snr[good], s=12, alpha=0.7)
+        ax.set_xscale("log")
+    ax.set_xlabel("H_HAPY_NPIX")
+    ax.set_ylabel("H_HAPY_SNP_DET")
+    ax.set_title("Hα detection robustness")
+
+    # --------------------------------------------------
+    # 6. Halpha morphology sanity
+    # --------------------------------------------------
+    ax = axes[5]
+    good = np.isfinite(h_gini) & np.isfinite(h_m20)
+    if np.sum(good) > 0:
+        ax.scatter(h_gini[good], h_m20[good], s=12, alpha=0.7)
+    ax.set_xlabel("H_HAPY_GINI")
+    ax.set_ylabel("H_HAPY_M20")
+    ax.set_title("Hα morphology plane")
+
+    plt.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)
+
 # ----------------------------------------------------------------------
 # subset writing
 # ----------------------------------------------------------------------
@@ -467,7 +840,127 @@ def write_subsets(tab: Table, masks: dict[str, np.ndarray], outdir: Path) -> Non
         sub = tab[masks[name]]
         sub.write(outdir / f"{name}.fits", format="fits", overwrite=True)
 
+# ----------------------------------------------------------------------
+# output tables
+# ----------------------------------------------------------------------
+def write_qc_summary_table(tab, outpath):
+    """
+    Write a compact all-galaxy QC summary table.
 
+    Assumes add_science_columns(tab) and add_qc_flags(tab) were already run.
+    """
+    from astropy.table import Table
+    import numpy as np
+
+    wanted = [
+        # identity
+        "VFID", "GALNAME", "OBJID", "TELESCOPE", "DATEOBS", "POINTING", "TAG",
+
+        # core stage flags
+        "STATUS", "PSF_OK", "MASK_OK", "PHOT_OK",
+        "R_PROFILE_OK", "H_PROFILE_OK",
+        "R_SM_OK", "H_SM_OK", "HAPY_MORPH_OK",
+        "GAL_NC_OK", "GAL_CV_OK",
+
+        # warnings / QC
+        "WARN_MASK", "WARN_BRIGHT_STAR", "WARN_FILTER",
+        "WARN_ELLIPSE", "WARN_WEAK_HA",
+        "USE_R_STRUCTURE", "USE_HA_EXTENT", "USE_HA_MORPH", "USE_GALFIT",
+        "QC_TIER",
+
+        # core sizes
+        "R25_ARCSEC", "R50_ARCSEC", "R75_ARCSEC",
+        "H25_ARCSEC", "H50_ARCSEC", "H75_ARCSEC",
+        "H_MAXDET_ARCSEC",
+        "R_PETRO_R50_ARCSEC", "H_PETRO_R50_ARCSEC",
+
+        # science ratios
+        "H50_R50_RATIO", "H75_R75_RATIO",
+        "H_MAXDET_R25_RATIO", "H_PETRO_R50_RATIO",
+
+        # fluxes / magnitudes
+        "R24_MAG", "R25_ISO_MAG", "GAL_MAG",
+        "H_TOT_FLUX_CGS", "H_R24_FLUX_CGS",
+        "R_C30", "H_C30_R24",
+
+        # morphology
+        "R_HAPY_GINI", "H_HAPY_GINI",
+        "R_HAPY_M20", "H_HAPY_M20",
+        "DELTA_GINI", "DELTA_M20",
+
+        # robustness
+        "R_PROFILE_NGOOD", "H_PROFILE_NGOOD",
+        "R_PROFILE_MASKFRAC_MAX", "H_PROFILE_MASKFRAC_MAX",
+        "H_HAPY_NPIX", "H_HAPY_SNP_DET",
+        "ELL0_MASKFRAC",
+
+        # galfit
+        "GAL_RE", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
+    ]
+
+    keep = [c for c in wanted if c in tab.colnames]
+    out = tab[keep].copy()
+    out.write(outpath, format="fits", overwrite=True)
+
+def write_outlier_tables(tab, outdir, n_outliers=25):
+    """
+    Write simple outlier tables for extent, flux/magnitude, and morphology.
+    Assumes add_science_columns(tab) and add_qc_flags(tab) already ran.
+    """
+    import numpy as np
+
+    def top_bottom_indices(x, n=25, positive_only=False):
+        x = np.array(x, dtype=float)
+        good = np.isfinite(x)
+        if positive_only:
+            good &= (x > 0)
+
+        idx = np.where(good)[0]
+        if len(idx) == 0:
+            return np.array([], dtype=int)
+
+        vals = x[idx]
+        order = np.argsort(vals)
+
+        lo = idx[order[:min(n, len(order))]]
+        hi = idx[order[-min(n, len(order)):]]
+        return np.unique(np.concatenate([lo, hi]))
+
+    idcols = [c for c in ["VFID", "GALNAME", "OBJID", "TAG", "QC_TIER"] if c in tab.colnames]
+
+    groups = {
+        "outliers_extent_H50_R50.fits": ("H50_R50_RATIO", True),
+        "outliers_extent_HMAX_R25.fits": ("H_MAXDET_R25_RATIO", True),
+        "outliers_flux_Htot.fits": ("H_TOT_FLUX_CGS", True),
+        "outliers_flux_HR24.fits": ("H_R24_FLUX_CGS", True),
+        "outliers_mag_R24.fits": ("R24_MAG", False),
+        "outliers_mag_GAL.fits": ("GAL_MAG", False),
+        "outliers_concentration_R.fits": ("R_C30", False),
+        "outliers_concentration_H.fits": ("H_C30_R24", False),
+        "outliers_morph_DGini.fits": ("DELTA_GINI", False),
+        "outliers_morph_DM20.fits": ("DELTA_M20", False),
+    }
+
+    extra = [c for c in [
+        "R25_ARCSEC", "R50_ARCSEC", "H50_ARCSEC", "H_MAXDET_ARCSEC",
+        "R24_MAG", "GAL_MAG", "H_TOT_FLUX_CGS", "H_R24_FLUX_CGS",
+        "R_C30", "H_C30_R24",
+        "R_HAPY_GINI", "H_HAPY_GINI", "R_HAPY_M20", "H_HAPY_M20",
+        "DELTA_GINI", "DELTA_M20",
+        "WARN_MASK", "WARN_BRIGHT_STAR", "WARN_FILTER", "WARN_ELLIPSE", "WARN_WEAK_HA",
+        "R_PROFILE_NGOOD", "H_PROFILE_NGOOD", "H_HAPY_NPIX", "H_HAPY_SNP_DET"
+    ] if c in tab.colnames]
+
+    for fname, (col, positive_only) in groups.items():
+        if col not in tab.colnames:
+            continue
+        idx = top_bottom_indices(tab[col], n=n_outliers, positive_only=positive_only)
+        if len(idx) == 0:
+            continue
+        keep = idcols + [col] + [c for c in extra if c != col]
+        sub = tab[idx][keep]
+        sub.write(outdir / fname, format="fits", overwrite=True)
+        
 # ----------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------
@@ -495,6 +988,14 @@ def main():
 
     tab = Table.read(args.table)
     print(f"Read {len(tab)} rows from {args.table}")
+
+    # -- add columns
+    tab = add_science_columns(tab)
+    tab = add_qc_flags(tab)
+
+    # -- write output tables
+    write_qc_summary_table(tab, outdir / "qc_summary_table.fits")
+    write_outlier_tables(tab, outdir, n_outliers=25)
 
     masks = build_qc_masks(tab, max_ha_filter_correction=args.max_ha_filter_correction)
 
@@ -549,8 +1050,12 @@ def main():
 
     plot_filter_warning_vs_ha(tab, masks, outdir / "filter_correction_vs_ha_flux.png")
 
+    plot_qc_dashboard(tab, outdir / "qc_dashboard.png")
+    
     print(f"Wrote QC products to {outdir}")
-
+    
+    tab[tab["QC_TIER"] == "A"].write(outdir / "qc_tier_A.fits", format="fits", overwrite=True)
+    tab[np.isin(tab["QC_TIER"], ["A", "B"])].write(outdir / "qc_tier_AB.fits", format="fits", overwrite=True)
 
 if __name__ == "__main__":
     main()

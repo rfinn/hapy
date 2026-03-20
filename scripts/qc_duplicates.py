@@ -38,103 +38,17 @@ import numpy as np
 from astropy.table import Table, vstack
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
-
-
+from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
+from qc_helpers import build_row_qc_flags
 # ----------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------
-
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarray:
-    """Return a boolean numpy array for a table column, or default if missing."""
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=bool)
-
-    col = tab[colname]
-
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
-
-    out = np.zeros(len(tab), dtype=bool)
-
-    for i, v in enumerate(col):
-        if v is None:
-            out[i] = default
-        elif isinstance(v, (bool, np.bool_)):
-            out[i] = bool(v)
-        else:
-            s = str(v).strip().lower()
-            if s in ("true", "t", "1", "yes", "y"):
-                out[i] = True
-            elif s in ("false", "f", "0", "no", "n", "", "none", "nan"):
-                out[i] = False
-            else:
-                out[i] = default
-    return out
-
-
-def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
-    """Return a float numpy array for a table column, or default if missing."""
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=float)
-
-    col = tab[colname]
-
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
-
-    out = np.full(len(tab), default, dtype=float)
-    for i, v in enumerate(col):
-        try:
-            out[i] = float(v)
-        except Exception:
-            out[i] = default
-    return out
-
-
-def first_existing_col(tab: Table, names: list[str]) -> str | None:
-    """Return the first existing column from a list of candidate names."""
-    for name in names:
-        if name in tab.colnames:
-            return name
-    return None
-
-
-def first_populated_col(tab: Table, names: list[str]) -> str | None:
-    """
-    Return the first existing column that has at least one finite value.
-    Useful for handling old typo columns like R_FHWM / H_FHWM.
-    """
-    for name in names:
-        if name not in tab.colnames:
-            continue
-        vals = safe_float_array(tab, name)
-        if np.any(np.isfinite(vals)):
-            return name
-    return None
-
 
 def finite_pair_mask(x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
     return np.isfinite(x1) & np.isfinite(x2)
 
 
-def median_and_mad(dx: np.ndarray) -> tuple[float, float]:
-    """Return median and MAD-like robust scatter."""
-    good = np.isfinite(dx)
-    if np.sum(good) == 0:
-        return np.nan, np.nan
-    med = np.nanmedian(dx[good])
-    mad = np.nanmedian(np.abs(dx[good] - med))
-    return med, mad
+
 
 
 # ----------------------------------------------------------------------
@@ -188,47 +102,57 @@ def build_duplicate_pairs(tab: Table, id_col: str = "VFID") -> Table:
 # ----------------------------------------------------------------------
 # row and pair masks
 # ----------------------------------------------------------------------
-
 def build_row_flags(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
-    """
-    Construct row-level QC flags.
+    flags = build_row_qc_flags(tab, max_ha_filter_correction=max_ha_filter_correction)
 
-    R-band analyses remain usable even when Halpha filter correction is bad.
-    Halpha analyses are more restrictive.
-    """
-    flags = {}
-
-    flags["MASK_OK"] = safe_bool_array(tab, "MASK_OK")
-    flags["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
-    flags["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
-    flags["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
-    flags["HA_PROFILE_OK"] = safe_bool_array(tab, "HA_PROFILE_OK")
-    flags["R_SM_FLAG"] = safe_bool_array(tab, "R_SM_FLAG")
-    flags["H_SM_FLAG"] = safe_bool_array(tab, "H_SM_FLAG")
-    flags["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
-    flags["GAL_CV_OK"] = safe_bool_array(tab, "GAL_CV_OK")
-
-    filt_col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
-    if filt_col is not None:
-        filtcor = safe_float_array(tab, filt_col)
-    else:
-        filtcor = np.full(len(tab), np.nan)
-
-    flags["FILTER_CORR"] = filtcor
-    flags["FILTER_WARNING"] = np.isfinite(filtcor) & (filtcor > max_ha_filter_correction)
-
-    # broader row families
-    flags["R_DUP_OK"] = flags["MASK_OK"] & flags["PHOT_OK"]
-    flags["HA_DUP_OK"] = flags["MASK_OK"] & flags["PHOT_OK"] & (~flags["FILTER_WARNING"])
-
-    flags["R_SM_OK"] = flags["R_SM_FLAG"]
-    flags["H_SM_OK"] = flags["H_SM_FLAG"] & (~flags["FILTER_WARNING"])
-
+    # duplicate-specific aliases
+    flags["R_DUP_OK"] = flags["MASK_PHOT_OK"]
+    flags["HA_DUP_OK"] = flags["MASK_PHOT_OK"] & (~flags["FILTER_WARNING"])
     flags["GALFIT_NC_OK"] = flags["GAL_NC_OK"]
     flags["GALFIT_CV_OK"] = flags["GAL_CV_OK"]
-    flags["GALFIT_ANY_OK"] = flags["GAL_NC_OK"] | flags["GAL_CV_OK"]
 
     return flags
+
+# def build_row_flags(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
+#     """
+#     Construct row-level QC flags.
+
+#     R-band analyses remain usable even when Halpha filter correction is bad.
+#     Halpha analyses are more restrictive.
+#     """
+#     flags = {}
+
+#     flags["MASK_OK"] = safe_bool_array(tab, "MASK_OK")
+#     flags["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
+#     flags["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
+#     flags["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
+#     flags["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
+#     flags["R_SM_OK"] = safe_bool_array(tab, "R_SM_FLAG")
+#     flags["H_SM_OK"] = safe_bool_array(tab, "H_SM_FLAG")
+#     flags["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
+#     flags["GAL_CV_OK"] = safe_bool_array(tab, "GAL_CV_OK")
+
+#     filt_col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
+#     if filt_col is not None:
+#         filtcor = safe_float_array(tab, filt_col)
+#     else:
+#         filtcor = np.full(len(tab), np.nan)
+
+#     flags["FILTER_CORR"] = filtcor
+#     flags["FILTER_WARNING"] = np.isfinite(filtcor) & (filtcor > max_ha_filter_correction)
+
+#     # broader row families
+#     flags["R_DUP_OK"] = flags["MASK_OK"] & flags["PHOT_OK"]
+#     flags["H_DUP_OK"] = flags["MASK_OK"] & flags["PHOT_OK"] & (~flags["FILTER_WARNING"])
+
+#     flags["R_SM_OK"] = flags["R_SM_FLAG"]
+#     flags["H_SM_OK"] = flags["H_SM_FLAG"] & (~flags["FILTER_WARNING"])
+
+#     flags["GALFIT_NC_OK"] = flags["GAL_NC_OK"]
+#     flags["GALFIT_CV_OK"] = flags["GAL_CV_OK"]
+#     flags["GALFIT_ANY_OK"] = flags["GAL_NC_OK"] | flags["GAL_CV_OK"]
+
+#     return flags
 
 
 def pair_mask_from_row_flag(pairtab: Table, rowflag: np.ndarray) -> np.ndarray:
@@ -688,8 +612,8 @@ def main():
     flags = build_row_flags(tab, max_ha_filter_correction=args.max_ha_filter_correction)
 
     # resolve FWHM columns, including typo fallback
-    r_fwhm_col = first_populated_col(tab, ["R_FWHM", "R_FHWM"])
-    h_fwhm_col = first_populated_col(tab, ["H_FWHM", "H_FHWM"])
+    r_fwhm_col = first_populated_col(tab, ["R_FWHM_PSF", "R_FWHM", "R_FHWM"])
+    h_fwhm_col = first_populated_col(tab, ["H_FWHM_PSF", "H_FWHM", "H_FHWM"])
 
     if r_fwhm_col is not None:
         print(f"Using {r_fwhm_col} for R-band FWHM coloring")
@@ -704,7 +628,7 @@ def main():
         "same_tel_pairs": pairtab["same_tel"],
         "cross_tel_pairs": ~pairtab["same_tel"],
         "r_pairs": pair_mask_from_row_flag(pairtab, flags["R_DUP_OK"]),
-        "ha_pairs": pair_mask_from_row_flag(pairtab, flags["HA_DUP_OK"]),
+        "ha_pairs": pair_mask_from_row_flag(pairtab, flags["H_DUP_OK"]),
         "r_sm_pairs": pair_mask_from_row_flag(pairtab, flags["R_SM_OK"]),
         "h_sm_pairs": pair_mask_from_row_flag(pairtab, flags["H_SM_OK"]),
         "galfit_nc_pairs": pair_mask_from_row_flag(pairtab, flags["GALFIT_NC_OK"]),
@@ -732,11 +656,11 @@ def main():
     ]
 
     ha_cols = [
-        "HA_TOT_FLUX_CGS", "HA_R24_FLUX_CGS", "HA30R24_FLUX_CGS",
-        "HA_ISO5E17_FLUX_CGS", "HA_ISO17E18_FLUX_CGS",
-        "HA_MAXDET_ARCSEC", "HA25_ARCSEC", "HA50_ARCSEC", "HA75_ARCSEC",
-        "HA_ISO5E17_ARCSEC", "HA_ISO17E18_ARCSEC",
-        "HA_C30_R24", "HA_PETRO_CON",
+        "H_TOT_FLUX_CGS", "H_R24_FLUX_CGS", "HA30R24_FLUX_CGS",
+        "H_ISO5E17_FLUX_CGS", "H_ISO17E18_FLUX_CGS",
+        "H_MAXDET_ARCSEC", "HA25_ARCSEC", "HA50_ARCSEC", "HA75_ARCSEC",
+        "H_ISO5E17_ARCSEC", "H_ISO17E18_ARCSEC",
+        "H_C30_R24", "H_PETRO_CON",
         "H_M20", "H_ASYM",
     ]
 
@@ -873,16 +797,16 @@ def main():
         )
     plot_telescope_pair_residuals(
         tab, pairtab, pairmasks["ha_pairs"],
-        "HA_TOT_FLUX_CGS",
-        outdir / "telpair_HA_TOT_FLUX_CGS.png",
-        ylabel="Δ HA_TOT_FLUX_CGS (obs2 - obs1)"
+        "H_TOT_FLUX_CGS",
+        outdir / "telpair_H_TOT_FLUX_CGS.png",
+        ylabel="Δ H_TOT_FLUX_CGS (obs2 - obs1)"
         )
 
     plot_telescope_pair_residuals(
         tab, pairtab, pairmasks["ha_pairs"],
-        "HA_R24_FLUX_CGS",
-        outdir / "telpair_HA_R24_FLUX_CGS.png",
-        ylabel="Δ HA_R24_FLUX_CGS (obs2 - obs1)"
+        "H_R24_FLUX_CGS",
+        outdir / "telpair_H_R24_FLUX_CGS.png",
+        ylabel="Δ H_R24_FLUX_CGS (obs2 - obs1)"
         )
 
     plot_telescope_group_residuals(
@@ -903,11 +827,11 @@ def main():
 
     plot_telescope_group_residuals(
         tab, pairtab, pairmasks["ha_pairs"],
-        "HA_TOT_FLUX_CGS",
-        outdir / "telpair_cross_HA_TOT_FLUX_CGS.png",
+        "H_TOT_FLUX_CGS",
+        outdir / "telpair_cross_H_TOT_FLUX_CGS.png",
         mode="cross",
         logdiff=True,
-        ylabel="Δ log10(HA_TOT_FLUX_CGS)"
+        ylabel="Δ log10(H_TOT_FLUX_CGS)"
         )
 
     plot_telescope_group_residuals(
@@ -928,11 +852,11 @@ def main():
 
     plot_telescope_group_residuals(
         tab, pairtab, pairmasks["ha_pairs"],
-        "HA_TOT_FLUX_CGS",
-        outdir / "telpair_same_HA_TOT_FLUX_CGS.png",
+        "H_TOT_FLUX_CGS",
+        outdir / "telpair_same_H_TOT_FLUX_CGS.png",
         mode="same",
         logdiff=True,
-        ylabel="Δ log10(HA_TOT_FLUX_CGS)"
+        ylabel="Δ log10(H_TOT_FLUX_CGS)"
         )
     # summary tables
     summary_tabs = [

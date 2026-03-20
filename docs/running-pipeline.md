@@ -131,7 +131,7 @@ run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
 ### Create a list of cutouts:
 
 ```bash
-find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_list.txt
+find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_with_dir.txt
 ```
 
 check that the file contains, e.g., `cutouts/VFID2943-NGC2604-INT-20190204-p010`
@@ -234,7 +234,17 @@ python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits
 # Build Webpages to Review Cutouts
 
 ## Download Legacy Images
+### To copy legacy images from a prior run
 
+Run this command from the directory that contains
+e.g. `hapy-output-20260313` and `hapy-output-20260319`.
+```
+rsync -av hapy-output-20260313/cutouts/ hapy-output-20260319/cutouts/
+--include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
+--ignore-existing --prune-empty-dirs
+```
+
+### To download images...
 To test on one cutout:
 ```bash
 python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
@@ -264,13 +274,6 @@ parallel --resume-failed --joblog fetch_legacy.joblog \
 ```
 
 
-## To copy legacy images from a prior run
-
-```
-rsync -av hapy-output-20260310/cutouts/ hapy-output-20260313/cutouts/
---include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
---ignore-existing --prune-empty-dirs
-```
 
 ## Build Cutout Webpages
 Create a list of the cutout images:
