@@ -261,7 +261,7 @@ ROOTDIR=/data-pool/Halpha/hapy-output-20260310
 ```
 then
 ```bash
-parallel --bar -j 8 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py --cutout-dir "$ROOTDIR/cutouts/{}" --layer ls-dr10 :::: cutout_list.txt
+parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir "$ROOTDIR/cutouts/{}"  :::: cutout_list.txt
 ```
   
 ### to resume any failed jobs
