@@ -698,7 +698,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
 
-def plot_qc_dashboard(tab, outpath):
+def plot_qc_dashboard_v1(tab, outpath):
     """
     Make a compact QC dashboard for HAPY merged results.
 
@@ -821,6 +821,178 @@ def plot_qc_dashboard(tab, outpath):
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
 
+def plot_qc_dashboard(tab, outpath):
+    """
+    Make a compact QC dashboard for HAPY merged results.
+
+    Requires:
+      - add_science_columns(tab)
+      - add_qc_flags(tab)
+
+    Output:
+      - one PNG summary figure
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    n = len(tab)
+
+    def safe_float(colname):
+        if colname not in tab.colnames:
+            return np.full(n, np.nan)
+        out = np.full(n, np.nan)
+        for i, v in enumerate(tab[colname]):
+            try:
+                out[i] = float(v)
+            except Exception:
+                pass
+        return out
+
+    def safe_str(colname, default=""):
+        if colname not in tab.colnames:
+            return np.full(n, default, dtype="U8")
+        out = np.full(n, default, dtype="U8")
+        for i, v in enumerate(tab[colname]):
+            out[i] = str(v)
+        return out
+
+    def scatter_by_tier(ax, x, y, tier, xlabel, ylabel, title, one_to_one=False, logx=False, logy=False):
+        good = np.isfinite(x) & np.isfinite(y)
+        if logx:
+            good &= (x > 0)
+        if logy:
+            good &= (y > 0)
+
+        if np.sum(good) == 0:
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+            ax.set_title(title)
+            return
+
+        # Matplotlib default tab colors
+        tier_order = ["A", "B", "C", "D", "F"]
+        tier_colors = {
+            "A": "C2",   # green
+            "B": "C0",   # blue
+            "C": "C1",   # orange
+            "D": "C3",   # red
+            "F": "0.5",  # gray
+        }
+
+        for t in tier_order:
+            m = good & (tier == t)
+            if np.sum(m) == 0:
+                continue
+            ax.scatter(x[m], y[m], s=14, alpha=0.75, label=t, color=tier_colors[t])
+
+        if logx:
+            ax.set_xscale("log")
+        if logy:
+            ax.set_yscale("log")
+
+        if one_to_one and np.sum(good) > 0:
+            if logx or logy:
+                lo = np.nanmin([np.nanmin(x[good]), np.nanmin(y[good])])
+                hi = np.nanmax([np.nanmax(x[good]), np.nanmax(y[good])])
+                if np.isfinite(lo) and np.isfinite(hi) and lo > 0 and hi > 0:
+                    ax.plot([lo, hi], [lo, hi], "k--", lw=1)
+            else:
+                lo = np.nanmin([np.nanmin(x[good]), np.nanmin(y[good])])
+                hi = np.nanmax([np.nanmax(x[good]), np.nanmax(y[good])])
+                ax.plot([lo, hi], [lo, hi], "k--", lw=1)
+
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+
+    tier = safe_str("QC_TIER", default="?")
+    r50 = safe_float("R50_ARCSEC")
+    h50 = safe_float("H50_ARCSEC")
+    h_npix = safe_float("H_HAPY_NPIX")
+    h_snr = safe_float("H_HAPY_SNP_DET")
+    h_gini = safe_float("H_HAPY_GINI")
+    r_gini = safe_float("R_HAPY_GINI")
+    h_m20 = safe_float("H_HAPY_M20")
+    r_m20 = safe_float("R_HAPY_M20")
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
+    axes = axes.ravel()
+
+    # --------------------------------------------------
+    # 1. QC tier counts
+    # --------------------------------------------------
+    ax = axes[0]
+    tiers = ["A", "B", "C", "D", "F"]
+    counts = [np.sum(tier == t) for t in tiers]
+    colors = ["C2", "C0", "C1", "C3", "0.5"]
+    ax.bar(range(len(tiers)), counts, color=colors)
+    ax.set_xticks(range(len(tiers)))
+    ax.set_xticklabels(tiers)
+    ax.set_ylabel("N")
+    ax.set_title("QC tier counts")
+
+    # --------------------------------------------------
+    # 2. H50 vs R50
+    # --------------------------------------------------
+    scatter_by_tier(
+        axes[1], r50, h50, tier,
+        xlabel="R50_ARCSEC",
+        ylabel="H50_ARCSEC",
+        title="Hα vs stellar half-light radius",
+        one_to_one=True,
+    )
+
+    # --------------------------------------------------
+    # 3. Halpha robustness
+    # --------------------------------------------------
+    scatter_by_tier(
+        axes[2], h_npix, h_snr, tier,
+        xlabel="H_HAPY_NPIX",
+        ylabel="H_HAPY_SNP_DET",
+        title="Hα detection robustness",
+        logx=True,
+    )
+
+    # --------------------------------------------------
+    # 4. Halpha vs stellar Gini
+    # --------------------------------------------------
+    scatter_by_tier(
+        axes[3], r_gini, h_gini, tier,
+        xlabel="R_HAPY_GINI",
+        ylabel="H_HAPY_GINI",
+        title="Hα vs stellar Gini",
+        one_to_one=True,
+    )
+
+    # --------------------------------------------------
+    # 5. Halpha vs stellar M20
+    # --------------------------------------------------
+    scatter_by_tier(
+        axes[4], r_m20, h_m20, tier,
+        xlabel="R_HAPY_M20",
+        ylabel="H_HAPY_M20",
+        title="Hα vs stellar M20",
+        one_to_one=True,
+    )
+
+    # --------------------------------------------------
+    # 6. Halpha morphology plane
+    # --------------------------------------------------
+    scatter_by_tier(
+        axes[5], h_gini, h_m20, tier,
+        xlabel="H_HAPY_GINI",
+        ylabel="H_HAPY_M20",
+        title="Hα morphology plane",
+    )
+
+    # one legend for all scatter panels
+    handles, labels = axes[5].get_legend_handles_labels()
+    if len(handles) > 0:
+        fig.legend(handles, labels, title="QC_TIER", loc="upper right")
+
+    plt.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)
 # ----------------------------------------------------------------------
 # subset writing
 # ----------------------------------------------------------------------
