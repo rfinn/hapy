@@ -175,7 +175,7 @@ def write_index(entries, outfile):
         lines.append(f"<td>{e['r_fwhm']}</td>")
         lines.append(f"<td>{e['h_fwhm']}</td>")        
         lines.append(f"<td>{status_cell(e['mask_ok'])}</td>")
-        lines.append(f"<td>{status_cell(e['bright_star'])}</td>")
+        lines.append(f"<td>{status_cell((e['bright_star']==0))}</td>")
         lines.append(f"<td>{status_cell(e['phot_ok'])}</td>")
 
         lines.append(f"<td>{status_cell(e['r_prof_ok'])}</td>")
