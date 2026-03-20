@@ -1616,13 +1616,13 @@ class build_html_cutout():
         '''  mask diagnostic plot '''
         self.html.write('<h2>Mask Diagnostics</h2>\n')
 
-        labels = ['ELL0 Maskfrac', 'ELL0 Mask Warn', 'Phot Ell Maskfrac', \
+        labels = ['ELL0 Maskfrac',  'Phot Ell Maskfrac','ELL0 Mask Warn', \
                       'R Prof Maskfrac', 'H Prof Maskfrac', 'Ell mismatch',\
                       'Bright Star Flag','BS Dist','BS Mask Rad','BS Mag']
         data = [
             fmt_result(self.cutout.results,'ELL0_MASKFRAC', '{:.2f}'),
-            status_cell(get_result(self.cutout.results,'ELL0_MASK_WARN')),            
             fmt_result(self.cutout.results,'MASKFRAC_GUESS_ELLIPSE', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'ELL0_MASK_WARN')),                        
             fmt_result(self.cutout.results,'R_PROFILE_MASKFRAC_MAX', '{:.2f}'),
             fmt_result(self.cutout.results,'H_PROFILE_MASKFRAC_MAX', '{:.2f}'),
             status_cell(get_result(self.cutout.results,'ELL_MISMATCH')),
