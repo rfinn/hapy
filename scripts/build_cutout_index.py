@@ -66,6 +66,7 @@ def collect_entries(runroot):
         legacy_jpg = find_local_legacy_jpg(subdir)
 
         mask_ok = get_result(results_row, "MASK_OK", None)
+        bright_star = get_result(results_row, "BRIGHT_STAR_FLAG", None)
         phot_ok = get_result(results_row, "PHOT_OK", None)
         psf_ok = get_result(results_row, "PSF_OK", None)
 
@@ -88,6 +89,7 @@ def collect_entries(runroot):
             legacy_jpg=legacy_jpg,
             results_row=results_row,
             mask_ok=mask_ok,
+            bright_star=bright_star,
             phot_ok=phot_ok,
             psf_ok=psf_ok,
             profile_ok=profile_ok,
@@ -137,6 +139,7 @@ def write_index(entries, outfile):
         "R FWHM",
         "H FWHM",        
         "Mask",
+        "Star Flag",
         "Phot",  
         "R Prof",
         "H Prof",        
@@ -172,6 +175,7 @@ def write_index(entries, outfile):
         lines.append(f"<td>{e['r_fwhm']}</td>")
         lines.append(f"<td>{e['h_fwhm']}</td>")        
         lines.append(f"<td>{status_cell(e['mask_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['bright_star'])}</td>")
         lines.append(f"<td>{status_cell(e['phot_ok'])}</td>")
 
         lines.append(f"<td>{status_cell(e['r_prof_ok'])}</td>")
