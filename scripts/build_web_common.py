@@ -127,7 +127,7 @@ def write_coadd_prop_table(html,filter,zp,fwhm_arcsec):
     html.write('</tr>\n')
     html.write('</table>\n')
 
-def write_table(html,images=None,labels=None,images2=None):    
+def write_table(html,images=None,labels=None,images2=None,width="100%"):    
     html.write('<table width="90%"; table-layout: fixed>\n')
     html.write('<tr>')
     for l in labels:
@@ -135,7 +135,7 @@ def write_table(html,images=None,labels=None,images2=None):
     html.write('</tr></p>\n')        
     html.write('<tr>')
     for i in images:
-        html.write('<td><a href="{0}"><img src="{1}" alt="Missing file {0}" height="auto" width="100%"></a></td>'.format(i,i))
+        html.write(f'<td><a href="{0}"><img src="{i}" alt="Missing file {i}" height="auto" width={width}></a></td>')
     html.write('</tr>\n')
     if images2 is not None:
         html.write('<tr>')
