@@ -26,7 +26,7 @@ from astropy.table import Table
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
 from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
-from qc_helpers import build_row_qc_flags
+from qc_helpers import build_row_qc_flags, ensure_dir
 # ----------------------------------------------------------------------
 # some science
 # ----------------------------------------------------------------------
