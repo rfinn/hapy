@@ -1615,16 +1615,6 @@ class build_html_cutout():
     def write_mask_diagnostics(self):
         '''  mask diagnostic plot '''
         self.html.write('<h2>Mask Diagnostics</h2>\n')
-        if self.cutout.mask_diagnostic is not None:
-            images = [self.cutout.mask_diagnostic]
-            images = [os.path.basename(i) for i in images]
-            labels = ['HAPY Mask']
-
-            write_table(self.html,images=images,labels=labels,width="50%")
-        # add table with
-        # bright star quantities, mask fraction
-        #write_text_table(self.html, labels, data)
-
 
         labels = ['ELL0 Maskfrac', 'ELL0 Mask Warn', 'Phot Ell Maskfrac', \
                       'R Prof Maskfrac', 'H Prof Maskfrac', 'Ell mismatch',\
@@ -1642,6 +1632,18 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'BRIGHT_STAR_MAG', '{:.2f}'),            
         ]
         write_text_table(self.html, labels, data)
+
+        if self.cutout.mask_diagnostic is not None:
+            images = [self.cutout.mask_diagnostic]
+            images = [os.path.basename(i) for i in images]
+            labels = ['HAPY Mask']
+
+            write_table(self.html,images=images,labels=labels,width="50%")
+        # add table with
+        # bright star quantities, mask fraction
+        #write_text_table(self.html, labels, data)
+
+        
     def write_brightstar_table(self):
         self.html.write('<h2>Bright Star Information</h2>\n')
 
