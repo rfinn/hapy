@@ -1927,7 +1927,7 @@ class build_html_cutout():
             pdf_name = os.path.basename(self.cutout.sm_h_pdf)
             self.html.write(f'<p><b>Halpha statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             #self.html.write(f'<iframe src="{pdf_name}" width="90%" height="700px" ></iframe>\n')
-            self.html.write(f'<embed src="{pdf_name}" width="90%" height="800px" ></embed\n')
+            self.html.write(f'<embed src="{pdf_name}" width="90%" height="800px" ></embed>\n')
         
     # def write_statmorph_table(self):
     #     self.html.write('<h2>Statmorph Parameters</h2>\n')
