@@ -936,7 +936,7 @@ def main():
     row["PHOT_SEC"] = 0.0
     row["GAL_NC_SEC"] = 0.0
     row["GAL_CV_SEC"] = 0.0    
-    row["STATMORPH_SEC"] = 0.0    
+    row["SM_SEC"] = 0.0    
     row["TOTAL_SEC"] = 0.0
 
     row["R_FITS"] = r_fits
@@ -1441,7 +1441,7 @@ def main():
             except Exception:
                 pass
         # write table after statmorph
-        row["STATMORPH_SEC"] = _scalar(time.perf_counter() - t0)        
+        row["SM_SEC"] = _scalar(time.perf_counter() - t0)        
         write_result_row_ecsv(results_path, row)
  
     

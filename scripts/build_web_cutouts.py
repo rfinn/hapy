@@ -469,6 +469,7 @@ class cutout_dir():
         #self.make_cs_png(grauto=True)                
         #self.get_galfit_model()
         self.copy_hapy_gini_pdf()
+        self.copy_mask_diagnostic()
         self.copy_statmorph_pdfs()
         self.get_galfit_images()
 
@@ -801,6 +802,33 @@ class cutout_dir():
         else:
             print(f"No hapy gini PDF found in {self.cutoutdir}")
 
+    def copy_mask_diagnostic(self):
+        """Copy hapy gini PDF from cutoutdir to outdir."""
+
+        
+        # ensure output directory exists
+        os.makedirs(self.outdir, exist_ok=True)
+
+        # initialize attributes (important for downstream HTML logic)
+        self.mask_diagnostic = None
+
+
+        # --- R-band PDF ---
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-diagnositic.png"))
+
+        if len(r_matches) > 0:
+            mask_diag = r_matches[0]
+            self.mask_diagnostic = os.path.join(self.outdir, os.path.basename(mask_diag))
+
+            try:
+                shutil.copy2(mask_diag, self.mask_diagnostic)
+            except Exception as e:
+                print(f"Error copying mask diagnostic: {mask_diag}")
+                print(e)
+                self.sm_r_pdf = None
+        else:
+            print(f"No mask diagnostic found in {self.cutoutdir}")
+            
 
     def get_galfit_results_nc(self):
         """
@@ -1398,7 +1426,9 @@ class build_html_cutout():
         #if self.cutout.wise_flag:
         #    self.write_wise_images()
         self.write_halpha_images()
-        
+
+        self.write_mask_diagnostics()
+        self.write_brightstar_table()
         #if self.cutout.legacy_flag:
         #    self.write_legacy_images()
         
@@ -1582,6 +1612,54 @@ class build_html_cutout():
         #labels = ['Halpha+Cont','R','CS, stretch 1','CS, stretch 2']        
         write_table(self.html,images=images,labels=labels)
 
+    def write_mask_diagnostics(self):
+        '''  mask diagnostic plot '''
+        self.html.write('<h2>Mask Diagnostics</h2>\n')
+        if self.cutout.mask_diagnostic is not None:
+            images = [self.cutout.mask_diagnostic]
+            labels = ['HAPY Mask']
+
+            write_table(self.html,images=images,labels=labels)
+        # add table with
+        # bright star quantities, mask fraction
+        write_text_table(self.html, labels,data)
+
+
+        labels = ['ELL0 Maskfrac', 'ELL0 Mask Warning', 'Phot Ell Maskfrac', \
+                      'R Profile Maskfrac', 'H Profile Maskfrac', 'Ell mismatch']
+        data = [
+            fmt_result(self.cutout.results,'ELL0_MASKFRAC', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'ELL0_MASK_WARN')),            
+            fmt_result(self.cutout.results,'MASKFRAC_GUESS_ELLIPSE', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_PROFILE_MASKFRAC_MAX', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_PROFILE_MASKFRAC_MAX', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'ELL_MISMATCH')),
+            status_cell(get_result(self.cutout.results,'BRIGHT_STAR_FLAG')),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_DIST', '{:.2f}'),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_DIST', '{:.2f}'),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_MASKRAD_ARCSEC', '{:.2f}'),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_MAG', '{:.2f}'),            
+        ]
+        write_text_table(self.html, labels, data)
+    def write_brightstar_table(self):
+        self.html.write('<h2>Bright Star Information</h2>\n')
+
+        labels = ['Bright Star Flag', 'Dist to nearest BS', 'Nearest BS mask rad', 'Nearest BS Mag']
+        data = [
+            fmt_result(self.cutout.results,'ELL0_MASKFRAC', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'ELL0_MASK_WARN')),            
+            fmt_result(self.cutout.results,'MASKFRAC_GUESS_ELLIPSE', '{:.2f}'),
+            fmt_result(self.cutout.results,'R_PROFILE_MASKFRAC_MAX', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_PROFILE_MASKFRAC_MAX', '{:.2f}'),
+            status_cell(get_result(self.cutout.results,'ELL_MISMATCH')),
+            status_cell(get_result(self.cutout.results,'BRIGHT_STAR_FLAG')),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_DIST', '{:.2f}'),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_MASKRAD_ARCSEC', '{:.2f}'),
+            fmt_result(self.cutout.results,'BRIGHT_STAR_MAG', '{:.2f}'),            
+        ]
+        write_text_table(self.html, labels, data)
+        
+        
     def write_mstar_sfr_images(self):
         '''  TODO : add panel for stellar mass, sfr and ssfr '''
         self.html.write('<h2>Halpha Images</h2>\n')        
