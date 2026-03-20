@@ -814,7 +814,7 @@ class cutout_dir():
 
 
         # --- R-band PDF ---
-        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-diagnositic.png"))
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-diagnostic.png"))
 
         if len(r_matches) > 0:
             mask_diag = r_matches[0]
