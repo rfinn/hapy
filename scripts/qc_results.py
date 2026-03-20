@@ -484,7 +484,7 @@ def write_text_summary(tab: Table, masks: dict[str, np.ndarray], outpath: Path, 
 # ----------------------------------------------------------------------
 
 def plot_flag_completion(tab: Table, outpath: Path) -> None:
-    flags = find_status_columns(tab)
+    flags = find_ok_columns(tab)
     if len(flags) == 0:
         return
 
