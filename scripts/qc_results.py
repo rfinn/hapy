@@ -638,7 +638,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
     """
 
     required = [
-        "BRIGHT_STAR_DIST_ARCSEC",
+        "BRIGHT_STAR_DIST",
         "BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC",
         "PHOT_OK",
         "R_PROFILE_OK",
