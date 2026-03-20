@@ -263,9 +263,14 @@ parallel --resume-failed --joblog fetch_legacy.joblog \
   :::: cutout_list.txt
 ```
 
+
+## To copy legacy images from a prior run
+
+```
 rsync -av hapy-output-20260310/cutouts/ hapy-output-20260313/cutouts/
 --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
 --ignore-existing --prune-empty-dirs
+```
 
 ## Build Cutout Webpages
 Create a list of the cutout images:

@@ -1147,7 +1147,8 @@ class EllipsePhotometry():
                 if np.any(finite):
                     self.R_HAPY_SNP_ALL = float(np.nanmean(rvals_pos[finite] / r_sigma_sky))
             else:
-                self.HAPY_MORPH_FLAG |= 8
+               # Not fatal — just means we can't compute SNP
+               self.R_HAPY_SNP_ALL = np.nan
 
             # -----------------------------
             # R-band centroid and M20
