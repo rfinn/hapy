@@ -1617,19 +1617,20 @@ class build_html_cutout():
         self.html.write('<h2>Mask Diagnostics</h2>\n')
 
         labels = ['ELL0 Maskfrac',  'Phot Ell Maskfrac','ELL0 Mask Warn', \
-                      'R Prof Maskfrac', 'H Prof Maskfrac', 'Ell mismatch',\
-                      'Bright Star Flag','BS Dist','BS Mask Rad','BS Mag']
+                       'Ell mismatch',\
+                      'Bright Star Flag','BS Dist','BS Mask Rad','BS Mag',\
+                      'R Prof Maskfrac', 'H Prof Maskfrac',]
         data = [
             fmt_result(self.cutout.results,'ELL0_MASKFRAC', '{:.2f}'),
             fmt_result(self.cutout.results,'MASKFRAC_GUESS_ELLIPSE', '{:.2f}'),
             status_cell(get_result(self.cutout.results,'ELL0_MASK_WARN')),                        
-            fmt_result(self.cutout.results,'R_PROFILE_MASKFRAC_MAX', '{:.2f}'),
-            fmt_result(self.cutout.results,'H_PROFILE_MASKFRAC_MAX', '{:.2f}'),
             status_cell(get_result(self.cutout.results,'ELL_MISMATCH')),
             status_cell(get_result(self.cutout.results,'BRIGHT_STAR_FLAG')),
             fmt_result(self.cutout.results,'BRIGHT_STAR_DIST', '{:.2f}'),
             fmt_result(self.cutout.results,'BRIGHT_STAR_MASKRAD_ARCSEC', '{:.2f}'),
             fmt_result(self.cutout.results,'BRIGHT_STAR_MAG', '{:.2f}'),            
+            fmt_result(self.cutout.results,'R_PROFILE_MASKFRAC_MAX', '{:.2f}'),
+            fmt_result(self.cutout.results,'H_PROFILE_MASKFRAC_MAX', '{:.2f}'),
         ]
         write_text_table(self.html, labels, data)
 
