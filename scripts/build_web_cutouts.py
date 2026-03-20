@@ -1622,7 +1622,7 @@ class build_html_cutout():
             write_table(self.html,images=images,labels=labels)
         # add table with
         # bright star quantities, mask fraction
-        write_text_table(self.html, labels,data)
+        #write_text_table(self.html, labels, data)
 
 
         labels = ['ELL0 Maskfrac', 'ELL0 Mask Warning', 'Phot Ell Maskfrac', \
