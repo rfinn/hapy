@@ -1428,7 +1428,7 @@ class build_html_cutout():
         self.write_halpha_images()
 
         self.write_mask_diagnostics()
-        self.write_brightstar_table()
+        #self.write_brightstar_table()
         #if self.cutout.legacy_flag:
         #    self.write_legacy_images()
         
@@ -1617,6 +1617,7 @@ class build_html_cutout():
         self.html.write('<h2>Mask Diagnostics</h2>\n')
         if self.cutout.mask_diagnostic is not None:
             images = [self.cutout.mask_diagnostic]
+            images = [os.path.basename(i) for i in images]
             labels = ['HAPY Mask']
 
             write_table(self.html,images=images,labels=labels)
@@ -1625,8 +1626,9 @@ class build_html_cutout():
         #write_text_table(self.html, labels, data)
 
 
-        labels = ['ELL0 Maskfrac', 'ELL0 Mask Warning', 'Phot Ell Maskfrac', \
-                      'R Profile Maskfrac', 'H Profile Maskfrac', 'Ell mismatch']
+        labels = ['ELL0 Maskfrac', 'ELL0 Mask Warn', 'Phot Ell Maskfrac', \
+                      'R Prof Maskfrac', 'H Prof Maskfrac', 'Ell mismatch',\
+                      'Bright Star Flag','BS Dist','BS Mask Rad','BS Mag']
         data = [
             fmt_result(self.cutout.results,'ELL0_MASKFRAC', '{:.2f}'),
             status_cell(get_result(self.cutout.results,'ELL0_MASK_WARN')),            
@@ -1635,7 +1637,6 @@ class build_html_cutout():
             fmt_result(self.cutout.results,'H_PROFILE_MASKFRAC_MAX', '{:.2f}'),
             status_cell(get_result(self.cutout.results,'ELL_MISMATCH')),
             status_cell(get_result(self.cutout.results,'BRIGHT_STAR_FLAG')),
-            fmt_result(self.cutout.results,'BRIGHT_STAR_DIST', '{:.2f}'),
             fmt_result(self.cutout.results,'BRIGHT_STAR_DIST', '{:.2f}'),
             fmt_result(self.cutout.results,'BRIGHT_STAR_MASKRAD_ARCSEC', '{:.2f}'),
             fmt_result(self.cutout.results,'BRIGHT_STAR_MAG', '{:.2f}'),            
