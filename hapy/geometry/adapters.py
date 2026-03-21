@@ -77,6 +77,7 @@ def pa_ccw_north_to_photutils_theta(pa_deg: float) -> float:
 
     Ellipse angles are 180-deg periodic.
     """
+
     return float((90.0 + pa_deg) % 180.0)
 
 

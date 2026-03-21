@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import numpy as np
 from astropy.table import Table
-from hapy.utils.astro import KE_SFR
+#from hapy.utils.astro import KE_SFR_from_redshift
 
 # ----------------------------------------------------------------------
 # QC defaults
@@ -151,22 +151,22 @@ def add_science_columns(tab: Table) -> Table:
     if "DELTA_M20" not in tab.colnames:
         tab["DELTA_M20"] = h_m20 - r_m20
 
-    # Optional Halpha SFR column
-    redshift_col = None
-    for c in ["REDSHIFT", "Z", "ZDIST", "ZDIST", "vr"]:
-        if c in tab.colnames:
-            redshift_col = c
-            break
+    # # Optional Halpha SFR column
+    # redshift_col = None
+    # for c in ["REDSHIFT", "Z", "ZDIST", "ZDIST", "vr"]:
+    #     if c in tab.colnames:
+    #         redshift_col = c
+    #         break
 
-    if "LOG_SFR_HA" not in tab.colnames and redshift_col is not None:
-        haflux = safe_float_array(tab, "H_TOT_FLUX_CGS")
-        z = safe_float_array(tab, redshift_col)
+    # if "LOG_SFR_HA" not in tab.colnames and redshift_col is not None:
+    #     haflux = safe_float_array(tab, "H_TOT_FLUX_CGS")
+    #     z = safe_float_array(tab, redshift_col)
 
-        # If only velocity exists, convert to redshift approximately
-        if redshift_col.lower() == "vr":
-            z = z / 3.0e5
+    #     # If only velocity exists, convert to redshift approximately
+    #     if redshift_col.lower() == "vr":
+    #         z = z / 3.0e5
 
-        tab["LOG_SFR_HA"] = KE_SFR(haflux, z)
+    #     tab["LOG_SFR_HA"] = KE_SFR(haflux, z)
         
     return tab
 

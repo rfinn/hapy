@@ -12,7 +12,7 @@ import numpy as np
 from astropy.cosmology import WMAP9 as cosmo
 
 
-def KE_SFR(haflux, redshift):
+def KE_SFR_from_redshift(haflux, redshift):
     """
     Convert Halpha flux to log10(SFR / Msun yr^-1)
     using the Kennicutt & Evans (2012) calibration.
@@ -41,6 +41,25 @@ def KE_SFR(haflux, redshift):
     redshift = np.asarray(redshift, dtype=float)
 
     L = haflux * (4.0 * np.pi * cosmo.luminosity_distance(redshift).cgs.value**2)
+
+    logsfr = np.full(np.shape(L), np.nan, dtype=float)
+    good = np.isfinite(L) & (L > 0)
+    logsfr[good] = np.log10(L[good]) - 41.27
+
+    if logsfr.ndim == 0:
+        return float(logsfr)
+
+    return logsfr
+
+
+def KE_SFR_from_distance(haflux, dist_mpc):
+    import numpy as np
+
+    haflux = np.asarray(haflux, dtype=float)
+    dist_mpc = np.asarray(dist_mpc, dtype=float)
+
+    d_cm = dist_mpc * 3.085677581e24
+    L = haflux * (4.0 * np.pi * d_cm**2)
 
     logsfr = np.full(np.shape(L), np.nan, dtype=float)
     good = np.isfinite(L) & (L > 0)
