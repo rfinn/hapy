@@ -377,7 +377,9 @@ def plot_firstlook_dashboard(tab: Table, outpath: Path, sample_label: str) -> No
         ylabel="DELTA_M20",
         title="Differential morphology plane"
     )
-
+    plt.sca(axes[5])
+    plt.axhline(y=0,ls='--',color='k')
+    plt.axvline(x=0,ls='--',color='k')    
     handles, labels = axes[5].get_legend_handles_labels()
     if len(handles) > 0:
         fig.legend(handles, labels, title="QC_TIER", loc="upper right")

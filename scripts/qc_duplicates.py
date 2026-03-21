@@ -39,7 +39,7 @@ from astropy.table import Table, vstack
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
 from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
-from qc_helpers import build_row_qc_flags, ensure_dir
+from qc_helpers import build_row_qc_flags, ensure_dir, median_and_mad
 
 # ----------------------------------------------------------------------
 # helpers
@@ -108,7 +108,7 @@ def build_row_flags(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[s
 
     # duplicate-specific aliases
     flags["R_DUP_OK"] = flags["MASK_PHOT_OK"]
-    flags["HA_DUP_OK"] = flags["MASK_PHOT_OK"] & (~flags["FILTER_WARNING"])
+    flags["H_DUP_OK"] = flags["MASK_PHOT_OK"] & (~flags["FILTER_WARNING"])
     flags["GALFIT_NC_OK"] = flags["GAL_NC_OK"]
     flags["GALFIT_CV_OK"] = flags["GAL_CV_OK"]
 
