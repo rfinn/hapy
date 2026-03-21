@@ -27,6 +27,9 @@ import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
 from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
 from qc_helpers import build_row_qc_flags, ensure_dir, median_and_mad
+
+from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE
+
 # ----------------------------------------------------------------------
 # some science
 # ----------------------------------------------------------------------
@@ -482,6 +485,29 @@ def write_text_summary(tab: Table, masks: dict[str, np.ndarray], outpath: Path, 
 # ----------------------------------------------------------------------
 # plotting
 # ----------------------------------------------------------------------
+def plot_qc_tier_scatter(tab, xcol, ycol, outpath):
+    x = safe_float_array(tab, xcol)
+    y = safe_float_array(tab, ycol)
+    tier = np.array(tab["QC_TIER"]).astype(str)
+
+    good = np.isfinite(x) & np.isfinite(y)
+
+    fig = plt.figure(figsize=(6, 5))
+    ax = plt.gca()
+
+    for t in QC_TIER_ORDER:
+        m = good & (tier == t)
+        if np.sum(m) == 0:
+            continue
+        ax.scatter(x[m], y[m], s=16, alpha=0.7, color=QC_TIER_PALETTE[t], label=t)
+
+    ax.set_xlabel(xcol)
+    ax.set_ylabel(ycol)
+    ax.legend(title="QC Tier")
+    plt.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)
+    
 
 def plot_flag_completion(tab: Table, outpath: Path) -> None:
     flags = find_ok_columns(tab)
@@ -750,9 +776,13 @@ def plot_qc_dashboard_v1(tab, outpath):
     # 1. QC tier counts
     # --------------------------------------------------
     ax = axes[0]
-    tiers = ["A", "B", "C", "D", "F"]
+    #tiers = ["A", "B", "C", "D", "F"]
+    #counts = [np.sum(tier == t) for t in tiers]
+
+    tiers = [t for t in QC_TIER_ORDER if np.any(tier == t)]
     counts = [np.sum(tier == t) for t in tiers]
-    ax.bar(range(len(tiers)), counts)
+    colors = [QC_TIER_PALETTE[t] for t in tiers]
+    ax.bar(range(len(tiers)), counts,color=colors)
     ax.set_xticks(range(len(tiers)))
     ax.set_xticklabels(tiers)
     ax.set_ylabel("N")
@@ -870,20 +900,12 @@ def plot_qc_dashboard(tab, outpath):
             return
 
         # Matplotlib default tab colors
-        tier_order = ["A", "B", "C", "D", "F"]
-        tier_colors = {
-            "A": "C2",   # green
-            "B": "C0",   # blue
-            "C": "C1",   # orange
-            "D": "C3",   # red
-            "F": "0.5",  # gray
-        }
 
-        for t in tier_order:
+        for t in QC_TIER_ORDER:
             m = good & (tier == t)
             if np.sum(m) == 0:
                 continue
-            ax.scatter(x[m], y[m], s=14, alpha=0.75, label=t, color=tier_colors[t])
+            ax.scatter(x[m], y[m], s=14, alpha=0.75, label=t, color=QC_TIER_PALETTE[t])
 
         if logx:
             ax.set_xscale("log")
@@ -922,9 +944,10 @@ def plot_qc_dashboard(tab, outpath):
     # 1. QC tier counts
     # --------------------------------------------------
     ax = axes[0]
-    tiers = ["A", "B", "C", "D", "F"]
+
+    tiers = [t for t in QC_TIER_ORDER if np.any(tier == t)]
     counts = [np.sum(tier == t) for t in tiers]
-    colors = ["C2", "C0", "C1", "C3", "0.5"]
+    colors = [QC_TIER_PALETTE[t] for t in tiers]
     ax.bar(range(len(tiers)), counts, color=colors)
     ax.set_xticks(range(len(tiers)))
     ax.set_xticklabels(tiers)

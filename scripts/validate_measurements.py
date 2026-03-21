@@ -36,7 +36,11 @@ from hapy.utils.results_table import (
     add_qc_flags,
     select_sample,
 )
+from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE, PAIRPLOT_LABELS
+from hapy.utils.plotting import style_pairplot, enforce_qc_tier
 
+
+    
 # ----------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------
@@ -58,10 +62,10 @@ def make_dataframe(tab: Table, columns: list[str]) -> pd.DataFrame:
                     data[col] = np.array(tab[col]).astype(str)
     return pd.DataFrame(data)
 
-
 def clean_pairplot_df(
     df: pd.DataFrame,
     positive_cols: list[str] | None = None,
+    log_cols: list[str] | None = None,
     bad_sentinels: tuple[float, ...] = (-99, -999, 99, 999),
 ) -> pd.DataFrame:
     """
@@ -69,23 +73,32 @@ def clean_pairplot_df(
 
     - replaces common sentinel values with NaN
     - enforces positivity for selected columns
+    - optionally log10-transforms selected columns
     - drops rows with NaN in plotted columns
     """
     out = df.copy()
     positive_cols = positive_cols or []
+    log_cols = log_cols or []
 
     # replace common sentinel values
     for col in out.columns:
         if pd.api.types.is_numeric_dtype(out[col]):
             for bad in bad_sentinels:
-                out.loc[np.isclose(out[col], bad, equal_nan=False), col] = np.nan
+                out.loc[np.isclose(out[col], bad, equal_nan=False)] = np.nan
 
     # require positive values where appropriate
     for col in positive_cols:
         if col in out.columns:
             out.loc[out[col] <= 0, col] = np.nan
 
+    # log-transform selected columns
+    for col in log_cols:
+        if col in out.columns:
+            out.loc[out[col] <= 0, col] = np.nan
+            out[col] = np.log10(out[col])
+
     return out.dropna()
+
 
 def _robust_limits(x, qlo=0.01, qhi=0.99, pad_frac=0.05):
     x = np.asarray(x, dtype=float)
@@ -103,13 +116,27 @@ def _robust_limits(x, qlo=0.01, qhi=0.99, pad_frac=0.05):
     pad = pad_frac * (hi - lo)
     return lo - pad, hi + pad
 
-def _annotate_pairgrid(g, df: pd.DataFrame, hue: str | None = None,
-                       qlo=0.01, qhi=0.99):
+def _annotate_pairgrid(
+    g,
+    df: pd.DataFrame,
+    hue: str | None = None,
+    qlo=0.01,
+    qhi=0.99,
+    log_cols: list[str] | None = None,
+):
     """
-    Add robust limits and ratio annotations to off-diagonal panels
+    Add robust limits and panel annotations to off-diagonal panels
     in a seaborn PairGrid / pairplot.
+
+    For linear quantities:
+        annotate mean(y/x) and std(y/x)
+
+    For logged quantities:
+        annotate median(y-x) and std(y-x)
+        where y-x = log10(y/x)
     """
     vars_ = list(g.x_vars)
+    log_cols = log_cols or []
 
     for i, yvar in enumerate(vars_):
         for j, xvar in enumerate(vars_):
@@ -117,7 +144,7 @@ def _annotate_pairgrid(g, df: pd.DataFrame, hue: str | None = None,
             if ax is None:
                 continue
 
-            # robust limits for all panels
+            # robust limits
             if xvar in df.columns:
                 xlim = _robust_limits(df[xvar].values, qlo=qlo, qhi=qhi)
                 if xlim is not None:
@@ -128,37 +155,73 @@ def _annotate_pairgrid(g, df: pd.DataFrame, hue: str | None = None,
                 if ylim is not None:
                     ax.set_ylim(ylim)
 
-            # only annotate off-diagonal panels
             if i == j:
                 continue
 
             x = np.asarray(df[xvar], dtype=float)
             y = np.asarray(df[yvar], dtype=float)
-            good = np.isfinite(x) & np.isfinite(y) & (x != 0)
+            good = np.isfinite(x) & np.isfinite(y)
 
             if np.sum(good) == 0:
                 continue
 
-            ratio = y[good] / x[good]
-            ratio = ratio[np.isfinite(ratio)]
+            x = x[good]
+            y = y[good]
+            n = len(x)
 
-            if len(ratio) == 0:
-                continue
+            x_logged = xvar in log_cols
+            y_logged = yvar in log_cols
 
-            mean_ratio = np.nanmean(ratio)
-            std_ratio = np.nanstd(ratio)
-            n = len(ratio)
+            if x_logged and y_logged:
+                d = y - x
+                med_d = np.nanmedian(d)
+                std_d = np.nanstd(d)
+                text = (
+                    f"N={n}\n"
+                    f"med Δlog={med_d:.2f}\n"
+                    f"σΔlog={std_d:.2f}"
+                    )
+ 
+            else:
+                good_ratio = x != 0
+                if np.sum(good_ratio) == 0:
+                    continue
+                ratio = y[good_ratio] / x[good_ratio]
+                ratio = ratio[np.isfinite(ratio)]
+
+                if len(ratio) == 0:
+                    continue
+
+                mean_ratio = np.nanmean(ratio)
+                std_ratio = np.nanstd(ratio)
+
+                text = (
+                    f"N={n}\n"
+                    f"⟨y/x⟩={mean_ratio:.2f}\n"
+                    f"σ(y/x)={std_ratio:.2f}"
+                )
 
             ax.text(
                 0.04, 0.96,
-                f"N={n}\n⟨y/x⟩={mean_ratio:.2f}\nσ={std_ratio:.2f}",
+                text,
                 transform=ax.transAxes,
                 ha="left",
                 va="top",
                 fontsize=8,
-                bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7, edgecolor="none"),
+                bbox=dict(
+                    boxstyle="round,pad=0.2",
+                    facecolor="white",
+                    alpha=0.7,
+                    edgecolor="none",
+                ),
             )
 
+
+
+    
+#######################################
+# Plots
+#######################################
 def pairplot_family(
     df: pd.DataFrame,
     hue: str,
@@ -166,6 +229,7 @@ def pairplot_family(
     title: str,
     corner: bool = True,
     annotate_ratio: bool = True,
+    log_cols: list[str] | None = None,
 ):
     if len(df) < 3 or len(df.columns) < 2:
         print(f"WARNING: insufficient data for {outpath.name}")
@@ -173,17 +237,57 @@ def pairplot_family(
 
     sns.set_context("talk")
 
+    hue_order = ["A", "B", "C", "D", "E", "F"]
+
+    # # these are too similar
+    # palette = {
+    #     "A": "#1b9e77",  # green
+    #     "B": "#66a61e",
+    #     "C": "#e6ab02",
+    #     "D": "#d95f02",
+    #     "E": "#7570b3",
+    #     "F": "#e7298a",
+    #     }
+
+    palette = {
+        "A": "#1b9e77",  # teal-green
+        "B": "#b2df8a",  # much lighter green (big contrast)
+        "C": "#e6ab02",
+        "D": "#d95f02",
+        "E": "#7570b3",
+        "F": "#e7298a",
+        }
+        
+    # # colorbrewer inspired
+    # palette = {
+    #     "A": "#1a9850",  # strong green
+    #     "B": "#66bd63",  # lighter green (clearly distinct)
+    #     "C": "#a6d96a",  # yellow-green
+    #     "D": "#fdae61",  # orange
+    #     "E": "#f46d43",  # red-orange
+    #     "F": "#d73027",  # red
+    #     }
+
+    # colors = sns.color_palette("RdYlGn_r", 6)  # reversed: green → red
+
+    # palette = dict(zip(["A","B","C","D","E","F"], colors))
+    df = enforce_qc_tier(df)
     g = sns.pairplot(
         df,
         hue=hue if hue in df.columns else None,
+        hue_order=hue_order,
+        palette=palette,
         corner=corner,
         diag_kind="hist",
         plot_kws=dict(s=22, alpha=0.7),
         diag_kws=dict(bins=20),
     )
 
+
+
+    
     if annotate_ratio:
-        _annotate_pairgrid(g, df, hue=hue if hue in df.columns else None)
+        _annotate_pairgrid(g, df, hue=hue if hue in df.columns else None, log_cols=log_cols)
     else:
         # still apply robust limits
         _annotate_pairgrid(g, df, hue=hue if hue in df.columns else None)
@@ -194,8 +298,9 @@ def pairplot_family(
                     continue
                 for txt in list(ax.texts):
                     txt.remove()
-
-    g.figure.suptitle(title, y=1.02)
+    style_pairplot(g, label_map=PAIRPLOT_LABELS)
+    
+    g.figure.suptitle(title, y=.97)
     g.figure.savefig(outpath, dpi=150, bbox_inches="tight")
     plt.close(g.figure)
     
@@ -210,6 +315,8 @@ def plot_difference_hist(
     positive_only=False,
     bad_sentinels=(-99, -999, 99, 999),
     qclip=None,
+    plotsingle=True,
+    ax=None,
 ):
     """
     Plot histogram of differences between two matched columns.
@@ -257,6 +364,9 @@ def plot_difference_hist(
     import numpy as np
     import matplotlib.pyplot as plt
 
+    if not plotsingle and ax is None:
+        print("WARNING: must provide an axis if plotsingle=True")
+        return
     def _safe_float_array(tab, colname, default=np.nan):
         if colname not in tab.colnames:
             return np.full(len(tab), default, dtype=float)
@@ -319,16 +429,17 @@ def plot_difference_hist(
     mean = np.nanmean(diff)
     n = len(diff)
 
-    fig = plt.figure(figsize=(6, 4.5))
-    ax = plt.gca()
+    if plotsingle:
+        fig = plt.figure(figsize=(6, 4.5))
+        ax = plt.gca()
 
     ax.hist(plot_diff, bins=30)
     ax.axvline(0, color="k", ls="--", lw=1)
     ax.axvline(med, color="k", ls=":", lw=1)
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel("N")
-    ax.set_title(title if title is not None else f"{col2} - {col1}")
+    ax.set_xlabel(xlabel,fontsize=10)
+    ax.set_ylabel("N",fontsize=10)
+    ax.set_title(title if title is not None else f"{col2} - {col1}",fontsize=10)
 
     ax.text(
         0.97, 0.97,
@@ -341,8 +452,9 @@ def plot_difference_hist(
     )
 
     plt.tight_layout()
-    fig.savefig(outpath, dpi=150)
-    plt.close(fig)
+    if plotsingle:
+        fig.savefig(outpath, dpi=150)
+        plt.close(fig)
 
 def plot_wrapped_angle_difference_hist(
     tab,
@@ -495,6 +607,102 @@ def plot_wrapped_angle_difference_hist(
     plt.tight_layout()
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
+
+def plot_hist_robust(
+    tab,
+    col,
+    outpath,
+    title=None,
+    logx=False,
+    positive_only=False,
+    bad_sentinels=(-99, -999, 99, 999),
+    qrange=(0.01, 0.99),
+    bins=30,
+):
+    """
+    Plot histogram using robust quantile-based x limits.
+
+    This prevents a few extreme outliers from forcing useless binning.
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    def _safe_float_array(tab, colname, default=np.nan):
+        if colname not in tab.colnames:
+            return np.full(len(tab), default, dtype=float)
+
+        coldata = tab[colname]
+        try:
+            if hasattr(coldata, "filled"):
+                coldata = coldata.filled(default)
+        except Exception:
+            pass
+
+        out = np.full(len(tab), default, dtype=float)
+        for i, v in enumerate(coldata):
+            try:
+                out[i] = float(v)
+            except Exception:
+                out[i] = default
+        return out
+
+    x = _safe_float_array(tab, col)
+
+    # remove sentinel values
+    for bad in bad_sentinels:
+        x[np.isclose(x, bad, equal_nan=False)] = np.nan
+
+    good = np.isfinite(x)
+
+    if positive_only:
+        good &= (x > 0)
+
+    x = x[good]
+    if len(x) == 0:
+        print(f"WARNING: no finite values for {col}")
+        return
+
+    if logx:
+        x = x[x > 0]
+        if len(x) == 0:
+            print(f"WARNING: no positive values for log histogram of {col}")
+            return
+        x = np.log10(x)
+
+    # robust display range
+    lo, hi = np.nanquantile(x, qrange)
+
+    if not np.isfinite(lo) or not np.isfinite(hi):
+        print(f"WARNING: could not determine plotting range for {col}")
+        return
+
+    if lo == hi:
+        delta = 0.5 if lo == 0 else 0.05 * abs(lo)
+        lo -= delta
+        hi += delta
+
+    fig = plt.figure(figsize=(6, 4.5))
+    ax = plt.gca()
+    ax.hist(x, bins=bins, range=(lo, hi))
+    ax.set_xlabel(f"log10({col})" if logx else col)
+    ax.set_ylabel("N")
+    ax.set_title(title if title is not None else col)
+
+    ax.text(
+        0.97, 0.97,
+        f"N={len(x)}\nmed={np.nanmedian(x):.3g}\nstd={np.nanstd(x):.3g}",
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round,pad=0.25", facecolor="white", alpha=0.8, edgecolor="none"),
+    )
+
+    plt.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)
+
+
 # ----------------------------------------------------------------------
 # main validation products
 # ----------------------------------------------------------------------
@@ -509,11 +717,16 @@ def build_r_full_size_df(tab: Table) -> pd.DataFrame:
         "R_SM_RMAX_ELLIP",        
         "QC_TIER",
     ]
-    if "GAL_RE" in tab.colnames:
-        cols.insert(-1, "GAL_RE")
     df = make_dataframe(tab, cols)
-    return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
-
+    size_cols = [c for c in cols if c != "QC_TIER"]
+    log_cols = size_cols
+    df = clean_pairplot_df(df,positive_cols=size_cols,
+                                 log_cols=log_cols,
+                                 )
+    
+    return  df, log_cols
+        
+ 
 def build_r_half_size_df(tab: Table) -> pd.DataFrame:
     cols = [
         "R50_ARCSEC",
@@ -524,10 +737,16 @@ def build_r_half_size_df(tab: Table) -> pd.DataFrame:
         "R_SM_RHALF_ELLIP",        
         "QC_TIER",
     ]
-    if "GAL_RE" in tab.colnames:
-        cols.insert(-1, "GAL_RE")
     df = make_dataframe(tab, cols)
-    return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
+    size_cols = [c for c in cols if c != "QC_TIER"]
+    log_cols = size_cols
+    df = clean_pairplot_df(df,positive_cols=size_cols,
+                                 log_cols=log_cols,
+                                 )
+    
+    return  df, log_cols
+
+
 
 
 def build_h_full_size_df(tab: Table) -> pd.DataFrame:
@@ -541,7 +760,13 @@ def build_h_full_size_df(tab: Table) -> pd.DataFrame:
         "QC_TIER",
     ]
     df = make_dataframe(tab, cols)
-    return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
+    size_cols = [c for c in cols if c != "QC_TIER"]
+    log_cols = size_cols
+    df = clean_pairplot_df(df,positive_cols=size_cols,
+                                 log_cols=log_cols,
+                                 )
+    
+    return  df, log_cols
 
 def build_h_half_size_df(tab: Table) -> pd.DataFrame:
     cols = [
@@ -554,7 +779,14 @@ def build_h_half_size_df(tab: Table) -> pd.DataFrame:
         "QC_TIER",
     ]
     df = make_dataframe(tab, cols)
-    return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
+    size_cols = [c for c in cols if c != "QC_TIER"]
+    log_cols = size_cols
+    df = clean_pairplot_df(df,positive_cols=size_cols,
+                                 log_cols=log_cols,
+                                 )
+    
+    return  df, log_cols
+    
 
 
 def build_r_fluxmag_df(tab: Table) -> pd.DataFrame:
@@ -569,9 +801,14 @@ def build_r_fluxmag_df(tab: Table) -> pd.DataFrame:
         "QC_TIER",
     ]
     df = make_dataframe(tab, cols)
-    positive = ["R24_FLUX_CGS", "R_PETRO_FLUX_CGS", "R_C30"]
-    return clean_pairplot_df(df, positive_cols=positive)
-
+    positive = ["R24_FLUX_CGS", "R_PETRO_FLUX_CGS"]
+    log_cols = positive
+    df = clean_pairplot_df(df,positive_cols=positive,
+                                 log_cols=log_cols,
+                                 )
+    
+    return  df, log_cols
+    
 
 def build_h_fluxmag_df(tab: Table) -> pd.DataFrame:
     cols = [
@@ -584,7 +821,13 @@ def build_h_fluxmag_df(tab: Table) -> pd.DataFrame:
     ]
     df = make_dataframe(tab, cols)
     positive = [c for c in cols if c not in ("QC_TIER",)]
-    return clean_pairplot_df(df, positive_cols=positive)
+    log_cols = positive
+    df = clean_pairplot_df(df,positive_cols=positive,
+                                 log_cols=log_cols,
+                                 )
+    
+    return  df, log_cols
+    
 
 
 def build_r_morph_df(tab: Table) -> pd.DataFrame:
@@ -593,12 +836,14 @@ def build_r_morph_df(tab: Table) -> pd.DataFrame:
         "R_HAPY_M20",
         "R_SM_GINI",
         "R_SM_M20",
+        "R_SM_C",
         #"R_ASYM",
         "R_C30",
         "QC_TIER",
     ]
     df = make_dataframe(tab, cols)
-    return clean_pairplot_df(df)
+    log_cols=None
+    return clean_pairplot_df(df, positive_cols=["R_SM_C"],), log_cols
 
 
 def build_h_morph_df(tab: Table) -> pd.DataFrame:
@@ -607,12 +852,15 @@ def build_h_morph_df(tab: Table) -> pd.DataFrame:
         "H_HAPY_M20",
         "H_SM_GINI",
         "H_SM_M20",
+        "H_SM_C",
         #"H_ASYM",
         "H_C30_R24",
         "QC_TIER",
     ]
     df = make_dataframe(tab, cols)
-    return clean_pairplot_df(df)
+    log_cols=None
+    return clean_pairplot_df(df, positive_cols=["H_SM_C"],), log_cols
+
 
 
 # ----------------------------------------------------------------------
@@ -645,46 +893,52 @@ def main():
     ##################################################################
     ## SIZE METRICS
     ##################################################################    
-    r_full_size_df = build_r_full_size_df(sub)
+    r_full_size_df, log_cols = build_r_full_size_df(sub)
     pairplot_family(r_full_size_df, "QC_TIER", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
-                    f"r-band size validation ({args.sample})", annotate_ratio=True)
-    r_half_size_df = build_r_half_size_df(sub)
+                    f"r-band full size validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
+    r_half_size_df, log_cols = build_r_half_size_df(sub)
     pairplot_family(r_half_size_df, "QC_TIER", outdir / f"pairplot_r_half_sizes_{args.sample}.png",
-                    f"r-band size validation ({args.sample})", annotate_ratio=True)
+                    f"r-band half size validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
     
-    h_full_size_df = build_h_full_size_df(sub)
+    h_full_size_df, log_cols = build_h_full_size_df(sub)
     pairplot_family(h_full_size_df, "QC_TIER", outdir / f"pairplot_h_full_sizes_{args.sample}.png",
-                    f"Hα size validation ({args.sample})", annotate_ratio=True)
+                    f"Hα size full validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
     
-    h_half_size_df = build_h_half_size_df(sub)
+    h_half_size_df, log_cols = build_h_half_size_df(sub)
     pairplot_family(h_half_size_df, "QC_TIER", outdir / f"pairplot_h_half_sizes_{args.sample}.png",
-                    f"Hα size validation ({args.sample})", annotate_ratio=True)
+                    f"Hα size half validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
 
-    r_fluxmag_df = build_r_fluxmag_df(sub)    
+    r_fluxmag_df, log_cols = build_r_fluxmag_df(sub)    
     pairplot_family(r_fluxmag_df, "QC_TIER", outdir / f"pairplot_r_fluxmag_{args.sample}.png",
-                    f"r-band magnitude/flux validation ({args.sample})", annotate_ratio=True)
+                    f"r-band magnitude/flux validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
 
-    h_fluxmag_df = build_h_fluxmag_df(sub)
+    h_fluxmag_df, log_cols = build_h_fluxmag_df(sub)
     pairplot_family(h_fluxmag_df, "QC_TIER", outdir / f"pairplot_h_flux_{args.sample}.png",
-                    f"Hα flux validation ({args.sample})", annotate_ratio=True)
+                    f"Hα flux validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
 
-    r_morph_df = build_r_morph_df(sub)
+    r_morph_df, log_cols = build_r_morph_df(sub)
     pairplot_family(r_morph_df, "QC_TIER", outdir / f"pairplot_r_morph_{args.sample}.png",
-                    f"r-band morphology validation ({args.sample})", annotate_ratio=False)
+                    f"r-band morphology validation ({args.sample})", annotate_ratio=False, log_cols=log_cols)
 
-    h_morph_df = build_h_morph_df(sub)
+    h_morph_df, log_cols = build_h_morph_df(sub)
     pairplot_family(h_morph_df, "QC_TIER", outdir / f"pairplot_h_morph_{args.sample}.png",
-                    f"Hα morphology validation ({args.sample})", annotate_ratio=False)
+                    f"Hα morphology validation ({args.sample})", annotate_ratio=False, log_cols=log_cols)
 
 
+    plt.figure(figsize=(10,4))
+    plt.subplot(1,2,1)
+    ax = plt.gca()
     plot_difference_hist(
         sub,
         "R50_ARCSEC",
         "R_PETRO_R50_ARCSEC",
         outdir / "diff_R50_vs_RPETRO50.png",
         title="r-band half-light radius differences",
+        plotsingle=False,
+        ax=ax,
         )
-
+    plt.subplot(1,2,2)
+    ax = plt.gca()
     plot_difference_hist(
         sub,
         "R50_ARCSEC",
@@ -693,7 +947,10 @@ def main():
         title="r-band effective radius fractional differences",
         relative=True,
         positive_only=True,
+        plotsingle=False,
+        ax=ax
         )
+    plt.savefig(outdir / "diff_RHALF_measurements.png")
     
     plot_difference_hist(
         sub,
@@ -723,7 +980,7 @@ def main():
         outdir / "diff_ELL0PA_vs_GALPA.png",
         title="Ellipse vs GALFIT PA differences",
         xlabel="Wrapped PA difference [deg]",
-        wrap_deg=180.0,
+        wrap_deg=90.0,
         convert2=pa_ccw_north_to_photutils_theta,
         )
     print(f"Wrote validation products to {outdir}")

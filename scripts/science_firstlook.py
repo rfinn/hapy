@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy.table import Table
-
+from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE
 
 # ----------------------------------------------------------------------
 # helpers
@@ -279,20 +279,15 @@ def scatter_by_tier(ax, x, y, tier, xlabel, ylabel, title,
     if logy:
         good &= (y > 0)
 
-    tier_order = ["A", "B", "C", "D", "F"]
-    tier_colors = {
-        "A": "C2",
-        "B": "C0",
-        "C": "C1",
-        "D": "C3",
-        "F": "0.5",
-    }
 
-    for t in tier_order:
+
+    for t in QC_TIER_ORDER:
         m = good & (tier == t)
         if np.sum(m) == 0:
             continue
-        ax.scatter(x[m], y[m], s=16, alpha=0.75, label=t, color=tier_colors[t])
+        ax.scatter(x[m], y[m], s=14, alpha=0.75, label=t, color=QC_TIER_PALETTE[t])
+    
+
 
     if logx:
         ax.set_xscale("log")
@@ -326,9 +321,11 @@ def plot_firstlook_dashboard(tab: Table, outpath: Path, sample_label: str) -> No
 
     # 1. tier counts
     ax = axes[0]
-    tiers = ["A", "B", "C", "D", "F"]
+
+
+    tiers = [t for t in QC_TIER_ORDER if np.any(tier == t)]
     counts = [np.sum(tier == t) for t in tiers]
-    colors = ["C2", "C0", "C1", "C3", "0.5"]
+    colors = [QC_TIER_PALETTE[t] for t in tiers]
     ax.bar(range(len(tiers)), counts, color=colors)
     ax.set_xticks(range(len(tiers)))
     ax.set_xticklabels(tiers)
