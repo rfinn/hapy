@@ -20,8 +20,148 @@ from astropy.utils.exceptions import AstropyUserWarning
 #         return segmap[self._slice_stamp]
 
 
+
+from dataclasses import dataclass, field
+from typing import Optional, Any
+import numpy as np
+
+
+@dataclass
+class HapyMorphology:
+    """
+    Container for custom HAPY morphology measurements.
+
+    Notes
+    -----
+    This dataclass is intended to hold both the scalar morphology results
+    and the diagnostic arrays/products needed for QC and plotting.
+    """
+
+    # -----------------------------
+    # Status / QC flags
+    # -----------------------------
+    ok: bool = False
+    flag: int = 0
+
+    # -----------------------------
+    # Core morphology metrics
+    # -----------------------------
+    r_gini: float = np.nan
+    h_gini: float = np.nan
+
+    r_m20: float = np.nan
+    h_m20: float = np.nan
+
+    r_asym: float = np.nan
+    h_asym: float = np.nan
+
+    # -----------------------------
+    # Optional associated errors
+    # -----------------------------
+    r_asym_err: float = np.nan
+    h_asym_err: float = np.nan
+
+    # -----------------------------
+    # Second-moment bookkeeping
+    # -----------------------------
+    r_mtot: float = np.nan
+    h_mtot: float = np.nan
+
+    r_m20sum: float = np.nan
+    h_m20sum: float = np.nan
+
+    # -----------------------------
+    # Pixel bookkeeping
+    # -----------------------------
+    r_npix: int = 0
+    h_npix: int = 0
+    h_fillfrac: float = np.nan
+
+    # -----------------------------
+    # Signal-to-noise
+    # -----------------------------
+    r_snp_all: float = np.nan
+    h_snp_det: float = np.nan
+    h_snp_all: float = np.nan
+
+    # -----------------------------
+    # Threshold / sky values
+    # -----------------------------
+    r_sigma_sky: float = np.nan
+    h_sigma_sky: float = np.nan
+
+    r_threshold: float = np.nan
+    h_threshold: float = np.nan
+
+    # -----------------------------
+    # Centers
+    # -----------------------------
+    xc: float = np.nan
+    yc: float = np.nan
+
+    r_asym_center: Optional[np.ndarray] = None
+    h_asym_center: Optional[np.ndarray] = None
+
+    # -----------------------------
+    # Diagnostic arrays / masks
+    # -----------------------------
+    r_mask: Optional[np.ndarray] = None
+    r_seg: Optional[Any] = None
+    h_detect_mask: Optional[np.ndarray] = None
+    h_gini_image: Optional[np.ndarray] = None
+
+    # Optional full asymmetry grids for debugging
+    r_asym_grid: Optional[np.ndarray] = None
+    h_asym_grid: Optional[np.ndarray] = None
+
+    # -----------------------------
+    # Optional figure handles / paths
+    # -----------------------------
+    diag_fig: Optional[Any] = None
+    diag_outfile: Optional[str] = None
+
+    # -----------------------------
+    # Optional free-form notes
+    # -----------------------------
+    note: str = ""
+
+    def as_dict(self) -> dict:
+        """
+        Return a dictionary of scalar values for table writing.
+
+        Arrays, masks, figures, and other large diagnostic products are excluded.
+        """
+        return {
+            "HAPY_MORPH_OK": self.ok,
+            "HAPY_MORPH_FLAG": self.flag,
+            "R_HAPY_GINI": self.r_gini,
+            "H_HAPY_GINI": self.h_gini,
+            "R_HAPY_M20": self.r_m20,
+            "H_HAPY_M20": self.h_m20,
+            "R_HAPY_ASYM": self.r_asym,
+            "H_HAPY_ASYM": self.h_asym,
+            "R_HAPY_ASYM_ERR": self.r_asym_err,
+            "H_HAPY_ASYM_ERR": self.h_asym_err,
+            "R_HAPY_MTOT": self.r_mtot,
+            "H_HAPY_MTOT": self.h_mtot,
+            "R_HAPY_M20SUM": self.r_m20sum,
+            "H_HAPY_M20SUM": self.h_m20sum,
+            "R_HAPY_NPIX": self.r_npix,
+            "H_HAPY_NPIX": self.h_npix,
+            "H_HAPY_FILLFRAC": self.h_fillfrac,
+            "R_HAPY_SNP_ALL": self.r_snp_all,
+            "H_HAPY_SNP_DET": self.h_snp_det,
+            "H_HAPY_SNP_ALL": self.h_snp_all,
+            "R_HAPY_SIGMA_SKY": self.r_sigma_sky,
+            "H_HAPY_SIGMA_SKY": self.h_sigma_sky,
+            "R_HAPY_THRESHOLD": self.r_threshold,
+            "H_HAPY_THRESHOLD": self.h_threshold,
+            "R_HAPY_XC": self.xc,
+            "R_HAPY_YC": self.yc,
+        }
+    
 class MyStatmorph(statmorph.SourceMorphology):
-    """Statmorph subclass that forces gini segmap behavior."""
+    """Overiding some of statmorph's behavior """
 
     @lazyproperty
     def sn_per_pixel(self):
@@ -905,96 +1045,172 @@ def compute_m20(image, segmap, xc=None, yc=None):
     return float(m20), float(second_moment_tot), float(second_moment_20)
 
 
+import numpy as np
+from scipy.ndimage import shift
+
+
+def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0):
+    """
+    Compute 180-degree rotational asymmetry on a specified image and mask.
+
+    Parameters
+    ----------
+    image : 2D ndarray
+        Image used for the asymmetry calculation.
+    segmap : 2D ndarray or bool array
+        Boolean or integer mask defining the pixels to include.
+        Nonzero values are treated as inside the object.
+    xc, yc : float, optional
+        Center coordinates in full-image pixel coordinates.
+        If not provided, the flux-weighted centroid is computed from the
+        positive flux inside the mask.
+    search_radius : int, optional
+        Radius in pixels around the input center over which to search
+        for the minimum asymmetry. Default is 1, giving a 3x3 grid.
+    step : float, optional
+        Step size in pixels for the center search. Default is 1.0.
+
+    Returns
+    -------
+    asym : float
+        Minimum asymmetry value.
+    asym_err : float
+        Standard deviation of asymmetry values over the search grid.
+    best_center : ndarray, shape (2,)
+        Best-fit center as [yc, xc].
+    asym_grid : 2D ndarray
+        Grid of asymmetry values evaluated around the center.
+
+    Notes
+    -----
+    Asymmetry is calculated as:
+
+        A = sum(|I - I_180|) / sum(|I|)
+
+    where the sums are performed only over the supplied mask.
+
+    This implementation rotates the image by 180 degrees about each trial
+    center using interpolation via scipy.ndimage.shift.
+    """
+    img = np.asarray(image, dtype=float)
+    mask = np.asarray(segmap).astype(bool)
+
+    if img.shape != mask.shape:
+        raise ValueError("image and segmap must have the same shape")
+
+    vals = np.array(img, copy=True)
+    vals[~np.isfinite(vals)] = 0.0
+    vals[~mask] = 0.0
+
+    if np.sum(mask) == 0:
+        return np.nan, np.nan, np.array([np.nan, np.nan]), np.full((1, 1), np.nan)
+
+    # Compute default center from positive flux if not supplied
+    if xc is None or yc is None:
+        pos = np.array(vals, copy=True)
+        pos[pos < 0] = 0.0
+        total = np.sum(pos[mask])
+
+        if total <= 0:
+            # fallback to geometric center of the mask
+            yy, xx = np.where(mask)
+            yc = np.mean(yy)
+            xc = np.mean(xx)
+        else:
+            y, x = np.indices(vals.shape)
+            yc = np.sum(pos[mask] * y[mask]) / total
+            xc = np.sum(pos[mask] * x[mask]) / total
+
+    offsets = np.arange(-search_radius, search_radius + step, step, dtype=float)
+    asym_grid = np.full((len(offsets), len(offsets)), np.nan, dtype=float)
+
+    norm = np.sum(np.abs(vals[mask]))
+    if not np.isfinite(norm) or norm <= 0:
+        return np.nan, np.nan, np.array([yc, xc]), asym_grid
+
+    for iy, dy in enumerate(offsets):
+        for ix, dx in enumerate(offsets):
+            yc_trial = yc + dy
+            xc_trial = xc + dx
+
+            # Shift so that trial center is at origin, rotate by 180 via flip,
+            # then shift back.
+            shifted = shift(vals, shift=(-yc_trial, -xc_trial), order=1, mode="constant", cval=0.0)
+            rotated = np.flipud(np.fliplr(shifted))
+            rotated_back = shift(rotated, shift=(yc_trial, xc_trial), order=1, mode="constant", cval=0.0)
+
+            diff = np.abs(vals - rotated_back)
+            asym_grid[iy, ix] = np.sum(diff[mask]) / norm
+
+    if not np.any(np.isfinite(asym_grid)):
+        return np.nan, np.nan, np.array([yc, xc]), asym_grid
+
+    iy_min, ix_min = np.unravel_index(np.nanargmin(asym_grid), asym_grid.shape)
+    best_yc = yc + offsets[iy_min]
+    best_xc = xc + offsets[ix_min]
+
+    asym = float(asym_grid[iy_min, ix_min])
+    asym_err = float(np.nanstd(asym_grid))
+    best_center = np.array([best_yc, best_xc], dtype=float)
+
+    return asym, asym_err, best_center, asym_grid
+
+
 def plot_hapy_morphology_diagnostic(
     r_image,
     ha_image,
-    r_gini_mask,
-    ha_detect_mask,
-    ha_gini_image,
-    r_hapy_gini,
-    ha_hapy_gini,
-    r_hapy_npix,
-    ha_hapy_npix,
-    ha_hapy_fillfrac,
-    ha_threshold=None,
-    ha_sigma_sky=None,
-    ha_hapy_snp_det=None,
-    ha_hapy_snp_all=None,
-    r_hapy_snp_all=None,    
-    r_hapy_m20=None,
-    ha_hapy_m20=None,
-    title=None,
+    morph,
     outfile=None,
     show=False,
-    dpi=200,
+    dpi=150,
 ):
-    
     """
-    Make a 2x4 diagnostic plot for HAPY Gini measurements.
+    Make a 2x4 diagnostic plot for HAPY morphology measurements.
 
     Parameters
     ----------
     r_image : 2D ndarray
-        r-band image.
+        R-band image.
     ha_image : 2D ndarray
         Halpha image.
-    r_gini_mask : 2D ndarray (bool)
-        Mask defining the stellar-disk region used for HAPY Gini.
-    ha_detect_mask : 2D ndarray (bool)
-        Pixels within the r_gini_mask where Halpha is considered detected.
-    ha_gini_image : 2D ndarray
-        Halpha image used for Gini calculation. Typically identical to ha_image
-        inside r_gini_mask except that sub-threshold pixels are set to zero.
-        Pixels outside the mask may be left unchanged or set to NaN/zero.
-    r_hapy_gini : float
-        Custom r-band Gini.
-    ha_hapy_gini : float
-        Custom Halpha Gini.
-    r_hapy_npix : int
-        Number of pixels in the r-band Gini mask.
-    ha_hapy_npix : int
-        Number of detected Halpha pixels within the r-band Gini mask.
-    ha_hapy_fillfrac : float
-        Halpha filling factor within the r-band Gini mask.
-    ha_threshold : float, optional
-        Threshold applied to Halpha image for detection.
-    title : str, optional
-        Title to show in the figure.
+    morph : HapyMorphology
+        Dataclass containing masks, thresholded Halpha image, and scalar metrics.
     outfile : str, optional
-        If provided, save the figure to this filename.
+        Output filename.
     show : bool, optional
         If True, call plt.show(); otherwise close the figure after saving.
     dpi : int, optional
-        Figure save resolution.
+        Save resolution.
 
     Returns
     -------
-    fig, axes
-        Matplotlib figure and axes array.
+    fig : matplotlib.figure.Figure
     """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
     r_image = np.asarray(r_image, dtype=float)
     ha_image = np.asarray(ha_image, dtype=float)
-    r_gini_mask = np.asarray(r_gini_mask).astype(bool)
-    ha_detect_mask = np.asarray(ha_detect_mask).astype(bool)
-    ha_gini_image = np.asarray(ha_gini_image, dtype=float)
+
+    r_gini_mask = np.asarray(morph.r_mask).astype(bool) if morph.r_mask is not None else np.zeros_like(r_image, dtype=bool)
+    ha_detect_mask = np.asarray(morph.h_detect_mask).astype(bool) if morph.h_detect_mask is not None else np.zeros_like(r_image, dtype=bool)
+    ha_gini_image = np.asarray(morph.h_gini_image, dtype=float) if morph.h_gini_image is not None else np.full_like(ha_image, np.nan, dtype=float)
 
     if r_image.shape != ha_image.shape:
         raise ValueError("r_image and ha_image must have the same shape")
     if r_gini_mask.shape != r_image.shape:
-        raise ValueError("r_gini_mask must have same shape as images")
+        raise ValueError("morph.r_mask must have same shape as images")
     if ha_detect_mask.shape != r_image.shape:
-        raise ValueError("ha_detect_mask must have same shape as images")
+        raise ValueError("morph.h_detect_mask must have same shape as images")
     if ha_gini_image.shape != r_image.shape:
-        raise ValueError("ha_gini_image must have same shape as images")
+        raise ValueError("morph.h_gini_image must have same shape as images")
 
-    # Pixel values actually used in the Gini calculations
     r_vals = r_image[r_gini_mask]
     r_vals = r_vals[np.isfinite(r_vals)]
 
     ha_vals = ha_gini_image[r_gini_mask]
     ha_vals = ha_vals[np.isfinite(ha_vals)]
 
-    # Robust stretches
     def _get_vrange(arr, positive_only=False, symmetric=False):
         vals = arr[np.isfinite(arr)]
         if vals.size == 0:
@@ -1025,7 +1241,6 @@ def plot_hapy_morphology_diagnostic(
     r_vmin, r_vmax = _get_vrange(r_image)
     ha_vmin, ha_vmax = _get_vrange(ha_image, symmetric=True)
 
-    # For thresholded Halpha image, focus on nonnegative range if possible
     hagi_vals = ha_gini_image[np.isfinite(ha_gini_image)]
     hagi_pos = hagi_vals[hagi_vals > 0]
     if hagi_pos.size > 0:
@@ -1046,9 +1261,9 @@ def plot_hapy_morphology_diagnostic(
     ax[0].set_title("r-band image")
     plt.colorbar(im0, ax=ax[0], fraction=0.046)
 
-    # 2. r-band Gini mask
+    # 2. r-band morphology mask
     im1 = ax[1].imshow(r_gini_mask.astype(int), origin="lower", cmap="gray_r", vmin=0, vmax=1)
-    ax[1].set_title(f"r Gini mask\nNpix = {r_hapy_npix}")
+    ax[1].set_title(f"r morphology mask\nNpix = {morph.r_npix}")
     plt.colorbar(im1, ax=ax[1], fraction=0.046)
 
     # 3. r-band + mask overlay
@@ -1057,46 +1272,46 @@ def plot_hapy_morphology_diagnostic(
         ax[2].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0)
     except Exception:
         pass
-    ax[2].set_title(f"r + mask overlay\nR_HAPY_GINI = {r_hapy_gini:.3f}")
+    ax[2].set_title(
+        f"r + mask\n"
+        f"G={morph.r_gini:.3f}, M20={morph.r_m20:.3f}, A={morph.r_asym:.3f}"
+    )
 
-    # 4. histogram of r pixels used in Gini
+    # 4. histogram of r pixels used in morphology
     if r_vals.size > 0:
         ax[3].hist(r_vals, bins=50)
-    ax[3].set_title("r-band Gini pixels")
+    ax[3].set_title("r-band morphology pixels")
     ax[3].set_xlabel("r-band pixel value")
     ax[3].set_ylabel("N")
-    ax[3].set_yscale("log")
 
     # 5. Halpha image
     im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
     ax[4].set_title("Hα image")
     plt.colorbar(im4, ax=ax[4], fraction=0.046)
 
-    # 6. thresholded Halpha image used in Gini
+    # 6. thresholded Halpha image used for morphology
     hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
     hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
-    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", vmin=hagi_vmin, vmax=hagi_vmax)
-
-    if ha_threshold is not None and ha_sigma_sky is not None:
+    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="magma", vmin=hagi_vmin, vmax=hagi_vmax)
+    if np.isfinite(morph.h_threshold) and np.isfinite(morph.h_sigma_sky):
         ax[5].set_title(
-            f"Hα used for Gini\n"
-            f"threshold = {ha_threshold:.3g} ({ha_threshold/ha_sigma_sky:.1f}σ)"
+            f"Hα used for morphology\n"
+            f"threshold={morph.h_threshold:.3g} ({morph.h_threshold/morph.h_sigma_sky:.1f}σ)"
         )
-    elif ha_threshold is not None:
-        ax[5].set_title(f"Hα used for Gini\nthreshold = {ha_threshold:.3g}")
+    elif np.isfinite(morph.h_threshold):
+        ax[5].set_title(f"Hα used for morphology\nthreshold={morph.h_threshold:.3g}")
     else:
-        ax[5].set_title("Hα used for Gini")
-    
-    if ha_threshold is not None:
-        ax[5].set_title(f"Hα used for Gini\nthreshold = {ha_threshold:.3g}")
-    else:
-        ax[5].set_title("Hα used for Gini")
+        ax[5].set_title("Hα used for morphology")
+    try:
+        ax[5].contour(ha_detect_mask.astype(float), levels=[0.5], colors="red", linewidths=1.0)
+    except Exception:
+        pass
     plt.colorbar(im5, ax=ax[5], fraction=0.046)
 
     # 7. Halpha + overlays
     ax[6].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
     try:
-        ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0)
+        ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="white", linewidths=1.0, alpha=0.6)
     except Exception:
         pass
     try:
@@ -1104,87 +1319,62 @@ def plot_hapy_morphology_diagnostic(
     except Exception:
         pass
 
-
-    title7 = f"Hα + overlays\nH_HAPY_GINI = {ha_hapy_gini:.3f}, fill = {ha_hapy_fillfrac:.3f}"
-
-    if ha_hapy_snp_det is not None and np.isfinite(ha_hapy_snp_det):
-        title7 += f", \nS/N(det) = {ha_hapy_snp_det:.2f},"
-    if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
-        title7 += f"S/N(all) = {ha_hapy_snp_all:.2f}"
-
+    title7 = (
+        f"Hα + overlays\n"
+        f"G={morph.h_gini:.3f}, M20={morph.h_m20:.3f}, A={morph.h_asym:.3f}\n"
+        f"fill={morph.h_fillfrac:.3f}"
+    )
+    if np.isfinite(morph.h_snp_det):
+        title7 += f", S/N(det)={morph.h_snp_det:.2f}"
+    if np.isfinite(morph.h_snp_all):
+        title7 += f"\nS/N(all)={morph.h_snp_all:.2f}"
     ax[6].set_title(title7)
 
-
-    # 8. histogram of Halpha pixels used in Gini
+    # 8. histogram of Halpha pixels used in morphology
     if ha_vals.size > 0:
         ax[7].hist(ha_vals, bins=50)
-    ax[7].set_title("Hα Gini pixels")
+    ax[7].set_title("Hα morphology pixels")
     ax[7].set_xlabel("Hα pixel value (thresholded)")
     ax[7].set_ylabel("N")
-    ax[7].set_yscale("log")
 
-    # Annotation box
-    r_text_lines = []
-    h_text_lines = []
-    if title:
-        r_text_lines.append(title)
+    text_lines = []
+    if morph.note:
+        text_lines.append(morph.note)
 
-    r_text_lines.extend([
-        f"R_HAPY_GINI = {r_hapy_gini:.3f}",
-        ])
-    h_text_lines.extend([
-        f"H_HAPY_GINI = {ha_hapy_gini:.3f}",
-        ])
-    
-    if r_hapy_m20 is not None and np.isfinite(r_hapy_m20):
-        r_text_lines.append(f"R_HAPY_M20 = {r_hapy_m20:.3f}")
-
-    if ha_hapy_m20 is not None and np.isfinite(ha_hapy_m20):
-        h_text_lines.append(f"H_HAPY_M20 = {ha_hapy_m20:.3f}")
-
-    r_text_lines.extend([
-        f"R_HAPY_NPIX = {r_hapy_npix}",
-    ])
-    h_text_lines.extend([
-        f"H_HAPY_NPIX = {ha_hapy_npix}",
-        f"H_HAPY_FILLFRAC = {ha_hapy_fillfrac:.3f}",
+    text_lines.extend([
+        f"HAPY_MORPH_OK = {morph.ok}",
+        f"HAPY_MORPH_FLAG = {morph.flag}",
+        f"R_GINI = {morph.r_gini:.3f}",
+        f"H_GINI = {morph.h_gini:.3f}",
+        f"R_M20 = {morph.r_m20:.3f}",
+        f"H_M20 = {morph.h_m20:.3f}",
+        f"R_ASYM = {morph.r_asym:.3f}",
+        f"H_ASYM = {morph.h_asym:.3f}",
+        f"R_NPIX = {morph.r_npix}",
+        f"H_NPIX = {morph.h_npix}",
+        f"H_FILLFRAC = {morph.h_fillfrac:.3f}",
     ])
 
-    if ha_sigma_sky is not None and np.isfinite(ha_sigma_sky):
-        h_text_lines.append(f"Hα sigma_sky = {ha_sigma_sky:.3g}")
+    if np.isfinite(morph.r_snp_all):
+        text_lines.append(f"R_SNP_ALL = {morph.r_snp_all:.3f}")
+    if np.isfinite(morph.h_snp_det):
+        text_lines.append(f"H_SNP_DET = {morph.h_snp_det:.3f}")
+    if np.isfinite(morph.h_snp_all):
+        text_lines.append(f"H_SNP_ALL = {morph.h_snp_all:.3f}")
+    if np.isfinite(morph.h_sigma_sky):
+        text_lines.append(f"H sigma_sky = {morph.h_sigma_sky:.3g}")
+    if np.isfinite(morph.h_threshold):
+        text_lines.append(f"H threshold = {morph.h_threshold:.3g}")
 
-    if ha_threshold is not None and np.isfinite(ha_threshold):
-        h_text_lines.append(f"Hα threshold = {ha_threshold:.3g}")
-
-    if ha_hapy_snp_det is not None and np.isfinite(ha_hapy_snp_det):
-        h_text_lines.append(f"H_HAPY_SNP_DET = {ha_hapy_snp_det:.3f}")
-
-    if ha_hapy_snp_all is not None and np.isfinite(ha_hapy_snp_all):
-        h_text_lines.append(f"H_HAPY_SNP_ALL = {ha_hapy_snp_all:.3f}")
-
-    if r_hapy_snp_all is not None and np.isfinite(r_hapy_snp_all):
-        r_text_lines.append(f"R_HAPY_SNP_ALL = {r_hapy_snp_all:.3f}")
-        
-
-    
     ax[7].text(
         0.98, 0.98,
-        "\n".join(h_text_lines),
+        "\n".join(text_lines),
         transform=ax[7].transAxes,
         ha="right", va="top",
         fontsize=9,
         bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
     )
 
-    ax[3].text(
-        0.98, 0.98,
-        "\n".join(r_text_lines),
-        transform=ax[3].transAxes,
-        ha="right", va="top",
-        fontsize=9,
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
-    )
-    
     for a in ax[:7]:
         a.set_xlabel("x [pix]")
         a.set_ylabel("y [pix]")
@@ -1197,5 +1387,7 @@ def plot_hapy_morphology_diagnostic(
     else:
         plt.close(fig)
 
-    return fig, axes
+    return fig
+
+
 

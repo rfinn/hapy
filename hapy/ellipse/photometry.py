@@ -1047,269 +1047,303 @@ class EllipsePhotometry():
         return gini_mask, seg, threshold
 
 
-    def run_hapy_morphology(self, nsigma=3.0, npixels=10):
+    def run_hapy_morphology(self, nsigma=3.0, npixels=10, save_diag=True):
         """
         Compute custom HAPY morphology metrics.
 
-        R_HAPY_GINI:
-            Gini of r-band image over the r-band morphology region.
-
-        H_HAPY_GINI:
-            Gini of Halpha image over the same r-band region, with Halpha
-            pixels below nsigma * sky_sigma set to zero.
-
-        Also computes:
-            - R/H_HAPY_M20
-            - R/H_HAPY_NPIX
-            - H_HAPY_FILLFRAC
-            - R_HAPY_SNP_ALL
-            - H_HAPY_SNP_DET
-            - H_HAPY_SNP_ALL
+        Definition of HAPY_MORPH_OK:
+            True only if both the R-band and Halpha morphology quantities
+            are computed successfully.
 
         HAPY_MORPH_FLAG bit meanings:
             1  = invalid or empty r-band morphology mask
             2  = no Halpha image available
             4  = no Halpha pixels above threshold inside r-mask
-            8  = invalid sky noise or non-finite core metric
+            8  = invalid/non-finite core morphology metric
             16 = exception during HAPY morphology calculation
         """
         from hapy.hatools.morphology import (
+            HapyMorphology,
             compute_gini,
             compute_m20,
             compute_flux_centroid,
+            compute_asymmetry,
             plot_hapy_morphology_diagnostic,
-            decode_hapy_flag,
         )
 
-        # -----------------------------
-        # Initialize flags / defaults
-        # -----------------------------
+        # Create dataclass and keep a handle on self
+        morph = HapyMorphology()
+        self.hapy_morph = morph
+
+        # Backward-compatible attributes: initialize everything explicitly
         self.HAPY_MORPH_OK = False
         self.HAPY_MORPH_FLAG = 0
 
-        # Core r-band outputs
         self.R_HAPY_GINI = np.nan
-        self.R_HAPY_M20 = np.nan
-        self.R_HAPY_MTOT = np.nan
-        self.R_HAPY_M20SUM = np.nan
-        self.R_HAPY_NPIX = 0
-        self.R_HAPY_SNP_ALL = np.nan
-
-        # Core Halpha outputs
         self.H_HAPY_GINI = np.nan
+        self.R_HAPY_M20 = np.nan
         self.H_HAPY_M20 = np.nan
+        self.R_HAPY_ASYM = np.nan
+        self.H_HAPY_ASYM = np.nan
+        self.R_HAPY_ASYM_ERR = np.nan
+        self.H_HAPY_ASYM_ERR = np.nan
+        self.R_HAPY_MTOT = np.nan
         self.H_HAPY_MTOT = np.nan
+        self.R_HAPY_M20SUM = np.nan
         self.H_HAPY_M20SUM = np.nan
+        self.R_HAPY_NPIX = 0
         self.H_HAPY_NPIX = 0
         self.H_HAPY_FILLFRAC = np.nan
+        self.R_HAPY_SNP_ALL = np.nan
         self.H_HAPY_SNP_DET = np.nan
         self.H_HAPY_SNP_ALL = np.nan
+        self.R_HAPY_XC = np.nan
+        self.R_HAPY_YC = np.nan
 
-        # Shared / QC products
         self.r_gini_mask = None
         self.r_gini_seg = None
         self.r_gini_threshold = np.nan
         self.ha_gini_threshold = np.nan
         self.ha_gini_image = None
         self.hapy_ha_detect = None
-        self.R_HAPY_XC = np.nan
-        self.R_HAPY_YC = np.nan
 
         try:
-            # -----------------------------
-            # Build r-band morphology mask
-            # -----------------------------
+            # -------------------------------------------------
+            # Build the r-band morphology mask / segmentation
+            # -------------------------------------------------
             self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(
                 snrcut=2.5, npixels=npixels
             )
 
-            rmask = np.asarray(self.r_gini_mask, dtype=bool) if self.r_gini_mask is not None else None
+            morph.r_mask = self.r_gini_mask
+            morph.r_seg = self.r_gini_seg
+            morph.r_threshold = self.r_gini_threshold
 
+            rmask = np.asarray(self.r_gini_mask, dtype=bool) if self.r_gini_mask is not None else None
             if rmask is None or np.sum(rmask) == 0:
                 self.HAPY_MORPH_FLAG |= 1
+                morph.flag = self.HAPY_MORPH_FLAG
+                morph.note = "Invalid or empty r-band morphology mask"
                 return
 
+            # -------------------------------------------------
+            # R-band metrics
+            # -------------------------------------------------
             self.R_HAPY_NPIX = int(np.sum(rmask))
+            morph.r_npix = self.R_HAPY_NPIX
 
-            # -----------------------------
-            # R-band Gini
-            # -----------------------------
             rvals = np.array(self.image[rmask], dtype=float)
             self.R_HAPY_GINI = compute_gini(rvals, allow_negative=False)
+            morph.r_gini = self.R_HAPY_GINI
 
-            # -----------------------------
-            # R-band S/N per pixel
-            # -----------------------------
             r_sigma_sky = getattr(self, "sky_noise", None)
+            morph.r_sigma_sky = r_sigma_sky if r_sigma_sky is not None else np.nan
             if r_sigma_sky is not None and np.isfinite(r_sigma_sky) and r_sigma_sky > 0:
                 rvals_pos = np.clip(rvals, 0, None)
-                finite = np.isfinite(rvals_pos)
-                if np.any(finite):
-                    self.R_HAPY_SNP_ALL = float(np.nanmean(rvals_pos[finite] / r_sigma_sky))
-            else:
-               # Not fatal — just means we can't compute SNP
-               self.R_HAPY_SNP_ALL = np.nan
+                good = np.isfinite(rvals_pos)
+                if np.any(good):
+                    self.R_HAPY_SNP_ALL = float(np.nanmean(rvals_pos[good] / r_sigma_sky))
+            morph.r_snp_all = self.R_HAPY_SNP_ALL
 
-            # -----------------------------
-            # R-band centroid and M20
-            # -----------------------------
             xc_r, yc_r = compute_flux_centroid(self.image, rmask)
             self.R_HAPY_XC = xc_r
             self.R_HAPY_YC = yc_r
+            morph.xc = xc_r
+            morph.yc = yc_r
 
             self.R_HAPY_M20, self.R_HAPY_MTOT, self.R_HAPY_M20SUM = compute_m20(
                 self.image, rmask, xc=xc_r, yc=yc_r
             )
+            morph.r_m20 = self.R_HAPY_M20
+            morph.r_mtot = self.R_HAPY_MTOT
+            morph.r_m20sum = self.R_HAPY_M20SUM
 
-            # -----------------------------
+            self.R_HAPY_ASYM, self.R_HAPY_ASYM_ERR, self.R_HAPY_ASYM_CENTER, self.R_HAPY_ASYM_GRID = compute_asymmetry(
+                self.image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0
+            )
+            morph.r_asym = self.R_HAPY_ASYM
+            morph.r_asym_err = self.R_HAPY_ASYM_ERR
+            morph.r_asym_center = self.R_HAPY_ASYM_CENTER
+            morph.r_asym_grid = self.R_HAPY_ASYM_GRID
+
+            # -------------------------------------------------
             # Halpha availability
-            # -----------------------------
+            # -------------------------------------------------
             if not getattr(self, "image2_flag", False) or self.image2 is None:
                 self.HAPY_MORPH_FLAG |= 2
-
-                # R-band-only morphology is still a valid partial result
-                if np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20):
-                    self.HAPY_MORPH_OK = True
+                morph.flag = self.HAPY_MORPH_FLAG
+                morph.note = "No Halpha image available"
+                self.HAPY_MORPH_OK = False
+                morph.ok = False
                 return
 
-            # -----------------------------
+            # -------------------------------------------------
             # Halpha threshold / sky noise
-            # -----------------------------
+            # -------------------------------------------------
             sigma_sky = getattr(self, "sky_noise2", None)
             if sigma_sky is None:
                 sigma_sky = getattr(self, "sky2", None)
 
+            morph.h_sigma_sky = sigma_sky if sigma_sky is not None else np.nan
+
             if sigma_sky is None or not np.isfinite(sigma_sky) or sigma_sky <= 0:
                 self.HAPY_MORPH_FLAG |= 8
+                morph.flag = self.HAPY_MORPH_FLAG
+                morph.note = "Invalid Halpha sky noise"
+                self.HAPY_MORPH_OK = False
+                morph.ok = False
                 return
 
             threshold = nsigma * sigma_sky
             self.ha_gini_threshold = threshold
+            morph.h_threshold = threshold
 
+            # -------------------------------------------------
+            # Halpha mask, SNP, Gini image
+            # -------------------------------------------------
             hvals = np.array(self.image2[rmask], dtype=float)
-
-            # -----------------------------
-            # Halpha detection mask
-            # -----------------------------
             det_mask_1d = np.isfinite(hvals) & (hvals >= threshold)
 
             self.hapy_ha_detect = np.zeros_like(self.image2, dtype=bool)
             self.hapy_ha_detect[rmask] = det_mask_1d
+            morph.h_detect_mask = self.hapy_ha_detect
 
             self.H_HAPY_NPIX = int(np.sum(det_mask_1d))
+            morph.h_npix = self.H_HAPY_NPIX
+
             self.H_HAPY_FILLFRAC = (
                 self.H_HAPY_NPIX / self.R_HAPY_NPIX if self.R_HAPY_NPIX > 0 else np.nan
             )
+            morph.h_fillfrac = self.H_HAPY_FILLFRAC
 
             if self.H_HAPY_NPIX == 0:
                 self.HAPY_MORPH_FLAG |= 4
 
-            # -----------------------------
-            # Halpha S/N per pixel
-            # -----------------------------
             hsnr = np.array(hvals / sigma_sky, dtype=float)
-
             if np.any(det_mask_1d):
                 self.H_HAPY_SNP_DET = float(np.nanmean(hsnr[det_mask_1d]))
+            morph.h_snp_det = self.H_HAPY_SNP_DET
 
             hsnr_all = np.array(hsnr, copy=True)
             hsnr_all[~det_mask_1d] = 0.0
             if hsnr_all.size > 0:
                 self.H_HAPY_SNP_ALL = float(np.nanmean(hsnr_all))
+            morph.h_snp_all = self.H_HAPY_SNP_ALL
 
-            # -----------------------------
-            # Thresholded Halpha image for Gini/M20
-            # -----------------------------
             hvals_for_morph = np.array(hvals, copy=True)
             hvals_for_morph[~det_mask_1d] = 0.0
 
             self.ha_gini_image = np.full_like(self.image2, np.nan, dtype=float)
             self.ha_gini_image[rmask] = hvals_for_morph
+            morph.h_gini_image = self.ha_gini_image
 
-            # -----------------------------
-            # Halpha Gini
-            # -----------------------------
+            # -------------------------------------------------
+            # Halpha metrics
+            # -------------------------------------------------
             self.H_HAPY_GINI = compute_gini(hvals_for_morph, allow_negative=False)
+            morph.h_gini = self.H_HAPY_GINI
 
-            # -----------------------------
-            # Halpha M20 using same center as r-band
-            # -----------------------------
-            ha_m20_image = np.zeros_like(self.image2, dtype=float)
-            ha_m20_image[rmask] = hvals_for_morph
+            ha_morph_image = np.zeros_like(self.image2, dtype=float)
+            ha_morph_image[rmask] = hvals_for_morph
 
             self.H_HAPY_M20, self.H_HAPY_MTOT, self.H_HAPY_M20SUM = compute_m20(
-                ha_m20_image, rmask, xc=xc_r, yc=yc_r
+                ha_morph_image, rmask, xc=xc_r, yc=yc_r
             )
+            morph.h_m20 = self.H_HAPY_M20
+            morph.h_mtot = self.H_HAPY_MTOT
+            morph.h_m20sum = self.H_HAPY_M20SUM
 
+            self.H_HAPY_ASYM, self.H_HAPY_ASYM_ERR, self.H_HAPY_ASYM_CENTER, self.H_HAPY_ASYM_GRID = compute_asymmetry(
+                ha_morph_image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0
+            )
+            morph.h_asym = self.H_HAPY_ASYM
+            morph.h_asym_err = self.H_HAPY_ASYM_ERR
+            morph.h_asym_center = self.H_HAPY_ASYM_CENTER
+            morph.h_asym_grid = self.H_HAPY_ASYM_GRID
 
-            # -----------------------------
-            # Final status
-            # -----------------------------
-            core_r_ok = np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20)
-            core_h_ok = np.isfinite(self.H_HAPY_GINI) and np.isfinite(self.H_HAPY_M20)
-            print("DEBUG: core_r_ok, core_h_ok = ",core_r_ok, core_h_ok)
-            # Fatal problems are:
-            # 1 = invalid r-mask
-            # 8 = invalid sky / non-finite core metric
-            # 16 = exception
+            # -------------------------------------------------
+            # Validate core morphology metrics
+            # -------------------------------------------------
+            core_r_ok = np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20) and np.isfinite(self.R_HAPY_ASYM)
+            core_h_ok = np.isfinite(self.H_HAPY_GINI) and np.isfinite(self.H_HAPY_M20) and np.isfinite(self.H_HAPY_ASYM)
+
+            if not core_r_ok:
+                self.HAPY_MORPH_FLAG |= 8
+
+            # Halpha is considered successfully calculated even if there are no
+            # detections above threshold, provided the metrics are finite.
+            if not core_h_ok:
+                self.HAPY_MORPH_FLAG |= 8
+
+            # -------------------------------------------------
+            # Final OK logic
+            # -------------------------------------------------
             fatal_bits = self.HAPY_MORPH_FLAG & (1 | 8 | 16)
 
-            self.HAPY_MORPH_OK = False
+            self.HAPY_MORPH_OK = (
+                core_r_ok and
+                core_h_ok and
+                fatal_bits == 0 and
+                not (self.HAPY_MORPH_FLAG & 2)
+            )
 
-            if core_r_ok and fatal_bits == 0:
-                # No Halpha image: accept R-only morphology as valid
-                if self.HAPY_MORPH_FLAG & 2:
-                    self.HAPY_MORPH_OK = True
+            morph.ok = self.HAPY_MORPH_OK
+            morph.flag = self.HAPY_MORPH_FLAG
 
-                # Halpha available and metrics are valid
-                elif core_h_ok:
-                    self.HAPY_MORPH_OK = True
+            # -------------------------------------------------
+            # Mirror key values back into dataclass
+            # -------------------------------------------------
+            morph.r_gini = self.R_HAPY_GINI
+            morph.h_gini = self.H_HAPY_GINI
+            morph.r_m20 = self.R_HAPY_M20
+            morph.h_m20 = self.H_HAPY_M20
+            morph.r_asym = self.R_HAPY_ASYM
+            morph.h_asym = self.H_HAPY_ASYM
+            morph.r_asym_err = self.R_HAPY_ASYM_ERR
+            morph.h_asym_err = self.H_HAPY_ASYM_ERR
+            morph.r_mtot = self.R_HAPY_MTOT
+            morph.h_mtot = self.H_HAPY_MTOT
+            morph.r_m20sum = self.R_HAPY_M20SUM
+            morph.h_m20sum = self.H_HAPY_M20SUM
+            morph.r_npix = self.R_HAPY_NPIX
+            morph.h_npix = self.H_HAPY_NPIX
+            morph.h_fillfrac = self.H_HAPY_FILLFRAC
+            morph.r_snp_all = self.R_HAPY_SNP_ALL
+            morph.h_snp_det = self.H_HAPY_SNP_DET
+            morph.h_snp_all = self.H_HAPY_SNP_ALL
 
-                # Halpha available but no detections above threshold:
-                # treat as scientifically valid, not a failure
-                elif self.HAPY_MORPH_FLAG & 4:
-                    self.HAPY_MORPH_OK = True
+            # -------------------------------------------------
+            # Backward-compatible aliases on self
+            # -------------------------------------------------
+            self.HAPY_MORPH_OK = morph.ok
+            self.HAPY_MORPH_FLAG = morph.flag
 
-        
-            # -----------------------------
-            # Diagnostic plot
-            # -----------------------------
-            try:
-                plot_hapy_morphology_diagnostic(
-                    r_image=self.image,
-                    ha_image=self.image2,
-                    r_gini_mask=self.r_gini_mask,
-                    ha_detect_mask=self.hapy_ha_detect,
-                    ha_gini_image=self.ha_gini_image,
-                    r_hapy_gini=self.R_HAPY_GINI,
-                    ha_hapy_gini=self.H_HAPY_GINI,
-                    r_hapy_npix=self.R_HAPY_NPIX,
-                    ha_hapy_npix=self.H_HAPY_NPIX,
-                    ha_hapy_fillfrac=self.H_HAPY_FILLFRAC,
-                    ha_threshold=self.ha_gini_threshold,
-                    ha_sigma_sky=sigma_sky,
-                    r_hapy_snp_all=self.H_HAPY_SNP_ALL,
-                    ha_hapy_snp_det=self.H_HAPY_SNP_DET,
-                    ha_hapy_snp_all=self.H_HAPY_SNP_ALL,
-                    r_hapy_m20=self.R_HAPY_M20,
-                    ha_hapy_m20=self.H_HAPY_M20,
-                    outfile=f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.png",
-                )
-            except Exception:
-                # Plotting failure should not invalidate the measurements
-                pass
-
-
+            # -------------------------------------------------
+            # Diagnostic figure
+            # -------------------------------------------------
+            if save_diag:
+                try:
+                    morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.png"
+                    morph.diag_fig = plot_hapy_morphology_diagnostic(
+                        r_image=self.image,
+                        ha_image=self.image2,
+                        morph=morph,
+                        outfile=morph.diag_outfile,
+                        show=False,
+                        dpi=150,
+                    )
+                except Exception:
+                    # Plotting failure should not invalidate the measurements
+                    pass
 
         except Exception:
             self.HAPY_MORPH_FLAG |= 16
             self.HAPY_MORPH_OK = False
+            morph.flag = self.HAPY_MORPH_FLAG
+            morph.ok = self.HAPY_MORPH_OK
             raise
-        print("DEBUG: HAPY_MORPH_FLAG:")
-        print(decode_hapy_flag(self.HAPY_MORPH_FLAG))
 
-
-    
+        
     def get_asymmetry(self):
         '''
         * goal is to measure the assymetry of the galaxy about its center
@@ -1401,26 +1435,7 @@ class EllipsePhotometry():
             self.asym2_center = np.array([r+yc,c+xc])
             #print('asymmetry2 = ',self.asym2)
             print('asymmetry = {:.3f}+/-{:.3f}'.format(self.asym2,self.asym2_err))
-            '''
-            # use all the same images as for r-band measurement
-            self.object_pixels2 = (self.segmentation.data == self.cat.id[self.objectIndex])# & (self.segmentation2.data > 0.)
-
-            xc = self.cat.xcentroid[self.objectIndex].value
-            yc = self.cat.ycentroid[self.objectIndex].value
-            row,col = np.where(self.object_pixels2)
-
-            drow = np.array((row-yc),'i')
-            dcol = np.array((col-xc),'i')
-            row2 = np.array((yc -1*drow),'i')
-            col2 = np.array((xc -1*dcol),'i')
-            sum_diff = np.sum(np.abs(self.masked_image2[row,col] - self.masked_image2[row2,col2]))
-            # divide by the sum of the original pixel values for object
-            source_sum = np.sum(self.image2[self.object_pixels2])
-        
-        
-            self.asym2b = sum_diff/source_sum
-            print('asymmetry2 = ',self.asym2b)
-            '''
+ 
         
     def get_ellipse_guess(self, r=2.5):
         '''

@@ -499,14 +499,29 @@ def plot_wrapped_angle_difference_hist(
 # main validation products
 # ----------------------------------------------------------------------
 
-def build_r_size_df(tab: Table) -> pd.DataFrame:
+def build_r_full_size_df(tab: Table) -> pd.DataFrame:
     cols = [
         "R24_ARCSEC",
         "R25_ARCSEC",
-        "R50_ARCSEC",
         "R75_ARCSEC",
+        "R_SM_R80",
+        "R_SM_RMAX_CIRCLE",
+        "R_SM_RMAX_ELLIP",        
+        "QC_TIER",
+    ]
+    if "GAL_RE" in tab.colnames:
+        cols.insert(-1, "GAL_RE")
+    df = make_dataframe(tab, cols)
+    return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
+
+def build_r_half_size_df(tab: Table) -> pd.DataFrame:
+    cols = [
+        "R50_ARCSEC",
         "R_PETRO_R50_ARCSEC",
         "R_EXPFIT_RE_ARCSEC",
+        "GAL_RE",
+        "R_SM_R50",
+        "R_SM_RHALF_ELLIP",        
         "QC_TIER",
     ]
     if "GAL_RE" in tab.colnames:
@@ -515,15 +530,27 @@ def build_r_size_df(tab: Table) -> pd.DataFrame:
     return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
 
 
-def build_h_size_df(tab: Table) -> pd.DataFrame:
+def build_h_full_size_df(tab: Table) -> pd.DataFrame:
+    cols = [
+        "H75_ARCSEC",
+        "H_MAXDET_ARCSEC",
+        "H_R95_R24_ARCSEC",
+        "H_SM_R80",
+        "H_SM_RMAX_CIRCLE",
+        "H_SM_RMAX_ELLIP",                
+        "QC_TIER",
+    ]
+    df = make_dataframe(tab, cols)
+    return clean_pairplot_df(df, positive_cols=[c for c in cols if c != "QC_TIER"])
+
+def build_h_half_size_df(tab: Table) -> pd.DataFrame:
     cols = [
         "H25_ARCSEC",
         "H50_ARCSEC",
-        "H75_ARCSEC",
-        "H_MAXDET_ARCSEC",
         "H_PETRO_R50_ARCSEC",
         "H_EXPFIT_RE_ARCSEC",
-        "H_R95_R24_ARCSEC",
+        "H_SM_R50",
+        "H_SM_RHALF_ELLIP",        
         "QC_TIER",
     ]
     df = make_dataframe(tab, cols)
@@ -566,7 +593,7 @@ def build_r_morph_df(tab: Table) -> pd.DataFrame:
         "R_HAPY_M20",
         "R_SM_GINI",
         "R_SM_M20",
-        "R_ASYM",
+        #"R_ASYM",
         "R_C30",
         "QC_TIER",
     ]
@@ -580,7 +607,7 @@ def build_h_morph_df(tab: Table) -> pd.DataFrame:
         "H_HAPY_M20",
         "H_SM_GINI",
         "H_SM_M20",
-        "H_ASYM",
+        #"H_ASYM",
         "H_C30_R24",
         "QC_TIER",
     ]
@@ -614,12 +641,23 @@ def main():
     print(f"Selected {len(sub)} rows for sample {args.sample}")
 
     # Pairplots
-    r_size_df = build_r_size_df(sub)
-    pairplot_family(r_size_df, "QC_TIER", outdir / f"pairplot_r_sizes_{args.sample}.png",
+
+    ##################################################################
+    ## SIZE METRICS
+    ##################################################################    
+    r_full_size_df = build_r_full_size_df(sub)
+    pairplot_family(r_full_size_df, "QC_TIER", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
+                    f"r-band size validation ({args.sample})", annotate_ratio=True)
+    r_half_size_df = build_r_half_size_df(sub)
+    pairplot_family(r_half_size_df, "QC_TIER", outdir / f"pairplot_r_half_sizes_{args.sample}.png",
                     f"r-band size validation ({args.sample})", annotate_ratio=True)
     
-    h_size_df = build_h_size_df(sub)
-    pairplot_family(h_size_df, "QC_TIER", outdir / f"pairplot_h_sizes_{args.sample}.png",
+    h_full_size_df = build_h_full_size_df(sub)
+    pairplot_family(h_full_size_df, "QC_TIER", outdir / f"pairplot_h_full_sizes_{args.sample}.png",
+                    f"Hα size validation ({args.sample})", annotate_ratio=True)
+    
+    h_half_size_df = build_h_half_size_df(sub)
+    pairplot_family(h_half_size_df, "QC_TIER", outdir / f"pairplot_h_half_sizes_{args.sample}.png",
                     f"Hα size validation ({args.sample})", annotate_ratio=True)
 
     r_fluxmag_df = build_r_fluxmag_df(sub)    
