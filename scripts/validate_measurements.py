@@ -133,6 +133,8 @@ def _annotate_pairgrid(
     qlo=0.01,
     qhi=0.99,
     log_cols: list[str] | None = None,
+    use_robust_limits: bool = True,
+    use_robust_diag_limits: bool = False,
 ):
     """
     Add robust limits and panel annotations to off-diagonal panels
@@ -154,17 +156,27 @@ def _annotate_pairgrid(
             if ax is None:
                 continue
 
-            # robust limits
-            if xvar in df.columns:
-                xlim = _robust_limits(df[xvar].values, qlo=qlo, qhi=qhi)
-                if xlim is not None:
-                    ax.set_xlim(xlim)
+            
+            # robust limits for off-diagonal scatter panels
+            if use_robust_limits and i != j:
+                if xvar in df.columns:
+                    xlim = _robust_limits(df[xvar].values, qlo=qlo, qhi=qhi)
+                    if xlim is not None:
+                        ax.set_xlim(xlim)
 
-            if yvar in df.columns:
-                ylim = _robust_limits(df[yvar].values, qlo=qlo, qhi=qhi)
-                if ylim is not None:
-                    ax.set_ylim(ylim)
+                if yvar in df.columns:
+                    ylim = _robust_limits(df[yvar].values, qlo=qlo, qhi=qhi)
+                    if ylim is not None:
+                        ax.set_ylim(ylim)
 
+            # robust limits for diagonal histogram panels only
+            if use_robust_diag_limits and i == j:
+                if xvar in df.columns:
+                    xlim = _robust_limits(df[xvar].values, qlo=qlo, qhi=qhi)
+                    if xlim is not None:
+                        ax.set_xlim(xlim)
+
+            
             if i == j:
                 continue
 
@@ -240,6 +252,8 @@ def pairplot_family(
     corner: bool = True,
     annotate_ratio: bool = True,
     log_cols: list[str] | None = None,
+    use_robust_limits: bool = True,   # NEW
+    use_robust_diag_limits: bool = False,
 ):
     if len(df) < 3 or len(df.columns) < 2:
         print(f"WARNING: insufficient data for {outpath.name}")
@@ -267,10 +281,25 @@ def pairplot_family(
 
     
     if annotate_ratio:
-        _annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None, log_cols=log_cols)
+        _annotate_pairgrid(
+            g,
+            pairplot_kwargs["data"],
+            hue=hue if hue in df.columns else None,
+            log_cols=log_cols,
+            use_robust_limits=use_robust_limits,
+            use_robust_diag_limits=use_robust_diag_limits,
+            )
+        #_annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None, log_cols=log_cols)
     else:
         # still apply robust limits
-        _annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None)
+        _annotate_pairgrid(
+            g,
+            pairplot_kwargs["data"],
+            hue=hue if hue in df.columns else None,
+            use_robust_limits=use_robust_limits,
+            use_robust_diag_limits=use_robust_diag_limits,
+            )
+        #_annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None)
         # remove text labels if desired
         for axrow in g.axes:
             for ax in axrow:
