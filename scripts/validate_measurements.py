@@ -62,42 +62,52 @@ def make_dataframe(tab: Table, columns: list[str]) -> pd.DataFrame:
                     data[col] = np.array(tab[col]).astype(str)
     return pd.DataFrame(data)
 
+
 def clean_pairplot_df(
     df: pd.DataFrame,
     positive_cols: list[str] | None = None,
     log_cols: list[str] | None = None,
+    nonzero_cols: list[str] | None = None,
     bad_sentinels: tuple[float, ...] = (-99, -999, 99, 999),
 ) -> pd.DataFrame:
     """
     Clean dataframe for pairplots.
 
     - replaces common sentinel values with NaN
-    - enforces positivity for selected columns
-    - optionally log10-transforms selected columns
+    - enforces positivity for selected numeric columns
+    - optionally log10-transforms selected numeric columns
     - drops rows with NaN in plotted columns
     """
     out = df.copy()
     positive_cols = positive_cols or []
     log_cols = log_cols or []
+    nonzero_cols = nonzero_cols or []
 
-    # replace common sentinel values
+    # replace sentinel values only in numeric columns
     for col in out.columns:
         if pd.api.types.is_numeric_dtype(out[col]):
             for bad in bad_sentinels:
-                out.loc[np.isclose(out[col], bad, equal_nan=False)] = np.nan
+                out.loc[np.isclose(out[col], bad, equal_nan=False), col] = np.nan
 
-    # require positive values where appropriate
+    # require > 0 only for numeric columns
     for col in positive_cols:
-        if col in out.columns:
+        if col in out.columns and pd.api.types.is_numeric_dtype(out[col]):
             out.loc[out[col] <= 0, col] = np.nan
 
-    # log-transform selected columns
+    # require != 0 only for numeric columns
+    for col in nonzero_cols:
+        if col in out.columns and pd.api.types.is_numeric_dtype(out[col]):
+            out.loc[out[col] == 0, col] = np.nan
+
+    # log-transform only numeric columns
     for col in log_cols:
-        if col in out.columns:
+        if col in out.columns and pd.api.types.is_numeric_dtype(out[col]):
             out.loc[out[col] <= 0, col] = np.nan
             out[col] = np.log10(out[col])
 
     return out.dropna()
+
+
 
 
 def _robust_limits(x, qlo=0.01, qhi=0.99, pad_frac=0.05):
@@ -235,62 +245,32 @@ def pairplot_family(
         print(f"WARNING: insufficient data for {outpath.name}")
         return
 
-    sns.set_context("talk")
-
-    hue_order = ["A", "B", "C", "D", "E", "F"]
-
-    # # these are too similar
-    # palette = {
-    #     "A": "#1b9e77",  # green
-    #     "B": "#66a61e",
-    #     "C": "#e6ab02",
-    #     "D": "#d95f02",
-    #     "E": "#7570b3",
-    #     "F": "#e7298a",
-    #     }
-
-    palette = {
-        "A": "#1b9e77",  # teal-green
-        "B": "#b2df8a",  # much lighter green (big contrast)
-        "C": "#e6ab02",
-        "D": "#d95f02",
-        "E": "#7570b3",
-        "F": "#e7298a",
-        }
-        
-    # # colorbrewer inspired
-    # palette = {
-    #     "A": "#1a9850",  # strong green
-    #     "B": "#66bd63",  # lighter green (clearly distinct)
-    #     "C": "#a6d96a",  # yellow-green
-    #     "D": "#fdae61",  # orange
-    #     "E": "#f46d43",  # red-orange
-    #     "F": "#d73027",  # red
-    #     }
-
-    # colors = sns.color_palette("RdYlGn_r", 6)  # reversed: green → red
-
-    # palette = dict(zip(["A","B","C","D","E","F"], colors))
-    df = enforce_qc_tier(df)
-    g = sns.pairplot(
-        df,
+    pairplot_kwargs = dict(
+        data=df,
         hue=hue if hue in df.columns else None,
-        hue_order=hue_order,
-        palette=palette,
         corner=corner,
         diag_kind="hist",
         plot_kws=dict(s=22, alpha=0.7),
         diag_kws=dict(bins=20),
     )
 
+    if hue == "QC_TIER":
+        from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE, enforce_qc_tier
+        df = enforce_qc_tier(df.copy())
+        pairplot_kwargs["data"] = df
+        pairplot_kwargs["hue_order"] = QC_TIER_ORDER
+        pairplot_kwargs["palette"] = QC_TIER_PALETTE
+        
+    sns.set_context("talk")
 
+    g = sns.pairplot(**pairplot_kwargs)
 
     
     if annotate_ratio:
-        _annotate_pairgrid(g, df, hue=hue if hue in df.columns else None, log_cols=log_cols)
+        _annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None, log_cols=log_cols)
     else:
         # still apply robust limits
-        _annotate_pairgrid(g, df, hue=hue if hue in df.columns else None)
+        _annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None)
         # remove text labels if desired
         for axrow in g.axes:
             for ax in axrow:
@@ -716,6 +696,7 @@ def build_r_full_size_df(tab: Table) -> pd.DataFrame:
         "R_SM_RMAX_CIRCLE",
         "R_SM_RMAX_ELLIP",        
         "QC_TIER",
+        "TELESCOPE",        
     ]
     df = make_dataframe(tab, cols)
     size_cols = [c for c in cols if c != "QC_TIER"]
@@ -736,6 +717,7 @@ def build_r_half_size_df(tab: Table) -> pd.DataFrame:
         "R_SM_R50",
         "R_SM_RHALF_ELLIP",        
         "QC_TIER",
+        "TELESCOPE",
     ]
     df = make_dataframe(tab, cols)
     size_cols = [c for c in cols if c != "QC_TIER"]
@@ -756,8 +738,10 @@ def build_h_full_size_df(tab: Table) -> pd.DataFrame:
         "H_R95_R24_ARCSEC",
         "H_SM_R80",
         "H_SM_RMAX_CIRCLE",
-        "H_SM_RMAX_ELLIP",                
+        "H_SM_RMAX_ELLIP",
         "QC_TIER",
+        "TELESCOPE",
+
     ]
     df = make_dataframe(tab, cols)
     size_cols = [c for c in cols if c != "QC_TIER"]
@@ -777,6 +761,7 @@ def build_h_half_size_df(tab: Table) -> pd.DataFrame:
         "H_SM_R50",
         "H_SM_RHALF_ELLIP",        
         "QC_TIER",
+        "TELESCOPE",
     ]
     df = make_dataframe(tab, cols)
     size_cols = [c for c in cols if c != "QC_TIER"]
@@ -894,10 +879,12 @@ def main():
     ## SIZE METRICS
     ##################################################################    
     r_full_size_df, log_cols = build_r_full_size_df(sub)
-    pairplot_family(r_full_size_df, "QC_TIER", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
+    #pairplot_family(r_full_size_df, "QC_TIER", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
+    pairplot_family(r_full_size_df, "TELESCOPE", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
                     f"r-band full size validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
     r_half_size_df, log_cols = build_r_half_size_df(sub)
-    pairplot_family(r_half_size_df, "QC_TIER", outdir / f"pairplot_r_half_sizes_{args.sample}.png",
+    #pairplot_family(r_half_size_df, "QC_TIER", outdir / f"pairplot_r_half_sizes_{args.sample}.png",
+    pairplot_family(r_half_size_df, "TELESCOPE", outdir / f"pairplot_r_half_sizes_{args.sample}.png",    
                     f"r-band half size validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
     
     h_full_size_df, log_cols = build_h_full_size_df(sub)

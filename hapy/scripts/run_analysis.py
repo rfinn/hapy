@@ -296,7 +296,7 @@ def _galfit_stage(rg, args, init, do_conv: bool, n_hi=4.0, logger=None):
         logger.info(f"GALFIT {stage} done: unstable={meta['unstable']} rerun_fixed_n={meta['rerun_fixed_n']}")
     return res, meta
 
-def _store_galfit(row, res, prefix):
+def _store_galfit(row, res, prefix, pixscale):
     row[f"{prefix}XC"] = _scalar(res.comp1.xc)
     row[f"{prefix}XC_ERR"] = _scalar(res.comp1.xc_err)
     row[f"{prefix}YC"] = _scalar(res.comp1.yc)
@@ -304,8 +304,20 @@ def _store_galfit(row, res, prefix):
 
     row[f"{prefix}MAG"] = _scalar(res.comp1.mag)
     row[f"{prefix}MAG_ERR"] = _scalar(res.comp1.mag_err)
-    row[f"{prefix}RE"] = _scalar(res.comp1.re)
-    row[f"{prefix}RE_ERR"] = _scalar(res.comp1.re_err)
+
+    # convert to arcsec
+    r = _scalar(res.comp1.re)
+    if r is not None:
+        r = r * pixscale
+    row[f"{prefix}RE_ARCSEC"] = r
+
+    r = _scalar(res.comp1.re_err)
+    if r is not None:
+        r = r * pixscale
+    
+    row[f"{prefix}RE_ERR_ARCSEC"] = r
+
+    
     row[f"{prefix}N"] = _scalar(res.comp1.n)
     row[f"{prefix}N_ERR"] = _scalar(res.comp1.n_err)
     row[f"{prefix}BA"] = _scalar(res.comp1.ba)
@@ -329,7 +341,7 @@ def print_statmorph(mobj):
 
 # ---- statmorph (best-effort; only a few key fields to start) ----
 
-def _pull_statmorph(row, prefix, mobj):
+def _pull_statmorph(row, prefix, mobj,pixscale):
     if mobj is None:
         return
     
@@ -342,15 +354,15 @@ def _pull_statmorph(row, prefix, mobj):
             ("C", "concentration"),
             ("A", "asymmetry"),
             ("S", "smoothness"),
-            ("RPETRO_ELLIP", "rpetro_ellip"),
-            ("RHALF_ELLIP", "rhalf_ellip"),
-            ("R20", "r20"),
-            ("R50", "r50"),
-            ("R80", "r80"),
-            ("RMAX_CIRCLE","rmax_circ"),
-            ("RMAX_ELLIP","rmax_ellip"),            
+            ("RPETRO_ELLIP_ARCSEC", "rpetro_ellip"),
+            ("RHALF_ELLIP_ARCSEC", "rhalf_ellip"),
+            ("R20_ARCSEC", "r20"),
+            ("R50_ARCSEC", "r50"),
+            ("R80_ARCSEC", "r80"),
+            ("RMAX_CIRCLE_ARCSEC","rmax_circ"),
+            ("RMAX_ELLIP_ARCSEC","rmax_ellip"),            
             ("SERSIC_AMP", "sersic_amplitude"),
-            ("SERSIC_RHALF","sersic_rhalf"),
+            ("SERSIC_RHALF_ARCSEC","sersic_rhalf"),
             ("SERSIC_N","sersic_n"),
             ("SERSIC_XC","sersic_xc"),
             ("SERSIC_YC","sersic_yc"),
@@ -363,9 +375,12 @@ def _pull_statmorph(row, prefix, mobj):
             ("SKY_MEDIAN","sky_median"),
             ("SKY_SIGMA","sky_sigma"),            
                     ]:
-        row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
+        #row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         try:
-            row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
+            r = _scalar(getattr(mobj, attr))
+            if "_ARCSEC" in attr and r:
+                r = r * pixscale
+            row[f"{prefix}_{outk}"] = r 
         except Exception:
             pass
 
@@ -393,7 +408,8 @@ def initialize_result_row():
     # ---------- coordinates ----------
     row["RA"] = np.nan
     row["DEC"] = np.nan
-
+    row["REDSHIFT"] = np.nan
+    row["VR"] = np.nan    
     # ---- meta data ---
     row["HAPY_VERSION"] = ""
     row["RUN_DATE"] = ""
@@ -408,7 +424,7 @@ def initialize_result_row():
     ]:
         row[k] = ""
 
-
+    row["PIXSCALE"] = np.nan    
     # removing these
     not_needed = ["R_FITS", "CS_FITS"]
     # ---------- identity ----------
@@ -460,7 +476,7 @@ def initialize_result_row():
         row[k] = False
 
     row["BRIGHT_STAR_FLAG"] = False
-    row["BRIGHT_STAR_DIST"] = np.nan
+    row["BRIGHT_STAR_DIST_ARCSEC"] = np.nan
     row["BRIGHT_STAR_MASKRAD_ARCSEC"] = np.nan
     row["BRIGHT_STAR_MAG"] = np.nan 
     row["ELL0_MASKFRAC"] = np.nan
@@ -487,8 +503,8 @@ def initialize_result_row():
     # ---------- ellipse ----------
     for k in [
         "ELLIP_XCENTROID", "ELLIP_YCENTROID",
-        "ELLIP_SMA_PIX", "ELLIP_B_PIX",
-        "ELLIP_EPS", "ELLIP_THETA_RAD",
+        "ELLIP_SMA_ARCSEC", "ELLIP_B_ARCSEC",
+        "ELLIP_EPS", "ELLIP_THETA_RAD", "ELLIP_PA_DEG",
         "R_ELLIP_GINI","H_ELLIP_GINI", "ELLIP_SOURCE_SUM",
         "ELLIP_BA", "ELLIP_SEGMENT_FLUX",
         "ELLIP_SEGMENT_MAG",
@@ -552,11 +568,11 @@ def initialize_result_row():
         "FLAG",
         "XCENTROID", "YCENTROID", "GINI", "M20",
         "C", "A", "S",
-        "RPETRO_ELLIP", "RHALF_ELLIP",
-        "R20", "R50", "R80",
-        "RMAX_CIRCLE", "RMAX_ELLIP",
+        "RPETRO_ELLIP_ARCSEC", "RHALF_ELLIP_ARCSEC",
+        "R20_ARCSEC", "R50_ARCSEC", "R80_ARCSEC",
+        "RMAX_CIRCLE_ARCSEC", "RMAX_ELLIP_ARCSEC",
         "SERSIC_AMP", 
-        "SERSIC_RHALF",
+        "SERSIC_RHALF_ARCSEC",
         "SERSIC_N",
         "SERSIC_XC",
         "SERSIC_YC",
@@ -666,7 +682,7 @@ def initialize_result_row():
         "GAL_XC", "GAL_XC_ERR",
         "GAL_YC", "GAL_YC_ERR",
         "GAL_MAG", "GAL_MAG_ERR",
-        "GAL_RE", "GAL_RE_ERR",
+        "GAL_RE_ARCSEC", "GAL_RE_ERR_ARCSEC",
         "GAL_N", "GAL_N_ERR",
         "GAL_BA", "GAL_BA_ERR",
         "GAL_PA", "GAL_PA_ERR",
@@ -685,7 +701,7 @@ def initialize_result_row():
         "GAL_CXC", "GAL_CXC_ERR",
         "GAL_CYC", "GAL_CYC_ERR",
         "GAL_CMAG", "GAL_CMAG_ERR",
-        "GAL_CRE", "GAL_CRE_ERR",
+        "GAL_CRE_ARCSEC", "GAL_CRE_ERR_ARCSEC",
         "GAL_CN", "GAL_CN_ERR",
         "GAL_CBA", "GAL_CBA_ERR",
         "GAL_CPA", "GAL_CPA_ERR",
@@ -949,7 +965,7 @@ def main():
     #if pixscale is None:
     pixscale = get_pixel_scale_from_filename(r_fits)
 
-
+    row["PIXSCALE"] = round(float(pixscale),'3')
     # --- Load cutout image for WCS + shape ---
     data, hdr = fits.getdata(r_fits, header=True)
     ny, nx = data.shape
@@ -1046,7 +1062,8 @@ def main():
     row["RA"] = ra
     row["DEC"] = dec
     row["OBJID"] = objid
-
+    row["REDSHIFT"] = params.get("redshift")
+    row["VR"] = params.get("vr")    
     row["R_FWHM_SE"] = float(params.get("rimage_fwhm_se_arcsec"))
     row["R_FWHM_PSF"] = float(params.get("rimage_fwhm_psf_arcsec"))    
     row["H_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
@@ -1215,7 +1232,7 @@ def main():
             )
         
         row["BRIGHT_STAR_FLAG"] = bright_flag
-        row["BRIGHT_STAR_DIST"] = dist_arcsec
+        row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
         row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
         row["BRIGHT_STAR_MAG"] = bright_mag        
 
@@ -1275,8 +1292,8 @@ def main():
     FIELDS = [
         ("ELLIP_XCENTROID", "xcenter"),
         ("ELLIP_YCENTROID", "ycenter"),
-        ("ELLIP_SMA_PIX", "sma"),
-        ("ELLIP_B_PIX", "b"),
+        ("ELLIP_SMA_ARCSEC", "sma"),
+        ("ELLIP_B_ARCSEC", "b"),
         ("ELLIP_EPS", "eps"),
         ("ELLIP_THETA_RAD", "theta"),
         ("R_ELLIP_GINI", "gini"),
@@ -1299,10 +1316,22 @@ def main():
 
     for outk, attr in FIELDS:
         v = getattr(e, attr, None)
+
         sv = _scalar(v)
+        
         if sv is not None:
+            if "_ARCSEC" in attr:
+                sv = sv * pixscale
             row[outk] = sv  # leave as np.nan if missing/array/etc.
 
+    # convert theta to PA and store
+    if row["ELLIP_THETA_RAD"] is not None:
+        # convert to PA in deg and store result
+        # ELLIP_THETA_RAD measured from +x axis
+        phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+        phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
+        row["ELLIP_PA_DEG"] = phot_pa_deg
+        
     # add photutils B/A
     row["ELLIP_BA"] = 1. - float(row["ELLIP_EPS"])
     
@@ -1340,14 +1369,11 @@ def main():
     try:
         phot_xc = float(row["ELLIP_XCENTROID"])
         phot_yc = float(row["ELLIP_YCENTROID"])
-        phot_sma_pix = float(row["ELLIP_SMA_PIX"])
+        phot_sma_pix = float(row["ELLIP_SMA_ARCSEC"])/pixscale
         phot_ba = 1.0 - float(row["ELLIP_EPS"])
         #phot_pa_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
         #phot_pa_deg = photutils_theta_to_pa_ccw_north(theta_phot_deg)  # inverse of your adapter
 
-        # ELLIP_THETA_RAD measured from +x axis
-        phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-        phot_pa_deg = photutils_theta_to_pa_ccw_north(phot_theta_deg)  # inverse of your adapter
 
         # save this for later
         
@@ -1429,14 +1455,14 @@ def main():
         if e.statmorph_flag:
             #_pull_statmorph(row,"R_SM", getattr(e, "morph", None))
             try:
-                _pull_statmorph(row,"R_SM", getattr(e, "morph", None))
+                _pull_statmorph(row,"R_SM", getattr(e, "morph", None), pixelscale)
                 # statmorph sets flag == 1 for a problem, so need to negate it
                 row["R_SM_OK"] = True
             except Exception:
                 pass
 
             try:
-                _pull_statmorph(row,"H_SM", getattr(e, "morph2", None))
+                _pull_statmorph(row,"H_SM", getattr(e, "morph2", None), pixelscale)
                 row["H_SM_OK"] = True
             except Exception:
                 pass
@@ -1444,7 +1470,7 @@ def main():
         row["SM_SEC"] = _scalar(time.perf_counter() - t0)        
         write_result_row_ecsv(results_path, row)
  
-    
+
     if not args.no_diagnostic_plots:
         print("making diagnostic plots...")
         e.plot_fancy_profiles()
@@ -1452,7 +1478,7 @@ def main():
         
         phot_xc = float(row["ELLIP_XCENTROID"])
         phot_yc = float(row["ELLIP_YCENTROID"])
-        phot_sma_pix = float(row["ELLIP_SMA_PIX"])
+        phot_sma_pix = float(row["ELLIP_SMA_ARCSEC"])/pixscale
         phot_ba = 1.0 - float(row["ELLIP_EPS"])
         # ELLIP_THETA_RAD measured from +x axis
         phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
@@ -1546,7 +1572,7 @@ def main():
         # --- No convolution ---
         try:
             res_nc, meta_nc = _galfit_stage(rg, args, init0, do_conv=False, logger=logger)
-            _store_galfit(row, res_nc, "GAL_")
+            _store_galfit(row, res_nc, "GAL_", pixscale)
             row["GAL_NC_RERUN_FIXEDN"] = meta_nc["rerun_fixed_n"]
             row["GAL_NC_OK"] = not meta_nc["unstable"]
             row["GAL_NC_SEC"] = time.perf_counter() - t0
@@ -1601,7 +1627,7 @@ def main():
                 
             try:
                 res_cv, meta_cv = _galfit_stage(rg, args, init_cv, do_conv=True, logger=logger)
-                _store_galfit(row, res_cv, "GAL_C")
+                _store_galfit(row, res_cv, "GAL_C", pixscale)
                 row["GAL_CV_RERUN_FIXEDN"] = meta_cv["rerun_fixed_n"]
                 row["GAL_CV_OK"] = not meta_cv["unstable"]
 

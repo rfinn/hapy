@@ -195,6 +195,11 @@ def main(args=None):
         # --------------------------------------------------
         # Metadata
         # --------------------------------------------------
+        meta_redshift = None if redshift is None else round(float(redshift),4)
+        if meta_redshift is not None:
+            vr = round(float(meta_redshift*3.e5),1)
+        else:
+            vr = None
         params = dict(
             objid=str(galid[i]),
             tag=Path(rootname).name,
@@ -229,6 +234,8 @@ def main(args=None):
             hafilter_name = image_set.h.filter_file,
             hafilter_center_A = image_set.h.filter_center,
             hafilter_width_A = image_set.h.filter_width,
+            redshift=meta_redshift,
+            vr=vr,
         )
 
         if params_path.exists() and args.overwrite_metadata:
