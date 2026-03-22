@@ -26,6 +26,7 @@ PAIRPLOT_LABELS = {
     "R75_ARCSEC": r"$R_{75}^{R}$ (arcsec)",
     "R_PETRO_R50_ARCSEC": r"$R_{50,\mathrm{Petro}}^{R}$",
     "R_EXPFIT_RE_ARCSEC": r"$R_e^{R}$ (exp fit)",
+    "R_LOGFIT_RE_ARCSEC": r"$R_{e}^{R}$ (log fit)",    
     "R_SM_R50": r"$R_{50}^{R,\mathrm{SM}}$",
     "R_SM_R80": r"$R_{80}^{R,\mathrm{SM}}$",    
     "R_SM_RHALF_ELLIP": r"$R_{1/2}^{R,\mathrm{SM,ellip}}$",
@@ -42,6 +43,7 @@ PAIRPLOT_LABELS = {
     "H_R95_R24_ARCSEC": r"$R_{R95,R24}^{\mathrm{H\alpha}}$",    
     "H_MAXDET_ARCSEC": r"$R_{\max}^{\mathrm{H\alpha}}$",
     "H_PETRO_R50_ARCSEC": r"$R_{50,\mathrm{Petro}}^{\mathrm{H\alpha}}$",
+    "H_LOGFIT_RE_ARCSEC": r"$R_{e}^{\mathrm{H\alpha}}$ (log fit)",
     "H_EXPFIT_RE_ARCSEC": r"$R_e^{\mathrm{H\alpha}}$ (exp fit)",
     "H_SM_R50": r"$R_{50}^{\mathrm{H\alpha},\mathrm{SM}}$", 
     "H_SM_R80": r"$R_{80}^{\mathrm{H\alpha},\mathrm{SM}}$",   
@@ -56,6 +58,9 @@ PAIRPLOT_LABELS = {
     "R_HAPY_M20": r"$M_{20}^{R}$",
     "H_HAPY_M20": r"$M_{20}^{\mathrm{H\alpha}}$",
 
+    "R_PETRO_CON": r"$C_{Petro}^{R}$",
+    "H_PETRO_CON": r"$C_{Petro}^{\mathrm{H\alpha}}$",
+    
     "R_SM_GINI": r"$G^{R}_{\mathrm{SM}}$",
     "H_SM_GINI": r"$G^{\mathrm{H\alpha}}_{\mathrm{SM}}$",
     "R_SM_M20": r"$M_{20,\mathrm{SM}}^{R}$",
@@ -106,6 +111,10 @@ PAIRPLOT_LABELS = {
     # -------------------------
     "QC_TIER": "QC Tier",
     "TELESCOPE": "Telescope",
+    "R_FWHM_PSF": r"$R \ FWHM\ (arcsec)$",
+    "H_FWHM_PSF": r"$H\alpha \  FWHM \ (arcsec)$",    
+    "R_SKYSTD_PHYS": r"$\sigma_{\mathrm{sky}}^{R} (erg~s^{-1}~cm^{-2})$",
+    "H_SKYSTD_PHYS": r"$\sigma_{\mathrm{sky}}^{\mathrm{H\alpha}} (erg~s^{-1}~cm^{-2})$",    
 }
 
 def enforce_qc_tier(df):
@@ -207,7 +216,39 @@ def style_pairplot(
     # slightly improve spacing
     g.fig.tight_layout()
 
+def style_jointplot(g, label_fs=14, tick_fs=11):
+    try:
+        xlab = PAIRPLOT_LABELS[g.ax_joint.get_xlabel()]
+        ylab = PAIRPLOT_LABELS[g.ax_joint.get_ylabel()]
+    except KeyError:
+        xlab = g.ax_joint.get_xlabel()
+        ylab = g.ax_joint.get_ylabel()
+        
+    g.ax_joint.set_xlabel(xlab, fontsize=label_fs)
+    g.ax_joint.set_ylabel(ylab, fontsize=label_fs)
+    g.ax_joint.tick_params(axis="both", labelsize=tick_fs)
+
+    g.ax_marg_x.tick_params(axis="both", labelsize=tick_fs)
+    g.ax_marg_y.tick_params(axis="both", labelsize=tick_fs)
     
+def style_jointplot_legend(g, title_fs=13, text_fs=11, marker_size=40):
+    leg = g.ax_joint.get_legend()
+    if leg is None:
+        return
+    #leg.set_bbox_to_anchor((1.05, 1))
+    leg._loc = 4  # lower left
+
+    leg.set_title(leg.get_title().get_text(), prop={'size': title_fs})
+
+    for text in leg.get_texts():
+        text.set_fontsize(text_fs)
+
+    for handle in leg.legend_handles:
+        try:
+            handle.set_sizes([marker_size])
+        except Exception:
+            pass
+
 def raincloud_by_group(
     values_by_group,
     group_labels,

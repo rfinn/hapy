@@ -37,6 +37,8 @@ from hapy.utils.plotting import (
     PAIRPLOT_LABELS,
     style_pairplot,
     enforce_qc_tier,
+    style_jointplot,
+    style_jointplot_legend,    
 )
 from validate_measurements import (
     ensure_dir,
@@ -48,7 +50,6 @@ from validate_measurements import (
     pairplot_family,
     
     )
-
 
 
 def plot_joint(
@@ -80,7 +81,17 @@ def plot_joint(
     })
 
     if hue in tab.colnames:
-        df[hue] = np.array(tab[hue])[good]
+        h = np.array(tab[hue])[good]
+
+        # FIX: decode bytes → str
+        if h.dtype.kind in ("S", "O"):
+            h = np.array([
+                v.decode("utf-8") if isinstance(v, (bytes, np.bytes_)) else str(v)
+                for v in h
+            ])
+
+        df[hue] = h
+    
 
     if hue == "QC_TIER" and hue in df.columns:
         df = enforce_qc_tier(df)
@@ -105,7 +116,19 @@ def plot_joint(
     if logy:
         g.ax_joint.set_yscale("log")
 
-    g.ax_joint.set_title(title or f"{ycol} vs {xcol}")
+    #g.ax_joint.set_title(title or f"{ycol} vs {xcol}")
+
+    # --------------------------------------------------
+    # styling: font sizes
+    # --------------------------------------------------
+
+    g.ax_joint.grid(True)
+    style_jointplot(g)
+
+
+    style_jointplot_legend(g)
+
+    
     plt.tight_layout()
     g.figure.savefig(outpath, dpi=150)
     plt.close(g.figure)
@@ -257,7 +280,7 @@ def build_cgalfit_df(tab: Table):
         "QC_TIER",
         "TELESCOPE",
     ]
-    log_cols = ["R50_ARCSEC", "GAL_RE"]
+    log_cols = ["R50_ARCSEC", "GAL_CRE"]
 
     df = make_dataframe(tab, cols)
     df = clean_pairplot_df(df, positive_cols=log_cols, log_cols=log_cols)
@@ -276,6 +299,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "Photometry / flux / concentration",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,
     )
 
     # profile r
@@ -286,6 +310,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "r-band profile fitting",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,
     )
 
     # profile Halpha
@@ -296,6 +321,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "Halpha profile fitting",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,        
     )
 
     # statmorph r
@@ -306,6 +332,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "r-band statmorph / morphology",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,        
     )
 
     # statmorph Halpha
@@ -316,6 +343,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "Halpha statmorph / morphology",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,        
     )
 
     # GALFIT
@@ -326,6 +354,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "GALFIT single-component Sérsic validation",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,        
     )
 
     # GALFIT
@@ -336,6 +365,7 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         "GALFIT+Convolution single-component Sérsic validation",
         log_cols=log_cols,
         use_robust_limits=False,
+        use_robust_diag_limits=True,        
     )
     
     # image quality
