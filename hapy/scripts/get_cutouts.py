@@ -195,7 +195,7 @@ def main(args=None):
         # --------------------------------------------------
         # Metadata
         # --------------------------------------------------
-        meta_redshift = None if redshift is None else round(float(redshift),4)
+        meta_redshift = None if redshift[i] is None else round(float(redshift[i]),6)
         if meta_redshift is not None:
             vr = round(float(meta_redshift*3.e5),1)
         else:
