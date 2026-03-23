@@ -58,7 +58,7 @@ def main(args=None):
     help="Overwrite existing cutouts if they already exist"
     )
    
-    parser.add_argument('--maxcorrection', dest='maxcorrection', default=3., help='maximum filter correction for galaxies in FOV.  default is 3, so galaxies whose redshift falls where filter transmission < 33 percent will be skipped.')        
+    parser.add_argument('--maxcorrection', dest='maxcorrection', default=5., help='maximum filter correction for galaxies in FOV.  default is 5, so galaxies whose redshift falls where filter transmission < 20 percent will be skipped.')        
     #parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
     
     args = parser.parse_args()
