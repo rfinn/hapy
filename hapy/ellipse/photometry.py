@@ -548,13 +548,15 @@ class EllipsePhotometry():
     def run_statmorph_supervisor(self):
         #self.run_statmorph(save_figs=True)
         try:
-            self.run_statmorph(save_figs=True)
             print("running statmorph - please be patient...")
+            self.run_statmorph(save_figs=True)
             print()
             self.statmorph_flag = True
+            #print("statmorph flag = ",self.statmorph_flag)            
         except:
             self.statmorph_flag = False            
             print("WARNING: problem running statmorph")
+            #print("statmorph flag = ",self.statmorph_flag)
 
     def run_with_galfit_ellipse(self, xc,yc,BA=1,THETA=0):
         '''

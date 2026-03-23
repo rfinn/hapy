@@ -339,3 +339,12 @@ merge_results --indir cutouts --mode run_analysis
 ```
 python ~/github/hapy/scripts/summarize_run.py merged_results.fits --scheme virgo
 ```
+
+
+# Testing on laptop
+
+```
+run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3. --statmorph
+--galfit --convflag --log-to-console --gaia-dir
+/Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3/ --cutout-dir cutouts/VFID1588-NGC5169-HDI-20170523-p023
+```

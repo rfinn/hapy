@@ -965,7 +965,7 @@ def main():
     #if pixscale is None:
     pixscale = get_pixel_scale_from_filename(r_fits)
 
-    row["PIXSCALE"] = round(float(pixscale),'3')
+    row["PIXSCALE"] = round(float(pixscale),4)
     # --- Load cutout image for WCS + shape ---
     data, hdr = fits.getdata(r_fits, header=True)
     ny, nx = data.shape
@@ -1453,16 +1453,16 @@ def main():
         logger.info("STAGE: statmorph")
         e.run_statmorph_supervisor()
         if e.statmorph_flag:
-            #_pull_statmorph(row,"R_SM", getattr(e, "morph", None))
+            #_pull_statmorph(row,"R_SM", getattr(e, "morph", None), pixscale)
             try:
-                _pull_statmorph(row,"R_SM", getattr(e, "morph", None), pixelscale)
+                _pull_statmorph(row,"R_SM", getattr(e, "morph", None), pixscale)
                 # statmorph sets flag == 1 for a problem, so need to negate it
                 row["R_SM_OK"] = True
             except Exception:
                 pass
 
             try:
-                _pull_statmorph(row,"H_SM", getattr(e, "morph2", None), pixelscale)
+                _pull_statmorph(row,"H_SM", getattr(e, "morph2", None), pixscale)
                 row["H_SM_OK"] = True
             except Exception:
                 pass

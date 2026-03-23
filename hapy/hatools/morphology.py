@@ -169,30 +169,30 @@ class MyStatmorph(statmorph.SourceMorphology):
         img = np.asarray(self._cutout_stamp_maskzeroed)
         seg = np.asarray(self._segmap_gini).astype(bool)
 
-        print("DEBUG sn_per_pixel")
-        print("  img shape:", img.shape)
-        print("  sigma shape:", sigma.shape)
-        print("  seg npix:", np.sum(seg))
+        #print("DEBUG sn_per_pixel")
+        #print("  img shape:", img.shape)
+        #print("  sigma shape:", sigma.shape)
+        #print("  seg npix:", np.sum(seg))
 
         locs_raw = seg & (img >= 0) & (sigma > 0)
-        print("  raw locs:", np.sum(locs_raw))
+        #print("  raw locs:", np.sum(locs_raw))
 
         if np.any(locs_raw):
             raw_ratio = img[locs_raw] / sigma[locs_raw]
-            print("  raw finite img:", np.all(np.isfinite(img[locs_raw])))
-            print("  raw finite sigma:", np.all(np.isfinite(sigma[locs_raw])))
-            print("  raw finite ratio:", np.all(np.isfinite(raw_ratio)))
-            print("  raw n bad ratio:", np.sum(~np.isfinite(raw_ratio)))
+            #print("  raw finite img:", np.all(np.isfinite(img[locs_raw])))
+            #print("  raw finite sigma:", np.all(np.isfinite(sigma[locs_raw])))
+            #print("  raw finite ratio:", np.all(np.isfinite(raw_ratio)))
+            #print("  raw n bad ratio:", np.sum(~np.isfinite(raw_ratio)))
 
         locs = seg & np.isfinite(img) & np.isfinite(sigma) & (img >= 0) & (sigma > 0)
-        print("  safe locs:", np.sum(locs))
+        #print("  safe locs:", np.sum(locs))
 
         if np.sum(locs) == 0:
             self.flag = 2
             return -99.0
 
         ratio = img[locs] / sigma[locs]
-        print("  safe finite ratio:", np.all(np.isfinite(ratio)))
+        #print("  safe finite ratio:", np.all(np.isfinite(ratio)))
 
         return float(np.mean(ratio))
     
@@ -311,18 +311,18 @@ class MyStatmorph(statmorph.SourceMorphology):
                 & (sigma > 0)
             )
 
-            print("Npix locs2 (statmorph):", np.sum(locs2))
-            print("Npix locs  (safe)     :", np.sum(locs))
+            #print("Npix locs2 (statmorph):", np.sum(locs2))
+            #print("Npix locs  (safe)     :", np.sum(locs))
 
             if np.any(locs2):
                 vals_img2 = self._cutout_stamp_maskzeroed[locs2]
                 vals_sigma2 = sigma[locs2]
                 ratio2 = vals_img2 / vals_sigma2
 
-                print("locs2: finite img   :", np.all(np.isfinite(vals_img2)))
-                print("locs2: finite sigma :", np.all(np.isfinite(vals_sigma2)))
-                print("locs2: finite ratio :", np.all(np.isfinite(ratio2)))
-                print("locs2: n bad ratio  :", np.sum(~np.isfinite(ratio2)))
+                #print("locs2: finite img   :", np.all(np.isfinite(vals_img2)))
+                #print("locs2: finite sigma :", np.all(np.isfinite(vals_sigma2)))
+                #print("locs2: finite ratio :", np.all(np.isfinite(ratio2)))
+                #print("locs2: n bad ratio  :", np.sum(~np.isfinite(ratio2)))
 
                 if not np.all(np.isfinite(vals_img2)):
                     print("WARNING: non-finite values in img[locs2]")
@@ -518,28 +518,28 @@ class MyStatmorph(statmorph.SourceMorphology):
             bad_sigma = locs2 & ~np.isfinite(sigma)
             zero_sigma = locs2 & (sigma == 0)
 
-            print("bad img in locs2:", np.sum(bad_img))
-            print("bad sigma in locs2:", np.sum(bad_sigma))
-            print("zero sigma in locs2:", np.sum(zero_sigma))
+            #print("bad img in locs2:", np.sum(bad_img))
+            #print("bad sigma in locs2:", np.sum(bad_sigma))
+            #print("zero sigma in locs2:", np.sum(zero_sigma))
 
             vals_img = self._cutout_stamp_maskzeroed[locs2]
             vals_sigma = sigma[locs2]
 
-            print("img finite?", np.all(np.isfinite(vals_img)))
-            print("sigma finite?", np.all(np.isfinite(vals_sigma)))
-            print("sigma min/max:", np.nanmin(vals_sigma), np.nanmax(vals_sigma))
+            #print("img finite?", np.all(np.isfinite(vals_img)))
+            #print("sigma finite?", np.all(np.isfinite(vals_sigma)))
+            #print("sigma min/max:", np.nanmin(vals_sigma), np.nanmax(vals_sigma))
 
             ratio = vals_img / vals_sigma
-            print("ratio finite?", np.all(np.isfinite(ratio)))
-            print("n bad ratio:", np.sum(~np.isfinite(ratio)))
+            #print("ratio finite?", np.all(np.isfinite(ratio)))
+            #print("n bad ratio:", np.sum(~np.isfinite(ratio)))
 
             only_in_locs2 = locs2 & ~locs
             only_in_locs = locs & ~locs2
 
-            print("npix locs2:", np.sum(locs2))
-            print("npix locs :", np.sum(locs))
-            print("npix only_in_locs2:", np.sum(only_in_locs2))
-            print("npix only_in_locs :", np.sum(only_in_locs))
+            #print("npix locs2:", np.sum(locs2))
+            #print("npix locs :", np.sum(locs))
+            #print("npix only_in_locs2:", np.sum(only_in_locs2))
+            #print("npix only_in_locs :", np.sum(only_in_locs))
 
             if np.any(only_in_locs2):
                 print("nonfinite img among only_in_locs2:", np.sum(~np.isfinite(img[only_in_locs2])))
@@ -548,10 +548,10 @@ class MyStatmorph(statmorph.SourceMorphology):
             print(type(self._cutout_stamp_maskzeroed))
             print(type(sigma))
 
-            print("img is masked array:", np.ma.isMaskedArray(self._cutout_stamp_maskzeroed))
-            print("sigma is masked array:", np.ma.isMaskedArray(sigma))
-            print()
-            print()
+            #print("img is masked array:", np.ma.isMaskedArray(self._cutout_stamp_maskzeroed))
+            #print("sigma is masked array:", np.ma.isMaskedArray(sigma))
+            #print()
+            #print()
             return fig, axes, snp
             
 
