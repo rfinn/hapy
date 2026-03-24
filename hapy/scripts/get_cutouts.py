@@ -146,7 +146,7 @@ def main(args=None):
         filter_keepflag = corrections < float(args.maxcorrection) # this is a crazy big cut, but we can adjust downstream
         gcat.keepflag[gcat.keepflag] = filter_keepflag
         filter_corrections = corrections[filter_keepflag]
-
+        redshift = redshift[filter_keepflag]
     print(f"number of galaxies in FOV = {np.sum(gcat.keepflag)}")
     
     ###################################################
