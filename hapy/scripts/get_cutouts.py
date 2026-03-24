@@ -143,7 +143,7 @@ def main(args=None):
     if redshift is not None:
         myfilter = FilterTrace(image_set.h.filter, instrument=image_set.h.instrument)
         corrections = myfilter.get_trans_correction(redshift,outfile=None)
-        filter_keepflag = corrections < float(args.maxcorrection) # this is a crazy big cut, but we can adjust with halphagui
+        filter_keepflag = corrections < float(args.maxcorrection) # this is a crazy big cut, but we can adjust downstream
         gcat.keepflag[gcat.keepflag] = filter_keepflag
         filter_corrections = corrections[filter_keepflag]
 
