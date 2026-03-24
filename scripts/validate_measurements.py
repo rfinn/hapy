@@ -766,6 +766,8 @@ def build_h_full_size_df(tab: Table) -> pd.DataFrame:
         "H_MAXDET_ARCSEC",
         "H_R95_R24_ARCSEC",
         "H_SM_R80_ARCSEC",
+        "H_ISO5E17_ARCSEC",
+        "H_ISO17E18_ARCSEC",        
         "H_SM_RMAX_CIRCLE_ARCSEC",
         "H_SM_RMAX_ELLIP_ARCSEC",
         "QC_TIER",

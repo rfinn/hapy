@@ -50,6 +50,9 @@ PAIRPLOT_LABELS = {
     "H_SM_RHALF_ELLIP_ARCSEC": r"$R_{1/2}^{\mathrm{H\alpha},\mathrm{SM,ellip}}$",
     "H_SM_RMAX_ELLIP_ARCSEC": r"$R_{max}^{\mathrm{H\alpha},\mathrm{SM,ellip}}$",    
     "H_SM_RMAX_CIRCLE_ARCSEC": r"$R_{max}^{\mathrm{H\alpha},\mathrm{SM,circle}}$",
+    "H_ISO17E18_ARCSEC": r"$F_{ISO17E18}^{\mathrm{H\alpha}}$",
+    "H_ISO5E17_ARCSEC": r"$F_{ISO5E17}^{\mathrm{H\alpha}}$",    
+    
     # -------------------------
     # Morphology (HAPY + statmorph)
     # -------------------------
