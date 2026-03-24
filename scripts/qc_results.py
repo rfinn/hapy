@@ -664,7 +664,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
     """
 
     required = [
-        "BRIGHT_STAR_DIST",
+        "BRIGHT_STAR_DIST_ARCSEC",
         "BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC",
         "PHOT_OK",
         "R_PROFILE_OK",
@@ -1089,7 +1089,7 @@ def write_qc_summary_table(tab, outpath):
         "ELL0_MASKFRAC",
 
         # galfit
-        "GAL_RE", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
+        "GAL_RE_ARCSEC", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
     ]
 
     keep = [c for c in wanted if c in tab.colnames]
