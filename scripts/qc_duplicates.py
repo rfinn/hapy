@@ -678,11 +678,11 @@ def main():
     ]
 
     galfit_nc_cols = [
-        "GAL_MAG", "GAL_RE", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
+        "GAL_MAG", "GAL_RE_ARCSEC", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
     ]
 
     galfit_cv_cols = [
-        "GAL_CMAG", "GAL_CRE", "GAL_CN", "GAL_CBA", "GAL_CPA", "GAL_CCHISQ",
+        "GAL_CMAG", "GAL_CRE_ARCSEC", "GAL_CN", "GAL_CBA", "GAL_CPA", "GAL_CCHISQ",
     ]
 
     # plots
