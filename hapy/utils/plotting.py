@@ -27,12 +27,12 @@ PAIRPLOT_LABELS = {
     "R_PETRO_R50_ARCSEC": r"$R_{50,\mathrm{Petro}}^{R}$",
     "R_EXPFIT_RE_ARCSEC": r"$R_e^{R}$ (exp fit)",
     "R_LOGFIT_RE_ARCSEC": r"$R_{e}^{R}$ (log fit)",    
-    "R_SM_R50": r"$R_{50}^{R,\mathrm{SM}}$",
-    "R_SM_R80": r"$R_{80}^{R,\mathrm{SM}}$",    
-    "R_SM_RHALF_ELLIP": r"$R_{1/2}^{R,\mathrm{SM,ellip}}$",
-    "R_SM_RHALF_CIRCLE": r"$R_{1/2}^{R,\mathrm{SM,circle}}$",
-    "R_SM_RMAX_ELLIP": r"$R_{max}^{R,\mathrm{SM,ellip}}$",
-    "R_SM_RMAX_CIRCLE": r"$R_{max}^{R,\mathrm{SM,circle}}$",
+    "R_SM_R50_ARCSEC": r"$R_{50}^{R,\mathrm{SM}}$",
+    "R_SM_R80_ARCSEC": r"$R_{80}^{R,\mathrm{SM}}$",    
+    "R_SM_RHALF_ELLIP_ARCSEC": r"$R_{1/2}^{R,\mathrm{SM,ellip}}$",
+    "R_SM_RHALF_CIRCLE_ARCSEC": r"$R_{1/2}^{R,\mathrm{SM,circle}}$",
+    "R_SM_RMAX_ELLIP_ARCSEC": r"$R_{max}^{R,\mathrm{SM,ellip}}$",
+    "R_SM_RMAX_CIRCLE_ARCSEC": r"$R_{max}^{R,\mathrm{SM,circle}}$",
 
     # -------------------------
     # Hα sizes
@@ -45,11 +45,11 @@ PAIRPLOT_LABELS = {
     "H_PETRO_R50_ARCSEC": r"$R_{50,\mathrm{Petro}}^{\mathrm{H\alpha}}$",
     "H_LOGFIT_RE_ARCSEC": r"$R_{e}^{\mathrm{H\alpha}}$ (log fit)",
     "H_EXPFIT_RE_ARCSEC": r"$R_e^{\mathrm{H\alpha}}$ (exp fit)",
-    "H_SM_R50": r"$R_{50}^{\mathrm{H\alpha},\mathrm{SM}}$", 
-    "H_SM_R80": r"$R_{80}^{\mathrm{H\alpha},\mathrm{SM}}$",   
-    "H_SM_RHALF_ELLIP": r"$R_{1/2}^{\mathrm{H\alpha},\mathrm{SM,ellip}}$",
-    "H_SM_RMAX_ELLIP": r"$R_{max}^{\mathrm{H\alpha},\mathrm{SM,ellip}}$",    
-    "H_SM_RMAX_CIRCLE": r"$R_{max}^{\mathrm{H\alpha},\mathrm{SM,circle}}$",
+    "H_SM_R50_ARCSEC": r"$R_{50}^{\mathrm{H\alpha},\mathrm{SM}}$", 
+    "H_SM_R80_ARCSEC": r"$R_{80}^{\mathrm{H\alpha},\mathrm{SM}}$",   
+    "H_SM_RHALF_ELLIP_ARCSEC": r"$R_{1/2}^{\mathrm{H\alpha},\mathrm{SM,ellip}}$",
+    "H_SM_RMAX_ELLIP_ARCSEC": r"$R_{max}^{\mathrm{H\alpha},\mathrm{SM,ellip}}$",    
+    "H_SM_RMAX_CIRCLE_ARCSEC": r"$R_{max}^{\mathrm{H\alpha},\mathrm{SM,circle}}$",
     # -------------------------
     # Morphology (HAPY + statmorph)
     # -------------------------
@@ -101,11 +101,16 @@ PAIRPLOT_LABELS = {
     # -------------------------
     # Structural (GALFIT)
     # -------------------------
-    "GAL_RE": r"$R_e^{\mathrm{GALFIT}}$",
+    "GAL_RE_ARCSEC": r"$R_e^{\mathrm{GALFIT}}$",
     "GAL_N": r"$n$ (Sérsic)",
     "GAL_BA": r"$b/a$",
     "GAL_PA": r"$\mathrm{PA}$ (deg)",
 
+    "GAL_CRE_ARCSEC": r"$R_e^{\mathrm{GALFIT}}$",
+    "GAL_CN": r"$n$ (Sérsic)",
+    "GAL_CBA": r"$b/a$",
+    "GAL_CPA": r"$\mathrm{PA}$ (deg)",
+    
     # -------------------------
     # QC / meta
     # -------------------------
