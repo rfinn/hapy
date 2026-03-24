@@ -1221,7 +1221,7 @@ def main():
 
     plot_hist(tab, "H_MAXDET_ARCSEC", outdir / "H_MAXDET_ARCSEC_hist.png",
               title="Halpha max detection radius", mask=masks["mask_phot_ok"])
-    plot_hist(tab, "GAL_RE", outdir / "GAL_RE_hist.png",
+    plot_hist(tab, "GAL_RE_ARCSEC", outdir / "GAL_RE_hist.png",
               title="GALFIT effective radius", mask=masks["galfit_any_ok"])
 
     plot_compare(tab, "R24_MAG", "GAL_MAG", outdir / "R24_vs_GAL_MAG.png",
@@ -1232,7 +1232,7 @@ def main():
                  title="Halpha R24 flux vs total flux",
                  logx=True, logy=True, mask=masks["mask_phot_ok"])
 
-    plot_compare(tab, "R24_ARCSEC", "GAL_RE", outdir / "R24_ARCSEC_vs_GAL_RE.png",
+    plot_compare(tab, "R24_ARCSEC", "GAL_RE_ARCSEC", outdir / "R24_ARCSEC_vs_GAL_RE.png",
                  title="R24 radius vs GALFIT Re",
                  mask=masks["galfit_any_ok"])
 
