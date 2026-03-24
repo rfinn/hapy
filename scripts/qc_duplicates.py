@@ -792,7 +792,7 @@ def main():
 
     plot_telescope_pair_residuals(
         tab, pairtab, pairmasks["galfit_nc_pairs"],
-        "GAL_RE",
+        "GAL_RE_ARCSEC",
         outdir / "telpair_GAL_RE.png",
         ylabel="Δ GAL_RE (obs2 - obs1)"
         )
@@ -820,7 +820,7 @@ def main():
 
     plot_telescope_group_residuals(
         tab, pairtab, pairmasks["galfit_nc_pairs"],
-        "GAL_RE",
+        "GAL_RE_ARCSEC",
         outdir / "telpair_cross_GAL_RE.png",
         mode="cross",
         ylabel="Δ GAL_RE (obs2 - obs1)"
@@ -845,7 +845,7 @@ def main():
 
     plot_telescope_group_residuals(
         tab, pairtab, pairmasks["galfit_nc_pairs"],
-        "GAL_RE",
+        "GAL_RE_ARCSEC",
         outdir / "telpair_same_GAL_RE.png",
         mode="same",
         ylabel="Δ GAL_RE (obs2 - obs1)"
