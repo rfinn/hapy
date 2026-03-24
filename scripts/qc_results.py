@@ -665,7 +665,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
 
     required = [
         "BRIGHT_STAR_DIST_ARCSEC",
-        "BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC",
+        "BRIGHT_STAR_MASKRAD_ARCSEC",
         "PHOT_OK",
         "R_PROFILE_OK",
         "H_PROFILE_OK",
@@ -680,7 +680,7 @@ def plot_failure_fraction_vs_bright_star_distance(tab, outpath):
             return
 
     dist = np.array(tab["BRIGHT_STAR_DIST_ARCSEC"], dtype=float)
-    rad = np.array(tab["BRIGHT_STAR_NEAREST_MASKRAD_ARCSEC"], dtype=float)
+    rad = np.array(tab["BRIGHT_STAR_MASKRAD_ARCSEC"], dtype=float)
 
     good = np.isfinite(dist) & np.isfinite(rad) & (rad > 0)
     if np.sum(good) == 0:
