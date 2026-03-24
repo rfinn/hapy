@@ -1048,6 +1048,23 @@ def compute_m20(image, segmap, xc=None, yc=None):
 import numpy as np
 from scipy.ndimage import shift
 
+def quick_asym_test(image, mask, xc, yc):
+    ypix, xpix = np.where(mask)
+    x_ref = np.rint(2 * xc - xpix).astype(int)
+    y_ref = np.rint(2 * yc - ypix).astype(int)
+
+    ny, nx = image.shape
+    good = (
+        (y_ref >= 0) & (y_ref < ny) &
+        (x_ref >= 0) & (x_ref < nx)
+    )
+
+    orig = image[ypix[good], xpix[good]]
+    refl = image[y_ref[good], x_ref[good]]
+
+    num = np.sum(np.abs(orig - refl))
+    den = np.sum(np.abs(image[mask]))
+    return num / den if den > 0 else np.nan
 
 def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0):
     """
@@ -1095,12 +1112,14 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
     img = np.asarray(image, dtype=float)
     mask = np.asarray(segmap).astype(bool)
 
+
     if img.shape != mask.shape:
         raise ValueError("image and segmap must have the same shape")
 
+
     vals = np.array(img, copy=True)
     vals[~np.isfinite(vals)] = 0.0
-    vals[~mask] = 0.0
+    #vals[~mask] = 0.0
 
     if np.sum(mask) == 0:
         return np.nan, np.nan, np.array([np.nan, np.nan]), np.full((1, 1), np.nan)
@@ -1121,9 +1140,12 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
             yc = np.sum(pos[mask] * y[mask]) / total
             xc = np.sum(pos[mask] * x[mask]) / total
 
+    print("DEBUG: quick_asym = ",quick_asym_test(image, mask, xc, yc))
+    
     offsets = np.arange(-search_radius, search_radius + step, step, dtype=float)
     asym_grid = np.full((len(offsets), len(offsets)), np.nan, dtype=float)
 
+    vals_pos = np.clip(vals, 0, None)
     norm = np.sum(np.abs(vals[mask]))
     if not np.isfinite(norm) or norm <= 0:
         return np.nan, np.nan, np.array([yc, xc]), asym_grid
@@ -1140,6 +1162,7 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
             rotated_back = shift(rotated, shift=(yc_trial, xc_trial), order=1, mode="constant", cval=0.0)
 
             diff = np.abs(vals - rotated_back)
+            print(f"DEBUG: xc_trial={xc_trial}, yc_trial={yc_trial},diff[0]={diff[0]}, diff[1]={diff[1]}")
             asym_grid[iy, ix] = np.sum(diff[mask]) / norm
 
     if not np.any(np.isfinite(asym_grid)):
@@ -1152,7 +1175,7 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
     asym = float(asym_grid[iy_min, ix_min])
     asym_err = float(np.nanstd(asym_grid))
     best_center = np.array([best_yc, best_xc], dtype=float)
-
+    print(f"DEBUG in compute_asymmetry, asym={asym}")
     return asym, asym_err, best_center, asym_grid
 
 

@@ -1167,6 +1167,7 @@ class EllipsePhotometry():
             self.R_HAPY_ASYM, self.R_HAPY_ASYM_ERR, self.R_HAPY_ASYM_CENTER, self.R_HAPY_ASYM_GRID = compute_asymmetry(
                 self.image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0
             )
+            print(f"DEBUG in photometry, R_HAPY_ASYM={self.R_HAPY_ASYM}")
             morph.r_asym = self.R_HAPY_ASYM
             morph.r_asym_err = self.R_HAPY_ASYM_ERR
             morph.r_asym_center = self.R_HAPY_ASYM_CENTER
@@ -1262,6 +1263,7 @@ class EllipsePhotometry():
             self.H_HAPY_ASYM, self.H_HAPY_ASYM_ERR, self.H_HAPY_ASYM_CENTER, self.H_HAPY_ASYM_GRID = compute_asymmetry(
                 ha_morph_image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0
             )
+            print(f"DEBUG in photometry, H_HAPY_ASYM={self.R_HAPY_ASYM}")            
             morph.h_asym = self.H_HAPY_ASYM
             morph.h_asym_err = self.H_HAPY_ASYM_ERR
             morph.h_asym_center = self.H_HAPY_ASYM_CENTER

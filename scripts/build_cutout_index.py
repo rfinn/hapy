@@ -140,9 +140,10 @@ def write_index(entries, outfile):
         "H&alpha; FWHM",        
         "Mask",
         "Star Flag",
-        "Phot",  
+        "Phot",
         "R Prof",
-        "H&alpha; Prof",        
+        "H&alpha; Prof",
+        "HAPY Morph",
         "R SM",
         "H&alpha; SM",        
         "GAL NC",
@@ -180,6 +181,7 @@ def write_index(entries, outfile):
 
         lines.append(f"<td>{status_cell(e['r_prof_ok'])}</td>")
         lines.append(f"<td>{status_cell(e['h_prof_ok'])}</td>")
+        lines.append(f"<td>{status_cell(e['hapy_morph_ok'])}</td>")        
         
         lines.append(f"<td>{status_cell(e['r_sm_ok'])}</td>")
         lines.append(f"<td>{status_cell(e['h_sm_ok'])}</td>")        

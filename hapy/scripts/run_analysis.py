@@ -1420,6 +1420,8 @@ def main():
     
     # calculate hapy gini
     e.run_hapy_morphology()
+
+    print(f"DEBUG: ASYM {e.R_HAPY_ASYM}, center={e.R_HAPY_ASYM_CENTER}")
     row["R_HAPY_NPIX"] = e.R_HAPY_NPIX     
     row["H_HAPY_NPIX"] = e.H_HAPY_NPIX
     row["H_HAPY_FILLFRAC"] = e.H_HAPY_FILLFRAC
@@ -1435,8 +1437,8 @@ def main():
     row["H_HAPY_ASYM"] = e.H_HAPY_ASYM
     row["R_HAPY_ASYM_ERR"] = e.R_HAPY_ASYM_ERR
     row["H_HAPY_ASYM_ERR"] = e.H_HAPY_ASYM_ERR
-    row["R_HAPY_ASYM_XC"] = e.R_HAPY_ASYM_XC
-    row["R_HAPY_ASYM_YC"] = e.R_HAPY_ASYM_YC
+    row["R_HAPY_ASYM_XC"] = e.R_HAPY_ASYM_CENTER[1]
+    row["R_HAPY_ASYM_YC"] = e.R_HAPY_ASYM_CENTER[0]
     row["R_HAPY_MTOT"] = e.R_HAPY_MTOT
     row["H_HAPY_MTOT"] = e.H_HAPY_MTOT
     row["R_HAPY_M20SUM"] = e.R_HAPY_M20SUM
