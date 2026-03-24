@@ -1089,6 +1089,8 @@ class EllipsePhotometry():
         self.H_HAPY_ASYM = np.nan
         self.R_HAPY_ASYM_ERR = np.nan
         self.H_HAPY_ASYM_ERR = np.nan
+        self.R_HAPY_ASYM_XC = np.nan
+        self.R_HAPY_ASYM_YC = np.nan        
         self.R_HAPY_MTOT = np.nan
         self.H_HAPY_MTOT = np.nan
         self.R_HAPY_M20SUM = np.nan
@@ -1101,6 +1103,8 @@ class EllipsePhotometry():
         self.H_HAPY_SNP_ALL = np.nan
         self.R_HAPY_XC = np.nan
         self.R_HAPY_YC = np.nan
+        self.R_HAPY_ASYM_XC = np.nan
+        self.R_HAPY_ASYM_YC = np.nan
 
         self.r_gini_mask = None
         self.r_gini_seg = None
@@ -1167,7 +1171,7 @@ class EllipsePhotometry():
             morph.r_asym_err = self.R_HAPY_ASYM_ERR
             morph.r_asym_center = self.R_HAPY_ASYM_CENTER
             morph.r_asym_grid = self.R_HAPY_ASYM_GRID
-
+            self.R_ASYM_YC, self.R_ASYM_XC = self.R_HAPY_ASYM_CENTER
             # -------------------------------------------------
             # Halpha availability
             # -------------------------------------------------

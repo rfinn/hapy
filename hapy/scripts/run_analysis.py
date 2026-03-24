@@ -549,7 +549,18 @@ def initialize_result_row():
     row["H_HAPY_GINI"] = np.nan
     row["R_HAPY_M20"] = np.nan
     row["H_HAPY_M20"] = np.nan
+    row["R_HAPY_ASYM"] = np.nan
+    row["H_HAPY_ASYM"] = np.nan
+    row["R_HAPY_ASYM_ERR"] = np.nan
+    row["H_HAPY_ASYM_ERR"] = np.nan
+    row["R_HAPY_ASYM_XC"] = np.nan
+    row["R_HAPY_ASYM_YC"] = np.nan        
+    row["R_HAPY_MTOT"] = np.nan
+    row["H_HAPY_MTOT"] = np.nan
+    row["R_HAPY_M20SUM"] = np.nan
+    row["H_HAPY_M20SUM"] = np.nan        
 
+    
     # HAPY_MORPH_FLAG bit meanings:
     # 1  = empty or invalid r-band morphology mask
     # 2  = no Halpha image available
@@ -1412,7 +1423,6 @@ def main():
     row["R_HAPY_NPIX"] = e.R_HAPY_NPIX     
     row["H_HAPY_NPIX"] = e.H_HAPY_NPIX
     row["H_HAPY_FILLFRAC"] = e.H_HAPY_FILLFRAC
-
     row["R_HAPY_SNP_ALL"] = e.R_HAPY_SNP_ALL
     row["H_HAPY_SNP_ALL"] = e.H_HAPY_SNP_ALL
     row["H_HAPY_SNP_DET"] = e.H_HAPY_SNP_DET    
@@ -1421,6 +1431,16 @@ def main():
     row["H_HAPY_GINI"] = e.H_HAPY_GINI
     row["R_HAPY_M20"] = e.R_HAPY_M20
     row["H_HAPY_M20"] = e.H_HAPY_M20
+    row["R_HAPY_ASYM"] = e.R_HAPY_ASYM
+    row["H_HAPY_ASYM"] = e.H_HAPY_ASYM
+    row["R_HAPY_ASYM_ERR"] = e.R_HAPY_ASYM_ERR
+    row["H_HAPY_ASYM_ERR"] = e.H_HAPY_ASYM_ERR
+    row["R_HAPY_ASYM_XC"] = e.R_HAPY_ASYM_XC
+    row["R_HAPY_ASYM_YC"] = e.R_HAPY_ASYM_YC
+    row["R_HAPY_MTOT"] = e.R_HAPY_MTOT
+    row["H_HAPY_MTOT"] = e.H_HAPY_MTOT
+    row["R_HAPY_M20SUM"] = e.R_HAPY_M20SUM
+    row["H_HAPY_M20SUM"] = e.H_HAPY_M20SUM
 
     # set flags
     row["HAPY_MORPH_OK"] = e.HAPY_MORPH_OK       

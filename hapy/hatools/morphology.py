@@ -25,6 +25,16 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 import numpy as np
 
+@dataclass
+class MorphologyResult:
+    morph_r: Any
+    morph_img2: Optional[Any] = None
+    fig_r: Optional[Any] = None
+    fig_img2: Optional[Any] = None
+    diag_fig_r: Optional[Any] = None
+    diag_fig_img2: Optional[Any] = None
+    snp_r: Optional[float] = None
+    snp_img2: Optional[float] = None
 
 @dataclass
 class HapyMorphology:
@@ -555,16 +565,6 @@ class MyStatmorph(statmorph.SourceMorphology):
             return fig, axes, snp
             
 
-@dataclass
-class MorphologyResult:
-    morph_r: Any
-    morph_img2: Optional[Any] = None
-    fig_r: Optional[Any] = None
-    fig_img2: Optional[Any] = None
-    diag_fig_r: Optional[Any] = None
-    diag_fig_img2: Optional[Any] = None
-    snp_r: Optional[float] = None
-    snp_img2: Optional[float] = None
 
 
 
