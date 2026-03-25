@@ -1109,6 +1109,8 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
     This implementation rotates the image by 180 degrees about each trial
     center using interpolation via scipy.ndimage.shift.
     """
+    from scipy.ndimage import map_coordinates
+
     img = np.asarray(image, dtype=float)
     mask = np.asarray(segmap).astype(bool)
 
@@ -1157,13 +1159,37 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
 
             # Shift so that trial center is at origin, rotate by 180 via flip,
             # then shift back.
-            shifted = shift(vals, shift=(-yc_trial, -xc_trial), order=1, mode="constant", cval=0.0)
-            rotated = np.flipud(np.fliplr(shifted))
-            rotated_back = shift(rotated, shift=(yc_trial, xc_trial), order=1, mode="constant", cval=0.0)
+            #shifted = shift(vals, shift=(-yc_trial, -xc_trial), order=1, mode="constant", cval=0.0)
+            #rotated = np.flipud(np.fliplr(shifted))
+            #rotated_back = shift(rotated, shift=(yc_trial, xc_trial), order=1, mode="constant", cval=0.0)
+            y, x = np.indices(vals.shape)
+            x_rot = 2.0 * xc_trial - x
+            y_rot = 2.0 * yc_trial - y
 
-            diff = np.abs(vals - rotated_back)
-            print(f"DEBUG: xc_trial={xc_trial}, yc_trial={yc_trial},diff[0]={diff[0]}, diff[1]={diff[1]}")
-            asym_grid[iy, ix] = np.sum(diff[mask]) / norm
+            rotated_back = map_coordinates(
+                vals,
+                [y_rot, x_rot],
+                order=1,
+                mode="constant",
+                cval=0.0
+                )
+            #diff = np.abs(vals - rotated_back)
+            #print(f"DEBUG: xc_trial={xc_trial}, yc_trial={yc_trial},diff[0]={diff[0]}, diff[1]={diff[1]}")
+            #asym_grid[iy, ix] = np.sum(diff[mask]) / norm
+            rotated_mask = map_coordinates(
+                mask.astype(float),
+                [y_rot, x_rot],
+                order=0,
+                mode="constant",
+                cval=0.0
+                ) > 0.5
+
+            valid = mask & rotated_mask & np.isfinite(rotated_back)
+
+            if np.any(valid):
+                asym_grid[iy, ix] = np.sum(np.abs(vals[valid] - rotated_back[valid])) / np.sum(np.abs(vals[valid]))
+            else:
+                asym_grid[iy, ix] = np.nan
 
     if not np.any(np.isfinite(asym_grid)):
         return np.nan, np.nan, np.array([yc, xc]), asym_grid
