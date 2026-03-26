@@ -432,9 +432,12 @@ class cutout_dir():
         self.results_file = results_files[0]
         tab = Table.read(self.results_file, format="ascii.ecsv")
         self.results = tab[0] if len(tab) > 0 else None
-        parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
-        self.parent_url = f"../../coadds/{parent_dir}/{parent_dir}.html"
-        print("DEBUG: parent_url = ",self.parent_url)
+        if getattr(self.results,"PARENT_RIMAGE", False):
+            parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
+            self.parent_url = f"../../coadds/{parent_dir}/{parent_dir}.html"
+            print("DEBUG: parent_url = ",self.parent_url)
+        else:
+            self.parent_url = None
         #print("DEBUG: found results.ecsv file", self.results_file)
         #print("DEBUD: results colnames:")
         #print(self.results.colnames)
@@ -1503,15 +1506,19 @@ class build_html_cutout():
             pointing_str = f'<a href="../../coadds/{pointing}/{pointing}.html">{pointing}</a>'
         else:
             pointing_str = "--"
-        
+
+        if self.cutout.parent_url:
+            pointing_str = f"<a href={self.cutout.parent_url}>{self.run}</a>",
+        else:
+            pointing_str = "NA"
+            
         data = [
             get_result(self.cutout.results,"VFID", self.cutout.vfid),
             get_result(self.cutout.results,"GALNAME", self.cutout.gname),
             get_result(self.cutout.results,"HAPY_VERSION", ""),
             get_result(self.cutout.results,"RUN_DATE", ""),
             get_result(self.cutout.results,"TELESCOPE", self.telescope),
-            f"<a href={self.cutout.parent_url}>{self.run}</a>",
-            #pointing_str,
+            pointing_str,
             fmt_result(self.cutout.results,"R_FWHM_PSF", "{:.2f}"),
             fmt_result(self.cutout.results,"H_FWHM_PSF", "{:.2f}"),
             fmt_result(self.cutout.results,"FILTER_RATIO", "{:.4f}"),
