@@ -1101,7 +1101,9 @@ def main():
         row["PSF_OK"] = bool(psf_path)
         row["PSF_SOURCE"] = psf_source
         psf_ok = row["PSF_OK"]
-
+    else:
+        psf_path = None
+        psf_ok = False
     # --- Get ellipse parameters ---
     sma_arcsec = float(params["sma_arcsec"])
     ba = float(params["ba"])
@@ -1594,11 +1596,15 @@ def main():
         convolution_size = min(convolution_size, nx)
         # going back to original convolutionsize
         #convolution_size = min(nx, ny)
+        if psf_path is not None:
+            psf_image = str(psf_path)
+        else:
+            psf_image = None
         rg = RunGalfit(
             galname=galname,
             image=r_fits,
             sigma_image=sigma_image,
-            psf_image=str(psf_path),
+            psf_image=psf_image,
             psf_oversampling=args.psf_oversampling,
             mask_image=mask_fits,
             xminfit=xminfit,

@@ -167,7 +167,7 @@ def add_qc_flags(tab):
     h50 = safe_float("H50_ARCSEC")
     hmax = safe_float("H_MAXDET_ARCSEC")
 
-    r_ngood = safe_float("R_PROFILE_NGOOD")
+    r_ngood = safe_float("R_PROFILE_NGOOD") # number of elliptical apertures with valid flux measurements
 
     phot_ok = safe_bool("PHOT_OK")
     rprof_ok = safe_bool("R_PROFILE_OK")
@@ -209,7 +209,7 @@ def add_qc_flags(tab):
     USE_HM = np.zeros(n, dtype=int)
     USE_GF = np.zeros(n, dtype=int)
 
-    # R structure
+    # R profile is ok
     good_r = (
         phot_ok & rprof_ok &
         np.isfinite(r50) & (r50 > 0) &
@@ -219,7 +219,7 @@ def add_qc_flags(tab):
     USE_R[good_r] = 2
     USE_R[good_r & tab["WARN_MASK"]] = 1
 
-    # Hα extent
+    # Halpha extent
     good_ha = (
         phot_ok & hprof_ok &
         np.isfinite(h50) & (h50 > 0) &

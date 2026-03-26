@@ -259,7 +259,7 @@ The column names follow a few common conventions.
 - **Meaning:** radial-profile analysis succeeded in r-band / Hα
 
 ### `R_SM_OK`, `H_SM_OK`
-- **Meaning:** statmorph analysis succeeded in r-band / Hα
+- **Meaning:** statmorph analysis completed in r-band / Hα
 
 ### `GAL_NC_OK`, `GAL_CV_OK`
 - **Meaning:** GALFIT non-convolved / convolved fit succeeded
@@ -271,7 +271,8 @@ The column names follow a few common conventions.
 - **Meaning:** GALFIT was rerun with a fixed Sérsic index after an initial problem or instability
 
 ### `ELL_MISMATCH`
-- **Meaning:** warning that adopted ellipse/geometry solutions are inconsistent
+- **Meaning:** warning that photutils ellipse/geometry solutions are
+  different from input ellipse
 - **Notes:** often useful as a QC warning
 
 ### `R_PETRO_OK`, `R_EXPFIT_OK`, `R_LOGFIT_OK`
