@@ -496,10 +496,27 @@ class cutout_dir():
         #print(search_string)
         t = glob.glob(search_string)
         #print(t)
-        
         self.rimage = t[0]
-        self.haimage = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-Ha.fits'))[0]
-        self.csimage = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-ZP.fits'))[0]
+
+        cslist = os.path.join(self.cutoutdir,self.gname+'*-CS-ZP.fits'))
+        if len(cslist) > 0:
+            self.csimage = cslist[0]
+        else: # try archive convention
+            cslist = os.path.join(self.cutoutdir,self.gname+'*-CS.fits'))
+            if len(cslist) > 0:
+                self.csimage = cslist[0]
+            else:
+                print("WARNING: no CS image found!!!")
+                sys.exit()
+
+        # archive sample might not have halpha image, only CS image
+        hlist = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-Ha.fits'))
+        
+        if len(hlist) > 0:
+            self.haimage = hlist[0]
+        else:
+            self.haimage = self.csimage
+        
         #self.csgrimage = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr.fits'))[0]
         #self.csgrimageauto = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr-auto.fits'))[0]
         self.csgrimage = None
