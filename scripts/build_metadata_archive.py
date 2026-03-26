@@ -46,21 +46,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
+
 from astropy.io import fits
 from astropy.table import Table
 
 
-FWHM_KEYS = ("FWHM",)
-FILTER_KEYS = ("FILTER",)
 # -----------------------------------------------------------------------------
 # Catalog column candidates: adjust if needed for your actual Virgo/VFS tables
 # -----------------------------------------------------------------------------
 VFID_COL_CANDIDATES = ("VFID", "vfid")
 RA_COL_CANDIDATES = ("RA", "ra", "RA_DEG", "RAdeg", "RAJ2000")
 DEC_COL_CANDIDATES = ("DEC", "dec", "DEC_DEG", "DECdeg", "DEJ2000")
-SMA_COL_CANDIDATES = ("SMA_ARCSEC", "sma_arcsec", "SMA", "radius")
-BA_COL_CANDIDATES = ("BA", "ba", "B_A", "q")
-PA_COL_CANDIDATES = ("PA", "pa", "PA_DEG", "pa_deg")
+SMA_COL_CANDIDATES = ("SMA_MOMENT","SMA_ARCSEC", "sma_arcsec", "SMA", "radius")
+BA_COL_CANDIDATES = ("BA_MOMENT","BA", "ba", "B_A", "q")
+PA_COL_CANDIDATES = ("PA_MOMENT","PA", "pa", "PA_DEG", "pa_deg")
+VR_COL_CANDIDATES = ("VR", "vr")
 
 # For name matching / output GALNAME
 NAME_COL_CANDIDATES = (
@@ -70,7 +71,14 @@ NAME_COL_CANDIDATES = (
     "NAME",
     "Object",
     "OBJECT",
+    "objname"
 )
+
+FWHM_KEYS = ("FWHM",)
+FILTER_KEYS = ("FILTER",)
+FILTER_CENTER_KEYS = ("FILTWCEN",)
+FILTER_WIDTH_KEYS = ("FILTWID",)
+PHOTZP_KEYS = ("PHOTZP",)
 
 
 # -----------------------------------------------------------------------------
@@ -141,19 +149,46 @@ def read_header_float(path: Path, keys: tuple[str, ...]) -> Optional[float]:
 
 def extract_yyyymmdd(date_str: Optional[str]) -> Optional[str]:
     """
-    Convert DATE-OBS-ish strings to YYYYMMDD.
-    Handles:
+    Convert DATE-OBS-like strings to YYYYMMDD.
+
+    Supports:
       YYYY-MM-DD
       YYYY-MM-DDThh:mm:ss
       YYYY/MM/DD
       YYYYMMDD
+      DD/MM/YY   (e.g. 30/03/89)
+
+    Returns
+    -------
+    str or None
+        Date in YYYYMMDD format, or None if parsing fails.
     """
     if not date_str:
         return None
-    m = re.match(r"^\s*(\d{4})[-/]?(\d{2})[-/]?(\d{2})", date_str)
-    if not m:
-        return None
-    return f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+    s = date_str.strip()
+
+    # --- Case 1: YYYY-MM-DD or YYYY/MM/DD or YYYYMMDD ---
+    m = re.match(r"^(\d{4})[-/]?(\d{2})[-/]?(\d{2})", s)
+    if m:
+        return f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+    # --- Case 2: DD/MM/YY ---
+    m = re.match(r"^(\d{2})/(\d{2})/(\d{2})$", s)
+    if m:
+        dd, mm, yy = m.groups()
+        yy = int(yy)
+
+        # Convert to 4-digit year
+        if yy <= 49:
+            yyyy = 2000 + yy
+        else:
+            yyyy = 1900 + yy
+
+        return f"{yyyy:04d}{mm}{dd}"
+
+    return None
+
 
 
 def ensure_unique_path(path: Path) -> Path:
@@ -178,21 +213,25 @@ def classify_list_entry(filename: str) -> str:
     Priority:
       1. mask  -> contains 'mask'
       2. cs    -> contains 'ha'
-      3. r     -> contains 'r' (and not already classified)
+      3. r     -> contains 'r' or 'R' (and not already classified)
       4. other
     """
+    # keep both original and lowercase for flexible matching
     name = filename.lower()
+    raw  = filename
+
 
     if "mask" in name:
         return "mask"
     if "ha" in name:
         return "cs"
-    if "r" in name:
-        return "r"
+    # allow uppercase R-band naming as well
+    if "r" in name or "R" in raw:
+         return "r"
     return "other"
 
 
-def infer_object_prefix(filename: str) -> str:
+def infer_object_prefix_old(filename: str) -> str:
     """
     Infer object prefix from the beginning of the filename.
 
@@ -213,6 +252,31 @@ def infer_object_prefix(filename: str) -> str:
         return m.group(1)
     return base
 
+def infer_object_prefix(filename: str) -> str:
+    """
+    Infer object prefix from the beginning of the filename.
+
+    Handles cases like:
+      ic3392ha.fits        -> ic3392
+      hic3392ha.fits       -> ic3392   (strip leading 'h')
+      n4064haclj...        -> n4064
+
+    Strategy:
+      - strip extension
+      - remove leading 'h' ONLY if followed by ic or n
+      - capture leading [a-z]+[0-9]+
+    """
+    base = Path(filename).name.lower()
+    base = re.sub(r"\.fits?$", "", base)
+
+    # strip leading 'h' ONLY for patterns like hicXXXX or hnXXXX
+    base = re.sub(r"^h(?=(ic|n)\d+)", "", base)
+
+    m = re.match(r"^([a-z]+[0-9]+)", base)
+    if m:
+        return m.group(1)
+
+    return base
 
 def format_vfid(vfid_value) -> str:
     """
@@ -266,7 +330,7 @@ def parse_image_list(image_list_path: Path) -> dict[str, dict[str, str]]:
                     f"Duplicate {kind} entry for object '{obj}' in {image_list_path}: "
                     f"{manifest[obj][kind]} and {line}"
                 )
-
+            #print(f"DEBUG: {raw} -> {obj}")
             manifest[obj][kind] = line
 
     return manifest
@@ -376,12 +440,14 @@ def build_tag(
 
 def build_plans(
     archive_root: Path,
+    output_root: Path,
     catalog: Table,
     manifest: dict[str, dict[str, str]],
     instrument_default: str,
     date_default: str,
     target_mode: str,
     scheme: str = "archive",
+    shape_catalog: Table = None,    
 ) -> tuple[list[Plan], list[str]]:
     """
     Build execution plans.
@@ -396,9 +462,20 @@ def build_plans(
     vfid_col = pick_col(catalog, VFID_COL_CANDIDATES)
     ra_col = pick_col(catalog, RA_COL_CANDIDATES)
     dec_col = pick_col(catalog, DEC_COL_CANDIDATES)
-    sma_col = pick_col(catalog, SMA_COL_CANDIDATES)
-    ba_col = pick_col(catalog, BA_COL_CANDIDATES)
-    pa_col = pick_col(catalog, PA_COL_CANDIDATES)
+    vr_col = pick_col(catalog, VR_COL_CANDIDATES)
+
+
+    
+    if shape_catalog:
+        sma_col = pick_col(shape_catalog, SMA_COL_CANDIDATES)
+        ba_col = pick_col(shape_catalog, BA_COL_CANDIDATES)
+        pa_col = pick_col(shape_catalog, PA_COL_CANDIDATES)
+
+    else:
+        sma_col = pick_col(catalog, SMA_COL_CANDIDATES)
+        ba_col = pick_col(catalog, BA_COL_CANDIDATES)
+        pa_col = pick_col(catalog, PA_COL_CANDIDATES)
+
 
     available_name_cols = [c for c in NAME_COL_CANDIDATES if c in catalog.colnames]
     if not available_name_cols:
@@ -433,6 +510,7 @@ def build_plans(
             skipped.append(f"{obj_prefix}: no catalog match; skipping")
             continue
 
+        
         row = catalog[row_idx]
 
         try:
@@ -442,6 +520,7 @@ def build_plans(
         except FileNotFoundError as e:
             skipped.append(f"{obj_prefix}: {e}")
             continue
+
 
         # read info from header
         instrument = read_header_value(r_old, ("INSTRUME", "INSTRUMENT", "CAMERA", "DETECTOR")) or instrument_default
@@ -453,6 +532,14 @@ def build_plans(
         r_filter = read_header_value(r_old, FILTER_KEYS)        
         cs_filter = read_header_value(cs_old,FILTER_KEYS)
 
+        r_filter_center = read_header_float(r_old, FILTER_CENTER_KEYS)
+        cs_filter_center = read_header_float(cs_old, FILTER_CENTER_KEYS)
+        
+        r_filter_width = read_header_float(r_old, FILTER_WIDTH_KEYS)
+        cs_filter_width = read_header_float(cs_old, FILTER_WIDTH_KEYS)                
+
+        r_photzp = read_header_float(r_old, PHOTZP_KEYS)
+        cs_photzp = read_header_float(cs_old, PHOTZP_KEYS)                
         
         # Gather tag components
         vfid = format_vfid(row[vfid_col])
@@ -467,7 +554,7 @@ def build_plans(
 
         tag = build_tag(vfid, galname, instrument, yyyymmdd, target)
 
-        new_dir = archive_root / tag
+        new_dir = output_root / tag
         new_dir = ensure_unique_path(new_dir)
 
         tag_final = new_dir.name  # in case ensure_unique_path altered it
@@ -475,6 +562,38 @@ def build_plans(
         cs_new = new_dir / f"{tag_final}-CS.fits"
         r_new = new_dir / f"{tag_final}-R.fits"
         mask_new = new_dir / f"{tag_final}-mask.fits" if mask_old else None
+        gvr = float(row[vr_col])
+        gredshift = gvr/3.e5
+
+        if shape_catalog:
+            sma_arcsec = shape_catalog[sma_col][row_idx]
+            ba = shape_catalog[ba_col][row_idx]
+            pa_deg = shape_catalog[pa_col][row_idx]
+            shape_source = "shape_catalog"
+        else:
+            sma_arcsec = catalog[sma_col][row_idx]
+            ba = catalog[ba_col][row_idx]
+            pa_deg = catalog[pa_col][row_idx]
+            shape_source = "main_catalog"
+
+        valid_shape = True
+
+        if sma_arcsec is None or sma_arcsec <= 0:
+            valid_shape = False
+        if ba is None or ba <= 0 or ba > 1:
+            valid_shape = False
+        if pa_deg is None:
+            valid_shape = False
+
+        if not valid_shape:
+            sma_arcsec = 0.0
+            ba = 0.0
+            pa_deg = 0.0
+            shape_flag = 0
+            shape_source = "default"
+        else:
+            shape_flag = 1
+    
 
         metadata = {
             "VFID": vfid,
@@ -483,26 +602,30 @@ def build_plans(
             "tag": tag_final,
             "ra": float(row[ra_col]),
             "dec": float(row[dec_col]),
-            "sma_arcsec": float(row[sma_col]),
-            "ba": float(row[ba_col]),
-            "pa_deg": float(row[pa_col]),
+            "sma_arcsec": float(sma_arcsec),
+            "ba": float(ba),
+            "pa_deg": float(pa_deg),
+            "shape_source": shape_source,
+            "shape_flag": shape_flag,
             "scheme": scheme,
             "has_bad_wcs": True,
             "r_fits": r_new.name,
             "cs_fits": cs_new.name,
             "mask_fits": mask_new.name if mask_new else "",
-            "rimage_fwhm_arcsec": r_fwhm_arcsec,
-            "csimage_fwhm_arcsec": cs_fwhm_arcsec,
+            "rimage_fwhm_psf_arcsec": r_fwhm_arcsec,
+            "himage_fwhm_psf_arcsec": cs_fwhm_arcsec,
             "rimage_filter": r_filter or "",
-            "csimage_filter": cs_filter or "",
-            # TODO - GET FILTER CENTER WAVELENGTH AND WIDTH FOR ARCHIVE GALAXIES
-            # Table 5 in KKY
-            rfilter_name = image_set.r.filter_file,
-            rfilter_center_A = image_set.r.filter_center,
-            rfilter_width_A = image_set.r.filter_width,
-            hafilter_name = image_set.h.filter_file,
-            hafilter_center_A = image_set.h.filter_center,
-            hafilter_width_A = image_set.h.filter_width,
+            "himage_filter": cs_filter or "",
+            "rfilter": r_filter,
+            "hafilter": cs_filter,
+            "rfilter_center_A": r_filter_center,
+            "rfilter_width_A": r_filter_width,
+            "hafilter_name": "",
+            "hafilter_center_A": cs_filter_center,
+            "hafilter_width_A": cs_filter_width,
+            "redshift": np.round(gredshift,6),
+            "vr": np.round(gvr,2),
+
         }
 
         plans.append(
@@ -524,13 +647,17 @@ def build_plans(
     return plans, skipped
 
 
+
 def move_or_link(src: Path, dst: Path, link: bool = False) -> None:
-    """Move or symlink a file."""
+    """Copy or symlink a file, overwriting if needed."""
+    if dst.exists() or dst.is_symlink():
+        dst.unlink()
+
     if link:
         dst.symlink_to(src.resolve())
     else:
-        shutil.move(str(src), str(dst))
-
+        shutil.copy2(src, dst)
+        
 
 def apply_plan(plan: Plan, link: bool = False, keep_old_dir: bool = False) -> None:
     """
@@ -564,9 +691,11 @@ def apply_plan(plan: Plan, link: bool = False, keep_old_dir: bool = False) -> No
             plan.old_dir.rmdir()
 
 
-def print_plan_summary(plans: list[Plan], skipped: list[str]) -> None:
+def print_plan_summary(plans: list[Plan], archive_root, output_root, skipped: list[str]) -> None:
     """Pretty-print planned actions."""
     print("\nPlanned objects:")
+    print(f"RAW root: {archive_root}")
+    print(f"OUTPUT root: {output_root}")
     print("-" * 80)
     for p in plans:
         print(f"{p.obj_prefix}  ->  {p.new_dir.name}")
@@ -594,11 +723,15 @@ def print_plan_summary(plans: list[Plan], skipped: list[str]) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Build archive metadata + standardized names for hapy.")
     parser.add_argument("--archive-root", type=Path, required=True,
-                        help="Root directory containing per-object archive folders (e.g. ic3392/, n4064/)")
+                        help="Root directory containing RAW archive folders")
+    parser.add_argument("--output-root", type=Path, required=True,
+                        help="Directory where processed/tagged folders will be written")
     parser.add_argument("--catalog", type=Path, required=True,
                         help="Virgo/VFS catalog readable by astropy Table.read")
     parser.add_argument("--image-list", type=Path, required=True,
                         help="Authoritative list of image filenames to use (e.g. virgo.list)")
+    parser.add_argument("--shape-catalog", type=Path, default=None,
+                        help="Virgo/VFS catalog that contains ellipse shape information and is readable by astropy Table.read")
     parser.add_argument("--instrument", default="ARCH",
                         help="Default instrument string if not found in FITS header")
     parser.add_argument("--date-default", default="19990101",
@@ -618,9 +751,18 @@ def main():
     catalog = Table.read(args.catalog)
     manifest = parse_image_list(args.image_list)
 
+    args.output_root.mkdir(parents=True, exist_ok=True)
+    
+    if args.shape_catalog is not None:
+        shape_catalog = Table.read(args.shape_catalog)
+    else:
+        shape_catalog = None
+
     plans, skipped = build_plans(
         archive_root=args.archive_root,
+        output_root=args.output_root,
         catalog=catalog,
+        shape_catalog=shape_catalog,
         manifest=manifest,
         instrument_default=args.instrument,
         date_default=args.date_default,
@@ -628,7 +770,7 @@ def main():
         scheme=args.scheme,
     )
 
-    print_plan_summary(plans, skipped)
+    print_plan_summary(plans, args.archive_root, args.output_root, skipped)
 
     if args.dry_run:
         print("\nDry run only: no changes made.")

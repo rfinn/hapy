@@ -998,6 +998,12 @@ class EllipsePhotometry():
         (not sure why this is done together...)
         
         '''
+        print("DEBUG: image2.dtype:", type(self.image2), self.image2.dtype)
+        print("DEBUG: checking if mask is boolean: ",self.boolmask.dtype == bool)
+        
+        print("DEBUG image2 finite pixels:", np.sum(np.isfinite(self.image2)))
+        print("DEBUG mask true pixels:", np.sum(self.boolmask))
+        print("DEBUG usable pixels:", np.sum(~self.boolmask & np.isfinite(self.image2)))
         if self.mask_flag:
             self.threshold2 = detect_threshold(self.image2, nsigma=snrcut, mask=self.boolmask)
             self.segmentation2 = detect_sources(self.image2, self.threshold2, npixels=10,mask=self.boolmask)
@@ -2183,32 +2189,30 @@ class EllipsePhotometry():
         self.uconversion1 = 3631.*10**(self.magzp/-2.5)*1.e-23*bandwidth1
 
         
-        if self.image2_filter:
-            if self.filter2_cwavelength_A is not None:
-
-                cwave = self.filter2_cwavelength_A * 1.e-10 # convert A to m
-                dwave = self.filter2_width_A * 1.e-10 # convert A to m
-            else:
-                # fall back on filter dictionaries, but use with caution!
-                print("WARNING: no filter information - using outdated dictionaries!")
-                try:
-                    cwave = central_wavelength[self.header2["FILTER"]] * 1.e-10
-                    dwave = dwavelength[self.header2["FILTER"]] * 1.e-10
-                except KeyError:
-                    cwave = 6600. * 1.e-10
-                    dwave = 80. * 1.e-10
-                
-            bandwidth2 = 3.e8*dwave/(cwave)**2
-            try:
-                self.magzp2 = float(self.header2['PHOTZP'])
-                self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2
-            except:
-                # use 25 as default ZP if none is provided in header
-                self.uconversion2 = 3631.*10**(25/-2.5)*1.e-23*bandwidth2
-                print("WARNING: no PHOTZP keyword in image2 header. \nAssuming ZP=22.5")                
-                self.magzp2 = 22.5
+        if self.filter2_cwavelength_A is not None:
+            cwave = self.filter2_cwavelength_A * 1.e-10 # convert A to m
+            dwave = self.filter2_width_A * 1.e-10 # convert A to m
         else:
-            self.uconversion2 = None
+            # fall back on filter dictionaries, but use with caution!
+            print("WARNING: no filter information - using outdated dictionaries!")
+            try:
+                cwave = central_wavelength[self.header2["FILTER"]] * 1.e-10
+                dwave = dwavelength[self.header2["FILTER"]] * 1.e-10
+            except KeyError:
+                cwave = 6600. * 1.e-10
+                dwave = 80. * 1.e-10
+                
+        bandwidth2 = 3.e8*dwave/(cwave)**2
+        try:
+            self.magzp2 = float(self.header2['PHOTZP'])
+            self.uconversion2 = 3631.*10**(self.magzp2/-2.5)*1.e-23*bandwidth2
+        except:
+            # use 25 as default ZP if none is provided in header
+            self.uconversion2 = 3631.*10**(25/-2.5)*1.e-23*bandwidth2
+            print("WARNING: no PHOTZP keyword in image2 header. \nAssuming ZP=22.5")                
+            self.magzp2 = 22.5
+        #else:
+        #    self.uconversion2 = None
             
  
         if self.image2_flag:

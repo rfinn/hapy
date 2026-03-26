@@ -773,7 +773,26 @@ def check_table(results_table):
 def valid_file(path):
     p = Path(path)
     return p.is_file() and p.stat().st_size > 0
-        
+
+
+def load_gaia_table(params, args, logger):
+    scheme = (params.get("scheme") or "").lower()
+    if args.no_gaia or scheme == "archive":
+        logger.info("Gaia masking disabled")
+        return None
+
+    parent_rimage = params.get("parent_rimage")
+    if not parent_rimage or not args.gaia_dir:
+        return None
+
+    path = Path(args.gaia_dir) / parent_rimage.replace(".fits", "-gaia.fits")
+    if path.exists():
+        logger.info(f"Using Gaia catalog: {path}")
+        return Table.read(path)
+
+    logger.warning(f"Gaia catalog not found: {path}")
+    return None
+
 def main():
 
     p = argparse.ArgumentParser(
@@ -916,6 +935,18 @@ def main():
     root = tag
 
     prefix = tag
+
+
+    params_path = cutdir / "metadata.json"
+
+    if not params_path.exists():
+        raise RuntimeError(
+            f"metadata.json not found for root {root}. "
+            "Cutouts may be outdated or improperly generated."
+        )
+    
+    params = json.loads(params_path.read_text())
+    
     results_path = cutdir / f"{tag}-results.ecsv"
 
     print(f"DEBUG: cutdir={cutdir},tag={tag}, root={root}")
@@ -931,12 +962,24 @@ def main():
     
     # Auto-detect common filenames if not provided.
     # Adjust these glob patterns to match your exact suffix conventions.
-    r_fits = args.r_fits or _pick_one(str(cutdir/ f"{tag}*-R.fits")) or _pick_one(str(cutdir / f"{tag}*-r.fits"))
+    #r_fits = args.r_fits or _pick_one(str(cutdir/ f"{tag}*-R.fits")) or _pick_one(str(cutdir / f"{tag}*-r.fits"))
+    r_fits = (
+        args.r_fits
+        or (str(cutdir / params.get("r_fits")) if params.get("r_fits") else None)
+        or _pick_one(str(cutdir / f"{tag}*-R.fits"))
+        or _pick_one(str(cutdir / f"{tag}*-r.fits"))
+        )
     if r_fits is None:
         raise FileNotFoundError(f"Could not find R-band FITS in: {cutdir}")
 
-    cs_fits = args.cs_fits or _pick_one(str(cutdir / f"{tag}*-CS-ZP.fits")) or _pick_one(str(cutdir / f"{tag}*-cs.fits"))
-
+    #cs_fits = args.cs_fits or _pick_one(str(cutdir / f"{tag}*-CS-ZP.fits")) or _pick_one(str(cutdir / f"{tag}*-cs.fits"))
+    cs_fits = (
+        args.cs_fits
+        or (str(cutdir / params.get("cs_fits")) if params.get("cs_fits") else None)
+        or _pick_one(str(cutdir / f"{tag}*-CS-ZP.fits"))
+        or _pick_one(str(cutdir / f"{tag}*-CS.fits"))
+        or _pick_one(str(cutdir / f"{tag}*-cs.fits"))
+        )
     # why are we looking for a mask when we are suppose to make one?
     mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
@@ -975,7 +1018,7 @@ def main():
     #pixscale = args.pixscale
     #if pixscale is None:
     pixscale = get_pixel_scale_from_filename(r_fits)
-
+    print(f"DEBUG: pixscale = {pixscale:.4e}")
     row["PIXSCALE"] = round(float(pixscale),4)
     # --- Load cutout image for WCS + shape ---
     data, hdr = fits.getdata(r_fits, header=True)
@@ -993,15 +1036,6 @@ def main():
 
     t0_total = time.perf_counter()
 
-    params_path = cutdir / "metadata.json"
-
-    if not params_path.exists():
-        raise RuntimeError(
-            f"metadata.json not found for root {root}. "
-            "Cutouts may be outdated or improperly generated."
-        )
-    
-    params = json.loads(params_path.read_text())
 
     # --- check for valid input ellipse
     if ellipse_missing(params):
@@ -1035,8 +1069,12 @@ def main():
         # write back (development mode)
         params_path.write_text(json.dumps(params, indent=2))
 
-
+    # --- START OF PASTE
     # --- update row with other info from metadata.json
+    scheme = (params.get("scheme") or "").lower()
+
+    use_gaia = (not args.no_gaia) and (scheme != "archive")    
+
     row["TELESCOPE"] = params.get("telescope", "")
     row["DATEOBS"]   = params.get("dateobs", "")
     row["POINTING"]  = params.get("pointing", "")
@@ -1044,29 +1082,32 @@ def main():
     row["PARENT_RIMAGE"]  = params.get("parent_rimage", "")
     row["PARENT_HIMAGE"] = params.get("parent_haimage", "")
 
-    row["HFILTER"] = params.get("hafilter")
-    row["CUTOUT_SCALE"] = params.get("cutout_scale")
-    row["FILTER_CORRECTION"] = params.get("filter_correction")
+    # These are more survey/workflow-specific; leave archive rows at initialized defaults
+    if scheme != "archive":
+        row["HFILTER"] = params.get("hafilter")
+        row["CUTOUT_SCALE"] = params.get("cutout_scale")
+        row["FILTER_CORRECTION"] = params.get("filter_correction")
 
+        # TODO get this information from ZP ratio
+        filter_ratio = params.get("filter_ratio", None)
+        if filter_ratio is None:
+            filter_ratio = np.nan
+            logger.warning("FLTRATIO missing from metadata; physical flux calibration will be NaN.")
+        row["FILTER_RATIO"] = filter_ratio
 
-    # TODO get this information from ZP ratio
-    filter_ratio = params.get("filter_ratio", None)
-    if filter_ratio is None:
-        filter_ratio = np.nan
-        logger.warning("FLTRATIO missing from metadata; physical flux calibration will be NaN.")
+        # --- Construct the name of the psf image
+        psf_path, psf_source = pick_psf_path_and_source(args, params,logger=logger)
+        row["PSF_FITS"] = str(psf_path) if psf_path else ""
+        row["PSF_OK"] = bool(psf_path)
+        row["PSF_SOURCE"] = psf_source
+        psf_ok = row["PSF_OK"]
 
-    row["FILTER_RATIO"] = filter_ratio           
-
-    # --- Get ellipse parameters ---    
+    # --- Get ellipse parameters ---
     sma_arcsec = float(params["sma_arcsec"])
     ba = float(params["ba"])
-    pa_deg = float(params["pa_deg"]) # CCW from N, from input catalog
-    #xc = float(params["xc"])
-    #yc = float(params["yc"])    
+    pa_deg = float(params["pa_deg"])  # CCW from N, from input catalog
 
     # Try WCS-based centering using stored RA/DEC
-    #ra = params.get("ra", None)
-    #dec = params.get("dec", None)
     objid = params.get("objid", Path(root).name)
     ra = args.objra if args.objra is not None else params.get("ra")
     dec = args.objdec if args.objdec is not None else params.get("dec")
@@ -1074,18 +1115,52 @@ def main():
     row["DEC"] = dec
     row["OBJID"] = objid
     row["REDSHIFT"] = params.get("redshift")
-    row["VR"] = params.get("vr")    
-    row["R_FWHM_SE"] = float(params.get("rimage_fwhm_se_arcsec"))
-    row["R_FWHM_PSF"] = float(params.get("rimage_fwhm_psf_arcsec"))    
-    row["H_FWHM_SE"] = float(params.get("himage_fwhm_se_arcsec"))
-    row["H_FWHM_PSF"] = float(params.get("himage_fwhm_psf_arcsec"))    
-    row["RFILTER_FILENAME"] = params.get("rfilter_name")
-    row["RFILTER_CENTER"] = float(params.get("rfilter_center_A"))
-    row["RFILTER_WIDTH"] = float(params.get("rfilter_width_A"))    
-    row["HFILTER_FILENAME"] = params.get("hafilter_name")
-    row["HFILTER_CENTER"] = float(params.get("hafilter_center_A"))
-    row["HFILTER_WIDTH"] = float(params.get("hafilter_width_A"))    
+    row["VR"] = params.get("vr")
 
+    # Optional floats: only set if present
+    val = params.get("rimage_fwhm_se_arcsec")
+    if val is not None:
+        row["R_FWHM_SE"] = float(val)
+
+    val = params.get("rimage_fwhm_psf_arcsec")
+    if val is not None:
+        row["R_FWHM_PSF"] = float(val)
+
+    val = params.get("himage_fwhm_se_arcsec")
+    if val is not None:
+        row["H_FWHM_SE"] = float(val)
+
+    val = params.get("himage_fwhm_psf_arcsec")
+    if val is not None:
+        row["H_FWHM_PSF"] = float(val)
+
+    # Optional strings
+    val = params.get("rfilter_name")
+    if val is not None:
+        row["RFILTER_FILENAME"] = val
+
+    val = params.get("hafilter_name")
+    if val is not None:
+        row["HFILTER_FILENAME"] = val
+
+    # Optional filter metadata
+    val = params.get("rfilter_center_A")
+    if val is not None:
+        row["RFILTER_CENTER"] = float(val)
+
+    val = params.get("rfilter_width_A")
+    if val is not None:
+        row["RFILTER_WIDTH"] = float(val)
+
+    val = params.get("hafilter_center_A")
+    if val is not None:
+        row["HFILTER_CENTER"] = float(val)
+
+    val = params.get("hafilter_width_A")
+    if val is not None:
+        row["HFILTER_WIDTH"] = float(val)
+
+    # --- END OF METADATA TRANSFER  
 
     if ra is not None and dec is not None:
         try:
@@ -1129,16 +1204,6 @@ def main():
         theta_deg = photutils_theta_to_pa_ccw_north(pa_deg)
         )
 
-    # --- Construct the name of the psf image
-    psf_path, psf_source = pick_psf_path_and_source(args, params,logger=logger)
-    row["PSF_FITS"] = str(psf_path) if psf_path else ""
-    row["PSF_OK"] = bool(psf_path)
-    row["PSF_SOURCE"] = psf_source
-    psf_ok = row["PSF_OK"]
-
-    #print("TESTING: psf_path = ",psf_path)
-    #sys.exit()
-
 
     
     if args.make_mask:
@@ -1155,45 +1220,17 @@ def main():
         mask_out = mask_fits or (cutdir / f"{tag}-mask.fits")
 
         print(f"DEBUG: mask_out={mask_out}")
-
-
-        
-
-
-        #row["sma_arcsec"] = sma_arcsec
-        #row["ba"] = ba
-        #row["pa_deg"] = pa_deg        
+  
 
         # --- Convert to pixels ---
         sma_pix = sma_arcsec / pixscale
 
         # convert CCW from N angle to photutils CCW from +x
         galaxy_ellipse = ell0_params
-        #theta_deg = pa_ccw_north_to_photutils_theta(pa_deg)
-        #galaxy_ellipse = EllipseParams(
-        #    xc=xc,
-        #    yc=yc,
-        #    sma_pix=sma_pix,
-        #    ba=ba,
-        #    theta_deg=theta_deg,
-        #)
 
-        # -- look for gaia table from parent image
-        parent_rimage = params.get("parent_rimage", None)        
-        gaia_table_path = None
-        if parent_rimage:
-            gaia_dir = Path(args.gaia_dir)
-            gaia_table_path = gaia_dir / parent_rimage.replace(".fits", "-gaia.fits")
-    
+        # -- look for gaia table 
+        gaia_table = load_gaia_table(params, args, logger)
 
-        if not args.no_gaia and parent_rimage:
-            gaia_table_path = Path(args.gaia_dir) / parent_rimage.replace(".fits", "-gaia.fits")
-            if gaia_table_path.exists():
-                gaia_table = Table.read(gaia_table_path)
-                logger.info(f"Using local Gaia catalog: {gaia_table_path}")
-            else:
-                logger.warning(f"Local Gaia catalog not found: {gaia_table_path}")
-        
         engine = MaskEngine(
             image_fits=r_fits,
             sepath=args.sepath,
@@ -1232,20 +1269,20 @@ def main():
         row["MASK_SEC"] = time.perf_counter() - t0
         #row["mask_ok"] = True
         write_result_row_ecsv(results_path, row)
-
-        bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
-            ra,
-            dec,
-            gaia_table,
-            mag_limit=10,
-            radius_col="radius",
-            min_radius_arcsec = gaia_min_radius_arcsec
-            )
+        if use_gaia and gaia_table is not None:
+            bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
+                ra,
+                dec,
+                gaia_table,
+                mag_limit=10,
+                radius_col="radius",
+                min_radius_arcsec = gaia_min_radius_arcsec
+                )
         
-        row["BRIGHT_STAR_FLAG"] = bright_flag
-        row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
-        row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
-        row["BRIGHT_STAR_MAG"] = bright_mag        
+            row["BRIGHT_STAR_FLAG"] = bright_flag
+            row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
+            row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
+            row["BRIGHT_STAR_MAG"] = bright_mag        
 
 
         res = ellipse_mask_fraction(mask, ell0_params)
@@ -1281,7 +1318,7 @@ def main():
     if args.image2_filter is not None:
         hafilter = args.image2_filter
         row["HFILTER"] = hafilter
-        
+    filter_ratio = row["FILTER_RATIO"]
     e = run_ellipse_photometry(
         r_fits=r_fits,
         cs_fits=cs_fits,
@@ -1416,8 +1453,30 @@ def main():
     except Exception:
         # if any missing keys, just don't set mismatch fields
         pass
+    phot_xc = float(row["ELLIP_XCENTROID"])
+    phot_yc = float(row["ELLIP_YCENTROID"])
+    phot_sma_pix = float(row["ELLIP_SMA_ARCSEC"])/pixscale
+    phot_ba = 1.0 - float(row["ELLIP_EPS"])
+    # ELLIP_THETA_RAD measured from +x axis
+    phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
+    ellphot_params = EllipseParams(
+        xc = phot_xc,
+        yc = phot_yc,
+        sma_pix = phot_sma_pix,
+        ba = phot_ba,
+        theta_deg = phot_theta_deg
+    )
 
-    
+    outfile = cutdir / f"{tag}-diagnostic.png"
+    plot_mask_ellipse_diagnostic(
+        r_fits=str(r_fits),
+        mask_fits=str(mask_fits),
+        e0=ell0_params,
+        eph=ellphot_params,
+        outfile=str(outfile),
+        row=row,
+        )
+
     # calculate hapy gini
     e.run_hapy_morphology()
 
@@ -1498,29 +1557,7 @@ def main():
         e.plot_fancy_profiles()
         e.draw_phot_results_mpl()
         
-        phot_xc = float(row["ELLIP_XCENTROID"])
-        phot_yc = float(row["ELLIP_YCENTROID"])
-        phot_sma_pix = float(row["ELLIP_SMA_ARCSEC"])/pixscale
-        phot_ba = 1.0 - float(row["ELLIP_EPS"])
-        # ELLIP_THETA_RAD measured from +x axis
-        phot_theta_deg = (np.degrees(float(row["ELLIP_THETA_RAD"])) % 180.0)
-        ellphot_params = EllipseParams(
-            xc = phot_xc,
-            yc = phot_yc,
-            sma_pix = phot_sma_pix,
-            ba = phot_ba,
-            theta_deg = phot_theta_deg
-            )
         
-        outfile = cutdir / f"{tag}-diagnostic.png"
-        plot_mask_ellipse_diagnostic(
-            r_fits=str(r_fits),
-            mask_fits=str(mask_fits),
-            e0=ell0_params,
-            eph=ellphot_params,
-            outfile=str(outfile),
-            row=row,
-            )
     if args.galfit:
         print("starting galfit ...")
         #print("DEBUG: cutdir = ",root)

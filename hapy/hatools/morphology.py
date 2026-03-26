@@ -1332,7 +1332,7 @@ def plot_hapy_morphology_diagnostic(
     ax[3].set_title("r-band morphology pixels")
     ax[3].set_xlabel("r-band pixel value")
     ax[3].set_ylabel("N")
-
+    ax[3].set_yscale("log")    
     # 5. Halpha image
     im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
     ax[4].set_title("Hα image")
@@ -1341,7 +1341,7 @@ def plot_hapy_morphology_diagnostic(
     # 6. thresholded Halpha image used for morphology
     hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
     hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
-    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="magma", vmin=hagi_vmin, vmax=hagi_vmax)
+    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", vmin=hagi_vmin, vmax=hagi_vmax)
     if np.isfinite(morph.h_threshold) and np.isfinite(morph.h_sigma_sky):
         ax[5].set_title(
             f"Hα used for morphology\n"
@@ -1360,7 +1360,7 @@ def plot_hapy_morphology_diagnostic(
     # 7. Halpha + overlays
     ax[6].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
     try:
-        ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="white", linewidths=1.0, alpha=0.6)
+        ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0, alpha=0.6)
     except Exception:
         pass
     try:
@@ -1385,44 +1385,59 @@ def plot_hapy_morphology_diagnostic(
     ax[7].set_title("Hα morphology pixels")
     ax[7].set_xlabel("Hα pixel value (thresholded)")
     ax[7].set_ylabel("N")
+    ax[7].set_yscale("log")    
 
-    text_lines = []
+    rtext_lines = []
+    htext_lines = []    
     if morph.note:
-        text_lines.append(morph.note)
+        rtext_lines.append(morph.note)
 
-    text_lines.extend([
+    rtext_lines.extend([
         f"HAPY_MORPH_OK = {morph.ok}",
         f"HAPY_MORPH_FLAG = {morph.flag}",
         f"R_GINI = {morph.r_gini:.3f}",
-        f"H_GINI = {morph.h_gini:.3f}",
         f"R_M20 = {morph.r_m20:.3f}",
-        f"H_M20 = {morph.h_m20:.3f}",
         f"R_ASYM = {morph.r_asym:.3f}",
-        f"H_ASYM = {morph.h_asym:.3f}",
         f"R_NPIX = {morph.r_npix}",
+    ])
+    htext_lines.extend([
+        f"H_GINI = {morph.h_gini:.3f}",
+        f"H_M20 = {morph.h_m20:.3f}",
+        f"H_ASYM = {morph.h_asym:.3f}",
         f"H_NPIX = {morph.h_npix}",
         f"H_FILLFRAC = {morph.h_fillfrac:.3f}",
     ])
 
     if np.isfinite(morph.r_snp_all):
-        text_lines.append(f"R_SNP_ALL = {morph.r_snp_all:.3f}")
+        rtext_lines.append(f"R_SNP_ALL = {morph.r_snp_all:.3f}")
     if np.isfinite(morph.h_snp_det):
-        text_lines.append(f"H_SNP_DET = {morph.h_snp_det:.3f}")
+        htext_lines.append(f"H_SNP_DET = {morph.h_snp_det:.3f}")
     if np.isfinite(morph.h_snp_all):
-        text_lines.append(f"H_SNP_ALL = {morph.h_snp_all:.3f}")
+        htext_lines.append(f"H_SNP_ALL = {morph.h_snp_all:.3f}")
     if np.isfinite(morph.h_sigma_sky):
-        text_lines.append(f"H sigma_sky = {morph.h_sigma_sky:.3g}")
+        htext_lines.append(f"H sigma_sky = {morph.h_sigma_sky:.3g}")
     if np.isfinite(morph.h_threshold):
-        text_lines.append(f"H threshold = {morph.h_threshold:.3g}")
+        htext_lines.append(f"H threshold = {morph.h_threshold:.3g}")
 
-    ax[7].text(
+
+
+    ax[3].text(
         0.98, 0.98,
-        "\n".join(text_lines),
-        transform=ax[7].transAxes,
+        "\n".join(rtext_lines),
+        transform=ax[3].transAxes,
         ha="right", va="top",
         fontsize=9,
         bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
     )
+
+    ax[7].text(
+        0.98, 0.98,
+        "\n".join(htext_lines),
+        transform=ax[7].transAxes,
+        ha="right", va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+    )    
 
     for a in ax[:7]:
         a.set_xlabel("x [pix]")
