@@ -1,0 +1,663 @@
+#!/usr/bin/env python
+
+"""
+GOAL:
+update headers of Becky's images
+
+add:
+* RA
+* DEC
+* rough WCS
+
+Tables from papers are in ~/research/Virgo/koopman-images/paper-tables/
+
+Cluster data:
+KKY01 table 1 - RA and DEC (1950)
+KKY01 table 3 - gives detector
+KKY01 table 4 - gives pixel scale for each detector
+
+
+isolated data:
+KK06 table 2 - name, RA and DEC (1950)
+KK06 table 3 - name, gives detector
+KK06 table 4 - gives pixel scale for each detector
+
+
+method:
+* get RA and DEC
+* get pixelscale
+* get filter
+* update header
+
+"""
+
+import argparse
+import os
+from astropy.io import fits
+import sys
+
+from pydantic_core.core_schema import filter_dict_schema
+from pygments.filters import get_filter_by_name
+
+homedir = os.getenv("HOME")
+tabledir = os.path.join(homedir,'research/Virgo/koopmann-images/paper-tables/')
+import numpy as np
+
+def get_coords(galname):
+    """
+    INPUT:
+    * galname: e.g. NGC4178, IC3392
+
+    PROCEDURE:
+    read in KKY01 table 1
+    find line starting with gal name
+    get coord strings
+    convert to (RA,DEC) in J2000 deg
+
+    RETURN:
+    ra: in deg (J2000)
+    dec: in deg (J2000)
+    """
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+    from astropy.coordinates import FK5
+    from astropy.time import Time
+
+    foundMatch = False
+    
+    # open file
+    input = open(os.path.join(tabledir,'KKY01-table1.txt'),'r')
+    # search for line starting with gal name
+    # when gal is found, parse strings that hold ra and dec
+    for line in input:
+        if line.startswith('NGC') | line.startswith('IC') | line.startswith('UGC'):
+            t = line.split()
+            testname = t[0]+t[1]
+            if testname == galname: # t[1] is the NGC number
+                ra = ':'.join(t[2:5])
+                dec = ':'.join(t[5:8])
+                c = SkyCoord(ra,dec,unit=(u.hourangle,u.deg),frame=FK5(equinox=Time('J1950')))
+                foundMatch = True
+                break
+    input.close()
+
+    # if no match found in cluster table, look in isolated galaxies table
+    if not foundMatch: 
+        # open file
+        input = open(os.path.join(tabledir,'KK06-table2.txt'),'r')
+        # search for line starting with gal name
+        # when gal is found, parse strings that hold ra and dec
+        for line in input:
+            if line.startswith('NGC') | line.startswith('IC') | line.startswith('UGC'):
+                t = line.split()
+                
+                testname = t[0]+t[1]
+                if testname == galname: # t[1] is the NGC number
+                    ra = ':'.join(t[2:5])
+                    dec = ':'.join(t[5:8])
+                    print(f"ra = {ra}, dec = {dec}")
+                    c = SkyCoord(ra,dec,unit=(u.hourangle,u.deg),frame=FK5(equinox=Time('J1950')))
+                    foundMatch = True
+                    break
+        input.close()
+
+    if foundMatch:
+        # transform to J2000
+        c2000 = c.transform_to(FK5(equinox='J2000'))
+        ra, dec = c2000.ra.value, c2000.dec.value
+    else:
+        ra, dec = None, None
+
+    return ra, dec
+
+
+def get_instrument(galname):
+    """
+    INPUT:
+    * galname: e.g. NGC4178, IC3392
+
+    PROCEDURE:
+
+    RETURN:
+    * instrument
+    """
+    foundMatch = False
+
+    if galname in ['NGC4298', 'NGC4302', 'NGC4567', 'NGC4568', 'NGC4647', 'NGC4649']:
+        return 'TEK1'
+    elif galname in ['NGC4383', 'UGC7504', 'NGC4606', 'NGC4607', 'NGC4694']:
+        return 't2ka'
+    # open file
+    input = open(os.path.join(tabledir,'KKY01-table3.txt'),'r')
+    # search for line starting with gal name
+    # when gal is found, parse strings that hold ra and dec
+    for line in input:
+        if line.startswith('NGC') | line.startswith('IC') | line.startswith('UGC'):
+            t = line.split()
+            testname = t[0]+t[1]
+            if '/' in testname:
+                testname = t[0]+t[1].split('/')[0]
+            if testname == galname: # t[1] is the NGC number
+                instrument = t[5].split('/')[1]
+                foundMatch = True
+                break
+    input.close()
+
+    # if no match found in cluster table, look in isolated galaxies table
+    if not foundMatch: 
+        # open file
+        input = open(os.path.join(tabledir,'KK06-table3.txt'),'r')
+        # search for line starting with gal name
+        # when gal is found, parse strings that hold ra and dec
+        for line in input:
+            if line.startswith('NGC') | line.startswith('IC') | line.startswith('UGC'):
+                t = line.split()
+                testname = t[0]+t[1]
+                if testname == galname: # t[1] is the NGC number
+                    instrument = t[5].split('/')[1]
+                    foundMatch = True
+                    break
+        input.close()
+
+    if not foundMatch:
+        instrument = None
+    if instrument == 'S2KB':
+        instrument = 's2kb'
+    elif instrument == 't2kA':
+        instrument = 't2ka'
+    instrument=instrument.upper()
+    instrument=instrument.replace('-','_')
+    return instrument
+
+def get_fwhm(galname):
+    """
+        INPUT:
+            galname: e.g. NGC4178, IC3392
+
+        RETURN:
+            FWHM value in arcsec
+        """
+
+    foundMatch = False
+    fwhm = None
+
+    # search first table
+    with open(os.path.join(tabledir, 'KKY01-table3.txt'), 'r') as f:
+        for line in f:
+            if line.startswith(('NGC', 'IC', 'UGC')):
+                # normalize names in line
+                clean_line = line.replace('/', ' ').split()
+                # build names like NGC4298
+                names = []
+                for i in range(len(clean_line) - 1):
+                    if clean_line[i] in ['NGC', 'IC', 'UGC']:
+                        names.append(clean_line[i] + clean_line[i + 1])
+                if galname in names:
+                    t = line.split()
+                    try:
+                        fwhm = float(t[-5])
+                    except ValueError:
+                        print(f"WARNING: could not determine FWHM for {galname}. Setting fwhm=2")
+                        fwhm = 2
+                    foundMatch = True
+                    break
+
+    # searching second table if needed
+    if not foundMatch:
+        with open(os.path.join(tabledir, 'KK06-table3.txt'), 'r') as f:
+            for line in f:
+                if line.startswith(('NGC', 'IC', 'UGC')):
+                    t = line.split()
+                    testname = t[0] + t[1]
+                    if testname == galname:
+                        try:
+                            fwhm = float(t[-5])
+                        except ValueError:
+                            print(f"WARNING: could not determine FWHM for {galname}. Setting fwhm=2")
+                            fwhm = 2
+                        foundMatch = True
+                        break
+
+    return fwhm
+
+
+def get_pixel_scale(instrument):
+    """
+    get pixel scale from file
+
+    KKY01 table 4 - gives pixel scale for each detector
+    KK06 table 4 - gives pixel scale for each detector
+
+    RETURN
+    pixelScale : pixel scale in arcsec per pixel
+
+    """
+
+    # making a dictionary in case that's easier
+    pixel_dictionary = {
+        'TI2': 0.86,
+        'TEK1': 0.77,
+        't2ka': 0.68,
+        'T2KA': 0.68,
+        'TEK2K': 0.40,
+        'TEK1K': 0.40,
+        'TEK1K-1': 0.40,
+        'TEK1K_1': 0.40,        
+        's2kb': 0.20,
+        'S2KB': 0.20}
+    
+    foundMatch = False
+    try:
+        pixelScale = pixel_dictionary[instrument]
+        foundMatch = True
+    except KeyError:
+        print(f"WARNING: did not find pixel scale for instrument:{instrument}")
+        sys.exit()
+    
+    return pixelScale
+
+
+def get_filters(galname):
+    """
+    INPUT:
+        galname: e.g. NGC4178, IC3392
+
+    RETURN:
+        filter_R, filter_Ha
+    """
+
+    galname = galname.replace(' ', '')
+
+    foundMatch = False
+    filter_R = []
+    filter_Ha = []
+
+    def extract_names(line):
+        clean_line = line.replace('/', ' ')
+        tokens = clean_line.split()
+
+        names = []
+        i = 0
+        while i < len(tokens) - 1:
+            if tokens[i] in ['NGC', 'IC', 'UGC']:
+                names.append(tokens[i] + tokens[i + 1])
+                i += 2
+            else:
+                i += 1
+        return names
+
+    with open(os.path.join(tabledir, 'KKY01-table3.txt'), 'r') as f:
+        lines = f.readlines()
+
+    for idx, line in enumerate(lines):
+        if line.startswith(('NGC', 'IC', 'UGC')):
+
+            names = extract_names(line)
+
+            if galname in names:
+                t = line.split()
+                i = 6
+
+                if '/' in t[i]:
+                    i += 1
+
+                r_parts = [t[i]]
+                i += 1
+                while r_parts[-1].endswith(','):
+                    r_parts.append(t[i])
+                    i += 1
+                col_R = ' '.join(r_parts)
+
+                ha_parts = [t[i]]
+                i += 1
+                if i < len(t) and t[i].isdigit():
+                    ha_parts.append(t[i])
+                    i += 1
+                col_Ha = ''.join(ha_parts)
+
+                filter_R = col_R.split(', ')
+                filter_Ha = [col_Ha]
+
+                # handle continuation row (nan galaxy row)
+                if idx + 1 < len(lines):
+                    next_line = lines[idx + 1]
+
+                    if not next_line.startswith(('NGC', 'IC', 'UGC')):
+
+                        # only override if Ha is missing in row 1
+                        if '\\ldots' in col_Ha or 'ldots' in col_Ha:
+                            t2 = next_line.split()
+
+                            i2 = 4
+                            if i2 < len(t2) and '/' in t2[i2]:
+                                i2 += 1
+
+                            # extract additional R filters
+                            r_parts2 = [t2[i2]]
+                            i2 += 1
+                            while i2 < len(t2) and r_parts2[-1].endswith(','):
+                                r_parts2.append(t2[i2])
+                                i2 += 1
+                            col_R2 = ' '.join(r_parts2)
+
+                            # extract Ha from row 2
+                            if i2 < len(t2):
+                                ha_parts2 = [t2[i2]]
+                                i2 += 1
+                                if i2 < len(t2) and t2[i2].isdigit():
+                                    ha_parts2.append(t2[i2])
+                                col_Ha2 = ''.join(ha_parts2)
+
+                                # merging
+                                filter_R.extend(col_R2.split(', '))
+                                filter_Ha = [col_Ha2]
+
+                                filter_R = [r for r in filter_R if r != '\\ldots']
+
+                foundMatch = True
+                break
+
+    if not foundMatch:
+        with open(os.path.join(tabledir, 'KK06-table3.txt'), 'r') as f:
+            lines = f.readlines()
+
+        for idx, line in enumerate(lines):
+            if line.startswith(('NGC', 'IC', 'UGC')):
+
+                names = extract_names(line)
+
+                if galname in names:
+                    t = line.split()
+                    i = 6
+
+                    if '/' in t[i]:
+                        i += 1
+
+                    r_parts = [t[i]]
+                    i += 1
+                    while r_parts[-1].endswith(','):
+                        r_parts.append(t[i])
+                        i += 1
+                    col_R = ' '.join(r_parts)
+
+                    ha_parts = [t[i]]
+                    i += 1
+                    if i < len(t) and t[i].isdigit():
+                        ha_parts.append(t[i])
+                        i += 1
+                    col_Ha = ''.join(ha_parts)
+
+                    filter_R = col_R.split(', ')
+                    filter_Ha = [col_Ha]
+
+                    # handle continuation row (nan galaxy row)
+                    if idx + 1 < len(lines):
+                        next_line = lines[idx + 1]
+
+                        if not next_line.startswith(('NGC', 'IC', 'UGC')):
+
+                            if '\\ldots' in col_Ha or 'ldots' in col_Ha:
+                                t2 = next_line.split()
+
+                                i2 = 4
+                                if i2 < len(t2) and '/' in t2[i2]:
+                                    i2 += 1
+
+                                r_parts2 = [t2[i2]]
+                                i2 += 1
+                                while i2 < len(t2) and r_parts2[-1].endswith(','):
+                                    r_parts2.append(t2[i2])
+                                    i2 += 1
+                                col_R2 = ' '.join(r_parts2)
+
+                                if i2 < len(t2):
+                                    ha_parts2 = [t2[i2]]
+                                    i2 += 1
+                                    if i2 < len(t2) and t2[i2].isdigit():
+                                        ha_parts2.append(t2[i2])
+                                    col_Ha2 = ''.join(ha_parts2)
+
+                                    filter_R.extend(col_R2.split(', '))
+                                    filter_Ha = [col_Ha2]
+
+                                    filter_R = [r for r in filter_R if r != '\\ldots']
+
+                    foundMatch = True
+                    break
+
+    return filter_R, filter_Ha
+
+
+def get_filter_props(galname=None, filter_name=None):
+    """Get filter central wavelength and width.
+
+    INPUT:
+        galname: e.g. NGC4178, IC3392
+        OR
+        filter_name: e.g. 'H\\alpha1', 'R'
+
+    RETURN:
+        If galname is provided:
+            filter_R_props: list of [center, width] for R filters
+            filter_Ha_props: list of [center, width] for H-alpha filters
+        If filter_name is provided:
+            [center, width] for that filter
+
+        Units are in Angstroms.
+    """
+    filter_wave_dwave = {
+        'H\\alpha1':[6563,80],
+        'H\\alpha2':[6608,76],
+        'H\\alpha3':[6573,68],
+        'H\\alpha300':[6606,75], # use Halpha 5 for now for NGC4457 b/c Halpha doesn't have entry in table3
+        'H\\alpha4':[6618,74],
+        'H\\alpha5':[6563,78],
+        'H\\alpha6':[6606,75],
+        'R':[6425,1540],
+        'nmR':[6470,1110],
+        'sR':[7024,380]
+    }
+
+    if galname:
+        filter_R, filter_Ha = get_filters(galname)
+        filter_R_props = [filter_wave_dwave[f] for f in filter_R]
+        filter_Ha_props = [filter_wave_dwave[f] for f in filter_Ha]
+        return filter_R_props, filter_Ha_props
+
+    elif filter_name:
+        return filter_wave_dwave[filter_name]
+
+    else:
+        raise ValueError("You must provide either galname or filter_name")
+
+def _pick_r_filter(filter_r_names):
+    ifilter = 0
+    if len(filter_r_names) > 1:
+        for i,rf in enumerate(filter_r_names):
+            print(rf)
+            if rf == 'R':
+                print("found match to R")
+                ifilter = i
+    else:
+        print("only found one R-band filter")
+        ifilter = 0
+    return ifilter
+
+def get_zp(galname):
+    """Get PHOTZP based on flux ZP and filter width for all R and H-alpha filters.
+
+    INPUT:
+        galname: e.g. NGC4178, IC3392
+
+    RETURN:
+        RAB_ZPs: list of AB magnitude ZPs for R filters
+        HAB_ZPs: list of AB magnitude ZPs for H-alpha filters
+
+
+        Units are in erg/s/cm^2
+    """
+    # CONSTANTS
+    c = 3e10       # speed of light in cm/s
+    f0 = 1e-18     # flux zp in erg/s/cm^2
+    ifilter = 0
+    filter_R_names, filter_ha_names = get_filters(galname)
+    filter_R_props, filter_ha_props = get_filter_props(galname)
+
+    # choose the right R filter if there are more than one
+    ifilter = _pick_r_filter(filter_R_names)
+    #print(f"DEBUG: filter_R_names={filter_R_names}, ifilter={ifilter}, galname={galname}")
+    filter_R_names = [filter_R_names[ifilter]]
+    filter_R_props = [filter_R_props[ifilter]]
+
+    def calc_zp(cwave_cm, dwave_cm):
+        """calculate AB ZP from center wave and width"""
+        c = 3.e10 # speed of light in cm/s
+        dnu = c*dwave_cm/cwave_cm**2 # freq width in Hz
+        fZP_Jy = f0 / dnu / 1.e-23 # convert erg/s/cm^2 to Jy
+        # convert to AB mag, flux_zero = 3631 Jy
+        # use mag difference formula: m2 - m1 = 2.5*log10(f1/f2)
+        ab_zp = 2.5 * np.log10(3631./fZP_Jy)
+        return ab_zp
+
+    RZPs = []
+    for rcenter_A, rwidth_A in filter_R_props:
+        rcenter_cm = rcenter_A * 1e-8 # convert A to cm
+        rwidth_cm = rwidth_A * 1e-8 # convert A to cm
+
+        RZPs.append(calc_zp(rcenter_cm,rwidth_cm))
+
+    HZPs = []
+    for hcenter_A, hwidth_A in filter_ha_props:
+        hcenter_cm = hcenter_A * 1e-8
+        hwidth_cm = hwidth_A * 1e-8
+        HZPs.append(calc_zp(hcenter_cm,hwidth_cm))
+
+    image_props = {
+        "rfilter_name": filter_R_names[0],
+        "hfilter_name": filter_ha_names[0].replace("\\",""),
+        "rfilter_center_A": filter_R_props[0][0],
+        "rfilter_width_A":filter_R_props[0][1],
+        "hfilter_center_A": filter_ha_props[0][0],
+        "hfilter_width_A": filter_ha_props[0][1],
+        "rfilter_ZP": np.round(float(RZPs[0]),3),
+        "hfilter_ZP": np.round(HZPs[0],3)
+    }
+    return image_props
+
+    
+if __name__ == '__main__':
+
+    topdir = os.getcwd()
+    dirlist = os.listdir()
+    dirlist.sort()
+    for d in dirlist: # loop through directories
+        if d.startswith('sn'): # not sure what these are - might be SN observations?
+            continue
+        if os.path.isdir(d):
+
+            # get list of files
+            # construct galname
+            # n4178 -> NGC4178
+            # ic3392 -> IC3398
+            if d.startswith('n'):
+                galname = 'NGC'+d[1:]
+            elif d.startswith('ic'):
+                galname = 'IC'+d[2:]
+            elif d.startswith('u'):
+                galname = 'UGC'+d[1:]
+            elif d.startswith('i'): # one duplicate observation in isolated sample has "i" instead of "ic"
+                galname = 'IC'+d[1:]
+
+            # weird inconsistency
+            if galname == 'NGC4411':
+                galname = 'NGC4411B'
+            print()            
+            print("#################################")
+            print(f"###  {d}-{galname}   ###########")
+            print("#################################")        
+
+            # get info
+            ra, dec = get_coords(galname)
+            instrument = get_instrument(galname)
+            if instrument is None:
+                print(f"WARNING: could not find instrument for {galname}, {d}")
+                sys.exit()
+
+            fwhm = get_fwhm(galname)
+            #rfilters, hafilters = get_filters(galname)
+            #filter_r_props, filter_ha_props = get_filter_props(galname)
+            image_dict = get_zp(galname)
+            #print(f"DEBUG get_zp: {image_dict}")
+            #print(f"DEBUG: R ZP = {rzps}")
+            #print(f"DEBUG: H ZP = {hzps}")
+
+
+            pixelScale = get_pixel_scale(instrument)
+            pixelScaleDeg = float(pixelScale)/3600 # convert from arcsec/pix to deg/pix
+
+            os.chdir(d) # move to directory            
+            filelist = os.listdir() # get list of fits images
+            for f in filelist:
+                if f.startswith('h'):
+                    continue
+                if os.path.isfile(f) & ('.fits' in f):
+                    hdu = fits.open(f)
+
+
+                    # get size of image (naxis1, naxis2)                
+                    naxis1 = hdu[0].header['NAXIS1']
+                    naxis2 = hdu[0].header['NAXIS2']                
+
+                    # build WCS
+
+
+                    # add wcs info to header
+                    hdu[0].header.set('CRVAL1', ra)
+                    hdu[0].header.set('CRVAL2', dec)
+                    hdu[0].header.set('CTYPE1', 'RA---TAN')
+                    hdu[0].header.set('CTYPE2', 'DEC--TAN')
+
+
+                    hdu[0].header.set('CRPIX1', naxis1//2)
+                    hdu[0].header.set('CRPIX2', naxis2//2)
+
+
+                    hdu[0].header.set('CD1_1', -1*pixelScaleDeg)
+                    hdu[0].header.set('CD2_2', pixelScaleDeg)
+                    hdu[0].header.set('CD1_2', 0)
+                    hdu[0].header.set('CD2_1', 0)                
+
+
+                    # add instrument
+                    hdu[0].header.set('INSTRUME', instrument)
+
+                    # add fwhm
+                    hdu[0].header.set('FWHM', fwhm,"FWHM in arcsec")
+
+                    #add filters
+                    #hdu[0].header.set('R_Filters', ','.join(rfilters))
+                    #hdu[0].header.set('Ha_Filters', ','.join(hafilters))
+
+
+                    if 'ha' in f.lower():
+                        hdu[0].header.set('FILTER', image_dict['hfilter_name'])
+                        hdu[0].header.set('FILTWCEN', image_dict['hfilter_center_A'],"filter center A")  # central wavelength
+                        hdu[0].header.set('FILTWID', image_dict['hfilter_width_A'],"filter width A")  # width
+                        hdu[0].header.set('PHOTZP', image_dict['hfilter_ZP'],"AB mag ZP")  # zero point
+
+                    else:
+                        hdu[0].header.set('FILTER', image_dict['rfilter_name'])
+                        hdu[0].header.set('FILTWCEN', image_dict['rfilter_center_A'],"filter center A")  # central wavelength
+                        hdu[0].header.set('FILTWID', image_dict['rfilter_width_A'],"filter width A")  # width
+                        hdu[0].header.set('PHOTZP', image_dict['rfilter_ZP'],"AB mag ZP")  # zero point
+
+
+                    # prepend an 'h' to image name and save
+                    outfile = 'h'+f
+                    print(f"\tWriting {f} -> {outfile}")
+                    fits.writeto(outfile, hdu[0].data, hdu[0].header, overwrite=True)
+
+
+
+            os.chdir(topdir)
+            #break
