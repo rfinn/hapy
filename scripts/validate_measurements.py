@@ -910,12 +910,12 @@ def main():
     ## SIZE METRICS
     ##################################################################    
     r_full_size_df, log_cols = build_r_full_size_df(sub)
-    #pairplot_family(r_full_size_df, "QC_TIER", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
-    pairplot_family(r_full_size_df, "TELESCOPE", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
+    pairplot_family(r_full_size_df, "QC_TIER", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
+    #pairplot_family(r_full_size_df, "TELESCOPE", outdir / f"pairplot_r_full_sizes_{args.sample}.png",
                     f"r-band full size validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
     r_half_size_df, log_cols = build_r_half_size_df(sub)
-    #pairplot_family(r_half_size_df, "QC_TIER", outdir / f"pairplot_r_half_sizes_{args.sample}.png",
-    pairplot_family(r_half_size_df, "TELESCOPE", outdir / f"pairplot_r_half_sizes_{args.sample}.png",    
+    pairplot_family(r_half_size_df, "QC_TIER", outdir / f"pairplot_r_half_sizes_{args.sample}.png",
+    #pairplot_family(r_half_size_df, "TELESCOPE", outdir / f"pairplot_r_half_sizes_{args.sample}.png",    
                     f"r-band half size validation ({args.sample})", annotate_ratio=True, log_cols=log_cols)
     
     h_full_size_df, log_cols = build_h_full_size_df(sub)

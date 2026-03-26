@@ -290,9 +290,6 @@ python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
 $ROOTDIR/cutouts --outdir $ROOTDIR/html/cutouts --oneimage VFID2891-UGC04559-HDI-20200225-p004
 ```
 
-```bash
-ROOTDIR=/data-pool/Halpha/hapy-output-20260313
-```
 
 ```bash 
 parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage "{}" --outdir $ROOTDIR/html/cutouts :::: cutout_list_buildwebpages.txt

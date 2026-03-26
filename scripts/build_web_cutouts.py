@@ -79,14 +79,14 @@ residual_stretch = LinearStretch(slope=0.5, intercept=0.5) + SinhStretch() + \
 ###########################################################
 def get_params_from_name(image_name):
     #print(t)
-    tels = ['BOK','HDI','INT','MOS']
+    tels = ['BOK','HDI','INT','MOS','TI2','S2KB','TEK1','TEK1_1','T2KA','t2ka','TEK2K']
     for t in tels:
         if t in image_name:
             telescope = t
             break
     t = os.path.basename(image_name).split('-')
     for item in t:
-        if item.startswith('20'):
+        if item.startswith('20') or item.startswith('19'):
             dateobs = item
             break
     pointing = t[-1]
