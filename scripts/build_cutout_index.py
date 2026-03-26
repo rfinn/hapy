@@ -69,6 +69,7 @@ def collect_entries(runroot):
         bright_star = get_result(results_row, "BRIGHT_STAR_FLAG", None)
         phot_ok = get_result(results_row, "PHOT_OK", None)
         psf_ok = get_result(results_row, "PSF_OK", None)
+        hapy_morph_ok = get_result(results_row, "HAPY_MORPH_OK", None)        
 
         r_prof_ok = get_result(results_row, "R_PROFILE_OK", None)
         h_prof_ok = get_result(results_row, "H_PROFILE_OK", None)
@@ -91,6 +92,7 @@ def collect_entries(runroot):
             mask_ok=mask_ok,
             bright_star=bright_star,
             phot_ok=phot_ok,
+            hapy_morph_ok=hapy_morph_ok,
             psf_ok=psf_ok,
             profile_ok=profile_ok,
             r_prof_ok=r_prof_ok,
