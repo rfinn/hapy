@@ -498,11 +498,11 @@ class cutout_dir():
         #print(t)
         self.rimage = t[0]
 
-        cslist = os.path.join(self.cutoutdir,self.gname+'*-CS-ZP.fits'))
+        cslist = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-ZP.fits'))
         if len(cslist) > 0:
             self.csimage = cslist[0]
         else: # try archive convention
-            cslist = os.path.join(self.cutoutdir,self.gname+'*-CS.fits'))
+            cslist = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS.fits'))
             if len(cslist) > 0:
                 self.csimage = cslist[0]
             else:
