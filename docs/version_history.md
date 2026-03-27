@@ -80,3 +80,17 @@
 ### Overall
 - Extended hapy from survey-only pipeline to a **general-purpose Hα analysis framework**
 - Maintained backward compatibility with Virgo/AGC workflows
+
+
+## hapy v0.2.2 — run_maskgui and added functionality (2026-03-27)
+
+## Masking & GUI Updates
+
+- Added interactive mask overlay modes (off / contour / filled with true mask footprint)
+- Implemented synchronized pan (auto) and zoom (manual via `z`) across panels
+- Added pixel inspection tool (`v`) showing r-band, Hα, and mask values at cursor
+- Introduced CLI tools: `build_mask` (headless) and `run_maskgui` (interactive)
+- Refactored masking architecture (separation of `masktools` and `maskgui`)
+- Standardized masking arguments across pipeline and CLI
+- Fixed overlay rendering (removed large bounding boxes; now pixel-accurate)
+- Fixed GUI quit behavior and keybinding conflicts
