@@ -51,6 +51,9 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             self.auto = True
 
         self.sepath = sepath
+
+        self._syncing_views = False
+        self._last_active_panel = None
         #########################################
         # WINDOW MAGIC
         #########################################       
@@ -391,6 +394,105 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         self.ui.cutoutsLayout.setColumnStretch(1, 1)
         self.ui.cutoutsLayout.setColumnStretch(2, 1)
         """
+
+    def get_viewers(self):
+        viewers = {
+            "r": self.rcutout,
+            "ha": self.hacutout,
+            "mask": self.maskcutout,
+        }
+        return {k: v for k, v in viewers.items() if v is not None}
+
+
+    def sync_pan_to(self, x: float, y: float, source_panel: str | None = None) -> None:
+        if self._syncing_views:
+            return
+
+        self._syncing_views = True
+        try:
+            for name, viewer in self.get_viewers().items():
+                if source_panel is not None and name == source_panel:
+                    continue
+                try:
+                    viewer.set_pan_xy(x, y)
+                except Exception as e:
+                    print(f"Could not sync pan for {name}: {e}")
+        finally:
+            self._syncing_views = False
+
+
+    def sync_zoom_from(self, source_panel: str) -> None:
+        if self._syncing_views:
+            return
+
+        viewers = self.get_viewers()
+        source = viewers.get(source_panel)
+        if source is None:
+            return
+
+        self._syncing_views = True
+        try:
+            try:
+                zoom = source.get_zoom_level()
+            except Exception as e:
+                print(f"Could not get zoom from {source_panel}: {e}")
+                return
+
+            for name, viewer in viewers.items():
+                if name == source_panel:
+                    continue
+                try:
+                    viewer.set_zoom_level(zoom)
+                except Exception as e:
+                    print(f"Could not sync zoom for {name}: {e}")
+        finally:
+            self._syncing_views = False
+
+
+    def sync_view_from(self, source_panel: str) -> None:
+        """
+        Sync both pan and zoom from one panel to the others.
+        """
+        if self._syncing_views:
+            return
+
+        viewers = self.get_viewers()
+        source = viewers.get(source_panel)
+        if source is None:
+            return
+
+        self._syncing_views = True
+        try:
+            pan_x = pan_y = None
+            zoom = None
+
+            try:
+                pan_x, pan_y = source.get_pan_xy()
+            except Exception as e:
+                print(f"Could not get pan from {source_panel}: {e}")
+
+            try:
+                zoom = source.get_zoom_level()
+            except Exception as e:
+                print(f"Could not get zoom from {source_panel}: {e}")
+
+            for name, viewer in viewers.items():
+                if name == source_panel:
+                    continue
+
+                if pan_x is not None and pan_y is not None:
+                    try:
+                        viewer.set_pan_xy(pan_x, pan_y)
+                    except Exception as e:
+                        print(f"Could not sync pan for {name}: {e}")
+
+                if zoom is not None:
+                    try:
+                        viewer.set_zoom_level(zoom)
+                    except Exception as e:
+                        print(f"Could not sync zoom for {name}: {e}")
+        finally:
+            self._syncing_views = False
         
     def display_cutouts(self):
         self.rcutout.load_file(self.image_name)
@@ -500,7 +602,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         key, x, y = text.split(',')
         self.xcursor = float(x)
         self.ycursor = float(y)
-        
+        self.sync_pan_to(self.xcursor, self.ycursor, source_panel=panel)
         try:
             self.cursor_value = self.maskdat[int(self.ycursor),int(self.xcursor)]
         except IndexError:
@@ -527,7 +629,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             self.print_help_menu()
         elif key == "m" and panel in ("r", "ha"):
             self.cycle_overlay_mode(panel)
-        
+        elif key == "z":
+            self.sync_view_from(panel)
         elif key == 'w': 
             self.save_mask()
         elif key == 'q':
@@ -541,14 +644,15 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               '\n \t b = add BOX mask at cursor position;'
               '\n \t g = grow the size of the current masks;'              
               '\n \t o = if target is off center (and program is removing the wrong object);'
-              '\n \t p = print pixel values at cursor position;'
-              '\n \t m = toggle mask view on current image (outline, filled, none);'              
+              '\n \t v = print pixel values at cursor position;'
+              '\n \t m = toggle mask view on current image (outline, filled, none);'
+              "\t z = sync pan/zoom from active panel to the other panels\n"
               #'\n \t s to change the size of the mask box;'
               #'\n \t t to adjust SE threshold (0=lots, 1=no deblend );'
               #'\n \t n to adjust SE SNR; '
               '\n \t h = print this menu; '
               '\n \t w = write the mask image;'
-              #'\n \t q to quit \n \n'
+              '\n \t q = quit;'
               '\n\n'
               'Display shortcuts (click on image to adjust):'
               '\n \t scroll  = zoom'
@@ -557,7 +661,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               '\n \t space   = exit contrast adjustment'              
               '\n \t a       = automatically set contrast'              
               #'\n \t ALT-right_click = adjust contrast \n \n'
-              '\n\nClick Red X to close window')
+              #'\n\nClick Red X to close window')
+              )
     def get_boolean_mask(self):
         """
         Return the current mask as a boolean array.

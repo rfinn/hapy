@@ -174,3 +174,65 @@ class CutoutPanel(QtCore.QObject):
         """Emit key press + current data coords as a single string."""
         data_x, data_y = self.fitsimage.get_last_data_xy()
         self.key_pressed.emit(f"{keyname},{data_x},{data_y}")
+
+
+    def set_pan_xy(self, x: float, y: float) -> None:
+        """
+        Recenter viewer on data coordinates (x, y).
+        """
+        fi = self.fitsimage
+
+        # try the most likely Ginga APIs
+        if hasattr(fi, "panset_xy"):
+            fi.panset_xy(x, y)
+        elif hasattr(fi, "set_pan"):
+            fi.set_pan(x, y)
+        else:
+            raise AttributeError("No pan setter found on fitsimage")
+
+        fi.redraw(whence=0)
+
+    def get_pan_xy(self):
+        """
+        Return current pan center in data coordinates.
+        """
+        fi = self.fitsimage
+        if hasattr(fi, "get_pan"):
+            return fi.get_pan()
+        elif hasattr(fi, "get_last_data_xy"):
+            return fi.get_last_data_xy()
+        else:
+            raise AttributeError("No pan getter found on fitsimage")
+
+    def get_zoom_level(self):
+        """
+        Return current zoom if available.
+        """
+        fi = self.fitsimage
+        if hasattr(fi, "get_zoom"):
+            return fi.get_zoom()
+        elif hasattr(fi, "get_scale_xy"):
+            return fi.get_scale_xy()
+        else:
+            raise AttributeError("No zoom getter found on fitsimage")
+
+    def set_zoom_level(self, zoom):
+        """
+        Set current zoom if available.
+        Accepts either scalar zoom or (sx, sy) scale tuple.
+        """
+        fi = self.fitsimage
+
+        if isinstance(zoom, tuple):
+            sx, sy = zoom
+            if hasattr(fi, "scale_to"):
+                fi.scale_to(sx, sy)
+            else:
+                raise AttributeError("No scale setter found on fitsimage")
+        else:
+            if hasattr(fi, "zoom_to"):
+                fi.zoom_to(zoom)
+            else:
+                raise AttributeError("No zoom setter found on fitsimage")
+
+        fi.redraw(whence=0)

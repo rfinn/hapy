@@ -250,7 +250,8 @@ These flags are used for **quality control and sample selection**.
 Interactive mask editing:
 
 ```bash
-python scripts/run_maskgui.py
+python scripts/run_maskgui.py --help
+
 ```
 
 Features:

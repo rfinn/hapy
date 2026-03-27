@@ -49,23 +49,12 @@ Each object in the segmentation map receives a unique integer identifier.
 
 # Running the Mask GUI
 
-An example script is provided:
-
-```
-scripts/run_maskgui.py
-```
-
 To launch the interactive GUI:
 
-```bash
-python scripts/run_maskgui.py
+```
+run_maskgui --image VFID2507-UGC08693-HDI-20170523-p007-R.fits --haimage VFID2507-UGC08693-HDI-20170523-p007-CS.fits
 ```
 
-Modify the script to point to your FITS image:
-
-```python
-testim = "/path/to/image.fits"
-```
 
 When launched, the GUI:
 
@@ -89,6 +78,8 @@ Click on any image panel, then use the following keyboard shortcuts:
 | `c` | Add circular mask at cursor |
 | `b` | Add square mask at cursor   |
 | `g` | Grow masked regions         |
+| `v` | print pixel values at cursor position|
+| `m` | toggle mask view on current image (outline, filled, none) |
 | `w` | Write mask to FITS file     |
 | `h` | Print help menu             |
 | `q` | Quit the GUI                |
