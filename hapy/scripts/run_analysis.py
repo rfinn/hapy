@@ -793,6 +793,123 @@ def load_gaia_table(params, args, logger):
     logger.warning(f"Gaia catalog not found: {path}")
     return None
 
+def build_mask_for_cutout(
+    *,
+    cutdir,
+    tag,
+    r_fits,
+    params,
+    args,
+    logger,
+    row,
+    results_path,
+    ell0_params,
+    sma_arcsec,
+    pixscale,
+    ra,
+    dec,
+    use_gaia,
+):
+    """
+    Build a mask for the current cutout, write it to <tag>-mask.fits,
+    update relevant row fields, and return:
+
+        mask, mask_fits, row
+    """
+    if args.seconfig is None:
+        raise ValueError("--sex-config must be set when --make-mask or --force-mask is used")
+
+    row["STAGE"] = "mask"
+    logger.info("STAGE: mask")
+    t0 = time.perf_counter()
+
+    mask_out = cutdir / f"{tag}-mask.fits"
+    logger.info(f"Writing mask to {mask_out}")
+
+    # --- Convert to pixels ---
+    sma_pix = sma_arcsec / pixscale
+
+    # convert CCW from N angle to photutils CCW from +x
+    galaxy_ellipse = ell0_params
+
+    # -- look for gaia table
+    gaia_table = load_gaia_table(params, args, logger)
+
+    engine = MaskEngine(
+        image_fits=r_fits,
+        sepath=args.sepath,
+        config=args.seconfig,
+        threshold=args.sethreshold,
+        snr=args.sesnr,
+        minarea=args.seminarea,
+        add_gaia_stars=use_gaia,
+    )
+
+    max_fwhm = max(row["R_FWHM_PSF"], row["H_FWHM_PSF"])
+    gaia_min_radius_arcsec = 4 * max_fwhm
+    logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
+
+    gaia_min_radius_deg = gaia_min_radius_arcsec / 3600.0
+
+    mask = engine.build_initial_mask(
+        galaxy_ellipse=galaxy_ellipse,
+        progress_callback=_progress_cb,
+        grow_size=int(args.grow_size),
+        grow_iterations=int(args.grow_iterations),
+        gaia_table=gaia_table,
+        gaia_min_radius=gaia_min_radius_deg,
+    )
+
+    engine.write_mask(mask_out)
+    mask_fits = mask_out
+
+    row["MASK_OK"] = True
+    row["MASK_FITS"] = str(mask_fits)
+    row["MASK_SEC"] = time.perf_counter() - t0
+
+    if use_gaia and gaia_table is not None:
+        bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
+            ra,
+            dec,
+            gaia_table,
+            mag_limit=10,
+            radius_col="radius",
+            min_radius_arcsec=gaia_min_radius_arcsec,
+        )
+
+        row["BRIGHT_STAR_FLAG"] = bright_flag
+        row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
+        row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
+        row["BRIGHT_STAR_MAG"] = bright_mag
+
+    res = ellipse_mask_fraction(mask, ell0_params)
+    row["ELL0_MASKFRAC"] = res.frac_masked
+    row["ELL0_MASK_WARN"] = res.frac_masked > 0.5
+    row["ELL0_NMASKPIX"] = res.n_masked
+    row["ELL0_NTOTPIX"] = res.n_total
+
+    write_result_row_ecsv(results_path, row)
+
+    return mask, mask_fits, row
+
+def archive_existing_mask(mask_path: Path) -> Path:
+    """
+    Rename existing <tag>-mask.fits to the next available
+    <tag>-mask-N.fits and return the archived path.
+    """
+    stem = mask_path.stem
+    suffix = mask_path.suffix
+    parent = mask_path.parent
+
+    i = 1
+    while True:
+        archived = parent / f"{stem}-{i}{suffix}"
+        if not archived.exists():
+            mask_path.rename(archived)
+            return archived
+        i += 1
+
+        
 def main():
 
     p = argparse.ArgumentParser(
@@ -839,19 +956,47 @@ def main():
     g_mask.add_argument("--sethreshold", type=float, default=0.005,
                         help="SExtractor detection/deblend threshold. Default is 0.005.")
     g_mask.add_argument("--sesnr", type=float, default=5.0,
-                        help="SExtractor SNR threshold.  Default is 5.")
+                        help="SExtractor SNR threshold. Default is 5.")
     g_mask.add_argument("--seminarea", type=int, default=5,
-                        help="SExtractor minimum object area. Default is 7.")
-    g_mask.add_argument("--grow-size", default=7,
-                        help="Grow size in mask expansion.  Default is 5.")
-    g_mask.add_argument("--grow-iterations", default=4,
-                        help="Grow size in mask expansion.  Default is 4.")
-    #g_mask.add_argument("--gaiapath", default=None,
-    #                    help="Path to Gaia catalog file")
+                        help="SExtractor minimum object area. Default is 5.")
+    g_mask.add_argument("--grow-size", type=int, default=7,
+                        help="Grow size in mask expansion. Default is 7.")
+    g_mask.add_argument("--grow-iterations", type=int, default=4,
+                        help="Number of mask-growth iterations. Default is 4.")
     g_mask.add_argument("--gaia-dir", default="gaia_catalogs",
                         help="Directory containing precomputed Gaia catalogs (default: gaia_catalogs)")
     g_mask.add_argument("--no-gaia", action="store_true",
                         help="Disable Gaia star masking")
+    g_mask.add_argument("--force-mask", action="store_true",
+                        help="Rebuild mask even if an existing mask file is present")
+
+
+    # # ============================================================
+    # # Masking (SExtractor + Gaia)
+    # # ============================================================
+    # g_mask = p.add_argument_group("Masking Options")
+
+    # g_mask.add_argument("--sepath", default="sex",
+    #                     help="Path to SExtractor executable")
+    # g_mask.add_argument("--seconfig", default=_default_sex_config(),
+    #                     help="SExtractor config file path")
+    # g_mask.add_argument("--sethreshold", type=float, default=0.005,
+    #                     help="SExtractor detection/deblend threshold. Default is 0.005.")
+    # g_mask.add_argument("--sesnr", type=float, default=5.0,
+    #                     help="SExtractor SNR threshold.  Default is 5.")
+    # g_mask.add_argument("--seminarea", type=int, default=5,
+    #                     help="SExtractor minimum object area. Default is 5.")
+    # g_mask.add_argument("--grow-size", type=int, default=7,
+    #                         help="Grow size in mask expansion. Default is 7.")
+    # g_mask.add_argument("--grow-iterations", type=int, default=4,
+    #                         help="Number of mask-growth iterations. Default is 4.")
+    # #g_mask.add_argument("--gaiapath", default=None,
+    # #                    help="Path to Gaia catalog file")
+    # g_mask.add_argument("--gaia-dir", default="gaia_catalogs",
+    #                     help="Directory containing precomputed Gaia catalogs (default: gaia_catalogs)")
+    # g_mask.add_argument("--no-gaia", action="store_true",
+    #                     help="Disable Gaia star masking")
+    # g_mask.add_argument("--force-mask",action="store_true", help="Rebuild mask even if an existing mask file is present")
     # ============================================================
     # GALFIT
     # ============================================================
@@ -981,9 +1126,15 @@ def main():
         or _pick_one(str(cutdir / f"{tag}*-cs.fits"))
         )
     # why are we looking for a mask when we are suppose to make one?
-    mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
+    #mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
-    
+    mask_fits = (
+        args.mask_fits
+        or (cutdir / params["mask_fits"] if params.get("mask_fits") else None)
+        or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
+        )
+    mask_fits = Path(mask_fits) if mask_fits is not None else None
+
     sigma_image = args.sigma_image or _pick_one(str(cutdir / f"{tag}*-sigma.fits")) or _pick_one(str(cutdir / f"{tag}*-rms.fits"))
     psf_image = args.psf_image or _pick_one(str(cutdir / f"{tag}*-psf.fits"))
 
@@ -1104,6 +1255,7 @@ def main():
     else:
         psf_path = None
         psf_ok = False
+        
     # --- Get ellipse parameters ---
     sma_arcsec = float(params["sma_arcsec"])
     ba = float(params["ba"])
@@ -1166,6 +1318,7 @@ def main():
 
     if ra is not None and dec is not None:
         try:
+            # note this is only as good as the header wcs, aka not that good for archive sample!
             xw, yw = wcs.world_to_pixel_values(float(ra), float(dec))
             if np.isfinite(xw) and np.isfinite(yw):
                 xc, yc = float(xw), float(yw)
@@ -1206,111 +1359,68 @@ def main():
         theta_deg = photutils_theta_to_pa_ccw_north(pa_deg)
         )
 
+    ################################################################
+    # Mask block
+    ################################################################
+    mask_out = cutdir / f"{tag}-mask.fits"
+    if args.force_mask:
+        logger.info("Force-mask enabled: rebuilding mask")
 
-    
-    if args.make_mask:
+        if mask_out.exists():
+            archived = archive_existing_mask(mask_out)
+            logger.info(f"Archived existing mask to {archived}")
 
-        if args.seconfig is None:
-            raise ValueError("--sex-config must be set when --make-mask is used")
-        
-        row["STAGE"] = "mask"
-        logger.info("STAGE: mask")
-        
-        t0 = time.perf_counter()
-
-        # choose output mask name if not provided/found
-        mask_out = mask_fits or (cutdir / f"{tag}-mask.fits")
-
-        print(f"DEBUG: mask_out={mask_out}")
-  
-
-        # --- Convert to pixels ---
-        sma_pix = sma_arcsec / pixscale
-
-        # convert CCW from N angle to photutils CCW from +x
-        galaxy_ellipse = ell0_params
-
-        # -- look for gaia table 
-        gaia_table = load_gaia_table(params, args, logger)
-
-        engine = MaskEngine(
-            image_fits=r_fits,
-            sepath=args.sepath,
-            #gaiapath=args.gaiapath,
-            config=args.seconfig,
-            threshold=args.sethreshold,
-            snr=args.sesnr,
-            minarea=args.seminarea,
-            add_gaia_stars=(not args.no_gaia),
-        )
-        # calculate the min radius to use for gaia stars
-        max_fwhm = max(row["R_FWHM_PSF"], row["H_FWHM_PSF"])
-        gaia_min_radius_arcsec = 4 * max_fwhm
-        logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
-
-        # convert gaia min radius to get
-        gaia_min_radius_deg = gaia_min_radius_arcsec/3600.
-        mask = engine.build_initial_mask(
-            galaxy_ellipse=galaxy_ellipse,
-            progress_callback=_progress_cb,
-            grow_size=int(args.grow_size),
-            grow_iterations=int(args.grow_iterations),
-            gaia_table = gaia_table,
-            gaia_min_radius = gaia_min_radius_deg,
+        mask, mask_fits, row = build_mask_for_cutout(
+            cutdir=cutdir,
+            tag=tag,
+            r_fits=r_fits,
+            params=params,
+            args=args,
+            logger=logger,
+            row=row,
+            results_path=results_path,
+            ell0_params=ell0_params,
+            sma_arcsec=sma_arcsec,
+            pixscale=pixscale,
+            ra=ra,
+            dec=dec,
+            use_gaia=use_gaia,
         )
 
-        #mask_out = mask_fits or (root + "-mask.fits")
-        engine.write_mask(mask_out)
-        mask_fits = mask_out
-
-
-
+    elif mask_fits is not None and mask_fits.exists():
+        logger.info(f"Using existing mask: {mask_fits}")
+        mask = fits.getdata(mask_fits)
         row["MASK_OK"] = True
         row["MASK_FITS"] = str(mask_fits)
 
-        row["MASK_SEC"] = time.perf_counter() - t0
-        #row["mask_ok"] = True
-        write_result_row_ecsv(results_path, row)
-        if use_gaia and gaia_table is not None:
-            bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
-                ra,
-                dec,
-                gaia_table,
-                mag_limit=10,
-                radius_col="radius",
-                min_radius_arcsec = gaia_min_radius_arcsec
-                )
-        
-            row["BRIGHT_STAR_FLAG"] = bright_flag
-            row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
-            row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
-            row["BRIGHT_STAR_MAG"] = bright_mag        
+    elif args.make_mask:
+        logger.info("No existing mask found; building mask")
 
+        mask, mask_fits, row = build_mask_for_cutout(
+            cutdir=cutdir,
+            tag=tag,
+            r_fits=r_fits,
+            params=params,
+            args=args,
+            logger=logger,
+            row=row,
+            results_path=results_path,
+            ell0_params=ell0_params,
+            sma_arcsec=sma_arcsec,
+            pixscale=pixscale,
+            ra=ra,
+            dec=dec,
+            use_gaia=use_gaia,
+        )
 
-        res = ellipse_mask_fraction(mask, ell0_params)
-        row["ELL0_MASKFRAC"] = res.frac_masked
-        row["ELL0_MASK_WARN"] = res.frac_masked > 0.5        
-        row["ELL0_NMASKPIX"] = res.n_masked
-        row["ELL0_NTOTPIX"] = res.n_total
+    else:
+        logger.info("No mask provided and mask building not requested")
+        mask = None
+    
 
-        # under development
-        #ellipse_pixels = aper_image > 0
-
-        #largest_blob = largest_mask_region(mask_image, ellipse_pixels)
-
-        #row["ELL_LARGEST_MASK"] = largest_blob
-        #largest_blob = largest_mask_region(mask_image, ellipse_pixels)
-
-        #row["ELL0_LARGEST_MASK"] = largest_blob
-        
-        # dmask = distance_to_nearest_mask(mask_image, ell0.xc, ell0.yc)
-
-        # row["NEAR_MASK_DIST_PIX"] = dmask
-        # row["NEAR_MASK_WARN"] = dmask < (2 * ell0.sma_pix)
-        
-
-
-        
+    ################################################################
+    # phot block
+    ################################################################
     row["STAGE"] = "phot"
     logger.info("STAGE: phot")
     
@@ -1529,7 +1639,15 @@ def main():
 
     # Write/update per-galaxy results row
     write_result_row_ecsv(results_path, row)
+    
+    if not args.no_diagnostic_plots:
+        print("making diagnostic plots...")
+        e.plot_fancy_profiles()
+        e.draw_phot_results_mpl()
 
+    ################################################################
+    # statmorph block
+    ################################################################
 
     if args.statmorph:
         t0 = time.perf_counter()
@@ -1554,12 +1672,11 @@ def main():
         write_result_row_ecsv(results_path, row)
  
 
-    if not args.no_diagnostic_plots:
-        print("making diagnostic plots...")
-        e.plot_fancy_profiles()
-        e.draw_phot_results_mpl()
         
-        
+    ################################################################
+    # galfit block
+    ################################################################
+
     if args.galfit:
         print("starting galfit ...")
         #print("DEBUG: cutdir = ",root)

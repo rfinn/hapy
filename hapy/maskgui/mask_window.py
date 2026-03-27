@@ -22,7 +22,22 @@ class NullLogger:
 
 class MaskWindow(Ui_maskWindow, QtCore.QObject):
     mask_saved = QtCore.pyqtSignal(str)
-    def __init__(self, MainWindow, logger, image=None, haimage=None, config=None, threshold=0.005,snr=10,cmap='gist_heat_r',objparams=None,auto=False,addgaia=True, unmaskellipse=False,minarea=10,ngrow=3,weightim=None,weight_threshold=None):
+    def __init__(self, MainWindow, logger,
+             image=None,
+             haimage=None,
+             sepath="sex",
+             config=None,
+             threshold=0.005,
+             snr=10,
+             minarea=5,
+             objparams=None,
+             auto=False,
+             ngrow=3,
+             weightim=None,
+             weight_threshold=None,
+             addgaia=True,
+             cmap="gist_heat_r"):
+
         """
 
         ngrow : number of times to run grow when running in auto mode
@@ -35,6 +50,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         if MainWindow is None:
             self.auto = True
 
+        self.sepath = sepath
         #########################################
         # WINDOW MAGIC
         #########################################       
@@ -84,7 +100,9 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             
         #########################################
         # INITIALIZE VARIABLES 
-        #########################################       
+        #########################################
+        self.r_overlay_mode = "off"
+        self.ha_overlay_mode = "off"
         self.image_name = image
         self.mask_image = self.image_name.replace('.fits','-mask.fits')
         self.mask_inv_image=self.image_name.replace('.fits','-inv-mask.fits')
@@ -108,7 +126,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
         if config is None:
             config = 'default.sex.HDI.mask'
-        
+
         # create name for output mask file
 
         self.remove_center_object_flag = True
@@ -130,7 +148,11 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         #self.racenter,self.deccenter = imutils.get_image_center_deg(self.image_name)                
 
         ###################################################
-        
+        self.image = fits.getdata(image)
+        self.ymax, self.xmax = self.image.shape
+
+        if self.haimage_name is not None:
+            self.haimage = fits.getdata(self.haimage_name)
 
         #########################################
         # INITIALIZE VARIABLES 
@@ -159,7 +181,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
                 yc = self.ypixel,
                 sma_pix = self.objsma_pixels,
                 ba = self.objBA,
-                pa_deg= self.objPA)
+                theta_deg= self.objPA)
         else:
             print("DID NOT FIND ellipse parameters !\n")
             self.ellipseparams = None
@@ -187,16 +209,27 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         #########################################        
         # START YOUR ENGINE!
         # initialize and build first-pass mask
-        #########################################        
+        #########################################
+
+        
+        self.config = config
+        self.add_gaia_stars = addgaia
+        self.ngrow = ngrow
+
+
         self.engine = MaskEngine(
             image_fits=image,
             ha_image_fits=haimage,
-            config=config,
-            threshold=threshold,
-            snr=snr,
-            minarea=minarea,
-            add_gaia_stars=True,
+            sepath=self.sepath,
+            config=self.config,
+            threshold=self.threshold,
+            snr=self.snr,
+            snr_analysis=self.snr_analysis,
+            minarea=self.minarea,
+            add_gaia_stars=self.add_gaia_stars,
+            logger=self.logger,
         )
+        
 
         def _progress_cb(stage, fraction, message=None):
             print(f"[mask] {stage} {fraction:0.2f} {message or ''}".strip())
@@ -241,40 +274,38 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         self.ui.cutoutsLayout.setColumnStretch(0, 1)
         self.ui.cutoutsLayout.setColumnStretch(1, 1)
         self.ui.cutoutsLayout.setColumnStretch(2, 1)
-        self.ui.cutoutsLayout.setRowStretch(1, 1) 
+        self.ui.cutoutsLayout.setRowStretch(1, 1)
     def runse(self):
         """
         Legacy button name: 'Run SE'.
-        New behavior: rebuild mask using the headless engine and refresh displays.
+        Rebuild mask using current GUI settings and refresh displays.
         """
         def _progress_cb(stage, fraction, message=None):
             print(f"[mask] {stage} {fraction:0.2f} {message or ''}".strip())
 
-        # Update engine settings from current GUI state
+        # keep engine config in sync with GUI state
         self.engine.threshold = self.threshold
         self.engine.snr = self.snr
         self.engine.snr_analysis = getattr(self, "snr_analysis", self.snr)
         self.engine.minarea = self.minarea
         self.engine.config = self.config
+        self.engine.add_gaia_stars = self.add_gaia_stars
 
-        # Rebuild the mask
         self.maskdat = self.engine.build_initial_mask(
             weightim=self.weightim,
-            weight_threshold=self.weight_threshold,
+            weight_threshold=self.weight_threshold if self.weight_threshold is not None else 1.0,
             progress_callback=_progress_cb,
+            galaxy_ellipse=self.ellipseparams,
+            grow_size=int(self.mask_size),
+            grow_iterations=int(self.ngrow),
         )
 
-        # Write mask file so the cutout viewer can load it
-        self.engine.maskdat = self.maskdat
         self.engine.write_mask(self.mask_image)
 
-        # Refresh displays
-        try:
+        if not self.auto:
             self.display_mask()
-        except Exception as e:
-            print("WARNING: display_mask failed:", e)
+        
 
-            
     def connect_buttons(self):
         #self.ui.msaveButton.clicked.connect(self.write_mask)
         self.ui.mquitButton.clicked.connect(self.quit_program)
@@ -316,9 +347,12 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         self.hacutout = CutoutPanel(self.ui.cutoutsLayout,self.ui, self.logger, grid_pos=[1, 1, 4, 1])
         self.maskcutout = CutoutPanel(self.ui.cutoutsLayout,self.ui, self.logger, grid_pos=[1, 2, 4, 1])
         
-        self.maskcutout.key_pressed.connect(self.key_press_func)
-        self.rcutout.key_pressed.connect(self.key_press_func)
-        self.hacutout.key_pressed.connect(self.key_press_func)
+        #self.maskcutout.key_pressed.connect(self.key_press_func)
+        #self.rcutout.key_pressed.connect(self.key_press_func)
+        #self.hacutout.key_pressed.connect(self.key_press_func)
+        self.rcutout.key_pressed.connect(lambda text: self.key_press_func(text, "r"))
+        self.hacutout.key_pressed.connect(lambda text: self.key_press_func(text, "ha"))
+        self.maskcutout.key_pressed.connect(lambda text: self.key_press_func(text, "mask"))
 
         """
         # remove placeholder widget that collides with our grid
@@ -384,9 +418,20 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             print("redraw failed:", e)
 
         print("cutouts frame size:", self.ui.cutouts.size())
+
+    
     def display_mask(self):
         self.maskcutout.load_file(self.mask_image)
         self.draw_central_ellipse()
+
+        # NEW: refresh overlays
+        self.update_overlay("r")
+        self.update_overlay("ha")
+
+    def _refresh(self):
+        self.maskdat = self.engine.maskdat
+        self.display_mask()
+    
     def draw_central_ellipse(self, color='cyan'): # MVC - view
         # mark r24
         markcolor=color#, 'yellow', 'cyan']
@@ -401,7 +446,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         xc,yc = self.ellipseparams.xc, self.ellipseparams.yc
         r = self.ellipseparams.sma_pix
         BA = self.ellipseparams.ba
-        PA = self.ellipseparams.pa_deg
+        PA = self.ellipseparams.theta_deg
 
         objlist = []
         for i,im in enumerate(image_frames):
@@ -411,10 +456,51 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             self.markhltag = im.canvas.add(im.dc.CompoundObject(*objlist))
             im.fitsimage.redraw()
 
-    def key_press_func(self,text):
+    def print_cursor_readout(self, panel: str) -> None:
+
+        ix = int(round(self.xcursor))
+        iy = int(round(self.ycursor))
+
+
+        if not (0 <= ix < self.xmax and 0 <= iy < self.ymax):
+            print(f"[{panel}] x={ix} y={iy} is out of bounds")
+            return
+
+
+        rval = self.image[iy, ix] if self.image is not None else np.nan
+
+        haval = np.nan
+        if getattr(self, "haimage", None) is not None:
+            try:
+                haval = self.haimage[iy, ix]
+            except Exception:
+                haval = np.nan
+
+        maskval = np.nan
+        mask_area = None
+        if self.engine is not None and self.engine.maskdat is not None:
+            maskval = self.engine.maskdat[iy, ix]
+            if np.isfinite(maskval) and maskval > 0:
+                mask_area = int(np.sum(self.engine.maskdat == maskval))
+
+        msg = (
+            f"[{panel:4s}] x={ix:4d} y={iy:4d}  "
+            f"r={rval:8.4g}  "
+            f"ha={haval:8.4g}  "
+            f"mask={maskval}"
+        )
+        if mask_area is not None:
+            msg += f"  npix={mask_area}"
+        print(msg)
+
+    
+
+    
+    def key_press_func(self,text,panel):
         key, x, y = text.split(',')
         self.xcursor = float(x)
         self.ycursor = float(y)
+        
         try:
             self.cursor_value = self.maskdat[int(self.ycursor),int(self.xcursor)]
         except IndexError:
@@ -429,14 +515,19 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             self.remove_object(int(self.cursor_value))
         elif key == 'o': 
             self.off_center()
+        elif key == 'v':
+            self.print_cursor_readout(panel)
         elif key == 'g': 
-            self.grow_mask()
+            self.grow()
         #elif key == 't': 
         #    self.set_threshold()
         #elif key == 'n': 
         #    self.set_sesnr()
         elif key == 'h': 
             self.print_help_menu()
+        elif key == "m" and panel in ("r", "ha"):
+            self.cycle_overlay_mode(panel)
+        
         elif key == 'w': 
             self.save_mask()
         elif key == 'q':
@@ -450,6 +541,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               '\n \t b = add BOX mask at cursor position;'
               '\n \t g = grow the size of the current masks;'              
               '\n \t o = if target is off center (and program is removing the wrong object);'
+              '\n \t p = print pixel values at cursor position;'
+              '\n \t m = toggle mask view on current image (outline, filled, none);'              
               #'\n \t s to change the size of the mask box;'
               #'\n \t t to adjust SE threshold (0=lots, 1=no deblend );'
               #'\n \t n to adjust SE SNR; '
@@ -465,7 +558,15 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               '\n \t a       = automatically set contrast'              
               #'\n \t ALT-right_click = adjust contrast \n \n'
               '\n\nClick Red X to close window')
-
+    def get_boolean_mask(self):
+        """
+        Return the current mask as a boolean array.
+        """
+        if self.engine is not None and self.engine.maskdat is not None:
+            return self.engine.maskdat > 0
+        if getattr(self, "maskdat", None) is not None:
+            return self.maskdat > 0
+        return None
 
     def add_box_object(self):
         '''
@@ -513,26 +614,35 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         # keep GUI view in sync (optional if you always read from engine)
         self.maskdat = self.engine.maskdat
 
-        self.save_mask()      # should call engine.write_mask()
-        self.display_mask()
-        
-    def set_threshold(self,t):
-        '''
-        adjust threshold used in SE deblending
-         (0=lots, 1=no deblend )
-        '''
-        print('Adjust threshold for SE deblending')
-        print('0=lots, 1=no deblend')
-        #t = raw_input('enter new threshold')
+        self.save_mask()# should call engine.write_mask()
+        self._refresh()
+        #self.display_mask()
+
+    def set_threshold(self, t):
         try:
             self.threshold = float(t)
-            if self.runse_flag:
-                self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
-            else:
-                self.run_photutil()
-
         except ValueError:
             pass
+
+
+    
+    # def set_threshold(self,t):
+    #     '''
+    #     adjust threshold used in SE deblending
+    #      (0=lots, 1=no deblend )
+    #     '''
+    #     print('Adjust threshold for SE deblending')
+    #     print('0=lots, 1=no deblend')
+    #     #t = raw_input('enter new threshold')
+    #     try:
+    #         self.threshold = float(t)
+    #         if self.runse_flag:
+    #             self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
+    #         else:
+    #             self.run_photutil()
+
+    #     except ValueError:
+    #         pass
         
     def set_sesnr(self,t):
         #t = raw_input('enter new SNR')
@@ -560,17 +670,45 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             print('error reading input')
 
     def off_center(self):
-        t = input('enter object number for target galaxy\n')
-        self.off_center_flag = True
-        self.galaxy_id = int(t)
-        if self.runse_flag:
-            self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
-        else:
-            self.run_photil()
-    def quit_program(self):
-        self.clean_links()
-        self.close_window()
+        print("off_center() needs a refresh for the new engine flow; update the target ellipse/object and press Run SE again.")
+    # def off_center(self):
+    #     t = input('enter object number for target galaxy\n')
+    #     self.off_center_flag = True
+    #     self.galaxy_id = int(t)
+    #     if self.runse_flag:
+    #         self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
+    #     else:
+    #         self.run_photil()
+    # def quit_program(self):
+    #     #self.clean_links()
+    #     #self.close_window()
+    #     window = self.window()
+    #     if window is not None:
+    #         window.close()
+    #     else:
+    #         self.close()
 
+    def quit_program(self):
+        if hasattr(self, "MainWindow") and self.MainWindow is not None:
+            try:
+                top = self.MainWindow.parent()
+                if top is not None:
+                    top.close()
+                    return
+            except Exception:
+                pass
+
+            try:
+                self.MainWindow.close()
+                return
+            except Exception:
+                pass
+
+        try:
+            self.close()
+        except Exception:
+            pass
+    
     def save_mask(self):
         #super(maskwindow,self).mask_saved(event)
         print('saving mask: ',self.mask_image)
@@ -580,7 +718,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
         if not self.auto:
             self.mask_saved.emit(self.mask_image)
-            self.display_mask()
+            self._refresh()
+            #self.display_mask()
 
     def edit_mask(self):
         """
@@ -597,26 +736,220 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         #print("AFTER SHOW - cutouts geom:", self.ui.cutouts.geometry(), "size:", self.ui.cutouts.size())
         #print("AFTER SHOW - cutoutsLayout count:", self.ui.cutoutsLayout.count())
 
-
-    def grow_mask(self):
+    def grow(self):
         """
         Grow the current mask using the engine's grow method.
         """
         print("Growing mask from GUI...")
 
-        # 1. Call engine grow
-        self.engine.grow_mask()
+        self.engine.grow(
+            size=int(self.mask_size),
+            ngrow=1,
+            preserve_gaia=True,
+        )
 
-        # 2. Update maskdat from engine
         self.maskdat = self.engine.maskdat
-
-        # 3. Write updated mask to disk
         self.engine.write_mask(self.mask_image)
 
-        # 4. Refresh GUI display
         if not self.auto:
-            self.display_mask()
+            self._refresh()
+            #self.display_mask()
         
+
+    # def grow_mask(self):
+    #     """
+    #     Grow the current mask using the engine's grow method.
+    #     """
+    #     print("Growing mask from GUI...")
+
+    #     # 1. Call engine grow
+    #     self.engine.grow_mask()
+
+    #     # 2. Update maskdat from engine
+    #     self.maskdat = self.engine.maskdat
+
+    #     # 3. Write updated mask to disk
+    #     self.engine.write_mask(self.mask_image)
+
+    #     # 4. Refresh GUI display
+    #     if not self.auto:
+    #         self.display_mask()
+
+    def cycle_overlay_mode(self, which):
+        attr = f"{which}_overlay_mode"
+        mode = getattr(self, attr)
+
+        if mode == "off":
+            mode = "contour"
+        elif mode == "contour":
+            mode = "filled"
+        else:
+            mode = "off"
+
+        setattr(self, attr, mode)
+        self.update_overlay(which)
+
+    def update_overlay(self, which):
+        if self.engine is None or self.engine.maskdat is None:
+            return
+
+        viewer = self.rcutout if which == "r" else self.hacutout
+        mode = self.r_overlay_mode if which == "r" else self.ha_overlay_mode
+
+        self.clear_overlay(which)
+
+        if mode == "off":
+            viewer.fitsimage.redraw()
+            return
+        elif mode == "contour":
+            self.draw_mask_contours(viewer, which)
+        elif mode == "filled":
+            self.draw_mask_filled(viewer, which)
+
+        self.draw_central_ellipse(viewer)
+        viewer.fitsimage.redraw()
+
+    def clear_overlay(self, which):
+        viewer = self.rcutout if which == "r" else self.hacutout
+        try:
+            viewer.canvas.delete_object_by_tag(f"mask-overlay-{which}")
+        except Exception:
+            pass
+    
+    # def draw_mask_contours(self, viewer, which):
+    #     mask = self.engine.maskdat
+    #     ids = np.unique(mask[mask > 0]).astype(int)
+
+    #     compound = []
+
+    #     for objid in ids:
+    #         yy, xx = np.where(mask == objid)
+    #         if len(xx) == 0:
+    #             continue
+
+    #         xmin, xmax = xx.min(), xx.max()
+    #         ymin, ymax = yy.min(), yy.max()
+
+    #         rect = viewer.dc.Rectangle(
+    #             xmin, ymin, xmax, ymax,
+    #             color="red",
+    #             linewidth=1,
+    #         )
+    #         compound.append(rect)
+
+    #     if compound:
+    #         obj = viewer.dc.CompoundObject(*compound)
+    #         viewer.canvas.add(obj, tag=f"mask-overlay-{which}")
+
+    def draw_mask_filled(self, viewer, which):
+        """
+        Draw the actual mask footprint as a semi-transparent overlay.
+        Uses contiguous horizontal runs so the overlay matches the mask pixels,
+        rather than drawing coarse object bounding boxes.
+        """
+        mask_bool = self.get_boolean_mask()
+        if mask_bool is None:
+            return
+
+        compound = []
+
+        for y, x0, x1 in self.iter_mask_runs(mask_bool):
+            # rectangle spanning exactly the masked run in this row
+            rect = viewer.dc.Rectangle(
+                x0, y, x1 + 1, y + 1,
+                color="red",
+                fill=True,
+                fillalpha=0.25,
+                alpha=0.25,
+                linewidth=0,
+            )
+            compound.append(rect)
+
+        if compound:
+            obj = viewer.dc.CompoundObject(*compound)
+            viewer.canvas.add(obj, tag=f"mask-overlay-{which}")
+
+        
+    # def draw_mask_filled(self, viewer, which):
+    #     mask = self.engine.maskdat
+    #     ids = np.unique(mask[mask > 0]).astype(int)
+
+    #     compound = []
+
+    #     for objid in ids:
+    #         yy, xx = np.where(mask == objid)
+    #         if len(xx) == 0:
+    #             continue
+
+    #         xmin, xmax = xx.min(), xx.max()
+    #         ymin, ymax = yy.min(), yy.max()
+
+    #         rect = viewer.dc.Rectangle(
+    #             xmin, ymin, xmax, ymax,
+    #             color="red",
+    #             fill=True,
+    #             fillalpha=0.25,
+    #             alpha=0.25,
+    #             linewidth=1,
+    #         )
+    #         compound.append(rect)
+
+    #     if compound:
+    #         obj = viewer.dc.CompoundObject(*compound)
+    #         viewer.canvas.add(obj, tag=f"mask-overlay-{which}")
+
+    def iter_mask_runs(self, mask_bool):
+        """
+        Yield contiguous True runs in each row of a boolean mask.
+
+        Yields
+        ------
+        y, x0, x1
+            Row index and inclusive pixel range [x0, x1].
+        """
+        ny, nx = mask_bool.shape
+
+        for y in range(ny):
+            row = mask_bool[y]
+            if not np.any(row):
+                continue
+
+            # pad with False so edges are detected cleanly
+            padded = np.concatenate(([False], row, [False])).astype(int)
+            diff = np.diff(padded)
+
+            starts = np.where(diff == 1)[0]
+            stops = np.where(diff == -1)[0] - 1
+
+            for x0, x1 in zip(starts, stops):
+                yield y, int(x0), int(x1)
+
+    
+
+    def draw_mask_contours(self, viewer, which):
+        """
+        Draw contours from the actual mask footprint.
+        """
+        from scipy.ndimage import binary_erosion
+        mask_bool = self.get_boolean_mask()
+        if mask_bool is None:
+            return
+
+        edge = mask_bool & ~binary_erosion(mask_bool)
+
+        compound = []
+        for y, x0, x1 in self.iter_mask_runs(edge):
+            rect = viewer.dc.Rectangle(
+                x0, y, x1 + 1, y + 1,
+                color="red",
+                fill=False,
+                linewidth=1,
+            )
+            compound.append(rect)
+
+        if compound:
+            obj = viewer.dc.CompoundObject(*compound)
+            viewer.canvas.add(obj, tag=f"mask-overlay-{which}")
     def show_mask_mpl(self):
         # plot mpl figure
         # this was for debugging purposes

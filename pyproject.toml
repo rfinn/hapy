@@ -24,6 +24,8 @@ dependencies = [
 get_cutouts = "hapy.scripts.get_cutouts:main"
 run_analysis = "hapy.scripts.run_analysis:main"
 merge_results = "hapy.scripts.merge_results:main"
+run_maskgui = "hapy.scripts.run_maskgui:main"
+build_mask = "hapy.scripts.build_mask:main"
 
 # Package discovery
 [tool.setuptools.packages.find]
