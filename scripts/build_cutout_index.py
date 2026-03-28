@@ -41,6 +41,17 @@ def find_local_legacy_jpg(html_cutout_dir):
             return matches[0]
     return None
 
+def find_mask_diagnostic_png(html_cutout_dir):
+    """
+    Find a local mask diagnostic png already copied into the html/cutouts/<tag>/ directory.
+    """
+    patterns = ["*diagnostic.png",]
+    for pattern in patterns:
+        matches = sorted(html_cutout_dir.glob(pattern))
+        if matches:
+            return matches[0]
+    return None
+
 
 def collect_entries(runroot):
     runroot = Path(runroot).resolve()
@@ -64,6 +75,7 @@ def collect_entries(runroot):
         results_row = read_results_row(results_file) if results_file is not None else None
 
         legacy_jpg = find_local_legacy_jpg(subdir)
+        mask_diagnostic_png = find_mask_diagnostic_png(subdir)        
 
         mask_ok = get_result(results_row, "MASK_OK", None)
         bright_star = get_result(results_row, "BRIGHT_STAR_FLAG", None)
@@ -88,6 +100,7 @@ def collect_entries(runroot):
             galname=galname,
             html_file=html_file,
             legacy_jpg=legacy_jpg,
+            mask_diagnostic_png=mask_diagnostic_png,            
             results_row=results_row,
             mask_ok=mask_ok,
             bright_star=bright_star,
@@ -136,6 +149,7 @@ def write_index(entries, outfile):
         "Index",
         "GALID",
         "Legacy",
+        "Mask Diag",
         "Cutout Page",
         "PSF",
         "R FWHM",
@@ -171,6 +185,15 @@ def write_index(entries, outfile):
         else:
             lines.append("<td>Missing</td>")
 
+        if e["mask_diagnostic_png"] is not None:
+            rel_jpg = f"{e['tag']}/{e['mask_diagnostic_png'].name}"
+            lines.append(
+                f"<td><a href='{rel_jpg}' target='_blank'>"
+                f"<img class='thumb' src='{rel_jpg}' alt='mask diagnostic for {e['tag']}'></a></td>"
+            )
+        else:
+            lines.append("<td>Missing</td>")
+            
         rel_html = f"{e['tag']}/{e['tag']}.html"
         lines.append(f"<td><a href='{rel_html}'>{e['tag']}</a></td>")
         
