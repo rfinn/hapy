@@ -657,9 +657,9 @@ def main():
     ]
 
     ha_cols = [
-        "H_TOT_FLUX_CGS", "H_R24_FLUX_CGS", "HA30R24_FLUX_CGS",
+        "H_TOT_FLUX_CGS", "H_R24_FLUX_CGS", "H30R24_FLUX_CGS",
         "H_ISO5E17_FLUX_CGS", "H_ISO17E18_FLUX_CGS",
-        "H_MAXDET_ARCSEC", "HA25_ARCSEC", "HA50_ARCSEC", "HA75_ARCSEC",
+        "H_MAXDET_ARCSEC", "H25_ARCSEC", "H50_ARCSEC", "H75_ARCSEC",
         "H_ISO5E17_ARCSEC", "H_ISO17E18_ARCSEC",
         "H_C30_R24", "H_PETRO_CON",
         "H_M20", "H_ASYM",

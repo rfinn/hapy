@@ -1454,6 +1454,8 @@ class EllipsePhotometry():
     def get_ellipse_guess(self, r=2.5):
         '''
         this gets the guess for the ellipse geometry from the detection catalog 
+
+        ?? why am I scaling by 2.5x?
         '''
         obj = self.cat[self.objectIndex]
         #self.xcenter = obj.xcentroid.value
@@ -1471,7 +1473,7 @@ class EllipsePhotometry():
         #    print()
         self.position = (self.xcenter, self.ycenter)
         #print(self.position,self.xcenter,obj.xcentroid,self.ycenter,obj.ycentroid)
-        self.sma = obj.semimajor_sigma.value * r
+        self.sma = obj.semimajor_sigma.value * r # pixels
         self.start_size = self.sma
         self.b = obj.semiminor_sigma.value * r
         self.eps = 1 - self.b/self.sma

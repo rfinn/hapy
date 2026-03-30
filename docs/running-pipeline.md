@@ -100,6 +100,21 @@ Bad cutout dir names:      0
 
 ```
 
+From 2026-03-30:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260330$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
+
+CUTOUT SUMMARY
+--------------
+Input coadds:              227
+Cutout directories:        823
+Coadds with no cutouts:    0
+Cutout dirs missing R:     0
+Cutout dirs missing CS:    0
+Bad coadd names:           0
+Bad cutout dir names:      0
+
+```
 
 ## Merge get_cutouts tables
 ```bash
@@ -179,7 +194,7 @@ sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.jobl
 ### Run in Parallel
 
 ```bash
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutouts_with_dir.txt
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_with_dir.txt
 ```
 
 ```bash
@@ -214,7 +229,7 @@ python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --sch
 
 Create some basic qc plots:
 ```
-python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
+python ~/github/hapy/scripts/qc_results.py merged_results.fits --scheme virgo
 ```
 
 Inspecting duplicate observations:
@@ -237,6 +252,7 @@ options:
 To run:
 ```
 python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits
+--scheme virgo
 ```
 
 
@@ -250,6 +266,12 @@ Run this command from the directory that contains
 e.g. `hapy-output-20260313` and `hapy-output-20260319`.
 ```
 rsync -av hapy-output-20260313/cutouts/ hapy-output-20260319/cutouts/
+--include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
+--ignore-existing --prune-empty-dirs
+```
+
+```
+rsync -av hapy-output-20260313/cutouts/ hapy-output-20260330/cutouts/
 --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
 --ignore-existing --prune-empty-dirs
 ```
