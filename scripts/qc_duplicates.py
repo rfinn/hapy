@@ -653,7 +653,7 @@ def main():
         "R25_ARCSEC", "R50_ARCSEC", "R75_ARCSEC",
         "R24_FLUX_CGS", "R_PETRO_FLUX_CGS",
         "R_C30", "R_PETRO_CON",
-        "ELLIP_GINI_DET", "R_M20", "R_ASYM",
+        "R_ELLIP_GINI", "R_M20", "R_ASYM",
     ]
 
     ha_cols = [
@@ -667,14 +667,14 @@ def main():
 
     r_sm_cols = [
         "R_SM_GINI", "R_SM_M20", "R_SM_C", "R_SM_A", "R_SM_S",
-        "R_SM_RPETRO_ELLIP", "R_SM_RHALF_ELLIP",
-        "R_SM_R20", "R_SM_R50", "R_SM_R80",
+        "R_SM_RPETRO_ELLIP_ARCSEC", "R_SM_RHALF_ELLIP_ARCSEC",
+        "R_SM_R20_ARCSEC", "R_SM_R50_ARCSEC", "R_SM_R80_ARCSEC",
     ]
 
     h_sm_cols = [
         "H_SM_GINI", "H_SM_M20", "H_SM_C", "H_SM_A", "H_SM_S",
-        "H_SM_RPETRO_ELLIP", "H_SM_RHALF_ELLIP",
-        "H_SM_R20", "H_SM_R50", "H_SM_R80",
+        "H_SM_RPETRO_ELLIP_ARCSEC", "H_SM_RHALF_ELLIP_ARCSEC",
+        "H_SM_R20_ARCSEC", "H_SM_R50_ARCSEC", "H_SM_R80_ARCSEC",
     ]
 
     galfit_nc_cols = [
