@@ -32,7 +32,7 @@ cd hapy-output-20260309
 ### make a list of coadds to analyze
 
 ```bash
-find /data-pool/Halpha/coadds-2025DEC/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
+find /data-pool/Halpha/coadds-v20260330/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
 
 If you have coadds that are still under review, make a copy of the
@@ -49,6 +49,9 @@ As of 2026-Mar-09:
   211 fullpath_rcoadds_hapy_ready.txt
   438 total
 ```
+
+As of 2026-Mar-30:
+- all coadds are ready!
 # Make Cutouts
 
 ### Test on One Image
@@ -58,6 +61,13 @@ As of 2026-Mar-09:
 ```bash
 get_cutouts --rimage
 /data-pool/Halpha/coadds-2025DEC/VF-126.291+27.988-HDI-20180313-p004-R.fits
+--catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
+--scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images/
+```
+
+```bash
+get_cutouts --rimage
+/data-pool/Halpha/coadds-v20260330/VF-126.291+27.988-HDI-20180313-p004-R.fits
 --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
 --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images/
 ```
@@ -153,7 +163,7 @@ head -5 cutout_list.txt | parallel --bar -j 2 --joblog run_analysis.joblog \
 
 Test on 20 galaxies:
 ```bash
-head -5 cutout_list.txt | parallel --bar -j 4 --joblog run_analysis.joblog \
+head -20 cutout_list.txt | parallel --bar -j 4 --joblog run_analysis.joblog \
   --results parallel-logs \
   run_analysis --cutout-dir "{}" --make-mask \
   --psf-dir /data-pool/Halpha/psf-images/ \
