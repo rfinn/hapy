@@ -955,6 +955,8 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
         "H50_R50_RATIO", "H_MAXDET_R25_RATIO",
         "DELTA_GINI", "DELTA_M20", "DELTA_ASYM",
         "H_HAPY_FILLFRAC", "H_HAPY_NPIX",
+        # review
+        "REVIEW_PRIORITY",
     ]
 
     cols = [c for c in cols if c in tab.colnames]
@@ -969,35 +971,17 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     n = len(review)
 
     review["REVIEWED"] = np.full(n, "", dtype=object)
-    review["REVIEW_PRIORITY"] = np.full(n, "", dtype=object)
+    #review["REVIEW_PRIORITY"] = np.full(n, "", dtype=object)
     review["VIS_CLASS"] = np.full(n, "", dtype=object)
     review["CATALOG_USE"] = np.full(n, "", dtype=object)
     review["VIS_NOTE"] = np.full(n, "", dtype=object)
+    #review["VIS_NOTE"] = np.full(n, "", dtype=object)
 
     # -------------------------
     # Set default priority
     # -------------------------
 
-    priority = np.full(n, "low", dtype="U16")
-
-    tier = safe_str_array(review, "QC_TIER")
-
-    # base on tier
-    priority[np.isin(tier, ["D", "F"])] = "high"
-    priority[np.isin(tier, ["C"])] = "medium"
-
-    # promote important flags to high
-    # high_flags = (
-    #     safe_bool_array(review, "SCIENCE_PROBLEM") |
-    #     safe_bool_array(review, "BRIGHT_STAR_FLAG") |
-    #     safe_bool_array(review, "ELL_MISMATCH") |
-    #     safe_bool_array(review, "FILTER_WARNING") |
-    #     safe_bool_array(review, "WARN_MASK")
-    # )
-
-    # priority[high_flags] = "high"
-
-    review["REVIEW_PRIORITY"] = priority
+ 
 
     # add webpage last so url doesn't block other columns
     review["WEBPAGE"] = np.array(webpage_list, dtype=f"<U{maxlen}")    
@@ -1006,7 +990,9 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     # -------------------------
     outpath = outdir / "tables" / "review"
     ensure_dir(outpath)
+    Nhigh = np.sum(review["REVIEW_PRIORITY"] == "high")
 
+    print(f"Number of high priority in {outpath} = {Nhigh}")
     #review.write(outpath / "review_master.fits", format="fits", overwrite=True)
     print("writing ",outpath / "review_sample.csv")
     review.write(outpath / "review_sample.csv", format="ascii.csv", overwrite=True)
