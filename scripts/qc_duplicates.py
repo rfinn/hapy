@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
 from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
 from qc_helpers import build_row_qc_flags, ensure_dir, median_and_mad
-
+from validate_measurements import _robust_limits
 # ----------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------
@@ -267,7 +267,6 @@ def plot_pair_grid(
             )
             ax.set_xlabel(col)
             ax.set_ylabel("obs2 - obs1")
-
         else:
             if cc is not None:
                 cb_handle = ax.scatter(x1, x2, c=cc, s=18, alpha=0.75)
@@ -291,6 +290,15 @@ def plot_pair_grid(
             ax.set_ylabel("obs2")
 
         ax.set_title(col)
+        # show bulk of data, not outliers
+        xmin, xmax = _robust_limits(x1)
+        if residual:
+            ymin, ymax = _robust_limits(dx)
+        else:
+            ymin, ymax = _robust_limits(x2)
+        ax.set_xlim(xmin,xmax)
+        ax.set_ylim(ymin,ymax)
+        
 
     if title:
         fig.suptitle(title, fontsize=14)
