@@ -689,8 +689,8 @@ def main():
     ]
 
     hapy_morph_cols = [
-        "R_HAPY_GINI", "R_HAPY_M20", "R_HAPY_ASYM", "R_HAPY_XC", "R_HAPY_YC", "R_HAPY_MTOT",
-        "H_HAPY_GINI", "H_HAPY_M20", "H_HAPY_ASYM", "H_HAPY_XC", "H_HAPY_YC", "H_HAPY_MTOT",        
+        "R_HAPY_GINI", "R_HAPY_M20", "R_HAPY_ASYM",  "R_HAPY_MTOT",
+        "H_HAPY_GINI", "H_HAPY_M20", "H_HAPY_ASYM",  "H_HAPY_MTOT", "H_HAPY_FILLFRAC","H_HAPY_SNP_DET",       
     ]
         
     galfit_nc_cols = [
