@@ -987,15 +987,15 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     priority[np.isin(tier, ["C"])] = "medium"
 
     # promote important flags to high
-    high_flags = (
-        safe_bool_array(review, "SCIENCE_PROBLEM") |
-        safe_bool_array(review, "BRIGHT_STAR_FLAG") |
-        safe_bool_array(review, "ELL_MISMATCH") |
-        safe_bool_array(review, "FILTER_WARNING") |
-        safe_bool_array(review, "WARN_MASK")
-    )
+    # high_flags = (
+    #     safe_bool_array(review, "SCIENCE_PROBLEM") |
+    #     safe_bool_array(review, "BRIGHT_STAR_FLAG") |
+    #     safe_bool_array(review, "ELL_MISMATCH") |
+    #     safe_bool_array(review, "FILTER_WARNING") |
+    #     safe_bool_array(review, "WARN_MASK")
+    # )
 
-    priority[high_flags] = "high"
+    # priority[high_flags] = "high"
 
     review["REVIEW_PRIORITY"] = priority
 

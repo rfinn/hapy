@@ -572,32 +572,31 @@ def select_sample(tab: Table, sample_name: str) -> np.ndarray:
 
 def get_review_priority(tab: Table) -> np.ndarray:
     """
-    Review priority for QC triage (bug-focused, minimal).
+    Review priority focused on core science reliability.
 
-    High = likely bug or problematic data
+    High = fundamental measurement failure
     Medium = caution / common issues
     Low = not urgent
     """
-    if "FILTER_WARNING" not in tab.colnames:
+    if "QC_TIER" not in tab.colnames:
         tab = prepare_analysis_table(tab, copy=False)
 
     n = len(tab)
     priority = np.full(n, "low", dtype="U16")
 
     # -----------------------------
-    # HIGH: rare / serious issues
+    # HIGH: core failures
     # -----------------------------
-    high = safe_bool_array(tab, "FILTER_WARNING")
-
-    # Optional: only *very* extreme outliers
-    if "H50_R50_RATIO" in tab.colnames:
-        ratio = safe_float_array(tab, "H50_R50_RATIO")
-        high |= np.isfinite(ratio) & ((ratio > 5.0) | (ratio < 0.1))
+    high = (
+        ~safe_bool_array(tab, "PHOT_OK") |
+        ~safe_bool_array(tab, "HAPY_MORPH_OK") |
+        safe_bool_array(tab, "FILTER_WARNING")
+    )
 
     priority[high] = "high"
 
     # -----------------------------
-    # MEDIUM: common caution flags
+    # MEDIUM: cautionary
     # -----------------------------
     medium = (
         safe_bool_array(tab, "ELL_MISMATCH") |
@@ -608,4 +607,5 @@ def get_review_priority(tab: Table) -> np.ndarray:
     priority[medium & (~high)] = "medium"
 
     return priority
+
 
