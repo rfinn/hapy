@@ -641,6 +641,7 @@ def main():
         "ha_pairs": pair_mask_from_row_flag(pairtab, flags["H_DUP_OK"]),
         "r_sm_pairs": pair_mask_from_row_flag(pairtab, flags["R_SM_OK"]),
         "h_sm_pairs": pair_mask_from_row_flag(pairtab, flags["H_SM_OK"]),
+        "hapy_morph_pairs": pair_mask_from_row_flag(pairtab, flags["HAPY_MORPH_OK"]),
         "galfit_nc_pairs": pair_mask_from_row_flag(pairtab, flags["GALFIT_NC_OK"]),
         "galfit_cv_pairs": pair_mask_from_row_flag(pairtab, flags["GALFIT_CV_OK"]),
         "galfit_any_pairs": pair_mask_from_row_flag(pairtab, flags["GALFIT_ANY_OK"]),
@@ -761,14 +762,14 @@ def main():
         residual=True,
     )
     plot_pair_grid(
-        tab, pairtab, pairmasks["hapy_morph_pairs"], h_sm_cols,
+        tab, pairtab, pairmasks["hapy_morph_pairs"], hapy_morph_cols,
         outdir / "hapy_morph_pairs.png",
         color_by=h_fwhm_col,
         title="HAPY morph duplicate comparisons",
         residual=False,
     )
     plot_pair_grid(
-        tab, pairtab, pairmasks["hapy_morph_pairs"], h_sm_cols,
+        tab, pairtab, pairmasks["hapy_morph_pairs"], hapy_morph_cols,
         outdir / "hapy_morph_residuals.png",
         color_by=h_fwhm_col,
         title="HAPY morph duplicate residuals",
