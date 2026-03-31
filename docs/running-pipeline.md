@@ -251,8 +251,7 @@ options:
 
 To run:
 ```
-python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits
---scheme virgo
+python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits --scheme virgo
 ```
 
 

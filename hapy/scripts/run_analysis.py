@@ -2,53 +2,6 @@
 """
 Run analysis on a single galaxy cutout set (1 GNU-parallel task).
 
-Typical inputs are the *root prefix* created by build_cutout_name(), e.g.
-cutouts/VF1234-HDI-20200226-p012/VF1234-HDI-20200226-p012
-
-Examples:
-  python scripts/run_analysis.py --root cutouts/.../VF1234-HDI-20200226-p012
-  ls cutouts/*/* | grep -v '\.fits$' | parallel python scripts/run_analysis.py --root {}
-
-
-Running in parallel:
-
-In two steps.  Step 1/2
-```
-for d in cutouts/*/; do
-  b=$(basename "$d")
-  echo "${d}${b}"
-done > roots.txt
-```
-
-Step 2/2
-```
-parallel -j 8 python scripts/run_analysis.py --root {} --make-mask --galfit :::: roots.txt
-```
-
-One Step, Step 1/1:
-```
-for d in cutouts/*/; 
-  b=$(basename "$d")
-  echo "${d}${b}"
-done | parallel -j 8 python scripts/run_analysis.py --root {} --make-mask --galfit
-```
-
-
-TESTING:
-
-python ~/github/hapy/scripts/run_analysis.py --root cutouts/<tag>/<tag> --make-mask --galfit --convflag 1
-
-cat cutouts/<tag>/<tag>-results.ecsv
-
-
-from coadds directory where you just made cutouts:
-
-python ~/github/hapy/scripts/run_analysis.py --root cutouts/VFID3084-NGC3512-HDI-20200226-p012/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --convflag 0 --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
-
-To make use of --cutout-dir instead of --root:
-
-python ~/github/hapy/scripts/run_analysis.py --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012 --make-mask --convflag 0 --psf-image VF-165.869+28.044-HDI-20200226-p012-r-psf.fits --statmorph --image2-filter 4 --galfit
-
 
 """
 
@@ -378,7 +331,7 @@ def _pull_statmorph(row, prefix, mobj,pixscale):
         #row[f"{prefix}_{outk}"] = _scalar(getattr(mobj, attr))
         try:
             r = _scalar(getattr(mobj, attr))
-            if "_ARCSEC" in attr and r:
+            if "_ARCSEC" in outk and r:
                 r = r * pixscale
             row[f"{prefix}_{outk}"] = r 
         except Exception:
@@ -1208,6 +1161,10 @@ def main():
             #print("DEBUG: original radius = ",params["sma_arcsec"])
             radius_scale_factor = 1.2
             #print("DEBUG: new radius = ",ell.sma_pix * pixscale)
+            
+            # we tested this scale factor to see what looks reasonable
+            # settled on radius_scale_factor = 1.2
+            
             params["sma_arcsec"] = float(ell.sma_pix * pixscale * radius_scale_factor)
             params["ba"] = float(ell.ba)
             params["pa_deg"] = float(photutils_theta_to_pa_ccw_north(ell.theta_deg))
@@ -1474,15 +1431,16 @@ def main():
         ]
 
 
-    for outk, attr in FIELDS:
+    for outname, attr in FIELDS:
         v = getattr(e, attr, None)
 
         sv = _scalar(v)
         
         if sv is not None:
-            if "_ARCSEC" in attr:
+            if "_ARCSEC" in outname:
+                print(f"Converting to arcsec for ",outk, attr)
                 sv = sv * pixscale
-            row[outk] = sv  # leave as np.nan if missing/array/etc.
+            row[outname] = sv  # leave as np.nan if missing/array/etc.
 
     # convert theta to PA and store
     if row["ELLIP_THETA_RAD"] is not None:
