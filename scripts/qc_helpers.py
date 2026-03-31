@@ -468,7 +468,16 @@ def prepare_analysis_table(
         tab = add_science_columns(tab)
 
     if "REVIEW_PRIORITY" not in tab.colnames:
-        tab["REVIEW_PRIORITY"] = get_review_priority(tab)  
+        tab["REVIEW_PRIORITY"] = get_review_priority(tab)
+        priority = tab["REVIEW_PRIORITY"]
+        vals, counts = np.unique(priority, return_counts=True)
+        print("REVIEW_PRIORITY SUMMARY")
+        print(dict(zip(vals, counts)))
+
+        for name in ["ELL_MISMATCH", "FILTER_WARNING", "WARN_MASK", "BRIGHT_STAR_FLAG", "WARN_WEAK_HA"]:
+            arr = safe_bool_array(tab, name)
+            print(name, np.sum(arr))
+
     return tab
 
 
@@ -493,65 +502,110 @@ def select_sample(tab: Table, sample_name: str) -> np.ndarray:
     raise ValueError(f"Unknown sample selection: {sample_name}")
 
 
+# def get_review_priority(tab: Table) -> np.ndarray:
+#     """
+#     Return review priority labels: high / medium / low.
+
+#     High = likely bug / failure / severe contamination / extreme outlier
+#     Medium = warning or cautionary case
+#     Low = likely fine
+#     """
+#     if "QC_TIER" not in tab.colnames:
+#         tab = prepare_analysis_table(tab, copy=False)
+
+#     n = len(tab)
+#     priority = np.full(n, "low", dtype="U16")
+
+#     tier = safe_str_array(tab, "QC_TIER", default="")
+
+#     # -----------------------------
+#     # Base priority from QC tier
+#     # -----------------------------
+#     priority[np.isin(tier, ["D", "F"])] = "high"
+#     priority[np.isin(tier, ["C"])] = "medium"
+
+#     # -----------------------------
+#     # Promote only severe warning cases
+#     # -----------------------------
+#     # severe_flags = (
+#     #     safe_bool_array(tab, "ELL_MISMATCH") #| safe_bool_array(tab, "FILTER_WARNING")
+#     # )
+#     # priority[severe_flags] = "high"
+
+#     # -----------------------------
+#     # Moderate warnings stay medium
+#     # -----------------------------
+#     moderate_flags = (
+#         safe_bool_array(tab, "WARN_MASK") |
+#         safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+#         safe_bool_array(tab, "WARN_WEAK_HA")
+#     )
+#     promote_medium = moderate_flags & (priority != "high")
+#     priority[promote_medium] = "medium"
+
+#     # -----------------------------
+#     # Promote extreme outliers to high
+#     # -----------------------------
+#     if "H50_R50_RATIO" in tab.colnames:
+#         ratio = safe_float_array(tab, "H50_R50_RATIO")
+#         extreme_ratio = np.isfinite(ratio) & ((ratio > 3.0) | (ratio < 0.2))
+#         priority[extreme_ratio] = "high"
+
+#     if "DELTA_GINI" in tab.colnames:
+#         dg = safe_float_array(tab, "DELTA_GINI")
+#         extreme_dg = np.isfinite(dg) & (np.abs(dg) > 0.5)
+#         priority[extreme_dg] = "high"
+
+#     if "DELTA_M20" in tab.colnames:
+#         dm20 = safe_float_array(tab, "DELTA_M20")
+#         extreme_dm20 = np.isfinite(dm20) & (np.abs(dm20) > 2.0)
+#         priority[extreme_dm20] = "high"
+
+#     priorities = ["low", "medium", "high"]
+#     print("REVIEW_PRIORITY SUMMARY")
+#     for p in priorities:
+#         Np = np.sum(priority == p)
+#         print(f"\t{p} = {Np} ({Np/len(priority)*100:.1f} )%")
+        
+#     return priority
+
+
 def get_review_priority(tab: Table) -> np.ndarray:
     """
-    Return review priority labels: high / medium / low.
+    Review priority for QC triage (bug-focused, minimal).
 
-    High = likely bug / failure / severe contamination / extreme outlier
-    Medium = warning or cautionary case
-    Low = likely fine
+    High = likely bug or problematic data
+    Medium = caution / common issues
+    Low = not urgent
     """
-    if "QC_TIER" not in tab.colnames:
+    if "FILTER_WARNING" not in tab.colnames:
         tab = prepare_analysis_table(tab, copy=False)
 
     n = len(tab)
     priority = np.full(n, "low", dtype="U16")
 
-    tier = safe_str_array(tab, "QC_TIER", default="")
+    # -----------------------------
+    # HIGH: rare / serious issues
+    # -----------------------------
+    high = safe_bool_array(tab, "FILTER_WARNING")
 
-    # -----------------------------
-    # Base priority from QC tier
-    # -----------------------------
-    priority[np.isin(tier, ["D", "F"])] = "high"
-    priority[np.isin(tier, ["C"])] = "medium"
-
-    # -----------------------------
-    # Promote only severe warning cases
-    # -----------------------------
-    severe_flags = (
-        safe_bool_array(tab, "ELL_MISMATCH") |
-        safe_bool_array(tab, "FILTER_WARNING")
-    )
-    priority[severe_flags] = "high"
-
-    # -----------------------------
-    # Moderate warnings stay medium
-    # -----------------------------
-    moderate_flags = (
-        safe_bool_array(tab, "WARN_MASK") |
-        safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
-        safe_bool_array(tab, "WARN_WEAK_HA")
-    )
-    promote_medium = moderate_flags & (priority != "high")
-    priority[promote_medium] = "medium"
-
-    # -----------------------------
-    # Promote extreme outliers to high
-    # -----------------------------
+    # Optional: only *very* extreme outliers
     if "H50_R50_RATIO" in tab.colnames:
         ratio = safe_float_array(tab, "H50_R50_RATIO")
-        extreme_ratio = np.isfinite(ratio) & ((ratio > 3.0) | (ratio < 0.2))
-        priority[extreme_ratio] = "high"
+        high |= np.isfinite(ratio) & ((ratio > 5.0) | (ratio < 0.1))
 
-    if "DELTA_GINI" in tab.colnames:
-        dg = safe_float_array(tab, "DELTA_GINI")
-        extreme_dg = np.isfinite(dg) & (np.abs(dg) > 0.5)
-        priority[extreme_dg] = "high"
+    priority[high] = "high"
 
-    if "DELTA_M20" in tab.colnames:
-        dm20 = safe_float_array(tab, "DELTA_M20")
-        extreme_dm20 = np.isfinite(dm20) & (np.abs(dm20) > 2.0)
-        priority[extreme_dm20] = "high"
+    # -----------------------------
+    # MEDIUM: common caution flags
+    # -----------------------------
+    medium = (
+        safe_bool_array(tab, "ELL_MISMATCH") |
+        safe_bool_array(tab, "WARN_MASK") |
+        safe_bool_array(tab, "WARN_WEAK_HA")
+    )
+
+    priority[medium & (~high)] = "medium"
 
     return priority
 
