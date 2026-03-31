@@ -497,8 +497,9 @@ def get_review_priority(tab: Table) -> np.ndarray:
     """
     Return review priority labels: high / medium / low.
 
-    Assumes prepare_analysis_table(tab) has already run, or computes
-    needed columns if missing.
+    High = likely bug / failure / severe contamination / extreme outlier
+    Medium = warning or cautionary case
+    Low = likely fine
     """
     if "QC_TIER" not in tab.colnames:
         tab = prepare_analysis_table(tab, copy=False)
@@ -508,18 +509,49 @@ def get_review_priority(tab: Table) -> np.ndarray:
 
     tier = safe_str_array(tab, "QC_TIER", default="")
 
-    # base tier logic
+    # -----------------------------
+    # Base priority from QC tier
+    # -----------------------------
     priority[np.isin(tier, ["D", "F"])] = "high"
     priority[np.isin(tier, ["C"])] = "medium"
 
-    # promote important warning/problem cases
-    high_flags = (
-        safe_bool_array(tab, "SCIENCE_PROBLEM") |
-        safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+    # -----------------------------
+    # Promote only severe warning cases
+    # -----------------------------
+    severe_flags = (
         safe_bool_array(tab, "ELL_MISMATCH") |
-        safe_bool_array(tab, "FILTER_WARNING") |
-        safe_bool_array(tab, "WARN_MASK")
+        safe_bool_array(tab, "FILTER_WARNING")
     )
-    priority[high_flags] = "high"
+    priority[severe_flags] = "high"
+
+    # -----------------------------
+    # Moderate warnings stay medium
+    # -----------------------------
+    moderate_flags = (
+        safe_bool_array(tab, "WARN_MASK") |
+        safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+        safe_bool_array(tab, "WARN_WEAK_HA")
+    )
+    promote_medium = moderate_flags & (priority != "high")
+    priority[promote_medium] = "medium"
+
+    # -----------------------------
+    # Promote extreme outliers to high
+    # -----------------------------
+    if "H50_R50_RATIO" in tab.colnames:
+        ratio = safe_float_array(tab, "H50_R50_RATIO")
+        extreme_ratio = np.isfinite(ratio) & ((ratio > 3.0) | (ratio < 0.2))
+        priority[extreme_ratio] = "high"
+
+    if "DELTA_GINI" in tab.colnames:
+        dg = safe_float_array(tab, "DELTA_GINI")
+        extreme_dg = np.isfinite(dg) & (np.abs(dg) > 0.5)
+        priority[extreme_dg] = "high"
+
+    if "DELTA_M20" in tab.colnames:
+        dm20 = safe_float_array(tab, "DELTA_M20")
+        extreme_dm20 = np.isfinite(dm20) & (np.abs(dm20) > 2.0)
+        priority[extreme_dm20] = "high"
 
     return priority
+
