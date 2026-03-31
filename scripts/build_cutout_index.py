@@ -133,6 +133,10 @@ def write_index(entries, outfile, tab):
         str(row["TAG"]): str(row["REVIEW_PRIORITY"]).strip().lower()
         for row in tab
     }
+    qc_tier_map = {
+        str(row["TAG"]): str(row["QC_TIER"]).strip().lower()
+        for row in tab
+    }
 
     def review_priority_cell(priority):
         color_map = {
@@ -168,6 +172,7 @@ def write_index(entries, outfile, tab):
         "Mask Diag",
         "Cutout Page",
         "Review",
+        "QC Tier",
         "PSF",
         "R FWHM",
         "H&alpha; FWHM",        
@@ -190,6 +195,7 @@ def write_index(entries, outfile, tab):
 
     for i, e in enumerate(entries, start=1):
         review_priority = review_priority_map.get(str(e["tag"]), "")
+        qc_tier = qc_tier_map.get(str(e["qc_tier"]), "")
         lines.append("<tr>")
         lines.append(f"<td>{i}</td>")
         lines.append(f"<td>{e['galname']}</td>")
@@ -215,6 +221,7 @@ def write_index(entries, outfile, tab):
         rel_html = f"{e['tag']}/{e['tag']}.html"
         lines.append(f"<td><a href='{rel_html}'>{e['tag']}</a></td>")
         lines.append(review_priority_cell(review_priority))
+        lines.append(f"<td>{qc_tier}</td>")        
         lines.append(f"<td>{status_cell(e['psf_ok'])}</td>")
         lines.append(f"<td>{e['r_fwhm']}</td>")
         lines.append(f"<td>{e['h_fwhm']}</td>")        
