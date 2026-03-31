@@ -167,7 +167,7 @@ def write_index(entries, outfile, tab):
         "Legacy",
         "Mask Diag",
         "Cutout Page",
-        "REVIEW_PRIORITY",
+        "Review",
         "PSF",
         "R FWHM",
         "H&alpha; FWHM",        
