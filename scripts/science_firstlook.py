@@ -43,69 +43,11 @@ from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE
 # helpers
 # ----------------------------------------------------------------------
 
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
 
 
-def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=float)
-
-    col = tab[colname]
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
-
-    out = np.full(len(tab), default, dtype=float)
-    for i, v in enumerate(col):
-        try:
-            out[i] = float(v)
-        except Exception:
-            out[i] = default
-    return out
 
 
-def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarray:
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=bool)
 
-    col = tab[colname]
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
-
-    out = np.zeros(len(tab), dtype=bool)
-    for i, v in enumerate(col):
-        if v is None:
-            out[i] = default
-        elif isinstance(v, (bool, np.bool_)):
-            out[i] = bool(v)
-        else:
-            s = str(v).strip().lower()
-            if s in ("true", "t", "1", "yes", "y"):
-                out[i] = True
-            elif s in ("false", "f", "0", "no", "n", "", "none", "nan"):
-                out[i] = False
-            else:
-                out[i] = default
-    return out
-
-
-def safe_str_array(tab: Table, colname: str, default: str = "") -> np.ndarray:
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype="U16")
-
-    out = np.full(len(tab), default, dtype="U16")
-    for i, v in enumerate(tab[colname]):
-        if v is None:
-            out[i] = default
-        else:
-            out[i] = str(v)
-    return out
 
 
 def add_science_columns(tab: Table) -> Table:

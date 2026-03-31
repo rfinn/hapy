@@ -3,7 +3,7 @@ import numpy as np
 from astropy.table import Table
 
 # ----------------------------------------------------------------------
-# helpers
+# helper functions
 # ----------------------------------------------------------------------
 
 def ensure_dir(path: Path) -> None:
@@ -16,32 +16,35 @@ def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarr
         return np.full(len(tab), default, dtype=bool)
 
     col = tab[colname]
+
     try:
         if hasattr(col, "filled"):
             col = col.filled(default)
     except Exception:
         pass
 
-    out = np.zeros(len(tab), dtype=bool)
+    out = np.full(len(tab), default, dtype=bool)
+
     for i, v in enumerate(col):
         if v is None:
-            out[i] = default
-        elif isinstance(v, (bool, np.bool_)):
+            continue
+
+        if isinstance(v, (bool, np.bool_)):
             out[i] = bool(v)
-        else:
-            s = str(v).strip().lower()
-            if s in ("true", "t", "1", "yes", "y"):
-                out[i] = True
-            elif s in ("false", "f", "0", "no", "n", "", "none", "nan"):
-                out[i] = False
-            else:
-                out[i] = default
+            continue
+
+        s = str(v).strip().lower()
+
+        if s in ("true", "t", "1", "yes", "y"):
+            out[i] = True
+        elif s in ("false", "f", "0", "no", "n", "", "none", "nan"):
+            out[i] = False
+        # else: leave default
+
     return out
 
 
-
 def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
-    """Return a float numpy array for a table column, or default if missing."""
     if colname not in tab.colnames:
         return np.full(len(tab), default, dtype=float)
 
@@ -54,11 +57,45 @@ def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
         pass
 
     out = np.full(len(tab), default, dtype=float)
+
     for i, v in enumerate(col):
+        if v is None:
+            continue
+
         try:
             out[i] = float(v)
         except Exception:
-            out[i] = default
+            continue
+
+    return out
+
+
+def safe_str_array(tab: Table, colname: str, default: str = "") -> np.ndarray:
+    """Return a clean string numpy array for a table column."""
+    if colname not in tab.colnames:
+        return np.full(len(tab), default, dtype=object)
+
+    col = tab[colname]
+
+    try:
+        if hasattr(col, "filled"):
+            col = col.filled(default)
+    except Exception:
+        pass
+
+    out = np.full(len(tab), default, dtype=object)
+
+    for i, v in enumerate(col):
+        if v is None:
+            continue
+
+        s = str(v).strip()
+
+        if s.lower() in ("none", "nan", "null", ""):
+            continue
+
+        out[i] = s
+
     return out
 
 
@@ -91,6 +128,61 @@ def median_and_mad(dx: np.ndarray) -> tuple[float, float]:
     med = np.nanmedian(dx[good])
     mad = np.nanmedian(np.abs(dx[good] - med))
     return med, mad
+
+def get_std(dx: np.ndarray) -> tuple[float, float]:
+    """Return median and MAD-like robust scatter."""
+    good = np.isfinite(dx)
+    if np.sum(good) == 0:
+        return np.nan, np.nan
+    std = np.nanstd(dx[good])
+    return std
+
+def safe_ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
+    """Safely divide two float arrays."""
+    out = np.full(len(num), np.nan, dtype=float)
+    good = np.isfinite(num) & np.isfinite(den) & (den > 0)
+    out[good] = num[good] / den[good]
+    return out
+
+
+# ----------------------------------------------------------------------
+# table manipulations
+# ----------------------------------------------------------------------
+
+
+def add_derived_columns(tab):
+    def f(name):
+        return safe_float_array(tab, name)
+
+    # morphology deltas
+    tab["DELTA_GINI"] = f("H_HAPY_GINI") - f("R_HAPY_GINI")
+    tab["DELTA_M20"]  = f("H_HAPY_M20")  - f("R_HAPY_M20")
+    tab["DELTA_ASYM"] = f("H_HAPY_ASYM") - f("R_HAPY_ASYM")
+
+    # size ratio (safe divide)
+    r50 = f("R50_ARCSEC")
+    h50 = f("H50_ARCSEC")
+
+    ratio = np.full(len(tab), np.nan)
+    good = np.isfinite(r50) & np.isfinite(h50) & (r50 > 0)
+    ratio[good] = h50[good] / r50[good]
+
+    tab["H_R50_RATIO"] = ratio
+
+    return tab
+
+def add_duplicate_metadata(tab, id_col="VFID"):
+    ids = np.array(tab[id_col]).astype(str)
+
+    unique, counts = np.unique(ids, return_counts=True)
+    count_map = dict(zip(unique, counts))
+
+    ndup = np.array([count_map[i] for i in ids])
+
+    tab["N_DUP"] = ndup
+    tab["IS_DUPLICATE"] = ndup > 1
+
+    return tab
 
 def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
     """
@@ -234,3 +326,200 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
     )
 
     return flags
+
+
+
+
+def add_science_columns(tab: Table) -> Table:
+    """
+    Add core derived science columns if missing.
+    Safe to call multiple times.
+    """
+    # raw columns
+    r50 = safe_float_array(tab, "R50_ARCSEC")
+    h50 = safe_float_array(tab, "H50_ARCSEC")
+
+    r75 = safe_float_array(tab, "R75_ARCSEC")
+    h75 = safe_float_array(tab, "H75_ARCSEC")
+
+    r25 = safe_float_array(tab, "R25_ARCSEC")
+    hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
+
+    r_p50 = safe_float_array(tab, "R_PETRO_R50_ARCSEC")
+    h_p50 = safe_float_array(tab, "H_PETRO_R50_ARCSEC")
+
+    r_gini = safe_float_array(tab, "R_HAPY_GINI")
+    h_gini = safe_float_array(tab, "H_HAPY_GINI")
+
+    r_m20 = safe_float_array(tab, "R_HAPY_M20")
+    h_m20 = safe_float_array(tab, "H_HAPY_M20")
+
+    # optional, but useful for consistency with validation/science plots
+    r_asym = safe_float_array(tab, "R_HAPY_ASYM")
+    h_asym = safe_float_array(tab, "H_HAPY_ASYM")
+
+    # derived
+    if "H50_R50_RATIO" not in tab.colnames:
+        tab["H50_R50_RATIO"] = safe_ratio(h50, r50)
+    if "H75_R75_RATIO" not in tab.colnames:
+        tab["H75_R75_RATIO"] = safe_ratio(h75, r75)
+    if "H_MAXDET_R25_RATIO" not in tab.colnames:
+        tab["H_MAXDET_R25_RATIO"] = safe_ratio(hmax, r25)
+    if "H_PETRO_R50_RATIO" not in tab.colnames:
+        tab["H_PETRO_R50_RATIO"] = safe_ratio(h_p50, r_p50)
+
+    if "DELTA_GINI" not in tab.colnames:
+        tab["DELTA_GINI"] = h_gini - r_gini
+    if "DELTA_M20" not in tab.colnames:
+        tab["DELTA_M20"] = h_m20 - r_m20
+    if "DELTA_ASYM" not in tab.colnames:
+        tab["DELTA_ASYM"] = h_asym - r_asym
+
+    return tab
+
+
+def add_qc_columns(tab: Table, max_ha_filter_correction: float = 1.2) -> Table:
+    """
+    Attach QC columns from build_row_qc_flags() to the table.
+
+    This replaces the older science_firstlook-specific add_qc_flags()
+    implementation and uses the canonical QC logic.
+    """
+    flags = build_row_qc_flags(tab, max_ha_filter_correction=max_ha_filter_correction)
+    for key, val in flags.items():
+        if key not in tab.colnames:
+            tab[key] = val
+    return tab
+
+
+def add_qc_tier(tab: Table) -> Table:
+    """
+    Add a minimal QC tier if missing.
+
+    Uses canonical QC columns if available; otherwise computes them first.
+    Safe to call multiple times.
+    """
+    if "QC_TIER" in tab.colnames:
+        return tab
+
+    if "R_STRUCTURE_GOOD" not in tab.colnames:
+        tab = add_qc_columns(tab)
+
+    phot_ok = safe_bool_array(tab, "PHOT_OK")
+    use_r = safe_bool_array(tab, "R_STRUCTURE_GOOD")
+    use_ha = safe_bool_array(tab, "HA_EXTENT_GOOD")
+    use_hm = safe_bool_array(tab, "HA_MORPH_GOOD")
+
+    bright_star = safe_bool_array(tab, "BRIGHT_STAR_FLAG")
+    mask_warn = safe_bool_array(tab, "WARN_MASK")
+    ell_warn = safe_bool_array(tab, "ELL_MISMATCH")
+    warn_filter = safe_bool_array(tab, "FILTER_WARNING")
+
+    n = len(tab)
+    tier = np.full(n, "F", dtype="U1")
+
+    for i in range(n):
+        if not phot_ok[i]:
+            tier[i] = "F"
+        elif (not use_r[i]) or (not use_ha[i]):
+            tier[i] = "D"
+        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i]:
+            tier[i] = "C"
+        elif not use_hm[i]:
+            tier[i] = "B"
+        else:
+            tier[i] = "A"
+
+    tab["QC_TIER"] = tier
+    return tab
+
+
+def prepare_analysis_table(
+    tab: Table,
+    add_qc: bool = True,
+    add_tier: bool = True,    
+    add_derived: bool = True,
+    add_duplicates=True,    
+    add_science: bool = True,    
+    copy: bool = True,
+) -> Table:
+    """
+    Standard table preparation for QC, validation, and first-look science.
+
+    Safe to call from qc_results.py, validate_measurements.py,
+    validate_duplicates.py, validate_dashboards.py, and science_firstlook.py.
+    """
+    if copy:
+        tab = tab.copy()
+        
+    if add_qc:
+        tab = add_qc_columns(tab)
+
+    if add_tier:
+        tab = add_qc_tier(tab)
+
+    if add_derived:
+        tab = add_derived_columns(tab)
+
+    if add_duplicates:
+        tab = add_duplicate_metadata(tab)
+
+    if add_science:
+        tab = add_science_columns(tab)
+
+    if "REVIEW_PRIORITY" not in tab.colnames:
+        tab["REVIEW_PRIORITY"] = get_review_priority(tab)  
+    return tab
+
+
+
+def select_sample(tab: Table, sample_name: str) -> np.ndarray:
+    """
+    Return boolean mask for sample selection.
+    """
+    tier = safe_str_array(tab, "QC_TIER", default="F")
+    tier = np.array([str(t).upper() for t in tier], dtype=object)
+
+    sample_name = sample_name.upper()
+    if sample_name == "A":
+        return tier == "A"
+    if sample_name == "AB":
+        return np.isin(tier, ["A", "B"])
+    if sample_name == "ABC":
+        return np.isin(tier, ["A", "B", "C"])
+    if sample_name == "ALL":
+        return np.ones(len(tab), dtype=bool)
+
+    raise ValueError(f"Unknown sample selection: {sample_name}")
+
+
+def get_review_priority(tab: Table) -> np.ndarray:
+    """
+    Return review priority labels: high / medium / low.
+
+    Assumes prepare_analysis_table(tab) has already run, or computes
+    needed columns if missing.
+    """
+    if "QC_TIER" not in tab.colnames:
+        tab = prepare_analysis_table(tab, copy=False)
+
+    n = len(tab)
+    priority = np.full(n, "low", dtype="U16")
+
+    tier = safe_str_array(tab, "QC_TIER", default="")
+
+    # base tier logic
+    priority[np.isin(tier, ["D", "F"])] = "high"
+    priority[np.isin(tier, ["C"])] = "medium"
+
+    # promote important warning/problem cases
+    high_flags = (
+        safe_bool_array(tab, "SCIENCE_PROBLEM") |
+        safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+        safe_bool_array(tab, "ELL_MISMATCH") |
+        safe_bool_array(tab, "FILTER_WARNING") |
+        safe_bool_array(tab, "WARN_MASK")
+    )
+    priority[high_flags] = "high"
+
+    return priority

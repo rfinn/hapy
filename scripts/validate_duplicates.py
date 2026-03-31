@@ -39,7 +39,7 @@ from astropy.table import Table, vstack
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
 from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
-from qc_helpers import build_row_qc_flags, ensure_dir, median_and_mad
+from qc_helpers import build_row_qc_flags, ensure_dir, median_and_mad, get_std
 from validate_measurements import _robust_limits
 # ----------------------------------------------------------------------
 # helpers
@@ -114,46 +114,7 @@ def build_row_flags(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[s
 
     return flags
 
-# def build_row_flags(tab: Table, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
-#     """
-#     Construct row-level QC flags.
 
-#     R-band analyses remain usable even when Halpha filter correction is bad.
-#     Halpha analyses are more restrictive.
-#     """
-#     flags = {}
-
-#     flags["MASK_OK"] = safe_bool_array(tab, "MASK_OK")
-#     flags["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
-#     flags["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
-#     flags["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
-#     flags["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
-#     flags["R_SM_OK"] = safe_bool_array(tab, "R_SM_FLAG")
-#     flags["H_SM_OK"] = safe_bool_array(tab, "H_SM_FLAG")
-#     flags["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
-#     flags["GAL_CV_OK"] = safe_bool_array(tab, "GAL_CV_OK")
-
-#     filt_col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
-#     if filt_col is not None:
-#         filtcor = safe_float_array(tab, filt_col)
-#     else:
-#         filtcor = np.full(len(tab), np.nan)
-
-#     flags["FILTER_CORR"] = filtcor
-#     flags["FILTER_WARNING"] = np.isfinite(filtcor) & (filtcor > max_ha_filter_correction)
-
-#     # broader row families
-#     flags["R_DUP_OK"] = flags["MASK_OK"] & flags["PHOT_OK"]
-#     flags["H_DUP_OK"] = flags["MASK_OK"] & flags["PHOT_OK"] & (~flags["FILTER_WARNING"])
-
-#     flags["R_SM_OK"] = flags["R_SM_FLAG"]
-#     flags["H_SM_OK"] = flags["H_SM_FLAG"] & (~flags["FILTER_WARNING"])
-
-#     flags["GALFIT_NC_OK"] = flags["GAL_NC_OK"]
-#     flags["GALFIT_CV_OK"] = flags["GAL_CV_OK"]
-#     flags["GALFIT_ANY_OK"] = flags["GAL_NC_OK"] | flags["GAL_CV_OK"]
-
-#     return flags
 
 
 def pair_mask_from_row_flag(pairtab: Table, rowflag: np.ndarray) -> np.ndarray:
@@ -254,18 +215,6 @@ def plot_pair_grid(
             else:
                 ax.scatter(x1, dx, s=18, alpha=0.75)
 
-            med, mad = median_and_mad(dx)
-            ax.axhline(0, color="k", ls="--", lw=1)
-            if np.isfinite(mad):
-                ax.axhline(+mad, color="k", ls=":", lw=1)
-                ax.axhline(-mad, color="k", ls=":", lw=1)
-
-            ax.text(
-                0.04, 0.96,
-                f"med={med:.3g}\nmad={mad:.3g}\nN={len(dx)}",
-                transform=ax.transAxes,
-                ha="left", va="top", fontsize=9,
-            )
             ax.set_xlabel(col)
             ax.set_ylabel("obs2 - obs1")
         else:
@@ -279,24 +228,26 @@ def plot_pair_grid(
             if np.isfinite(lo) and np.isfinite(hi):
                 ax.plot([lo, hi], [lo, hi], "k--", lw=1)
 
-            dx = x2 - x1
-            med, mad = median_and_mad(dx)
-            ax.text(
-                0.04, 0.96,
-                f"med={med:.3g}\nmad={mad:.3g}\nN={len(dx)}",
-                transform=ax.transAxes,
-                ha="left", va="top", fontsize=9,
-            )
             ax.set_xlabel("obs1")
             ax.set_ylabel("obs2")
 
         ax.set_title(col)
+        dx = x2 - x1
+        med, mad = median_and_mad(dx)
+        std = get_std(dx)
+        ax.text(
+            0.04, 0.96,
+            f"$med\Delta={med:.3g}\nmad\Delta={mad:.3g}\n\sigma={std:.3g}\nN={len(dx)}$",
+            transform=ax.transAxes,
+            ha="left", va="top", fontsize=9,
+        )
+
         # show bulk of data, not outliers
         xmin, xmax = _robust_limits(x1)
         if residual:
-            ymin, ymax = _robust_limits(dx)
+            ymin, ymax = _robust_limits(dx,qlo=0.05, qhi=0.95)
         else:
-            ymin, ymax = _robust_limits(x2)
+            ymin, ymax = _robust_limits(x2,qlo=0.05, qhi=0.95)
         ax.set_xlim(xmin,xmax)
         ax.set_ylim(ymin,ymax)
         

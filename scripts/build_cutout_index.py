@@ -19,6 +19,7 @@ Expected layout:
 
 import argparse
 from pathlib import Path
+from qc_helpers import prepare_analysis_table
 
 from build_web_common import (
     find_results_file,
@@ -126,8 +127,23 @@ def collect_entries(runroot):
     return entries
 
 
-def write_index(entries, outfile):
+def write_index(entries, outfile, tab):
     outfile = Path(outfile)
+    review_priority_map = {
+        str(row["TAG"]): str(row["REVIEW_PRIORITY"]).strip().lower()
+        for row in tab
+    }
+
+    def review_priority_cell(priority):
+        color_map = {
+            "high": "#f8d7da",    # red
+            "medium": "#fff3cd",  # yellow
+            "low": "#d4edda",     # green
+        }
+        color = color_map.get(priority, "white")
+        label = "" if priority in ("", "nan", "none") else priority
+        #label = priority if priority else ""
+        return f"<td style='background-color: {color};'>{label}</td>"
 
     lines = []
     lines.append("<html><body>")
@@ -151,6 +167,7 @@ def write_index(entries, outfile):
         "Legacy",
         "Mask Diag",
         "Cutout Page",
+        "REVIEW_PRIORITY",
         "PSF",
         "R FWHM",
         "H&alpha; FWHM",        
@@ -172,6 +189,7 @@ def write_index(entries, outfile):
     lines.append("</tr>")
 
     for i, e in enumerate(entries, start=1):
+        review_priority = review_priority_map.get(str(e["tag"]), "")
         lines.append("<tr>")
         lines.append(f"<td>{i}</td>")
         lines.append(f"<td>{e['galname']}</td>")
@@ -196,7 +214,7 @@ def write_index(entries, outfile):
             
         rel_html = f"{e['tag']}/{e['tag']}.html"
         lines.append(f"<td><a href='{rel_html}'>{e['tag']}</a></td>")
-        
+        lines.append(review_priority_cell(review_priority))
         lines.append(f"<td>{status_cell(e['psf_ok'])}</td>")
         lines.append(f"<td>{e['r_fwhm']}</td>")
         lines.append(f"<td>{e['h_fwhm']}</td>")        
@@ -231,14 +249,24 @@ def main():
         required=True,
         help="Run directory containing cutouts/ and html/cutouts/"
     )
+    parser.add_argument(
+        "--results-table",
+        required=True,
+        help="This is likely merged_results.fits that is in runroot directory."
+    )
     args = parser.parse_args()
 
     runroot = Path(args.runroot).resolve()
     entries = collect_entries(runroot)
 
+    # look for merged_results.fits in runroot
+    from astropy.table import Table
+    tab = Table.read(args.results_table)
+    tab = prepare_analysis_table(tab)
+    
     outfile = runroot / "html" / "cutouts" / "index.html"
-    write_index(entries, outfile)
+    write_index(entries, outfile, tab)
 
-
+    
 if __name__ == "__main__":
     main()
