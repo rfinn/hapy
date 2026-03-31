@@ -196,6 +196,7 @@ def write_index(entries, outfile, tab):
     for i, e in enumerate(entries, start=1):
         review_priority = review_priority_map.get(str(e["tag"]), "")
         qc_tier = qc_tier_map.get(str(e["tag"]), "")
+        qc_tier = str(qc_tier).upper()
         lines.append("<tr>")
         lines.append(f"<td>{i}</td>")
         lines.append(f"<td>{e['galname']}</td>")
