@@ -187,6 +187,7 @@ def write_duplicate_pairs(outdir: Path, pairtab: Table) -> None:
     pairtab.write(outdir / "duplicate_pairs.ecsv", format="ascii.ecsv", overwrite=True)
 
 
+
 # ----------------------------------------------------------------------
 # plotting
 # ----------------------------------------------------------------------
@@ -679,12 +680,18 @@ def main():
         "R_SM_R20_ARCSEC", "R_SM_R50_ARCSEC", "R_SM_R80_ARCSEC",
     ]
 
+        
     h_sm_cols = [
         "H_SM_GINI", "H_SM_M20", "H_SM_C", "H_SM_A", "H_SM_S",
         "H_SM_RPETRO_ELLIP_ARCSEC", "H_SM_RHALF_ELLIP_ARCSEC",
         "H_SM_R20_ARCSEC", "H_SM_R50_ARCSEC", "H_SM_R80_ARCSEC",
     ]
 
+    hapy_morph_cols = [
+        "R_HAPY_GINI", "R_HAPY_M20", "R_HAPY_ASYM", "R_HAPY_XC", "R_HAPY_YC", "R_HAPY_MTOT",
+        "H_HAPY_GINI", "H_HAPY_M20", "H_HAPY_ASYM", "H_HAPY_XC", "H_HAPY_YC", "H_HAPY_MTOT",        
+    ]
+        
     galfit_nc_cols = [
         "GAL_MAG", "GAL_RE_ARCSEC", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
     ]
@@ -751,6 +758,20 @@ def main():
         outdir / "ha_statmorph_residuals.png",
         color_by=h_fwhm_col,
         title="Halpha statmorph duplicate residuals",
+        residual=True,
+    )
+    plot_pair_grid(
+        tab, pairtab, pairmasks["hapy_morph_pairs"], h_sm_cols,
+        outdir / "hapy_morph_pairs.png",
+        color_by=h_fwhm_col,
+        title="HAPY morph duplicate comparisons",
+        residual=False,
+    )
+    plot_pair_grid(
+        tab, pairtab, pairmasks["hapy_morph_pairs"], h_sm_cols,
+        outdir / "hapy_morph_residuals.png",
+        color_by=h_fwhm_col,
+        title="HAPY morph duplicate residuals",
         residual=True,
     )
 
