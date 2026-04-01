@@ -816,6 +816,21 @@ def build_mask_for_cutout(
     engine.write_mask(mask_out)
     mask_fits = mask_out
 
+    if use_gaia and gaia_table is not None:
+        bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
+            ra,
+            dec,
+            gaia_table,
+            mag_limit=10,
+            radius_col="radius",
+            min_radius_arcsec=gaia_min_radius_arcsec,
+        )
+
+        row["BRIGHT_STAR_FLAG"] = bright_flag
+        row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
+        row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
+        row["BRIGHT_STAR_MAG"] = bright_mag
+    
     row["MASK_OK"] = True
     row["MASK_FITS"] = str(mask_fits)
     row["MASK_SEC"] = time.perf_counter() - t0
@@ -1352,20 +1367,6 @@ def main():
         logger.info("No mask provided and mask building not requested")
         mask = None
     if mask is not None:
-        if use_gaia and gaia_table is not None:
-            bright_flag, dist_arcsec, maskrad_arcsec, bright_mag = galaxy_overlaps_bright_star(
-                ra,
-                dec,
-                gaia_table,
-                mag_limit=10,
-                radius_col="radius",
-                min_radius_arcsec=gaia_min_radius_arcsec,
-            )
-
-            row["BRIGHT_STAR_FLAG"] = bright_flag
-            row["BRIGHT_STAR_DIST_ARCSEC"] = dist_arcsec
-            row["BRIGHT_STAR_MASKRAD_ARCSEC"] = maskrad_arcsec
-            row["BRIGHT_STAR_MAG"] = bright_mag
 
         res = ellipse_mask_fraction(mask, ell0_params)
         row["ELL0_MASKFRAC"] = res.frac_masked
