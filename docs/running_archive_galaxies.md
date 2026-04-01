@@ -6,14 +6,14 @@ We are incorporating archival data for Virgo Cluster (KKY2001) and Isolated gala
 
 
 # Update Headers
-- Move directory that contains subdirectories for each galaxy.
+- Move directory that contains subdirectories for each galaxy (e.g. /Users/rfinn/research/Virgo/koopmann-images/Virgo/raw)
 - Clear any prior versions of fits files with updated headers:
 ```
 rm */h*.fits
 ```
 - Then update headers:
 ```
-python ~/github/hapy/scripts/update_archive_headers.py
+python ~/github/hapy/scripts/update_archive_headers.py --center-file ~/research/Virgo/koopmann-images/offcenter_virgo_centers.csv
 ```
 # Rename Directories and Images
 ```
@@ -26,25 +26,29 @@ python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research
 ```
 
 # Run `run_analysis`
+Make a directory on draco,
+e.g. `/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401`
+
 I then `rsync` the files to draco:
 
 ```
-cd /Users/rfinn/research/Virgo/koopmann-images/Virgo/cutouts
+cd /Users/rfinn/research/Virgo/koopmann-images/Virgo/
 ```
 
+
 ```
-rsync -avz * draco:/data-pool/HalphaArchive/virgo_cluster/cutouts/.
+rsync -avz cutouts draco:/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/.
 ```
 
 The remaining commands are executed on draco.
 
 ```
-cd /data-pool/HalphaArchive/virgo_cluster
+cd /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401
 ```
 
 Build a directory list:
 ```
-find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_with_dir.txt
+find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutouts_with_dir.txt
 ```
 
 Test one galaxy:
@@ -58,7 +62,7 @@ head -5 cutout_with_dir.txt | parallel --bar -j 2 --joblog run_analysis.joblog -
 ```
 
 ```bash
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --statmorph --galfit --convflag --no-gaia :::: cutout_with_dir.txt
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --statmorph --galfit --convflag --no-gaia :::: cutouts_with_dir.txt
 ```
 
 

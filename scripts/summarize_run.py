@@ -114,7 +114,9 @@ def summarize(tablefile, scheme):
     runtime_cols = [
         "MASK_SEC",
         "PHOT_SEC",
-        "GALFIT_SEC",
+        "SM_SEC",
+        "GALFIT_NC_SEC",
+        "GALFIT_CV_SEC",        
         "TOTAL_SEC",
     ]
 

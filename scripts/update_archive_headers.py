@@ -43,6 +43,11 @@ homedir = os.getenv("HOME")
 tabledir = os.path.join(homedir,'research/Virgo/koopmann-images/paper-tables/')
 import numpy as np
 
+# list of galaxies that we should use sR
+sR_galaxies_dirs = ['n4178','n4212', 'n4419', 'n4571', 'n4651', 'n4689', 'n4808']
+sR_galaxies_names = ['NGC4178','NGC4212', 'NGC4419', 'NGC4571', 'NGC4651', 'NGC4689', 'NGC4808']
+
+
 def get_coords(galname):
     """
     INPUT:
@@ -111,7 +116,7 @@ def get_coords(galname):
     return ra, dec
 
 
-def get_instrument(galname):
+def get_instrument(galname,filter='R'):
     """
     INPUT:
     * galname: e.g. NGC4178, IC3392
@@ -122,11 +127,12 @@ def get_instrument(galname):
     * instrument
     """
     foundMatch = False
-
+    if galname in sR_galaxies_names and filter == 'R':
+        return 'TI2'
     if galname in ['NGC4298', 'NGC4302', 'NGC4567', 'NGC4568', 'NGC4647', 'NGC4649']:
         return 'TEK1'
     elif galname in ['NGC4383', 'UGC7504', 'NGC4606', 'NGC4607', 'NGC4694']:
-        return 't2ka'
+        return 't2ka'.upper()
     # open file
     input = open(os.path.join(tabledir,'KKY01-table3.txt'),'r')
     # search for line starting with gal name
@@ -219,6 +225,8 @@ def get_fwhm(galname):
                         break
 
     return fwhm
+
+
 
 
 def get_pixel_scale(instrument):
@@ -472,6 +480,7 @@ def get_filter_props(galname=None, filter_name=None):
 
 def _pick_r_filter(filter_r_names):
     ifilter = 0
+
     if len(filter_r_names) > 1:
         for i,rf in enumerate(filter_r_names):
             print(rf)
@@ -483,7 +492,7 @@ def _pick_r_filter(filter_r_names):
         ifilter = 0
     return ifilter
 
-def get_zp(galname):
+def get_zp(galname, image_props):
     """Get PHOTZP based on flux ZP and filter width for all R and H-alpha filters.
 
     INPUT:
@@ -500,14 +509,7 @@ def get_zp(galname):
     c = 3e10       # speed of light in cm/s
     f0 = 1e-18     # flux zp in erg/s/cm^2
     ifilter = 0
-    filter_R_names, filter_ha_names = get_filters(galname)
-    filter_R_props, filter_ha_props = get_filter_props(galname)
 
-    # choose the right R filter if there are more than one
-    ifilter = _pick_r_filter(filter_R_names)
-    #print(f"DEBUG: filter_R_names={filter_R_names}, ifilter={ifilter}, galname={galname}")
-    filter_R_names = [filter_R_names[ifilter]]
-    filter_R_props = [filter_R_props[ifilter]]
 
     def calc_zp(cwave_cm, dwave_cm):
         """calculate AB ZP from center wave and width"""
@@ -519,37 +521,50 @@ def get_zp(galname):
         ab_zp = 2.5 * np.log10(3631./fZP_Jy)
         return ab_zp
 
+
     RZPs = []
-    for rcenter_A, rwidth_A in filter_R_props:
+    for rcenter_A, rwidth_A in image_props['filter_R_props']:
         rcenter_cm = rcenter_A * 1e-8 # convert A to cm
         rwidth_cm = rwidth_A * 1e-8 # convert A to cm
 
         RZPs.append(calc_zp(rcenter_cm,rwidth_cm))
 
     HZPs = []
-    for hcenter_A, hwidth_A in filter_ha_props:
+    for hcenter_A, hwidth_A in image_props['filter_ha_props']:
         hcenter_cm = hcenter_A * 1e-8
         hwidth_cm = hwidth_A * 1e-8
         HZPs.append(calc_zp(hcenter_cm,hwidth_cm))
 
-    image_props = {
-        "rfilter_name": filter_R_names[0],
-        "hfilter_name": filter_ha_names[0].replace("\\",""),
-        "rfilter_center_A": filter_R_props[0][0],
-        "rfilter_width_A":filter_R_props[0][1],
-        "hfilter_center_A": filter_ha_props[0][0],
-        "hfilter_width_A": filter_ha_props[0][1],
-        "rfilter_ZP": np.round(float(RZPs[0]),3),
-        "hfilter_ZP": np.round(HZPs[0],3)
-    }
+    image_props["rfilter_ZP"] = np.round(float(RZPs[0]),3)
+    image_props["hfilter_ZP"] = np.round(HZPs[0],3)
+
+
     return image_props
 
-    
-if __name__ == '__main__':
+def get_center(galname, cfile="virgo.centers"):
+    infile = open(cfile,'r')
+    for line in infile:
+        if line.startswith(galname):
+            t = line.split(',')
+            # check length = 3
+            if len(t) == 3:
+                print(f"found alt center for {galname}")
+                infile.close()
+                return float(t[1]),float(t[2])
+    infile.close()
+    return np.nan, np.nan
 
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="First-look science plots for merged HAPY results.")
+    parser.add_argument("--testing", default=False, action="store_true",help="Output directory")
+    parser.add_argument("--center-file",default='virgo.center', help="Full path for file containing centers")    
+    args = parser.parse_args()
+    
     topdir = os.getcwd()
     dirlist = os.listdir()
     dirlist.sort()
+
     for d in dirlist: # loop through directories
         if d.startswith('sn'): # not sure what these are - might be SN observations?
             continue
@@ -578,22 +593,50 @@ if __name__ == '__main__':
 
             # get info
             ra, dec = get_coords(galname)
-            instrument = get_instrument(galname)
-            if instrument is None:
+            r_instrument = get_instrument(galname,filter='R')
+            h_instrument = get_instrument(galname,filter='ha')
+            if r_instrument is None or h_instrument is None:
                 print(f"WARNING: could not find instrument for {galname}, {d}")
                 sys.exit()
 
             fwhm = get_fwhm(galname)
-            #rfilters, hafilters = get_filters(galname)
-            #filter_r_props, filter_ha_props = get_filter_props(galname)
-            image_dict = get_zp(galname)
+            
+            # move this to main function so we are not blending
+            filter_R_names, filter_ha_names = get_filters(galname)
+            filter_R_props, filter_ha_props = get_filter_props(galname)
+
+            if d in sR_galaxies_names:
+                filter_R_names = ['sR']
+            # choose the right R filter if there are more than one
+            ifilter = _pick_r_filter(filter_R_names)
+            #print(f"DEBUG: filter_R_names={filter_R_names}, ifilter={ifilter}, galname={galname}")
+            filter_R_names = [filter_R_names[ifilter]]
+            filter_R_props = [filter_R_props[ifilter]]
+
+    
+            image_dict = {
+                "ra":ra,
+                "dec":dec,
+                "r_instrument": r_instrument,
+                "h_instrument": h_instrument,
+                "fwhm":fwhm,                
+                "rfilter_name": filter_R_names[0],
+                "hfilter_name": filter_ha_names[0].replace("\\",""),
+                "rfilter_center_A": filter_R_props[0][0],
+                "rfilter_width_A":filter_R_props[0][1],
+                "hfilter_center_A": filter_ha_props[0][0],
+                "hfilter_width_A": filter_ha_props[0][1],
+                "filter_R_names":filter_R_names,
+                "filter_R_props":filter_R_props,
+                "filter_ha_names":filter_ha_names,
+                "filter_ha_props":filter_ha_props,
+                }
+            image_dict = get_zp(galname,image_dict)
             #print(f"DEBUG get_zp: {image_dict}")
             #print(f"DEBUG: R ZP = {rzps}")
             #print(f"DEBUG: H ZP = {hzps}")
 
 
-            pixelScale = get_pixel_scale(instrument)
-            pixelScaleDeg = float(pixelScale)/3600 # convert from arcsec/pix to deg/pix
 
             os.chdir(d) # move to directory            
             filelist = os.listdir() # get list of fits images
@@ -603,13 +646,34 @@ if __name__ == '__main__':
                 if os.path.isfile(f) & ('.fits' in f):
                     hdu = fits.open(f)
 
+                    if 'ha' in f.lower():
+                        pixelScale = get_pixel_scale(h_instrument)
+                        
+                    else:
+                        pixelScale = get_pixel_scale(r_instrument)
+
+                    pixelScaleDeg = float(pixelScale)/3600 # convert from arcsec/pix to deg/pix
 
                     # get size of image (naxis1, naxis2)                
                     naxis1 = hdu[0].header['NAXIS1']
                     naxis2 = hdu[0].header['NAXIS2']                
 
+                    xc, yc = get_center(galname,cfile=args.center_file)
+                    if not np.isfinite(xc):
+                        # TODO: check that I have (x,y) mapping to correct dimensions
+                        xc = naxis1/2
+                        yc = naxis2/2
+                        image_dict["center_source"]="image"
+                    else:
+                        image_dict["center_source"]="file"
+                    image_dict["xc"]=xc
+                    image_dict["yc"]=yc                    
+                    
+                    
+                    # TODO get sky noise from tables
+                    
                     # build WCS
-
+                    
 
                     # add wcs info to header
                     hdu[0].header.set('CRVAL1', ra)
@@ -617,9 +681,9 @@ if __name__ == '__main__':
                     hdu[0].header.set('CTYPE1', 'RA---TAN')
                     hdu[0].header.set('CTYPE2', 'DEC--TAN')
 
-
-                    hdu[0].header.set('CRPIX1', naxis1//2)
-                    hdu[0].header.set('CRPIX2', naxis2//2)
+                        
+                    hdu[0].header.set('CRPIX1', xc)
+                    hdu[0].header.set('CRPIX2', yc)
 
 
                     hdu[0].header.set('CD1_1', -1*pixelScaleDeg)
@@ -628,15 +692,9 @@ if __name__ == '__main__':
                     hdu[0].header.set('CD2_1', 0)                
 
 
-                    # add instrument
-                    hdu[0].header.set('INSTRUME', instrument)
 
                     # add fwhm
                     hdu[0].header.set('FWHM', fwhm,"FWHM in arcsec")
-
-                    #add filters
-                    #hdu[0].header.set('R_Filters', ','.join(rfilters))
-                    #hdu[0].header.set('Ha_Filters', ','.join(hafilters))
 
 
                     if 'ha' in f.lower():
@@ -644,20 +702,32 @@ if __name__ == '__main__':
                         hdu[0].header.set('FILTWCEN', image_dict['hfilter_center_A'],"filter center A")  # central wavelength
                         hdu[0].header.set('FILTWID', image_dict['hfilter_width_A'],"filter width A")  # width
                         hdu[0].header.set('PHOTZP', image_dict['hfilter_ZP'],"AB mag ZP")  # zero point
+                        hdu[0].header.set('INSTRUME', image_dict['h_instrument'],"Detector")                        
 
                     else:
                         hdu[0].header.set('FILTER', image_dict['rfilter_name'])
                         hdu[0].header.set('FILTWCEN', image_dict['rfilter_center_A'],"filter center A")  # central wavelength
                         hdu[0].header.set('FILTWID', image_dict['rfilter_width_A'],"filter width A")  # width
                         hdu[0].header.set('PHOTZP', image_dict['rfilter_ZP'],"AB mag ZP")  # zero point
+                        hdu[0].header.set('INSTRUME', image_dict['r_instrument'],"Detector")
 
+                    if args.testing:
+                        #print(f"\nupdated header for {galname}:")
+                        #print(hdu[0].header)
+                        print()
+                        print(image_dict)
+                        break
+                    else:
+                        # prepend an 'h' to image name and save
+                        outfile = 'h'+f
+                        print(f"\tWriting {f} -> {outfile}")
 
-                    # prepend an 'h' to image name and save
-                    outfile = 'h'+f
-                    print(f"\tWriting {f} -> {outfile}")
-                    fits.writeto(outfile, hdu[0].data, hdu[0].header, overwrite=True)
+                        fits.writeto(outfile, hdu[0].data, hdu[0].header, overwrite=True)
 
 
 
             os.chdir(topdir)
             #break
+if __name__ == '__main__':
+
+    main()

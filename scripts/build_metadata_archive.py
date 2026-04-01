@@ -678,8 +678,32 @@ def apply_plan(plan: Plan, link: bool = False, keep_old_dir: bool = False) -> No
     move_or_link(plan.cs_old, plan.cs_new, link=link)
     move_or_link(plan.r_old, plan.r_new, link=link)
 
+
+    from astropy.io import fits
+    import numpy as np
+
     if plan.mask_old and plan.mask_new:
-        move_or_link(plan.mask_old, plan.mask_new, link=link)
+        old_path = Path(plan.mask_old)
+        new_path = Path(plan.mask_new)
+
+        if link:
+            # If linking, we cannot invert — fall back to copy + invert
+            print("WARNING: cannot invert mask with symlink; copying instead")
+
+        data = fits.getdata(old_path)
+
+        # ensure binary mask
+        data = np.asarray(data)
+
+        # invert: 1 (good) -> 0, 0 (bad) -> 1
+        new_data = 1 - data
+
+        # Optional: enforce integer type (recommended)
+        new_data = new_data.astype(np.uint8)
+        print("writing ",new_path)
+        fits.writeto(new_path, new_data, overwrite=True)
+    
+    
 
     with open(plan.metadata_path, "w") as f:
         json.dump(plan.metadata, f, indent=2)
