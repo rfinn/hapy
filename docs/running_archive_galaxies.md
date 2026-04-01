@@ -62,7 +62,7 @@ head -5 cutout_with_dir.txt | parallel --bar -j 2 --joblog run_analysis.joblog -
 ```
 
 ```bash
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --statmorph --galfit --convflag --no-gaia :::: cutouts_with_dir.txt
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --statmorph --galfit --no-gaia :::: cutouts_with_dir.txt
 ```
 
 
@@ -167,7 +167,9 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 ```
 
 ```
-python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260326/
+python ~/github/hapy/scripts/build_cutout_index.py --runroot
+/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/
+--results-table merged_results.fits 
 ```
 
 ## Transfer to fitsxfr
