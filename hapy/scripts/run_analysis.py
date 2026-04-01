@@ -1431,16 +1431,16 @@ def main():
         ]
 
 
-    for outname, attr in FIELDS:
+    for outk, attr in FIELDS:
         v = getattr(e, attr, None)
 
         sv = _scalar(v)
         
         if sv is not None:
-            if "_ARCSEC" in outname:
-                print(f"Converting to arcsec for ",outk, attr)
+            if "_ARCSEC" in outk:
+                #print(f"Converting to arcsec for ",outk, attr)
                 sv = sv * pixscale
-            row[outname] = sv  # leave as np.nan if missing/array/etc.
+            row[outk] = sv  # leave as np.nan if missing/array/etc.
 
     # convert theta to PA and store
     if row["ELLIP_THETA_RAD"] is not None:
