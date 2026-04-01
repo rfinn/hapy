@@ -169,6 +169,8 @@ def add_derived_columns(tab):
 
     tab["H_R50_RATIO"] = ratio
 
+
+
     return tab
 
 def add_duplicate_metadata(tab, id_col="VFID"):
@@ -231,7 +233,8 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
     # -----------------------------
     flags["R_PROFILE_NGOOD"] = safe_float_array(tab, "R_PROFILE_NGOOD")
     flags["H_PROFILE_NGOOD"] = safe_float_array(tab, "H_PROFILE_NGOOD")
-    flags["R_PROFILE_MASKFRAC_MAX"] = safe_float_array(tab, "R_PROFILE_MASKFRAC_MAX")
+    flags["MASKFRAC_GUESS_ELLIPSE"] = safe_float_array(tab, "MASKFRAC_GUESS_ELLIPSE")
+    flags["R_PROFILE_MASKFRAC_MAX"] = safe_float_array(tab, "R_PROFILE_MASKFRAC_MAX")    
     flags["H_PROFILE_MASKFRAC_MAX"] = safe_float_array(tab, "H_PROFILE_MASKFRAC_MAX")
     flags["H_HAPY_NPIX"] = safe_float_array(tab, "H_HAPY_NPIX")
     flags["H_HAPY_SNP_DET"] = safe_float_array(tab, "H_HAPY_SNP_DET")
@@ -297,8 +300,9 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
 
     flags["WARN_MASK"] = (
         flags["ELL0_MASK_WARN"] |
-        (np.isfinite(flags["R_PROFILE_MASKFRAC_MAX"]) & (flags["R_PROFILE_MASKFRAC_MAX"] > 0.3)) |
-        (np.isfinite(flags["H_PROFILE_MASKFRAC_MAX"]) & (flags["H_PROFILE_MASKFRAC_MAX"] > 0.3))
+        (np.isfinite(flags["MASKFRAC_GUESS_ELLIPSE"]) & (flags["MASKFRAC_GUESS_ELLIPSE"] > 0.3))
+        #(np.isfinite(flags["R_PROFILE_MASKFRAC_MAX"]) & (flags["R_PROFILE_MASKFRAC_MAX"] > 0.3)) |
+        #(np.isfinite(flags["H_PROFILE_MASKFRAC_MAX"]) & (flags["H_PROFILE_MASKFRAC_MAX"] > 0.3))
     )
 
     flags["WARN_WEAK_HA"] = (
@@ -590,7 +594,10 @@ def get_review_priority(tab: Table) -> np.ndarray:
     high = (
         ~safe_bool_array(tab, "PHOT_OK") |
         ~safe_bool_array(tab, "HAPY_MORPH_OK") |
-        safe_bool_array(tab, "FILTER_WARNING")
+        safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+        safe_bool_array(tab, "WARN_MASK") |
+        
+
     )
 
     priority[high] = "high"
@@ -601,7 +608,8 @@ def get_review_priority(tab: Table) -> np.ndarray:
     medium = (
         safe_bool_array(tab, "ELL_MISMATCH") |
         safe_bool_array(tab, "WARN_MASK") |
-        safe_bool_array(tab, "WARN_WEAK_HA")
+        safe_bool_array(tab, "WARN_WEAK_HA") |
+        safe_bool_array(tab, "FILTER_WARNING")
     )
 
     priority[medium & (~high)] = "medium"
