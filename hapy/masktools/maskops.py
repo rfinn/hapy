@@ -303,7 +303,7 @@ def ellipse_mask_fraction(mask, ell: EllipseParams):
             n_unmasked=n_unmasked
             )
 
-import numpy as np
+
 
 
 def distance_to_nearest_mask(mask, xc, yc):
