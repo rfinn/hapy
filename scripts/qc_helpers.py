@@ -595,9 +595,7 @@ def get_review_priority(tab: Table) -> np.ndarray:
         ~safe_bool_array(tab, "PHOT_OK") |
         ~safe_bool_array(tab, "HAPY_MORPH_OK") |
         safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
-        safe_bool_array(tab, "WARN_MASK") |
-        
-
+        safe_bool_array(tab, "WARN_MASK") 
     )
 
     priority[high] = "high"
