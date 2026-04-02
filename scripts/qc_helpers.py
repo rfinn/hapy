@@ -42,7 +42,6 @@ def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarr
         # else: leave default
 
     return out
-
 def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
     if colname not in tab.colnames:
         return np.full(len(tab), default, dtype=float)

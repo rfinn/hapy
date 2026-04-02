@@ -217,6 +217,8 @@ def plot_pair_grid(
 
             ax.set_xlabel(col)
             ax.set_ylabel("obs2 - obs1")
+
+            
         else:
             if cc is not None:
                 cb_handle = ax.scatter(x1, x2, c=cc, s=18, alpha=0.75)
@@ -237,10 +239,30 @@ def plot_pair_grid(
         std = get_std(dx)
         ax.text(
             0.04, 0.96,
-            f"$med\Delta={med:.3g}\nmad\Delta={mad:.3g}\n\sigma={std:.3g}\nN={len(dx)}$",
+            (
+                f"$\\mathrm{{med}}\\,\\Delta = {med:.3g}$\n"
+            f"$\\mathrm{{mad}}\\,\\Delta = {mad:.3g}$\n"
+            f"$\\ mad/med = {mad/med:.3g}$\n"
+            f"$N = {len(dx)}$"
+            ),
             transform=ax.transAxes,
             ha="left", va="top", fontsize=9,
-        )
+            )
+        if residual:
+            plt.axhline(y=med,ls='-',c='k')
+            x1,x2 = plt.xlim()
+            xline=np.linspace(x1,x2,100)
+            #yline = np.ones(100)*med
+            #plt.fill_between(xline,y1=yline+mad,y2=yline-mad,color='0.5',alpha=.2)
+            plt.axhline(y=med+mad,ls='--',c='k')
+            plt.axhline(y=med-mad,ls='--',c='k')            
+        
+        # ax.text(
+        #     0.04, 0.96,
+        #     f"$med\Delta={med:.3g}\nmad\Delta={mad:.3g}\n\sigma={std:.3g}\nN={len(dx)}$",
+        #     transform=ax.transAxes,
+        #     ha="left", va="top", fontsize=9,
+        # )
 
         # show bulk of data, not outliers
         xmin, xmax = _robust_limits(x1)
@@ -248,8 +270,8 @@ def plot_pair_grid(
             ymin, ymax = _robust_limits(dx,qlo=0.05, qhi=0.95)
         else:
             ymin, ymax = _robust_limits(x2,qlo=0.05, qhi=0.95)
-        ax.set_xlim(xmin,xmax)
-        ax.set_ylim(ymin,ymax)
+        #ax.set_xlim(xmin,xmax)
+        #ax.set_ylim(ymin,ymax)
         
 
     if title:
@@ -537,7 +559,7 @@ def plot_rainclouds(unique_pairs, pair_names, residual):
 def main():
     parser = argparse.ArgumentParser(description="QC analysis for duplicate HAPY observations.")
     parser.add_argument("table", help="Merged HAPY results table (e.g. merged_results.fits)")
-    parser.add_argument("--outdir", default="qc_duplicates", help="Output directory")
+    parser.add_argument("--outdir", default="validate_duplicates", help="Output directory")
     parser.add_argument(
         "--scheme",
         choices=["virgo", "agc"],
