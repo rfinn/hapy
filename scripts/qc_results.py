@@ -944,7 +944,7 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     # -------------------------
     cols = [
         # identity
-        "VFID", "GALNAME", "TAG",
+        "VFID", "GALNAME", "OBJID", "TAG",
         # QC
         "QC_TIER", "SCIENCE_READY",
         "R_STRUCTURE_GOOD", "HA_EXTENT_GOOD", "HA_MORPH_GOOD",
