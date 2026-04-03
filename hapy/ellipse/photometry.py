@@ -672,18 +672,18 @@ class EllipsePhotometry():
         """ save photutils segmentation image """
         outname = self.image_name.replace(".fits","-phot-segmentation.png")
         plt.figure()
-        plt.subplot(1,2,1)
+        #plt.subplot(1,2,1)
         plt.imshow(self.segmentation,origin="lower")
         plt.colorbar()
-        plt.subplot(1,2,2)
-        plt.imshow(self.segment_map2,origin="lower")
-        plt.colorbar()
+        #plt.subplot(1,2,2)
+        #plt.imshow(self.segment_map2,origin="lower")
+        #plt.colorbar()
         plt.savefig(outname)
 
         outname = self.image_name.replace(".fits","-phot-segmentation.fits")
         fits.writeto(outname,data=self.segmentation, header=self.header,overwrite=True)
-        outname = self.image_name.replace(".fits","-phot-segmentation2.fits")
-        fits.writeto(outname,data=self.segment_map2, header=self.header,overwrite=True)        
+        #outname = self.image_name.replace(".fits","-phot-segmentation2.fits")
+        #fits.writeto(outname,data=self.segment_map2, header=self.header,overwrite=True)        
         
     def detect_objectsv2(self, snrcut=1.5,npixels=10):
         ''' 
