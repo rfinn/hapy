@@ -1684,7 +1684,13 @@ class EllipsePhotometry():
             print("WARNING: did not fit central ellipse.  falling back to guess ellipse.")
             self.logger.warning(f"Ellipse fit failed; using guess geometry. {e}")
 
-  
+        print("at end of fit_central_ellipse")
+        print(f"\txcenter_fit={self.xcenter_fit:.2f}\n",
+                  f"\tycenter_fit={self.ycenter_fit:.2f}\n",
+                  f"\teps_fit={self.eps_fit:.2f}\n",
+                  f"\tpa_fit={self.pa_fit:.2f}\n",
+                  f"\tsma_fit={self.sma_fit:.2f}\n",                  
+                )
 
             
     def measure_mask_fraction_in_guess_ellipse(self):
