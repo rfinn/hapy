@@ -667,7 +667,7 @@ class EllipsePhotometry():
             if self.image2 is not None:
                 # measure halpha properties using same segmentation image
                 self.cat2 = SourceCatalog(self.image2, self.segmentation)
-            
+        print(f"DEBUG: self.threshold={self.threshold:.4f}")
     def save_segmentation_png(self):
         """ save photutils segmentation image """
         outname = self.image_name.replace(".fits","-phot-segmentation.png")
