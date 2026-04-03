@@ -632,7 +632,7 @@ class EllipsePhotometry():
             self.image2 -= self.sky2
 
         #TODO add this into image header
-    def detect_objects(self, snrcut=20,npixels=100):
+    def detect_objects(self, snrcut=1.5,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
@@ -641,9 +641,11 @@ class EllipsePhotometry():
         '''               
         if self.mask_flag:
             if np.isfinite(self.sky_noise):
-                self.threshold = self.sky_noise
+                self.threshold = float(snrcut*self.sky_noise)
             else:
                 self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
+            #print(f"DEBUG in detect_object, skynoise={self.sky_noise:.3f}, threshold=
+            #self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
             self.segmentation = detect_sources(self.image, self.threshold, npixels=npixels, mask=self.boolmask)
 
             # 
@@ -667,7 +669,7 @@ class EllipsePhotometry():
             if self.image2 is not None:
                 # measure halpha properties using same segmentation image
                 self.cat2 = SourceCatalog(self.image2, self.segmentation)
-        print(f"DEBUG: self.threshold={self.threshold:.4f}")
+        print(f"DEBUG: self.threshold={self.threshold}")
     def save_segmentation_png(self):
         """ save photutils segmentation image """
         outname = self.image_name.replace(".fits","-phot-segmentation.png")
