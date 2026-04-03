@@ -284,9 +284,6 @@ class EllipsePhotometry():
         except KeyError:
             warnings.warn(f"No PHOTZP keyword in image {image} header. \nAssuming ZP=22.5")
             self.magzp = 22.5
-
-
-
         # get image dimensions - will use this to determine the max sma to measure
         self.yimage_max, self.ximage_max = self.image.shape
 
@@ -296,12 +293,12 @@ class EllipsePhotometry():
         
         self.pixel_scale = imutils.get_pixel_scale(self.header)        
         # check to see if obj position is passed in - need to do this for off-center objects
-        if (objra is not None): # unmask central elliptical region around object
+        # and to unmask central elliptical region around object
+        if (objra is not None): 
             # get wcs from mask image
             wcs = WCS(self.header)
             
             # get x and y coord of galaxy from (RA,DEC) using mask wcs
-            #print(f"\nobject RA={self.objra:.4f}, DEC={self.objdec:.4f}\n")
             self.xcenter,self.ycenter = wcs.wcs_world2pix(self.objra,self.objdec,0)
             self.xcenter_ra = self.xcenter
             self.ycenter_dec = self.ycenter            
@@ -352,22 +349,37 @@ class EllipsePhotometry():
         # these will be ignored when defining the shape of the ellipse and when measuring the photometry
         #
         # self.mask_flag is True if a mask is provided
+
         if mask is not None:
-            self.mask_image, self.mask_header = fits.getdata(mask,header=True)
+            self.mask_image, self.mask_header = fits.getdata(mask, header=True)
             self.mask_flag = True
-            # convert to boolean array with bad pixels = True
-            self.boolmask = np.array(self.mask_image,'bool')
-            self.masked_image = np.ma.array(self.image, mask = self.boolmask)
+
+            # True = bad pixel
+            self.boolmask = np.asarray(self.mask_image, dtype=bool)
+
+            self.masked_image = np.ma.array(self.image, mask=self.boolmask)
+
+            self.image_for_ellipse = np.array(self.image, dtype=float, copy=True)
+            self.image_for_ellipse[self.boolmask] = np.nan
+
             if self.image2_flag:
-                self.masked_image2 = np.ma.array(self.image2, mask = self.boolmask)
+                self.masked_image2 = np.ma.array(self.image2, mask=self.boolmask)
+                self.image2_for_ellipse = np.array(self.image2, dtype=float, copy=True)
+                self.image2_for_ellipse[self.boolmask] = np.nan
         else:
             print('not using a mask')
             self.mask_flag = False
             self.mask_image = None
             self.mask_header = None
+            self.boolmask = None
+
             self.masked_image = self.image
+            self.image_for_ellipse = np.asarray(self.image, dtype=float)
+
             if self.image2_flag:
                 self.masked_image2 = self.image2
+                self.image2_for_ellipse = np.asarray(self.image2, dtype=float)
+        
         # image frame for plotting inside a gui
         # like if this is called from halphamain.py
         self.image_frame = image_frame
@@ -507,6 +519,10 @@ class EllipsePhotometry():
         self.find_central_object() 
         print("find ellipse guess")               
         self.get_ellipse_guess()
+        
+        print("find ellipse guess") 
+        self.fit_central_ellipse()
+        
         print("get frac masked pixels")
         self.set_guess_ellipse_mask_metrics()        
         print("measure phot")                
@@ -1449,60 +1465,185 @@ class EllipsePhotometry():
             self.asym2_center = np.array([r+yc,c+xc])
             #print('asymmetry2 = ',self.asym2)
             print('asymmetry = {:.3f}+/-{:.3f}'.format(self.asym2,self.asym2_err))
- 
-        
+
     def get_ellipse_guess(self, r=2.5):
-        '''
-        this gets the guess for the ellipse geometry from the detection catalog 
+        """
+        Build the initial ellipse guess from the detection catalog for the
+        selected central object.
 
-        ?? why am I scaling by 2.5x?
-        '''
+        Parameters
+        ----------
+        r : float, optional
+            Scale factor applied to the catalog semimajor/minor sigma values
+            to define the initial aperture size. Default is 2.5.
+        """
         obj = self.cat[self.objectIndex]
-        #self.xcenter = obj.xcentroid.value
-        #self.ycenter = obj.ycentroid.value
 
+        # Set guess center from the detected object unless the center is fixed.
         if not self.fixcenter:
-            self.xcenter = float(obj.xcentroid)
-            self.ycenter = float(obj.ycentroid)
+            self.xcenter_guess = float(obj.xcentroid)
+            self.ycenter_guess = float(obj.ycentroid)
 
+        self.position_guess = (self.xcenter_guess, self.ycenter_guess)
 
-        #if self.objra is not None:
-        #    print("")            
-        #    print(f"comparing xcenter {self.xcenter:.1f} and from ra {self.xcenter_ra:.1f}")
-        #    print(f"comparing ycenter {self.ycenter:.1f} and from dec {self.ycenter_dec:.1f}")
-        #    print()
-        self.position = (self.xcenter, self.ycenter)
-        #print(self.position,self.xcenter,obj.xcentroid,self.ycenter,obj.ycentroid)
-        self.sma = obj.semimajor_sigma.value * r # pixels
-        self.start_size = self.sma
-        self.b = obj.semiminor_sigma.value * r
-        self.eps = 1 - self.b/self.sma
-        self.gini = obj.gini
-        self.source_sum = self.cat[self.objectIndex].segment_flux
+        # Initial size / shape guess in pixels.
+        self.sma_guess = float(obj.semimajor_sigma.value) * r
+        self.b_guess = float(obj.semiminor_sigma.value) * r
+
+        # Guard against pathological values.
+        self.sma_guess = max(self.sma_guess, 1.0)
+        self.b_guess = max(min(self.b_guess, self.sma_guess), 1.0)
+
+        self.start_size = self.sma_guess
+        self.eps_guess = 1.0 - self.b_guess / self.sma_guess
+
+        # Source properties from photutils catalog.
+        self.gini = float(obj.gini) if np.isfinite(obj.gini) else np.nan
+        self.source_sum = float(obj.segment_flux)
         self.sky_centroid = obj.sky_centroid
-        # orientation is angle in radians, CCW relative to +x axis
-        t = obj.orientation.value
-        # orientation: radians CCW from +x axis (photutils-style)
-        theta = float(obj.orientation.to(u.rad).value)
-        self.theta = theta % np.pi
-        try:
-            self.aperture = EllipticalAperture(self.position, self.sma, self.b, theta=self.theta)
-        except ValueError:
-            print("\nTrouble in paradise...")
-            print(self.position,self.sma,self.b,self.theta)
-            sys.exit()
-        # EllipseGeometry using angle in radians, CCW from +x axis
-        self.guess = EllipseGeometry(x0=self.xcenter,y0=self.ycenter,sma=self.sma,eps = self.eps, pa = self.theta)
 
-        
+        # Orientation in radians, CCW from +x axis.
+        self.pa_guess = float(obj.orientation.to(u.rad).value) % np.pi
+
+        # Initial aperture from guessed geometry.
+        try:
+            self.aperture_guess = EllipticalAperture(
+                self.position_guess,
+                self.sma_guess,
+                self.b_guess,
+                theta=self.pa_guess,
+            )
+        except ValueError as e:
+            raise ValueError(
+                "Invalid ellipse guess: "
+                f"position={self.position_guess}, "
+                f"sma={self.sma_guess}, b={self.b_guess}, pa={self.pa_guess}"
+            ) from e
+
+        # Initial EllipseGeometry for subsequent fitting.
+        self.guess = EllipseGeometry(
+            x0=self.xcenter_guess,
+            y0=self.ycenter_guess,
+            sma=self.sma_guess,
+            eps=self.eps_guess,
+            pa=self.pa_guess,
+        )
+
+        # Backward-compatible aliases, if other code still expects these names.
+        self.position = self.position_guess
+        self.sma = self.sma_guess
+        self.b = self.b_guess
+        self.eps = self.eps_guess
+        self.theta = self.pa_guess
+        self.aperture = self.aperture_guess
+
+        # Segment-based flux diagnostics.
         self.photutils_segment_flux = np.nan
         self.photutils_segment_mag = np.nan
 
-        if np.isfinite(self.source_sum) and (self.source_sum > 0):
-            self.photutils_segment_flux = float(self.source_sum)
+        if np.isfinite(self.source_sum) and self.source_sum > 0:
+            self.photutils_segment_flux = self.source_sum
             self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
+            
+        
+    # def get_ellipse_guess(self, r=2.5):
+    #     '''
+    #     this gets the guess for the ellipse geometry from the detection catalog 
 
-    
+    #     ?? why am I scaling by 2.5x?
+    #     '''
+    #     obj = self.cat[self.objectIndex]
+    #     #self.xcenter = obj.xcentroid.value
+    #     #self.ycenter = obj.ycentroid.value
+
+    #     if not self.fixcenter:
+    #         self.xcenter_guess = float(obj.xcentroid)
+    #         self.ycenter_guess = float(obj.ycentroid)
+
+
+    #     #if self.objra is not None:
+    #     #    print("")            
+    #     #    print(f"comparing xcenter {self.xcenter:.1f} and from ra {self.xcenter_ra:.1f}")
+    #     #    print(f"comparing ycenter {self.ycenter:.1f} and from dec {self.ycenter_dec:.1f}")
+    #     #    print()
+    #     self.position = (self.xcenter_guess, self.ycenter_guess)
+    #     #print(self.position,self.xcenter,obj.xcentroid,self.ycenter,obj.ycentroid)
+    #     self.sma = obj.semimajor_sigma.value * r # pixels
+    #     self.start_size = self.sma
+    #     self.b = obj.semiminor_sigma.value * r
+    #     self.eps = 1 - self.b/self.sma
+    #     self.gini = obj.gini
+    #     self.source_sum = self.cat[self.objectIndex].segment_flux
+    #     self.sky_centroid = obj.sky_centroid
+    #     # orientation is angle in radians, CCW relative to +x axis
+    #     t = obj.orientation.value
+    #     # orientation: radians CCW from +x axis (photutils-style)
+    #     theta = float(obj.orientation.to(u.rad).value)
+    #     self.theta = theta % np.pi
+    #     try:
+    #         self.aperture = EllipticalAperture(self.position, self.sma, self.b, theta=self.theta)
+    #     except ValueError:
+    #         print("\nTrouble in paradise...")
+    #         print(self.position,self.sma,self.b,self.theta)
+    #         sys.exit()
+    #     # EllipseGeometry using angle in radians, CCW from +x axis
+    #     self.guess = EllipseGeometry(x0=self.xcenter,y0=self.ycenter,sma=self.sma,eps = self.eps, pa = self.theta)
+
+        
+    #     self.photutils_segment_flux = np.nan
+    #     self.photutils_segment_mag = np.nan
+
+    #     if np.isfinite(self.source_sum) and (self.source_sum > 0):
+    #         self.photutils_segment_flux = float(self.source_sum)
+    #         self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
+
+
+    def fit_central_ellipse(self):
+        """
+        Refine center, PA, and ellipticity from the r-band light distribution.
+        Fall back to the guessed geometry if the fit fails.
+        """
+        self.xcenter_fit = self.xcenter_guess
+        self.ycenter_fit = self.ycenter_guess
+        self.eps_fit = self.eps_guess
+        self.pa_fit = self.pa_guess
+        self.sma_fit = self.sma_guess
+        self.ellipse_fit_ok = False
+
+        try:
+            geom = EllipseGeometry(
+                x0=self.xcenter_guess,
+                y0=self.ycenter_guess,
+                sma=max(self.sma_guess, 5.0),
+                eps=np.clip(self.eps_guess, 0.0, 0.9),
+                pa=self.pa_guess,
+            )
+
+            ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
+            isolist = ellipse.fit_image(
+                sma0=max(self.sma_guess, 5.0),
+                minsma=max(2.0, 0.5 * self.sma_guess),
+                maxsma=max(self.sma_guess * 2.0, 20.0),
+                fix_center=False,
+                fix_pa=False,
+                fix_eps=False,
+            )
+
+            iso = isolist.get_closest(self.sma_guess)
+
+            self.xcenter_fit = iso.sample.geometry.x0
+            self.ycenter_fit = iso.sample.geometry.y0
+            self.eps_fit = iso.sample.geometry.eps
+            self.pa_fit = iso.sample.geometry.pa
+            self.sma_fit = iso.sample.geometry.sma
+            self.ellipse_fit_ok = True
+
+        except Exception as e:
+            self.logger.warning(f"Ellipse fit failed; using guess geometry. {e}")
+
+  
+
+            
     def measure_mask_fraction_in_guess_ellipse(self):
         """
         Measure the fraction of masked pixels inside the photutils-derived
@@ -1678,26 +1819,26 @@ class EllipsePhotometry():
         Returns:
         apertures_a, apertures_b, area_total, allellipses
         """
-        ct = max(1e-6, abs(np.cos(self.theta)))
-        st = max(1e-6, abs(np.sin(self.theta)))
+        ct = max(1e-6, abs(np.cos(self.pa_fit)))
+        st = max(1e-6, abs(np.sin(self.pa_fit)))
 
         rmax = np.min([
-            (self.ximage_max - self.xcenter) / ct,
-            (self.yimage_max - self.ycenter) / st,
-            self.xcenter / ct,
-            self.ycenter / st,
+            (self.ximage_max - self.xcenter_fit) / ct,
+            (self.yimage_max - self.ycenter_fit) / st,
+            self.xcenter_fit / ct,
+            self.ycenter_fit / st,
             ])
 
         index = np.arange(80)
         # Becky's list of apertures
         apertures = (index + 1) * 0.5 * self.fwhm * (1 + (index + 1) * 0.1)
         apertures_a = apertures[apertures < rmax]
-        apertures_b = (1.0 - self.eps) * apertures_a
+        apertures_b = (1.0 - self.eps_fit) * apertures_a
         area_total = np.pi * apertures_a * apertures_b
 
         allellipses = [
             EllipticalAperture(
-                (self.xcenter, self.ycenter),
+                (self.xcenter_fit, self.ycenter_fit),
                 apertures_a[i],
                 apertures_b[i],
                 self.theta,
