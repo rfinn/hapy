@@ -1615,7 +1615,42 @@ class EllipsePhotometry():
         self.pa_fit = self.pa_guess
         self.sma_fit = self.sma_guess
         self.ellipse_fit_ok = False
+        print("at beginning of fit_central_ellipse")
+        print(f"\txcenter_fit={self.xcenter_fit:.2f}\n",
+                  f"\tycenter_fit={self.ycenter_fit:.2f}\n",
+                  f"\teps_fit={self.eps_fit:.2f}\n",
+                  f"\tpa_fit={self.pa_fit:.2f}\n",
+                  f"\tsma_fit={self.sma_fit:.2f}\n",                  
+                )
+        geom = EllipseGeometry(
+            x0=self.xcenter_guess,
+            y0=self.ycenter_guess,
+            sma=max(self.sma_guess, 5.0),
+            eps=np.clip(self.eps_guess, 0.0, 0.9),
+            pa=self.pa_guess,
+        )
 
+        #ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
+        # ellipse = Ellipse(self.image, geometry=geom)
+        # isolist = ellipse.fit_image(
+        #     sma0=max(self.sma_guess, 5.0),
+        #     minsma=max(2.0, 0.5 * self.sma_guess),
+        #     maxsma=max(self.sma_guess * 2.0, 20.0),
+        #     fix_center=False,
+        #     fix_pa=False,
+        #     fix_eps=False,
+        # )
+
+        # iso = isolist.get_closest(self.sma_guess)
+
+        # self.xcenter_fit = iso.sample.geometry.x0
+        # self.ycenter_fit = iso.sample.geometry.y0
+        # self.eps_fit = iso.sample.geometry.eps
+        # self.pa_fit = iso.sample.geometry.pa
+        # self.sma_fit = iso.sample.geometry.sma
+        # self.ellipse_fit_ok = True
+            
+        
         try:
             geom = EllipseGeometry(
                 x0=self.xcenter_guess,
@@ -1625,7 +1660,8 @@ class EllipsePhotometry():
                 pa=self.pa_guess,
             )
 
-            ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
+            #ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
+            ellipse = Ellipse(self.image, geometry=geom)
             isolist = ellipse.fit_image(
                 sma0=max(self.sma_guess, 5.0),
                 minsma=max(2.0, 0.5 * self.sma_guess),

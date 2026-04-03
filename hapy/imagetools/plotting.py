@@ -177,7 +177,7 @@ def plot_mask_ellipse_diagnostic(
     outfile,
     row
 ):
-
+    Xsize=10
     r_data, r_hdr = fits.getdata(r_fits, header=True)
     m_data = fits.getdata(mask_fits)
     mmask = m_data > 0
@@ -195,7 +195,8 @@ def plot_mask_ellipse_diagnostic(
     ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
                                   edgecolor="magenta", linewidth=2))
 
-
+    ax[0].plot(e0.xc, e0.yc,'cX',markersize=Xsize)
+    ax[0].plot(eph.xc, eph.yc,'mX',markersize=Xsize)    
     objid = row.get("OBJID")
     #print("DEBUG: in plotting.plot_mask_ellipse_diagnostic, objid=",objid)
      
@@ -209,7 +210,9 @@ def plot_mask_ellipse_diagnostic(
     ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
                                   edgecolor="magenta", linewidth=2))
 
-    
+    # mark center
+    ax[1].plot(e0.xc, e0.yc,'cX',markersize=Xsize)
+    ax[1].plot(eph.xc, eph.yc,'mX',markersize=Xsize)        
     #ax[1].add_patch(ellipse_patch(xc, yc, sma_pix, params["ba"], theta_photutils, edgecolor="cyan", linewidth=2))
     ax[1].set_title("Mask")
 
