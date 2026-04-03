@@ -311,7 +311,7 @@ class EllipsePhotometry():
             # convert sma to pixels using pixel scale from mask wcs
             #self.pixel_scale = wcs.pixel_scale_matrix[1][1]
             #self.objsma_pixels = self.objsma/(self.pixel_scale*3600)
-        print(f"DEBUG inside EllipsePhotometry: xc={self.xcenter},yc={self.ycenter:.1f},\nra={self.objra:.6f},dec={self.objdec:.6f}")
+        print(f"DEBUG inside EllipsePhotometry: xc={self.xcenter:.1f},yc={self.ycenter:.1f},\nra={self.objra:.6f},dec={self.objdec:.6f}")
         # image 2 is designed to be the Halpha image, but it can be any second
         # image whereby you define the ellipse geometry using image 1, and
         # measure the photometry on image 1 and image 2

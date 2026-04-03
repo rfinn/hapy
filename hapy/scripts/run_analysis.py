@@ -1274,7 +1274,7 @@ def main():
                 xc, yc = float(xw), float(yw)
         except Exception:
             pass
-    print(f"DEBUG: xc={xc},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")
+    print(f"DEBUG: xc={xc:.1f},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")
     # -- let user input ellipse geometry that is different from what is in metadata.json
     if args.sma_arcsec is not None and args.ba is not None and args.pa_deg is not None:
         sma_arcsec = float(args.sma_arcsec)
@@ -1300,7 +1300,7 @@ def main():
     row["ELL0_XC"] = xc
     row["ELL0_YC"] = yc
     row["ELL0_SOURCE"] = "metadata.json" if params_path.exists() else "args"
-    print(f"DEBUG: xc={xc},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")
+    print(f"DEBUG: xc={xc:.1f},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")
     ell0_params = EllipseParams(
         xc = xc,
         yc = yc,
@@ -1391,7 +1391,7 @@ def main():
         row["HFILTER"] = hafilter
     filter_ratio = row["FILTER_RATIO"]
 
-    print(f"DEBUG: xc={xc},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")
+    print(f"DEBUG: xc={xc:.1f},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")
     e = run_ellipse_photometry(
         r_fits=r_fits,
         cs_fits=cs_fits,
