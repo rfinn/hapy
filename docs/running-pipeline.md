@@ -381,3 +381,8 @@ run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coa
 --galfit --convflag --log-to-console --gaia-dir
 /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3/ --cutout-dir cutouts/VFID1588-NGC5169-HDI-20170523-p023
 ```
+
+```
+run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3 --gaia-dir
+/Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3/ --cutout-dir cutouts/VFID1588-NGC5169-HDI-20170523-p023
+```

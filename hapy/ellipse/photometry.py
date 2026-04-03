@@ -632,7 +632,7 @@ class EllipsePhotometry():
             self.image2 -= self.sky2
 
         #TODO add this into image header
-    def detect_objects(self, snrcut=3.,npixels=10):
+    def detect_objects(self, snrcut=10.,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
@@ -669,7 +669,7 @@ class EllipsePhotometry():
             if self.image2 is not None:
                 # measure halpha properties using same segmentation image
                 self.cat2 = SourceCatalog(self.image2, self.segmentation)
-        print(f"DEBUG: self.threshold={self.threshold}")
+        #print(f"DEBUG: self.threshold={self.threshold}")
     def save_segmentation_png(self):
         """ save photutils segmentation image """
         outname = self.image_name.replace(".fits","-phot-segmentation.png")
@@ -1659,15 +1659,15 @@ class EllipsePhotometry():
             #ellipse = Ellipse(self.image, geometry=geom)
             ellipse = Ellipse(self.masked_image, geometry=geom, threshold=self.threshold)
             isolist = ellipse.fit_image(
-                sma0=max(self.sma_guess, 5.0),
-                minsma=max(2.0, 0.5 * self.sma_guess),
-                maxsma=max(self.sma_guess * 2.0, 20.0),
+                sma0=max(self.sma_fit, 5.0),
+                minsma=max(2.0, 0.5 * self.sma_fit),
+                maxsma=max(self.sma_fit * 2.0, 20.0),
                 fix_center=False,
                 fix_pa=False,
                 fix_eps=False,
             )
 
-            iso = isolist.get_closest(self.sma_guess)
+            iso = isolist.get_closest(self.sma_fit)
 
             self.xcenter_fit = iso.sample.geometry.x0
             self.ycenter_fit = iso.sample.geometry.y0
