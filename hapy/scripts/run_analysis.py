@@ -1399,6 +1399,7 @@ def main():
         objra=ra,
         objdec=dec,
         fixcenter=args.fixcenter,
+        logger=logger,
         #run_statmorph=args.statmorph,
         #write_prefix=prefix,
     )
@@ -1409,11 +1410,11 @@ def main():
 
     # ---- core ellipse / detection-derived quantities ----
     FIELDS = [
-        ("ELLIP_XCENTROID", "xcenter"),
-        ("ELLIP_YCENTROID", "ycenter"),
-        ("ELLIP_SMA_ARCSEC", "sma"),
+        ("ELLIP_XCENTROID", "xcenter_fit"),
+        ("ELLIP_YCENTROID", "ycenter_fit"),
+        ("ELLIP_SMA_ARCSEC", "sma_fit"),
         ("ELLIP_B_ARCSEC", "b"),
-        ("ELLIP_EPS", "eps"),
+        ("ELLIP_EPS", "eps_fit"),
         ("ELLIP_THETA_RAD", "theta"),
         ("R_ELLIP_GINI", "gini"),
         ("H_ELLIP_GINI", "gini2"),        

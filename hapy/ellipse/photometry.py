@@ -9,6 +9,9 @@ import os
 import warnings
 warnings.simplefilter("always", RuntimeWarning)
 from pathlib import Path
+import logging
+
+
 try:
     from photutils import detect_threshold, detect_sources#, make_source_mask
 except ImportError:
@@ -272,7 +275,7 @@ class EllipsePhotometry():
 
 
     '''
-    def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=20,apertures=None, image2_filter=None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False):
+    def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=20,apertures=None, image2_filter=None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False,logger=None):
         '''  inputs described above '''
 
         self.tag = image.replace('.fits','')
@@ -290,7 +293,10 @@ class EllipsePhotometry():
         self.objra = objra
         self.objdec = objdec
         self.fixcenter = fixcenter
-        
+
+        # -- set up logging
+        self.logger = logger if logger is not None else logging.getLogger(__name__)
+
         self.pixel_scale = imutils.get_pixel_scale(self.header)        
         # check to see if obj position is passed in - need to do this for off-center objects
         # and to unmask central elliptical region around object
@@ -1639,6 +1645,7 @@ class EllipsePhotometry():
             self.ellipse_fit_ok = True
 
         except Exception as e:
+            print("WARNING: did not fit central ellipse.  falling back to guess ellipse.")
             self.logger.warning(f"Ellipse fit failed; using guess geometry. {e}")
 
   
@@ -2833,6 +2840,7 @@ def run_ellipse_photometry(
     fixcenter: bool = False,
     run_statmorph: bool = False,
     write_prefix: str | None = None,
+    logger=None,
 ):
     """
     Headless elliptical photometry runner.
@@ -2851,6 +2859,7 @@ def run_ellipse_photometry(
         objra=objra,
         objdec=objdec,
         fixcenter=fixcenter,
+        logger=logger,
         
     )
 
