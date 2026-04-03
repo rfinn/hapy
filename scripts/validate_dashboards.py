@@ -30,7 +30,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from astropy.table import Table
 
-from hapy.utils.results_table import prepare_results_table, select_sample,ensure_dir, safe_float_array,
+from hapy.utils.results_table import prepare_analysis_table, select_sample,ensure_dir, safe_float_array
 
 from hapy.utils.plotting import (
     QC_TIER_ORDER,
@@ -246,6 +246,25 @@ def build_h_statmorph_df(tab: Table):
     return df, log_cols
 
 
+def build_ellipse_shape_df(tab: Table):
+    cols = [
+        "ELLIP_XCENTROID",
+        "ELLIP_YCENTROID",        
+        "ELLIP_EPS",
+        "ELLIP_PA_DEG",
+        "GAL_XC",
+        "GAL_YC",        
+        "GAL_BA",        
+        "GAL_PA",
+        "QC_TIER",
+        "TELESCOPE",
+    ]
+    log_cols = ["ELLIP_XCENTROID", "ELLIP_YCENTROID", "GAL_XC","GAL_YC"]
+    #log_cols=[]
+    df = make_dataframe(tab, cols)
+    df = clean_pairplot_df(df, positive_cols=log_cols, log_cols=log_cols)
+    return df, log_cols
+
 def build_galfit_df(tab: Table):
     cols = [
         "R24_MAG",
@@ -342,6 +361,16 @@ def run_dashboards(tab: Table, outdir: Path, hue: str):
         use_robust_diag_limits=True,        
     )
 
+    df, log_cols = build_ellipse_shape_df(tab)
+    pairplot_family(
+        df, hue,
+        outdir / f"dashboard_ellipse_shape_{hue}.png",
+        "PHOTUTILS vs GALFIT Ellipse Shape",
+        log_cols=log_cols,
+        use_robust_limits=False,
+        use_robust_diag_limits=True,        
+    )
+    
     # GALFIT
     df, log_cols = build_galfit_df(tab)
     pairplot_family(
@@ -404,7 +433,7 @@ def main():
     tab = Table.read(args.table)
     print(f"Read {len(tab)} rows from {args.table}")
 
-    tab = prepare_results_table(tab)
+    tab = prepare_analysis_table(tab)
     sub = tab[select_sample(tab, args.sample)]
     print(f"Selected {len(sub)} rows for sample {args.sample}")
 
