@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
+from astropy.table import Table
+from pathlib import Path
+#from hapy.utils.results_table import safe_ratio
 # -------------------------
 # Global plotting constants
 # -------------------------
@@ -346,3 +350,490 @@ def raincloud_by_group(
 
     plt.tight_layout()
     return fig, ax
+
+
+def jointplot_with_hue(
+    x,
+    y,
+    category,
+    xname="x",
+    yname="y",
+    catname="category",
+    kind="scatter",
+    height=6,
+    alpha=0.6,
+    s=20,
+):
+    """
+    Create a seaborn joint plot with hue from x, y, and a categorical array.
+
+    Parameters
+    ----------
+    x, y : array-like
+        Data arrays
+    category : array-like
+        Categorical labels (e.g., QC tier, telescope, etc.)
+    xname, yname : str
+        Axis labels
+    catname : str
+        Name of categorical column
+    kind : str
+        "scatter", "kde", or "hist"
+    height : float
+        Size of plot
+    alpha : float
+        Transparency for scatter
+    s : float
+        Marker size
+    """
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+    category = np.asarray(category)
+
+    # -----------------------------
+    # remove NaNs
+    # -----------------------------
+    good = np.isfinite(x) & np.isfinite(y)
+
+    df = pd.DataFrame({
+        xname: x[good],
+        yname: y[good],
+        catname: category[good],
+    })
+
+    # -----------------------------
+    # create jointplot
+    # -----------------------------
+    g = sns.jointplot(
+        data=df,
+        x=xname,
+        y=yname,
+        hue=catname,
+        kind=kind,
+        height=height,
+        joint_kws=dict(alpha=alpha, s=s) if kind == "scatter" else None,
+    )
+
+    # -----------------------------
+    # nicer styling
+    # -----------------------------
+    g.ax_joint.set_xlabel(xname)
+    g.ax_joint.set_ylabel(yname)
+
+    return g
+def make_dataframe(tab: Table, columns: list[str]) -> pd.DataFrame:
+    data = {}
+    for col in columns:
+        if col in tab.colnames:
+            if tab[col].dtype.kind in ("b",):
+                data[col] = np.array(tab[col], dtype=bool)
+            else:
+                try:
+                    data[col] = np.array(tab[col], dtype=float)
+                except Exception:
+                    data[col] = np.array(tab[col]).astype(str)
+    return pd.DataFrame(data)
+
+
+def clean_pairplot_df(
+    df: pd.DataFrame,
+    positive_cols: list[str] | None = None,
+    log_cols: list[str] | None = None,
+    nonzero_cols: list[str] | None = None,
+    bad_sentinels: tuple[float, ...] = (-99, -999, 99, 999),
+) -> pd.DataFrame:
+    """
+    Clean dataframe for pairplots.
+
+    - replaces common sentinel values with NaN
+    - enforces positivity for selected numeric columns
+    - optionally log10-transforms selected numeric columns
+    - drops rows with NaN in plotted columns
+    """
+    out = df.copy()
+    positive_cols = positive_cols or []
+    log_cols = log_cols or []
+    nonzero_cols = nonzero_cols or []
+
+    # replace sentinel values only in numeric columns
+    for col in out.columns:
+        if pd.api.types.is_numeric_dtype(out[col]):
+            for bad in bad_sentinels:
+                out.loc[np.isclose(out[col], bad, equal_nan=False), col] = np.nan
+
+    # require > 0 only for numeric columns
+    for col in positive_cols:
+        if col in out.columns and pd.api.types.is_numeric_dtype(out[col]):
+            out.loc[out[col] <= 0, col] = np.nan
+
+    # require != 0 only for numeric columns
+    for col in nonzero_cols:
+        if col in out.columns and pd.api.types.is_numeric_dtype(out[col]):
+            out.loc[out[col] == 0, col] = np.nan
+
+    # log-transform only numeric columns
+    for col in log_cols:
+        if col in out.columns and pd.api.types.is_numeric_dtype(out[col]):
+            out.loc[out[col] <= 0, col] = np.nan
+            out[col] = np.log10(out[col])
+
+    return out.dropna()
+
+
+
+
+def _robust_limits(x, qlo=0.01, qhi=0.99, pad_frac=0.05):
+    x = np.asarray(x, dtype=float)
+    x = x[np.isfinite(x)]
+    if len(x) == 0:
+        return None
+
+    lo, hi = np.nanquantile(x, [qlo, qhi])
+    if not np.isfinite(lo) or not np.isfinite(hi):
+        return None
+    if lo == hi:
+        delta = 0.5 if lo == 0 else 0.05 * abs(lo)
+        return lo - delta, hi + delta
+
+    pad = pad_frac * (hi - lo)
+    return lo - pad, hi + pad
+
+def _annotate_pairgrid(
+    g,
+    df: pd.DataFrame,
+    hue: str | None = None,
+    qlo=0.01,
+    qhi=0.99,
+    log_cols: list[str] | None = None,
+    use_robust_limits: bool = True,
+    use_robust_diag_limits: bool = False,
+):
+    """
+    Add robust limits and panel annotations to off-diagonal panels
+    in a seaborn PairGrid / pairplot.
+
+    For linear quantities:
+        annotate mean(y/x) and std(y/x)
+
+    For logged quantities:
+        annotate median(y-x) and std(y-x)
+        where y-x = log10(y/x)
+    """
+    vars_ = list(g.x_vars)
+    log_cols = log_cols or []
+
+    for i, yvar in enumerate(vars_):
+        for j, xvar in enumerate(vars_):
+            ax = g.axes[i, j]
+            if ax is None:
+                continue
+
+            
+            # robust limits for off-diagonal scatter panels
+            if use_robust_limits and i != j:
+                if xvar in df.columns:
+                    xlim = _robust_limits(df[xvar].values, qlo=qlo, qhi=qhi)
+                    if xlim is not None:
+                        ax.set_xlim(xlim)
+
+                if yvar in df.columns:
+                    ylim = _robust_limits(df[yvar].values, qlo=qlo, qhi=qhi)
+                    if ylim is not None:
+                        ax.set_ylim(ylim)
+
+            # robust limits for diagonal histogram panels only
+            if use_robust_diag_limits and i == j:
+                if xvar in df.columns:
+                    xlim = _robust_limits(df[xvar].values, qlo=qlo, qhi=qhi)
+                    if xlim is not None:
+                        ax.set_xlim(xlim)
+
+            
+            if i == j:
+                continue
+
+            x = np.asarray(df[xvar], dtype=float)
+            y = np.asarray(df[yvar], dtype=float)
+            good = np.isfinite(x) & np.isfinite(y)
+
+            if np.sum(good) == 0:
+                continue
+
+            x = x[good]
+            y = y[good]
+            n = len(x)
+
+            x_logged = xvar in log_cols
+            y_logged = yvar in log_cols
+
+            if x_logged and y_logged:
+                d = y - x
+                med_d = np.nanmedian(d)
+                std_d = np.nanstd(d)
+                text = (
+                    f"N={n}\n"
+                    f"med Δlog={med_d:.2f}\n"
+                    f"σΔlog={std_d:.2f}"
+                    )
+ 
+            else:
+                good_ratio = x != 0
+                if np.sum(good_ratio) == 0:
+                    continue
+                ratio = y[good_ratio] / x[good_ratio]
+                ratio = ratio[np.isfinite(ratio)]
+
+                if len(ratio) == 0:
+                    continue
+
+                mean_ratio = np.nanmean(ratio)
+                std_ratio = np.nanstd(ratio)
+
+                text = (
+                    f"N={n}\n"
+                    f"⟨y/x⟩={mean_ratio:.2f}\n"
+                    f"σ(y/x)={std_ratio:.2f}"
+                )
+
+            ax.text(
+                0.04, 0.96,
+                text,
+                transform=ax.transAxes,
+                ha="left",
+                va="top",
+                fontsize=8,
+                bbox=dict(
+                    boxstyle="round,pad=0.2",
+                    facecolor="white",
+                    alpha=0.7,
+                    edgecolor="none",
+                ),
+            )
+
+
+
+    
+#######################################
+# Plots
+#######################################
+def pairplot_family(
+    df: pd.DataFrame,
+    hue: str,
+    outpath: Path,
+    title: str,
+    corner: bool = True,
+    annotate_ratio: bool = True,
+    log_cols: list[str] | None = None,
+    use_robust_limits: bool = True,   # NEW
+    use_robust_diag_limits: bool = False,
+):
+    if len(df) < 3 or len(df.columns) < 2:
+        print(f"WARNING: insufficient data for {outpath.name}")
+        return
+
+    pairplot_kwargs = dict(
+        data=df,
+        hue=hue if hue in df.columns else None,
+        corner=corner,
+        diag_kind="hist",
+        plot_kws=dict(s=22, alpha=0.7),
+        diag_kws=dict(bins=20),
+    )
+
+    if hue == "QC_TIER":
+        from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE, enforce_qc_tier
+        df = enforce_qc_tier(df.copy())
+        pairplot_kwargs["data"] = df
+        pairplot_kwargs["hue_order"] = QC_TIER_ORDER
+        pairplot_kwargs["palette"] = QC_TIER_PALETTE
+        
+    sns.set_context("talk")
+
+    g = sns.pairplot(**pairplot_kwargs)
+
+    
+    if annotate_ratio:
+        _annotate_pairgrid(
+            g,
+            pairplot_kwargs["data"],
+            hue=hue if hue in df.columns else None,
+            log_cols=log_cols,
+            use_robust_limits=use_robust_limits,
+            use_robust_diag_limits=use_robust_diag_limits,
+            )
+        #_annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None, log_cols=log_cols)
+    else:
+        # still apply robust limits
+        _annotate_pairgrid(
+            g,
+            pairplot_kwargs["data"],
+            hue=hue if hue in df.columns else None,
+            use_robust_limits=use_robust_limits,
+            use_robust_diag_limits=use_robust_diag_limits,
+            )
+        #_annotate_pairgrid(g, pairplot_kwargs["data"], hue=hue if hue in df.columns else None)
+        # remove text labels if desired
+        for axrow in g.axes:
+            for ax in axrow:
+                if ax is None:
+                    continue
+                for txt in list(ax.texts):
+                    txt.remove()
+    style_pairplot(g, label_map=PAIRPLOT_LABELS)
+    
+    g.figure.suptitle(title, y=.97)
+    g.figure.savefig(outpath, dpi=150, bbox_inches="tight")
+    plt.close(g.figure)
+    
+def plot_difference_hist(
+    tab,
+    col1,
+    col2,
+    outpath,
+    title=None,
+    xlabel=None,
+    relative=False,
+    positive_only=False,
+    bad_sentinels=(-99, -999, 99, 999),
+    qclip=None,
+    plotsingle=True,
+    ax=None,
+):
+    """
+    Plot histogram of differences between two matched columns.
+
+    Parameters
+    ----------
+    tab : astropy.table.Table
+        Input table.
+
+    col1, col2 : str
+        Columns to compare. Histogram is for:
+            diff = col2 - col1
+        unless relative=True, in which case:
+            diff = (col2 - col1) / col1
+
+    outpath : str or Path
+        Output figure path.
+
+    title : str or None
+        Plot title.
+
+    xlabel : str or None
+        X-axis label.
+
+    relative : bool
+        If True, plot fractional difference.
+
+    positive_only : bool
+        If True, require both columns > 0.
+
+    bad_sentinels : tuple
+        Sentinel values to treat as invalid.
+
+    qclip : tuple or None
+        Optional quantile clipping range, e.g. (0.01, 0.99)
+        to suppress extreme outliers from setting the x-range.
+
+    Notes
+    -----
+    Annotates the panel with:
+      - N
+      - median difference
+      - standard deviation
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    if not plotsingle and ax is None:
+        print("WARNING: must provide an axis if plotsingle=True")
+        return
+    def _safe_float_array(tab, colname, default=np.nan):
+        if colname not in tab.colnames:
+            return np.full(len(tab), default, dtype=float)
+
+        col = tab[colname]
+        try:
+            if hasattr(col, "filled"):
+                col = col.filled(default)
+        except Exception:
+            pass
+
+        out = np.full(len(tab), default, dtype=float)
+        for i, v in enumerate(col):
+            try:
+                out[i] = float(v)
+            except Exception:
+                out[i] = default
+        return out
+
+    x1 = _safe_float_array(tab, col1)
+    x2 = _safe_float_array(tab, col2)
+
+    # remove sentinel values
+    for bad in bad_sentinels:
+        x1[np.isclose(x1, bad, equal_nan=False)] = np.nan
+        x2[np.isclose(x2, bad, equal_nan=False)] = np.nan
+
+    good = np.isfinite(x1) & np.isfinite(x2)
+
+    if positive_only:
+        good &= (x1 > 0) & (x2 > 0)
+
+    if np.sum(good) == 0:
+        print(f"WARNING: no finite matched values for {col1} and {col2}")
+        return
+
+    if relative:
+        good &= (x1 != 0)
+        diff = (x2[good] - x1[good]) / x1[good]
+        if xlabel is None:
+            xlabel = f"({col2} - {col1}) / {col1}"
+    else:
+        diff = x2[good] - x1[good]
+        if xlabel is None:
+            xlabel = f"{col2} - {col1}"
+
+    diff = diff[np.isfinite(diff)]
+    if len(diff) == 0:
+        print(f"WARNING: no finite differences for {col1} and {col2}")
+        return
+
+    # optional clipping for display only
+    plot_diff = diff
+    if qclip is not None and len(diff) > 5:
+        lo, hi = np.nanquantile(diff, qclip)
+        plot_diff = diff[(diff >= lo) & (diff <= hi)]
+
+    med = np.nanmedian(diff)
+    std = np.nanstd(diff)
+    mean = np.nanmean(diff)
+    n = len(diff)
+
+    if plotsingle:
+        fig = plt.figure(figsize=(6, 4.5))
+        ax = plt.gca()
+
+    ax.hist(plot_diff, bins=30)
+    ax.axvline(0, color="k", ls="--", lw=1)
+    ax.axvline(med, color="k", ls=":", lw=1)
+
+    ax.set_xlabel(xlabel,fontsize=10)
+    ax.set_ylabel("N",fontsize=10)
+    ax.set_title(title if title is not None else f"{col2} - {col1}",fontsize=10)
+
+    ax.text(
+        0.97, 0.97,
+        f"N={n}\nmean={mean:.3g}\nmedian={med:.3g}\nstd={std:.3g}",
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round,pad=0.25", facecolor="white", alpha=0.8, edgecolor="none"),
+    )
+
+    plt.tight_layout()
+    if plotsingle:
+        fig.savefig(outpath, dpi=150)
+        plt.close(fig)

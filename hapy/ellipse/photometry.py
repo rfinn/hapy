@@ -525,10 +525,10 @@ class EllipsePhotometry():
             self.get_asymmetry()
         except:
             warnings.warn(f"{self.tag}: problem measuring asymmetry")
-            self.asym = -99
-            self.asym_err = -99
-            self.asym2 = -99
-            self.asym2_err = -99
+            self.asym = np.nan
+            self.asym_err = np.nan
+            self.asym2 = np.nan
+            self.asym2_err = np.nan
         #self.run_statmorph()
 
         self.get_sky_noise()

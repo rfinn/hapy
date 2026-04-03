@@ -25,10 +25,10 @@ import numpy as np
 from astropy.table import Table
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
-from qc_helpers import safe_bool_array, safe_float_array, safe_str_array
-from qc_helpers import first_existing_col, first_populated_col#, build_row_qc_flags, 
-from qc_helpers import ensure_dir, median_and_mad
-from qc_helpers import prepare_analysis_table
+from hapy.utils.results_table import safe_bool_array, safe_float_array, safe_str_array
+from hapy.utils.results_table import first_existing_col, first_populated_col#, build_row_qc_flags, 
+from hapy.utils.results_table import ensure_dir, median_and_mad
+from hapy.utils.results_table import prepare_analysis_table
 from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE
 
 # ----------------------------------------------------------------------

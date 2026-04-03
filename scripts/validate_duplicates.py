@@ -38,8 +38,8 @@ import numpy as np
 from astropy.table import Table, vstack
 import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
-from qc_helpers import safe_bool_array, safe_float_array, first_existing_col, first_populated_col
-from qc_helpers import build_row_qc_flags, ensure_dir, median_and_mad, get_std
+from hapy.utils.results_table import safe_bool_array, safe_float_array, safe_str_array, first_existing_col, first_populated_col
+from hapy.utils.results_table import build_row_qc_flags, ensure_dir, median_and_mad, get_std
 from validate_measurements import _robust_limits
 # ----------------------------------------------------------------------
 # helpers
@@ -55,49 +55,120 @@ def finite_pair_mask(x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
 # ----------------------------------------------------------------------
 # duplicate pair construction
 # ----------------------------------------------------------------------
+import itertools
+import numpy as np
+from astropy.table import Table
+
+
+def count_observation_multiplicity(tab, id_col="VFID"):
+    ids = safe_str_array(tab, id_col, default="")
+
+    # remove blanks
+    ids = ids[ids != ""]
+
+    vals, counts = np.unique(ids, return_counts=True)
+
+    # histogram: how many galaxies have N observations
+    multiplicity = {}
+    for c in counts:
+        multiplicity[c] = multiplicity.get(c, 0) + 1
+
+    print("Observation multiplicity (N_obs : N_galaxies)")
+    for k in sorted(multiplicity):
+        print(f"{k}: {multiplicity[k]}")
+
+    return multiplicity
 
 def build_duplicate_pairs(tab: Table, id_col: str = "VFID") -> Table:
     """
-    Build all pairwise duplicate observation pairs for rows sharing the same VFID.
+    Build all pairwise duplicate observation pairs for rows sharing the same id_col.
 
     Returns a table with columns:
-      idx1, idx2, VFID, TEL1, TEL2, same_tel
+      idx1, idx2, ID, TEL1, TEL2, same_tel
     """
     if id_col not in tab.colnames:
         raise ValueError(f"Missing required column '{id_col}'")
 
     tel_col = first_existing_col(tab, ["TELESCOPE", "TEL"])
 
+    ids = safe_str_array(tab, id_col, default="")
+    if tel_col is not None:
+        tels = safe_str_array(tab, tel_col, default="")
+    else:
+        tels = np.full(len(tab), "", dtype=object)
+
     groups = {}
-    for i, vfid in enumerate(tab[id_col]):
-        groups.setdefault(str(vfid), []).append(i)
+    for i, obj_id in enumerate(ids):
+        key = str(obj_id).strip()
+        if key == "":
+            continue
+        groups.setdefault(key, []).append(i)
 
     rows = []
-    for vfid, inds in groups.items():
+    for obj_id, inds in groups.items():
         if len(inds) < 2:
             continue
-        for i1, i2 in itertools.combinations(inds, 2):
-            if tel_col is not None:
-                tel1 = str(tab[tel_col][i1])
-                tel2 = str(tab[tel_col][i2])
-                same_tel = (tel1 == tel2)
-            else:
-                tel1 = ""
-                tel2 = ""
-                same_tel = False
 
-            rows.append((i1, i2, vfid, tel1, tel2, same_tel))
+        for i1, i2 in itertools.combinations(sorted(inds), 2):
+            tel1 = str(tels[i1]).strip()
+            tel2 = str(tels[i2]).strip()
+            same_tel = (tel1 == tel2) if tel_col is not None else False
+
+            rows.append((i1, i2, obj_id, tel1, tel2, same_tel))
 
     if len(rows) == 0:
         return Table(
-            names=("idx1", "idx2", "VFID", "TEL1", "TEL2", "same_tel"),
-            dtype=("i4", "i4", "U32", "U16", "U16", "bool"),
+            names=("idx1", "idx2", id_col, "TEL1", "TEL2", "same_tel"),
+            dtype=("i4", "i4", "U32", "U32", "U32", "bool"),
         )
 
     return Table(
         rows=rows,
-        names=("idx1", "idx2", "VFID", "TEL1", "TEL2", "same_tel"),
+        names=("idx1", "idx2", id_col, "TEL1", "TEL2", "same_tel"),
     )
+
+# def build_duplicate_pairs(tab: Table, id_col: str = "VFID") -> Table:
+#     """
+#     Build all pairwise duplicate observation pairs for rows sharing the same VFID.
+
+#     Returns a table with columns:
+#       idx1, idx2, VFID, TEL1, TEL2, same_tel
+#     """
+#     if id_col not in tab.colnames:
+#         raise ValueError(f"Missing required column '{id_col}'")
+
+#     tel_col = first_existing_col(tab, ["TELESCOPE", "TEL"])
+
+#     groups = {}
+#     for i, vfid in enumerate(tab[id_col]):
+#         groups.setdefault(str(vfid), []).append(i)
+
+#     rows = []
+#     for vfid, inds in groups.items():
+#         if len(inds) < 2:
+#             continue
+#         for i1, i2 in itertools.combinations(inds, 2):
+#             if tel_col is not None:
+#                 tel1 = str(tab[tel_col][i1])
+#                 tel2 = str(tab[tel_col][i2])
+#                 same_tel = (tel1 == tel2)
+#             else:
+#                 tel1 = ""
+#                 tel2 = ""
+#                 same_tel = False
+
+#             rows.append((i1, i2, vfid, tel1, tel2, same_tel))
+
+#     if len(rows) == 0:
+#         return Table(
+#             names=("idx1", "idx2", "VFID", "TEL1", "TEL2", "same_tel"),
+#             dtype=("i4", "i4", "U32", "U16", "U16", "bool"),
+#         )
+
+#     return Table(
+#         rows=rows,
+#         names=("idx1", "idx2", "VFID", "TEL1", "TEL2", "same_tel"),
+#     )
 
 
 # ----------------------------------------------------------------------
@@ -242,7 +313,7 @@ def plot_pair_grid(
             (
                 f"$\\mathrm{{med}}\\,\\Delta = {med:.3g}$\n"
             f"$\\mathrm{{mad}}\\,\\Delta = {mad:.3g}$\n"
-            f"$\\ mad/med = {mad/med:.3g}$\n"
+            f"$\\sigma = {std:.3g}$\n"
             f"$N = {len(dx)}$"
             ),
             transform=ax.transAxes,
@@ -250,8 +321,8 @@ def plot_pair_grid(
             )
         if residual:
             plt.axhline(y=med,ls='-',c='k')
-            x1,x2 = plt.xlim()
-            xline=np.linspace(x1,x2,100)
+            xl1,xl2 = plt.xlim()
+            xline=np.linspace(xl1,xl2,100)
             #yline = np.ones(100)*med
             #plt.fill_between(xline,y1=yline+mad,y2=yline-mad,color='0.5',alpha=.2)
             plt.axhline(y=med+mad,ls='--',c='k')
@@ -270,8 +341,9 @@ def plot_pair_grid(
             ymin, ymax = _robust_limits(dx,qlo=0.05, qhi=0.95)
         else:
             ymin, ymax = _robust_limits(x2,qlo=0.05, qhi=0.95)
-        #ax.set_xlim(xmin,xmax)
-        #ax.set_ylim(ymin,ymax)
+        #print("robust limits: ",xmin,xmax,ymin,ymax)
+        ax.set_xlim(xmin,xmax)
+        ax.set_ylim(ymin,ymax)
         
 
     if title:
@@ -587,6 +659,7 @@ def main():
         colid = "OBJID"
     else:
         colid = "VFID"
+    multiplicity = count_observation_multiplicity(tab, id_col=colid)
     pairtab = build_duplicate_pairs(tab, id_col=colid)
     print(f"Found {len(pairtab)} duplicate pairs")
 

@@ -39,26 +39,8 @@ QC_DEFAULTS = {
 # basic helpers
 # ----------------------------------------------------------------------
 
-def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
-    if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype=float)
-
-    col = tab[colname]
-
-    try:
-        if hasattr(col, "filled"):
-            col = col.filled(default)
-    except Exception:
-        pass
-
-    out = np.full(len(tab), default, dtype=float)
-    for i, v in enumerate(col):
-        try:
-            out[i] = float(v)
-        except Exception:
-            out[i] = default
-    return out
-
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
 
 def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarray:
     if colname not in tab.colnames:
@@ -90,40 +72,115 @@ def safe_bool_array(tab: Table, colname: str, default: bool = False) -> np.ndarr
 
     return out
 
+def safe_float_array(tab: Table, colname: str, default=np.nan) -> np.ndarray:
+    if colname not in tab.colnames:
+        return np.full(len(tab), default, dtype=float)
+
+    col = tab[colname]
+
+    try:
+        if hasattr(col, "filled"):
+            col = col.filled(default)
+    except Exception:
+        pass
+
+    out = np.full(len(tab), default, dtype=float)
+    for i, v in enumerate(col):
+        try:
+            out[i] = float(v)
+        except Exception:
+            out[i] = default
+    return out
 
 def safe_str_array(tab: Table, colname: str, default: str = "") -> np.ndarray:
+    """Return a clean string numpy array for a table column."""
     if colname not in tab.colnames:
-        return np.full(len(tab), default, dtype="U16")
+        return np.full(len(tab), default, dtype=object)
 
-    out = np.full(len(tab), default, dtype="U16")
+    col = tab[colname]
 
-    for i, v in enumerate(tab[colname]):
+    try:
+        if hasattr(col, "filled"):
+            col = col.filled(default)
+    except Exception:
+        pass
+
+    out = np.full(len(tab), default, dtype=object)
+
+    for i, v in enumerate(col):
         if v is None:
-            out[i] = default
-        else:
-            out[i] = str(v)
+            continue
+
+        s = str(v).strip()
+
+        if s.lower() in ("none", "nan", "null", ""):
+            continue
+
+        out[i] = s
 
     return out
+
+def safe_ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
+    """Safely divide two float arrays."""
+    out = np.full(len(num), np.nan, dtype=float)
+    good = np.isfinite(num) & np.isfinite(den) & (den > 0)
+    out[good] = num[good] / den[good]
+    return out
+
+def first_existing_col(tab: Table, names: list[str]) -> str | None:
+    """Return the first existing column from a list of candidate names."""
+    for name in names:
+        if name in tab.colnames:
+            return name
+    return None
+
+def first_populated_col(tab: Table, names: list[str]) -> str | None:
+    """
+    Return the first existing column that has at least one finite value.
+    Useful for handling old typo columns like R_FHWM / H_FHWM.
+    """
+    for name in names:
+        if name not in tab.colnames:
+            continue
+        vals = safe_float_array(tab, name)
+        if np.any(np.isfinite(vals)):
+            return name
+    return None
+
+def median_and_mad(dx: np.ndarray) -> tuple[float, float]:
+    """Return median and MAD-like robust scatter."""
+    good = np.isfinite(dx)
+    if np.sum(good) == 0:
+        return np.nan, np.nan
+    med = np.nanmedian(dx[good])
+    mad = np.nanmedian(np.abs(dx[good] - med))
+    return med, mad
+
+def get_std(dx: np.ndarray) -> tuple[float, float]:
+    """Return median and MAD-like robust scatter."""
+    good = np.isfinite(dx)
+    if np.sum(good) == 0:
+        return np.nan, np.nan
+    std = np.nanstd(dx[good])
+    return std
 
 
 # ----------------------------------------------------------------------
 # science columns
 # ----------------------------------------------------------------------
 
-def _safe_ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
-    out = np.full(len(num), np.nan, dtype=float)
-    good = np.isfinite(num) & np.isfinite(den) & (den > 0)
-    out[good] = num[good] / den[good]
-    return out
-
-
 def add_science_columns(tab: Table) -> Table:
     """
-    Add derived science columns used in analysis.
+    Add core derived science columns if missing.
+    Safe to call multiple times.
     """
-
+    # raw columns
     r50 = safe_float_array(tab, "R50_ARCSEC")
     h50 = safe_float_array(tab, "H50_ARCSEC")
+
+    r75 = safe_float_array(tab, "R75_ARCSEC")
+    h75 = safe_float_array(tab, "H75_ARCSEC")
+
     r25 = safe_float_array(tab, "R25_ARCSEC")
     hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
 
@@ -136,44 +193,193 @@ def add_science_columns(tab: Table) -> Table:
     r_m20 = safe_float_array(tab, "R_HAPY_M20")
     h_m20 = safe_float_array(tab, "H_HAPY_M20")
 
+    # optional, but useful for consistency with validation/science plots
+    r_asym = safe_float_array(tab, "R_HAPY_ASYM")
+    h_asym = safe_float_array(tab, "H_HAPY_ASYM")
+
+    # derived
     if "H50_R50_RATIO" not in tab.colnames:
-        tab["H50_R50_RATIO"] = _safe_ratio(h50, r50)
-
+        tab["H50_R50_RATIO"] = safe_ratio(h50, r50)
+    if "H75_R75_RATIO" not in tab.colnames:
+        tab["H75_R75_RATIO"] = safe_ratio(h75, r75)
     if "H_MAXDET_R25_RATIO" not in tab.colnames:
-        tab["H_MAXDET_R25_RATIO"] = _safe_ratio(hmax, r25)
-
+        tab["H_MAXDET_R25_RATIO"] = safe_ratio(hmax, r25)
     if "H_PETRO_R50_RATIO" not in tab.colnames:
-        tab["H_PETRO_R50_RATIO"] = _safe_ratio(h_p50, r_p50)
+        tab["H_PETRO_R50_RATIO"] = safe_ratio(h_p50, r_p50)
 
     if "DELTA_GINI" not in tab.colnames:
         tab["DELTA_GINI"] = h_gini - r_gini
-
     if "DELTA_M20" not in tab.colnames:
         tab["DELTA_M20"] = h_m20 - r_m20
+    if "DELTA_ASYM" not in tab.colnames:
+        tab["DELTA_ASYM"] = h_asym - r_asym
 
-    # # Optional Halpha SFR column
-    # redshift_col = None
-    # for c in ["REDSHIFT", "Z", "ZDIST", "ZDIST", "vr"]:
-    #     if c in tab.colnames:
-    #         redshift_col = c
-    #         break
-
-    # if "LOG_SFR_HA" not in tab.colnames and redshift_col is not None:
-    #     haflux = safe_float_array(tab, "H_TOT_FLUX_CGS")
-    #     z = safe_float_array(tab, redshift_col)
-
-    #     # If only velocity exists, convert to redshift approximately
-    #     if redshift_col.lower() == "vr":
-    #         z = z / 3.0e5
-
-    #     tab["LOG_SFR_HA"] = KE_SFR(haflux, z)
-        
     return tab
+
+
 
 
 # ----------------------------------------------------------------------
 # QC flags
 # ----------------------------------------------------------------------
+
+def add_duplicate_metadata(tab, id_col="VFID"):
+    ids = np.array(tab[id_col]).astype(str)
+
+    unique, counts = np.unique(ids, return_counts=True)
+    count_map = dict(zip(unique, counts))
+
+    ndup = np.array([count_map[i] for i in ids])
+
+    tab["N_DUP"] = ndup
+    tab["IS_DUPLICATE"] = ndup > 1
+
+    return tab
+
+def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
+    """
+    Unified row-level QC flags for merged HAPY results.
+
+    Returns a dict of boolean and float arrays that both qc_results.py
+    and qc_duplicates.py can use.
+    """
+    flags = {}
+
+    # -----------------------------
+    # Core stage booleans
+    # -----------------------------
+    flags["PSF_OK"] = safe_bool_array(tab, "PSF_OK")
+    flags["MASK_OK"] = safe_bool_array(tab, "MASK_OK")
+    flags["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
+    flags["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
+    flags["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
+    flags["R_SM_OK"] = safe_bool_array(tab, "R_SM_OK")
+    flags["H_SM_OK"] = safe_bool_array(tab, "H_SM_OK")
+    flags["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
+    flags["GAL_CV_OK"] = safe_bool_array(tab, "GAL_CV_OK")
+    flags["HAPY_MORPH_OK"] = safe_bool_array(tab, "HAPY_MORPH_OK")
+
+    # -----------------------------
+    # Warning booleans
+    # -----------------------------
+    flags["BRIGHT_STAR_FLAG"] = safe_bool_array(tab, "BRIGHT_STAR_FLAG")
+    flags["ELL0_MASK_WARN"] = safe_bool_array(tab, "ELL0_MASK_WARN")
+    flags["ELL_MISMATCH"] = safe_bool_array(tab, "ELL_MISMATCH")
+
+    # -----------------------------
+    # Filter correction
+    # -----------------------------
+    filt_col = first_existing_col(tab, ["FILTER_CORRECTION", "FILT_COR"])
+    if filt_col is not None:
+        filtcor = safe_float_array(tab, filt_col)
+    else:
+        filtcor = np.full(len(tab), np.nan)
+
+    flags["FILTER_CORR"] = filtcor
+    flags["FILTER_WARNING"] = np.isfinite(filtcor) & (filtcor > max_ha_filter_correction)
+
+    # -----------------------------
+    # Numeric QC helpers
+    # -----------------------------
+    flags["R_PROFILE_NGOOD"] = safe_float_array(tab, "R_PROFILE_NGOOD")
+    flags["H_PROFILE_NGOOD"] = safe_float_array(tab, "H_PROFILE_NGOOD")
+    flags["MASKFRAC_GUESS_ELLIPSE"] = safe_float_array(tab, "MASKFRAC_GUESS_ELLIPSE")
+    flags["R_PROFILE_MASKFRAC_MAX"] = safe_float_array(tab, "R_PROFILE_MASKFRAC_MAX")    
+    flags["H_PROFILE_MASKFRAC_MAX"] = safe_float_array(tab, "H_PROFILE_MASKFRAC_MAX")
+    flags["H_HAPY_NPIX"] = safe_float_array(tab, "H_HAPY_NPIX")
+    flags["H_HAPY_SNP_DET"] = safe_float_array(tab, "H_HAPY_SNP_DET")
+    flags["R50_ARCSEC"] = safe_float_array(tab, "R50_ARCSEC")
+    flags["H50_ARCSEC"] = safe_float_array(tab, "H50_ARCSEC")
+    flags["H_MAXDET_ARCSEC"] = safe_float_array(tab, "H_MAXDET_ARCSEC")
+
+    # -----------------------------
+    # Science-oriented row families
+    # -----------------------------
+    flags["MASK_PHOT_OK"] = flags["MASK_OK"] & flags["PHOT_OK"]
+
+    flags["PROFILE_OK"] = (
+        flags["MASK_OK"] &
+        flags["PHOT_OK"] &
+        flags["R_PROFILE_OK"] &
+        flags["H_PROFILE_OK"]
+    )
+
+    flags["R_STRUCTURE_GOOD"] = (
+        flags["PHOT_OK"] &
+        flags["R_PROFILE_OK"] &
+        np.isfinite(flags["R50_ARCSEC"]) & (flags["R50_ARCSEC"] > 0) &
+        np.isfinite(flags["R_PROFILE_NGOOD"]) & (flags["R_PROFILE_NGOOD"] >= 20) &
+        (
+            ~np.isfinite(flags["R_PROFILE_MASKFRAC_MAX"]) |
+            (flags["R_PROFILE_MASKFRAC_MAX"] < 0.5)
+        ) &
+        (~flags["ELL0_MASK_WARN"])
+    )
+
+    flags["HA_EXTENT_GOOD"] = (
+        flags["PHOT_OK"] &
+        flags["H_PROFILE_OK"] &
+        np.isfinite(flags["H50_ARCSEC"]) & (flags["H50_ARCSEC"] > 0) &
+        np.isfinite(flags["H_MAXDET_ARCSEC"]) & (flags["H_MAXDET_ARCSEC"] > 0) &
+        np.isfinite(flags["H_HAPY_NPIX"]) & (flags["H_HAPY_NPIX"] >= 50) &
+        np.isfinite(flags["H_PROFILE_NGOOD"]) & (flags["H_PROFILE_NGOOD"] >= 8) &
+        (
+            ~np.isfinite(flags["H_HAPY_SNP_DET"]) |
+            (flags["H_HAPY_SNP_DET"] > 3)
+        ) &
+        (
+            ~np.isfinite(flags["H_PROFILE_MASKFRAC_MAX"]) |
+            (flags["H_PROFILE_MASKFRAC_MAX"] < 0.5)
+        ) &
+        (~flags["FILTER_WARNING"])
+    )
+
+    flags["HA_MORPH_GOOD"] = (
+        flags["HAPY_MORPH_OK"] &
+        flags["H_SM_OK"] &
+        np.isfinite(flags["H_HAPY_NPIX"]) & (flags["H_HAPY_NPIX"] >= 100) &
+        (
+            ~np.isfinite(flags["H_HAPY_SNP_DET"]) |
+            (flags["H_HAPY_SNP_DET"] > 5)
+        ) &
+        (~flags["FILTER_WARNING"])
+    )
+
+    flags["GALFIT_ANY_OK"] = flags["GAL_NC_OK"] | flags["GAL_CV_OK"]
+    flags["GALFIT_BOTH_OK"] = flags["GAL_NC_OK"] & flags["GAL_CV_OK"]
+
+    flags["WARN_MASK"] = (
+        flags["ELL0_MASK_WARN"] |
+        (np.isfinite(flags["MASKFRAC_GUESS_ELLIPSE"]) & (flags["MASKFRAC_GUESS_ELLIPSE"] > 0.3))
+        #(np.isfinite(flags["R_PROFILE_MASKFRAC_MAX"]) & (flags["R_PROFILE_MASKFRAC_MAX"] > 0.3)) |
+        #(np.isfinite(flags["H_PROFILE_MASKFRAC_MAX"]) & (flags["H_PROFILE_MASKFRAC_MAX"] > 0.3))
+    )
+
+    flags["WARN_WEAK_HA"] = (
+        (np.isfinite(flags["H_HAPY_NPIX"]) & (flags["H_HAPY_NPIX"] < 50)) |
+        (np.isfinite(flags["H_PROFILE_NGOOD"]) & (flags["H_PROFILE_NGOOD"] < 8)) |
+        (np.isfinite(flags["H_HAPY_SNP_DET"]) & (flags["H_HAPY_SNP_DET"] < 3))
+    )
+
+    flags["SCIENCE_READY"] = (
+        flags["R_STRUCTURE_GOOD"] &
+        flags["HA_EXTENT_GOOD"] &
+        (~flags["BRIGHT_STAR_FLAG"]) &
+        (~flags["ELL_MISMATCH"])
+    )
+
+    flags["TECHNICAL_PROBLEM"] = ~flags["MASK_PHOT_OK"]
+
+    flags["SCIENCE_PROBLEM"] = (
+        ~flags["PROFILE_OK"] |
+        flags["FILTER_WARNING"] |
+        flags["WARN_MASK"] |
+        flags["WARN_WEAK_HA"] |
+        flags["BRIGHT_STAR_FLAG"] |
+        flags["ELL_MISMATCH"]
+    )
+
+    return flags
 
 def add_qc_flags(tab: Table, qc: dict | None = None) -> Table:
     """
@@ -310,23 +516,123 @@ def add_qc_flags(tab: Table, qc: dict | None = None) -> Table:
 # pipeline interface
 # ----------------------------------------------------------------------
 
-def prepare_results_table(tab: Table, qc: dict | None = None) -> Table:
-    """
-    Apply standard derived science and QC columns.
+# def prepare_results_table(tab: Table, qc: dict | None = None) -> Table:
+#     """
+#     Apply standard derived science and QC columns.
 
-    Parameters
-    ----------
-    tab : astropy.table.Table
-        Input merged results table.
+#     Parameters
+#     ----------
+#     tab : astropy.table.Table
+#         Input merged results table.
 
-    qc : dict or None
-        Optional QC-threshold overrides passed to add_qc_flags().
+#     qc : dict or None
+#         Optional QC-threshold overrides passed to add_qc_flags().
+#     """
+#     tab = add_science_columns(tab)
+#     tab = add_qc_flags(tab, qc=qc)
+#     return tab
+
+
+def add_qc_columns(tab: Table, max_ha_filter_correction: float = 1.2) -> Table:
     """
-    tab = add_science_columns(tab)
-    tab = add_qc_flags(tab, qc=qc)
+    Attach QC columns from build_row_qc_flags() to the table.
+
+    This replaces the older science_firstlook-specific add_qc_flags()
+    implementation and uses the canonical QC logic.
+    """
+    flags = build_row_qc_flags(tab, max_ha_filter_correction=max_ha_filter_correction)
+    for key, val in flags.items():
+        if key not in tab.colnames:
+            tab[key] = val
     return tab
 
 
+def add_qc_tier(tab: Table) -> Table:
+    """
+    Add a minimal QC tier if missing.
+
+    Uses canonical QC columns if available; otherwise computes them first.
+    Safe to call multiple times.
+    """
+    if "QC_TIER" in tab.colnames:
+        return tab
+
+    if "R_STRUCTURE_GOOD" not in tab.colnames:
+        tab = add_qc_columns(tab)
+
+    phot_ok = safe_bool_array(tab, "PHOT_OK")
+    use_r = safe_bool_array(tab, "R_STRUCTURE_GOOD")
+    use_ha = safe_bool_array(tab, "HA_EXTENT_GOOD")
+    use_hm = safe_bool_array(tab, "HA_MORPH_GOOD")
+
+    bright_star = safe_bool_array(tab, "BRIGHT_STAR_FLAG")
+    mask_warn = safe_bool_array(tab, "WARN_MASK")
+    ell_warn = safe_bool_array(tab, "ELL_MISMATCH")
+    warn_filter = safe_bool_array(tab, "FILTER_WARNING")
+
+    n = len(tab)
+    tier = np.full(n, "F", dtype="U1")
+
+    for i in range(n):
+        if not phot_ok[i]:
+            tier[i] = "F"
+        elif (not use_r[i]) or (not use_ha[i]):
+            tier[i] = "D"
+        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i]:
+            tier[i] = "C"
+        elif not use_hm[i]:
+            tier[i] = "B"
+        else:
+            tier[i] = "A"
+
+    tab["QC_TIER"] = tier
+    return tab
+
+def prepare_analysis_table(
+    tab: Table,
+    add_qc: bool = True,
+    add_tier: bool = True,    
+    #add_derived: bool = True,
+    add_duplicates=True,    
+    add_science: bool = True,    
+    copy: bool = True,
+) -> Table:
+    """
+    Standard table preparation for QC, validation, and first-look science.
+
+    Safe to call from qc_results.py, validate_measurements.py,
+    validate_duplicates.py, validate_dashboards.py, and science_firstlook.py.
+    """
+    if copy:
+        tab = tab.copy()
+        
+    if add_qc:
+        tab = add_qc_columns(tab)
+
+    if add_tier:
+        tab = add_qc_tier(tab)
+
+    #if add_derived:
+    #    tab = add_derived_columns(tab)
+
+    if add_duplicates:
+        tab = add_duplicate_metadata(tab)
+
+    if add_science:
+        tab = add_science_columns(tab)
+
+    if "REVIEW_PRIORITY" not in tab.colnames:
+        tab["REVIEW_PRIORITY"] = get_review_priority(tab)
+        priority = tab["REVIEW_PRIORITY"]
+        vals, counts = np.unique(priority, return_counts=True)
+        print("REVIEW_PRIORITY SUMMARY")
+        print(dict(zip(vals, counts)))
+
+        for name in ["ELL_MISMATCH", "FILTER_WARNING", "WARN_MASK", "BRIGHT_STAR_FLAG", "WARN_WEAK_HA"]:
+            arr = safe_bool_array(tab, name)
+            print(name, np.sum(arr))
+
+    return tab
 def select_sample(tab: Table, sample: str = "AB") -> np.ndarray:
     """
     Select QC subset.
@@ -349,3 +655,46 @@ def select_sample(tab: Table, sample: str = "AB") -> np.ndarray:
         return np.ones(len(tab), dtype=bool)
 
     raise ValueError(f"Unknown sample: {sample}")
+
+
+def get_review_priority(tab: Table) -> np.ndarray:
+    """
+    Review priority focused on core science reliability.
+
+    High = fundamental measurement failure
+    Medium = caution / common issues
+    Low = not urgent
+    """
+    if "QC_TIER" not in tab.colnames:
+        tab = prepare_analysis_table(tab, copy=False)
+
+    n = len(tab)
+    priority = np.full(n, "low", dtype="U16")
+
+    # -----------------------------
+    # HIGH: core failures
+    # -----------------------------
+    high = (
+        ~safe_bool_array(tab, "PHOT_OK") |
+        ~safe_bool_array(tab, "HAPY_MORPH_OK") |
+        safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
+        safe_bool_array(tab, "WARN_MASK") 
+    )
+
+    priority[high] = "high"
+
+    # -----------------------------
+    # MEDIUM: cautionary
+    # -----------------------------
+    medium = (
+        safe_bool_array(tab, "ELL_MISMATCH") |
+        safe_bool_array(tab, "WARN_MASK") |
+        safe_bool_array(tab, "WARN_WEAK_HA") |
+        safe_bool_array(tab, "FILTER_WARNING")
+    )
+
+    priority[medium & (~high)] = "medium"
+
+    return priority
+
+

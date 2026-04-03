@@ -96,6 +96,12 @@ def safe_str_array(tab: Table, colname: str, default: str = "") -> np.ndarray:
 
     return out
 
+def safe_ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
+    """Safely divide two float arrays."""
+    out = np.full(len(num), np.nan, dtype=float)
+    good = np.isfinite(num) & np.isfinite(den) & (den > 0)
+    out[good] = num[good] / den[good]
+    return out
 
 def first_existing_col(tab: Table, names: list[str]) -> str | None:
     """Return the first existing column from a list of candidate names."""
@@ -135,12 +141,7 @@ def get_std(dx: np.ndarray) -> tuple[float, float]:
     std = np.nanstd(dx[good])
     return std
 
-def safe_ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
-    """Safely divide two float arrays."""
-    out = np.full(len(num), np.nan, dtype=float)
-    good = np.isfinite(num) & np.isfinite(den) & (den > 0)
-    out[good] = num[good] / den[good]
-    return out
+
 
 
 # ----------------------------------------------------------------------
@@ -171,6 +172,52 @@ def add_derived_columns(tab):
 
     return tab
 
+def add_science_columns(tab: Table) -> Table:
+    """
+    Add core derived science columns if missing.
+    Safe to call multiple times.
+    """
+    # raw columns
+    r50 = safe_float_array(tab, "R50_ARCSEC")
+    h50 = safe_float_array(tab, "H50_ARCSEC")
+
+    r75 = safe_float_array(tab, "R75_ARCSEC")
+    h75 = safe_float_array(tab, "H75_ARCSEC")
+
+    r25 = safe_float_array(tab, "R25_ARCSEC")
+    hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
+
+    r_p50 = safe_float_array(tab, "R_PETRO_R50_ARCSEC")
+    h_p50 = safe_float_array(tab, "H_PETRO_R50_ARCSEC")
+
+    r_gini = safe_float_array(tab, "R_HAPY_GINI")
+    h_gini = safe_float_array(tab, "H_HAPY_GINI")
+
+    r_m20 = safe_float_array(tab, "R_HAPY_M20")
+    h_m20 = safe_float_array(tab, "H_HAPY_M20")
+
+    # optional, but useful for consistency with validation/science plots
+    r_asym = safe_float_array(tab, "R_HAPY_ASYM")
+    h_asym = safe_float_array(tab, "H_HAPY_ASYM")
+
+    # derived
+    if "H50_R50_RATIO" not in tab.colnames:
+        tab["H50_R50_RATIO"] = safe_ratio(h50, r50)
+    if "H75_R75_RATIO" not in tab.colnames:
+        tab["H75_R75_RATIO"] = safe_ratio(h75, r75)
+    if "H_MAXDET_R25_RATIO" not in tab.colnames:
+        tab["H_MAXDET_R25_RATIO"] = safe_ratio(hmax, r25)
+    if "H_PETRO_R50_RATIO" not in tab.colnames:
+        tab["H_PETRO_R50_RATIO"] = safe_ratio(h_p50, r_p50)
+
+    if "DELTA_GINI" not in tab.colnames:
+        tab["DELTA_GINI"] = h_gini - r_gini
+    if "DELTA_M20" not in tab.colnames:
+        tab["DELTA_M20"] = h_m20 - r_m20
+    if "DELTA_ASYM" not in tab.colnames:
+        tab["DELTA_ASYM"] = h_asym - r_asym
+
+    return tab
 def add_duplicate_metadata(tab, id_col="VFID"):
     ids = np.array(tab[id_col]).astype(str)
 
@@ -332,52 +379,7 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
 
 
 
-def add_science_columns(tab: Table) -> Table:
-    """
-    Add core derived science columns if missing.
-    Safe to call multiple times.
-    """
-    # raw columns
-    r50 = safe_float_array(tab, "R50_ARCSEC")
-    h50 = safe_float_array(tab, "H50_ARCSEC")
 
-    r75 = safe_float_array(tab, "R75_ARCSEC")
-    h75 = safe_float_array(tab, "H75_ARCSEC")
-
-    r25 = safe_float_array(tab, "R25_ARCSEC")
-    hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
-
-    r_p50 = safe_float_array(tab, "R_PETRO_R50_ARCSEC")
-    h_p50 = safe_float_array(tab, "H_PETRO_R50_ARCSEC")
-
-    r_gini = safe_float_array(tab, "R_HAPY_GINI")
-    h_gini = safe_float_array(tab, "H_HAPY_GINI")
-
-    r_m20 = safe_float_array(tab, "R_HAPY_M20")
-    h_m20 = safe_float_array(tab, "H_HAPY_M20")
-
-    # optional, but useful for consistency with validation/science plots
-    r_asym = safe_float_array(tab, "R_HAPY_ASYM")
-    h_asym = safe_float_array(tab, "H_HAPY_ASYM")
-
-    # derived
-    if "H50_R50_RATIO" not in tab.colnames:
-        tab["H50_R50_RATIO"] = safe_ratio(h50, r50)
-    if "H75_R75_RATIO" not in tab.colnames:
-        tab["H75_R75_RATIO"] = safe_ratio(h75, r75)
-    if "H_MAXDET_R25_RATIO" not in tab.colnames:
-        tab["H_MAXDET_R25_RATIO"] = safe_ratio(hmax, r25)
-    if "H_PETRO_R50_RATIO" not in tab.colnames:
-        tab["H_PETRO_R50_RATIO"] = safe_ratio(h_p50, r_p50)
-
-    if "DELTA_GINI" not in tab.colnames:
-        tab["DELTA_GINI"] = h_gini - r_gini
-    if "DELTA_M20" not in tab.colnames:
-        tab["DELTA_M20"] = h_m20 - r_m20
-    if "DELTA_ASYM" not in tab.colnames:
-        tab["DELTA_ASYM"] = h_asym - r_asym
-
-    return tab
 
 
 def add_qc_columns(tab: Table, max_ha_filter_correction: float = 1.2) -> Table:

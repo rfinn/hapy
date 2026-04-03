@@ -30,7 +30,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from astropy.table import Table
 
-from hapy.utils.results_table import prepare_results_table, select_sample
+from hapy.utils.results_table import prepare_results_table, select_sample,ensure_dir, safe_float_array,
+
 from hapy.utils.plotting import (
     QC_TIER_ORDER,
     QC_TIER_PALETTE,
@@ -38,18 +39,13 @@ from hapy.utils.plotting import (
     style_pairplot,
     enforce_qc_tier,
     style_jointplot,
-    style_jointplot_legend,    
-)
-from validate_measurements import (
-    ensure_dir,
-    safe_float_array,
+    style_jointplot_legend,
     make_dataframe,
     clean_pairplot_df,
     _robust_limits,
     _annotate_pairgrid,
     pairplot_family,
-    
-    )
+)
 
 
 def plot_joint(
