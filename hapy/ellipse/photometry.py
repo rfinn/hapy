@@ -486,6 +486,7 @@ class EllipsePhotometry():
         
         print("detect objects")
         self.detect_objects()
+        self.save_segmentation_png()
         print("find central")        
         self.find_central_object() 
         print("find ellipse guess")               
@@ -629,7 +630,7 @@ class EllipsePhotometry():
             self.image2 -= self.sky2
 
         #TODO add this into image header
-    def detect_objects(self, snrcut=1.5,npixels=10):
+    def detect_objects(self, snrcut=10,npixels=50):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
@@ -660,7 +661,18 @@ class EllipsePhotometry():
                 # measure halpha properties using same segmentation image
                 self.cat2 = SourceCatalog(self.image2, self.segmentation)
             
+    def save_segmentation_png(self):
+        """ save photutils segmentation image """
+        outname = self.image_name.replace(".fits","-phot-segmentation.png")
+        plt.figure()
+        
+        plt.imshow(self.segmentation,origin="lower")
+        plt.colorbar()
+        plt.savefig(outname)
 
+        outname = self.image_name.replace(".fits","-phot-segmentation.fits")
+        fits.writeto(outname,data=self.segmentation, header=self.header,overwrite=True)
+        
     def detect_objectsv2(self, snrcut=1.5,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
@@ -1450,6 +1462,7 @@ class EllipsePhotometry():
         """
         obj = self.cat[self.objectIndex]
 
+        print("DEBUG: obj row from phot catalog\n\t",obj)
         # Set guess center from the detected object unless the center is fixed.
         if not self.fixcenter:
             self.xcenter_guess = float(obj.xcentroid)
@@ -1569,16 +1582,18 @@ class EllipsePhotometry():
     #         self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
 
 
-    def fit_central_ellipse(self):
+    def fit_central_ellipse(self,r=2.5):
         """
         Refine center, PA, and ellipticity from the r-band light distribution.
         Fall back to the guessed geometry if the fit fails.
         """
         self.xcenter_fit = self.xcenter_guess
         self.ycenter_fit = self.ycenter_guess
+        self.xcenter_fit = self.xcenter_ra
+        self.ycenter_fit = self.ycenter_dec
         self.eps_fit = self.eps_guess
         self.pa_fit = self.pa_guess
-        self.sma_fit = self.sma_guess
+        self.sma_fit = self.sma_guess/r
         self.ellipse_fit_ok = False
         print("at beginning of fit_central_ellipse")
         print(f"\txcenter_fit={self.xcenter_fit:.2f}\n",
@@ -1618,12 +1633,10 @@ class EllipsePhotometry():
         
         try:
             geom = EllipseGeometry(
-                #x0=self.xcenter_guess,
-                #y0=self.ycenter_guess,
-                x0=self.xcenter_ra,
-                y0=self.ycenter_dec,
-                sma=max(self.sma_guess, 5.0),
-                eps=np.clip(self.eps_guess, 0.0, 0.9),
+                x0=self.xcenter_fit,
+                y0=self.ycenter_fit,
+                sma=max(self.sma_fit, 5.0),
+                eps=np.clip(self.eps_fit, 0.0, 0.9),
                 pa=self.pa_guess,
             )
 
