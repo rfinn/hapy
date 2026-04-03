@@ -615,6 +615,8 @@ class EllipsePhotometry():
         self.sky = skymedian
         self.sky_noise = skystd
 
+        print(f"DEBUG: photutils sky_noise = {self.sky_noise:.3f}")
+
         if self.image2 is not None:
             skymean, skymedian, skystd = imutils.calculate_background_photutils(self.image2)
 
@@ -630,7 +632,7 @@ class EllipsePhotometry():
             self.image2 -= self.sky2
 
         #TODO add this into image header
-    def detect_objects(self, snrcut=10,npixels=50):
+    def detect_objects(self, snrcut=20,npixels=100):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
@@ -643,6 +645,11 @@ class EllipsePhotometry():
             else:
                 self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
             self.segmentation = detect_sources(self.image, self.threshold, npixels=npixels, mask=self.boolmask)
+
+            # 
+            #from photutils.segmentation import deblend_sources
+            #self.segment_map2 = deblend_sources(self.image, self.segmentation, 10)
+                                   
             #self.cat = source_properties(self.image, self.segmentation, mask=self.boolmask)
             self.cat = SourceCatalog(self.image, self.segmentation, mask=self.boolmask)
             if self.image2 is not None:
@@ -665,13 +672,18 @@ class EllipsePhotometry():
         """ save photutils segmentation image """
         outname = self.image_name.replace(".fits","-phot-segmentation.png")
         plt.figure()
-        
+        plt.subplot(1,2,1)
         plt.imshow(self.segmentation,origin="lower")
+        plt.colorbar()
+        plt.subplot(1,2,2)
+        plt.imshow(self.segment_map2,origin="lower")
         plt.colorbar()
         plt.savefig(outname)
 
         outname = self.image_name.replace(".fits","-phot-segmentation.fits")
         fits.writeto(outname,data=self.segmentation, header=self.header,overwrite=True)
+        outname = self.image_name.replace(".fits","-phot-segmentation2.fits")
+        fits.writeto(outname,data=self.segment_map2, header=self.header,overwrite=True)        
         
     def detect_objectsv2(self, snrcut=1.5,npixels=10):
         ''' 
@@ -1643,7 +1655,7 @@ class EllipsePhotometry():
             #ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
             
             #ellipse = Ellipse(self.image, geometry=geom)
-            ellipse = Ellipse(self.masked_image, geometry=geom)
+            ellipse = Ellipse(self.masked_image, geometry=geom, threshold=self.threshold)
             isolist = ellipse.fit_image(
                 sma0=max(self.sma_guess, 5.0),
                 minsma=max(2.0, 0.5 * self.sma_guess),
