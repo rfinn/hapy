@@ -311,7 +311,7 @@ class EllipsePhotometry():
             # convert sma to pixels using pixel scale from mask wcs
             #self.pixel_scale = wcs.pixel_scale_matrix[1][1]
             #self.objsma_pixels = self.objsma/(self.pixel_scale*3600)
-        
+        print(f"DEBUG inside EllipsePhotometry: xc={self.xcenter},yc={self.ycenter:.1f},\nra={self.objra:.6f},dec={self.objdec:.6f}")
         # image 2 is designed to be the Halpha image, but it can be any second
         # image whereby you define the ellipse geometry using image 1, and
         # measure the photometry on image 1 and image 2
@@ -453,47 +453,12 @@ class EllipsePhotometry():
         self.set_guess_ellipse_mask_metrics()
         #print("measure phot")                
         self.measure_phot()
-        #print("get M20")                
-        #self.get_all_M20()
-        
-        #self.get_all_frac_masked_pixels()
-        #print("calc sb")         
+   
         self.calc_sb()
-        #print("convert units")                
-        #self.convert_units()
-        #print("get asym")        
-        ##self.get_image2_gini()
-        #try:
-        #    self.get_asymmetry()
-        #except:
-        #    print("WARNING: problem measuring asymmetry")
-        #    self.asym = -99
-        #    self.asym_err = -99
-        #    self.asym2 = -99
-        #    self.asym2_err = -99
-        
-        #print("running statmorph - please be patient...")
-        #print()
-        ##self.run_statmorph()
-        ##self.statmorph_flag = True
-        #try:    
-        #    self.run_statmorph()
-        #    self.statmorph_flag = True
-        #except:
-        #    self.statmorph_flag = False            
-        #    print("WARNING: problem running statmorph")
-        #print("writing phot fits tables")
-        #self.write_phot_tables()
+ 
         self.write_phot_fits_table2_simple()
         #self.get_sky_noise()
 
-        #print()
-        #print("finished with photutils")
-        #print()
-        #if self.use_mpl:
-        #    self.draw_phot_results_mpl()
-        #else:
-        #    self.draw_phot_results()
     
     def run_for_gui(self,runStatmorphFlag=True):
         ''' 
@@ -526,7 +491,7 @@ class EllipsePhotometry():
         print("find ellipse guess")               
         self.get_ellipse_guess()
         
-        print("find ellipse guess") 
+        print("fit central ellipse") 
         self.fit_central_ellipse()
         
         print("get frac masked pixels")
