@@ -1417,7 +1417,7 @@ def main():
         ("ELLIP_SMA_ARCSEC", "sma_fit"),
         ("ELLIP_B_ARCSEC", "b"),
         ("ELLIP_EPS", "eps_fit"),
-        ("ELLIP_THETA_RAD", "theta"),
+        ("ELLIP_THETA_RAD", "pa_fit"),
         ("R_ELLIP_GINI", "gini"),
         ("H_ELLIP_GINI", "gini2"),        
         ("ELLIP_SOURCE_SUM", "source_sum"),

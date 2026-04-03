@@ -119,6 +119,149 @@ dwavelength = {'4':60.44,\
 # define colors - need this for plotting line and fill_between in the same color
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
+import numpy as np
+
+
+def find_segment_center(
+    image,
+    segmap,
+    label=None,
+    mask=None,
+    method="windowed",
+    box_radius=5,
+    use_only_positive=True,
+):
+    """
+    Find a galaxy center within a segmentation region.
+
+    Parameters
+    ----------
+    image : 2D ndarray
+        Science image.
+    segmap : 2D ndarray
+        Boolean mask or integer-labeled segmentation map.
+    label : int, optional
+        Segment label to use if segmap is integer-valued.
+        Ignored if segmap is already boolean.
+    mask : 2D ndarray of bool, optional
+        Bad-pixel mask, where True means ignore pixel.
+    method : {'peak', 'weighted', 'windowed'}
+        Centering method:
+          - 'peak'     : brightest pixel in the segment
+          - 'weighted' : flux-weighted centroid over whole segment
+          - 'windowed' : brightest pixel, then weighted centroid in local box
+    box_radius : int
+        Half-size of local box for method='windowed'.
+    use_only_positive : bool
+        If True, only use positive-flux pixels in weighted centroid.
+
+    Returns
+    -------
+    xc, yc : float
+        Center coordinates in pixel units.
+    info : dict
+        Diagnostic information.
+    """
+    img = np.asarray(image, dtype=float)
+
+    if segmap.dtype == bool:
+        segmask = segmap.copy()
+    else:
+        if label is None:
+            raise ValueError("label must be provided when segmap is not boolean")
+        segmask = (segmap == label)
+
+    if mask is not None:
+        segmask = segmask & (~np.asarray(mask, dtype=bool))
+
+    finite = np.isfinite(img)
+    segmask = segmask & finite
+
+    if not np.any(segmask):
+        raise ValueError("Segmentation region is empty after applying mask/finite cut")
+
+    # coordinates in numpy order
+    yy, xx = np.nonzero(segmask)
+    vals = img[segmask]
+
+    # brightest pixel in the segment
+    imax = np.argmax(vals)
+    xpeak = float(xx[imax])
+    ypeak = float(yy[imax])
+    peak_flux = float(vals[imax])
+
+    if method == "peak":
+        return xpeak, ypeak, {
+            "method": "peak",
+            "xpeak": xpeak,
+            "ypeak": ypeak,
+            "peak_flux": peak_flux,
+            "npix": len(vals),
+        }
+
+    def weighted_centroid(xarr, yarr, fluxarr):
+        w = np.asarray(fluxarr, dtype=float)
+
+        if use_only_positive:
+            good = w > 0
+            xarr = xarr[good]
+            yarr = yarr[good]
+            w = w[good]
+
+        if len(w) == 0 or np.sum(w) <= 0:
+            return xpeak, ypeak, False
+
+        xc = float(np.sum(xarr * w) / np.sum(w))
+        yc = float(np.sum(yarr * w) / np.sum(w))
+        return xc, yc, True
+
+    if method == "weighted":
+        xc, yc, ok = weighted_centroid(xx.astype(float), yy.astype(float), vals)
+        return xc, yc, {
+            "method": "weighted",
+            "xpeak": xpeak,
+            "ypeak": ypeak,
+            "peak_flux": peak_flux,
+            "npix": len(vals),
+            "success": ok,
+        }
+
+    if method == "windowed":
+        ny, nx = img.shape
+        x0 = max(0, int(np.floor(xpeak)) - box_radius)
+        x1 = min(nx, int(np.floor(xpeak)) + box_radius + 1)
+        y0 = max(0, int(np.floor(ypeak)) - box_radius)
+        y1 = min(ny, int(np.floor(ypeak)) + box_radius + 1)
+
+        local_seg = segmask[y0:y1, x0:x1]
+        if not np.any(local_seg):
+            return xpeak, ypeak, {
+                "method": "windowed",
+                "xpeak": xpeak,
+                "ypeak": ypeak,
+                "peak_flux": peak_flux,
+                "npix": len(vals),
+                "success": False,
+                "fallback": "peak",
+            }
+
+        lyy, lxx = np.nonzero(local_seg)
+        lxx = lxx.astype(float) + x0
+        lyy = lyy.astype(float) + y0
+        lvals = img[y0:y1, x0:x1][local_seg]
+
+        xc, yc, ok = weighted_centroid(lxx, lyy, lvals)
+        return xc, yc, {
+            "method": "windowed",
+            "xpeak": xpeak,
+            "ypeak": ypeak,
+            "peak_flux": peak_flux,
+            "npix": len(vals),
+            "local_npix": len(lvals),
+            "success": ok,
+        }
+
+    raise ValueError(f"Unknown method: {method}")
 
 def _fraction_unmasked_pixels(cat, idx):
     """
@@ -491,7 +634,9 @@ class EllipsePhotometry():
         self.find_central_object() 
         print("find ellipse guess")               
         self.get_ellipse_guess()
-        
+
+        print("finding center of flux")
+        self.find_peak_flux_center()
         print("fit central ellipse") 
         self.fit_central_ellipse()
         
@@ -1595,8 +1740,38 @@ class EllipsePhotometry():
     #         self.photutils_segment_flux = float(self.source_sum)
     #         self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
 
+    def find_peak_flux_center(self, method="windowed", box_radius=5):
+        """
+        Find a center for the selected galaxy segment using image flux.
+        """
+        obj = self.cat[self.objectIndex]
 
-    def fit_central_ellipse(self,r=2.5):
+        # use whichever label identifies the central source in your catalog
+        label = int(obj.label)
+
+        segdata = self.segmentation.data if hasattr(self.segmentation, "data") else self.segmentation
+        mask = self.boolmask if getattr(self, "mask_flag", False) else None
+
+        xc, yc, info = find_segment_center(
+            self.image,
+            segdata,
+            label=label,
+            mask=mask,
+            method=method,
+            box_radius=box_radius,
+        )
+
+        self.xcenter_flux = xc
+        self.ycenter_flux = yc
+        self.center_method = info["method"]
+        self.xpeak_flux = info["xpeak"]
+        self.ypeak_flux = info["ypeak"]
+        self.peak_flux_value = info["peak_flux"]
+        print(f"DEBUG: in find_central_flux_center: xc={xc},yc={yc}")
+        return xc, yc, info
+
+
+    def fit_central_ellipse(self,r=1,fix_center=True):
         """
         Refine center, PA, and ellipticity from the r-band light distribution.
         Fall back to the guessed geometry if the fit fails.
@@ -1605,6 +1780,8 @@ class EllipsePhotometry():
         self.ycenter_fit = self.ycenter_guess
         self.xcenter_fit = self.xcenter_ra
         self.ycenter_fit = self.ycenter_dec
+        self.xcenter_fit = self.xcenter_flux
+        self.ycenter_fit = self.ycenter_flux
         self.eps_fit = self.eps_guess
         self.pa_fit = self.pa_guess
         self.sma_fit = self.sma_guess/r
@@ -1658,17 +1835,22 @@ class EllipsePhotometry():
             
             #ellipse = Ellipse(self.image, geometry=geom)
             ellipse = Ellipse(self.masked_image, geometry=geom, threshold=self.threshold)
-            isolist = ellipse.fit_image(
-                sma0=max(self.sma_fit, 5.0),
-                minsma=max(2.0, 0.5 * self.sma_fit),
-                maxsma=max(self.sma_fit * 2.0, 20.0),
-                fix_center=False,
-                fix_pa=False,
-                fix_eps=False,
-            )
+            isolist = ellipse.fit_image(#fix_center=fix_center)
+                 sma0=max(self.sma_fit, 5.0),
+                 minsma=max(2.0, 0.5 * self.sma_fit),
+                 maxsma=max(self.sma_fit * 2.0, 20.0),
+                 fix_center=fix_center,
+                 fix_pa=False,
+                 fix_eps=False,
+                )
 
             iso = isolist.get_closest(self.sma_fit)
-
+            try:
+                print(isolist.x0)
+            except:
+                print("THAT DIDN'T WORK!")
+            #for i in iso:
+            #    print(i)
             self.xcenter_fit = iso.sample.geometry.x0
             self.ycenter_fit = iso.sample.geometry.y0
             self.eps_fit = iso.sample.geometry.eps
