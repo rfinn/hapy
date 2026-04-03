@@ -1740,7 +1740,7 @@ class EllipsePhotometry():
     #         self.photutils_segment_flux = float(self.source_sum)
     #         self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
 
-    def find_peak_flux_center(self, method="windowed", box_radius=5):
+    def find_peak_flux_center(self, method="windowed", box_radius=10):
         """
         Find a center for the selected galaxy segment using image flux.
         """
