@@ -1689,7 +1689,8 @@ class EllipsePhotometry():
                   f"\tycenter_fit={self.ycenter_fit:.2f}\n",
                   f"\teps_fit={self.eps_fit:.2f}\n",
                   f"\tpa_fit={self.pa_fit:.2f}\n",
-                  f"\tsma_fit={self.sma_fit:.2f}\n",                  
+                  f"\tsma_fit={self.sma_fit:.2f}\n",
+                  f"\tellipse_fit_ok={self.ellipse_fit_ok}\n",
                 )
 
             
