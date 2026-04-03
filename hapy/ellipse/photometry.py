@@ -1837,8 +1837,10 @@ class EllipsePhotometry():
             ellipse = Ellipse(self.masked_image, geometry=geom, threshold=self.threshold)
             isolist = ellipse.fit_image(#fix_center=fix_center)
                  sma0=max(self.sma_fit, 5.0),
-                 minsma=max(2.0, 0.5 * self.sma_fit),
-                 maxsma=max(self.sma_fit * 2.0, 20.0),
+                 #minsma=max(2.0, 0.5 * self.sma_fit),
+                 #maxsma=max(self.sma_fit * 2.0, 20.0),
+                 minsma=0.5 * self.sma_fit,
+                 maxsma=self.sma_fit * 1.5,
                  fix_center=fix_center,
                  fix_pa=False,
                  fix_eps=False,
