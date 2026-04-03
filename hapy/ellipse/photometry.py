@@ -632,7 +632,7 @@ class EllipsePhotometry():
             self.image2 -= self.sky2
 
         #TODO add this into image header
-    def detect_objects(self, snrcut=1.5,npixels=10):
+    def detect_objects(self, snrcut=3.,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
@@ -640,12 +640,12 @@ class EllipsePhotometry():
         this also measures the sky noise as the mean of the threshold image
         '''               
         if self.mask_flag:
-            if np.isfinite(self.sky_noise):
-                self.threshold = float(snrcut*self.sky_noise)
-            else:
-                self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
+            #if np.isfinite(self.sky_noise):
+            #    self.threshold = float(snrcut*self.sky_noise)
+            #else:
+            #    self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
             #print(f"DEBUG in detect_object, skynoise={self.sky_noise:.3f}, threshold=
-            #self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
+            self.threshold = detect_threshold(self.image, nsigma=snrcut,mask=self.boolmask)
             self.segmentation = detect_sources(self.image, self.threshold, npixels=npixels, mask=self.boolmask)
 
             # 
