@@ -1587,13 +1587,13 @@ class EllipsePhotometry():
                   f"\tpa_fit={self.pa_fit:.2f}\n",
                   f"\tsma_fit={self.sma_fit:.2f}\n",                  
                 )
-        geom = EllipseGeometry(
-            x0=self.xcenter_guess,
-            y0=self.ycenter_guess,
-            sma=max(self.sma_guess, 5.0),
-            eps=np.clip(self.eps_guess, 0.0, 0.9),
-            pa=self.pa_guess,
-        )
+        # geom = EllipseGeometry(
+        #     x0=self.xcenter_guess,
+        #     y0=self.ycenter_guess,
+        #     sma=max(self.sma_guess, 5.0),
+        #     eps=np.clip(self.eps_guess, 0.0, 0.9),
+        #     pa=self.pa_guess,
+        # )
 
         #ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
         # ellipse = Ellipse(self.image, geometry=geom)
@@ -1618,8 +1618,10 @@ class EllipsePhotometry():
         
         try:
             geom = EllipseGeometry(
-                x0=self.xcenter_guess,
-                y0=self.ycenter_guess,
+                #x0=self.xcenter_guess,
+                #y0=self.ycenter_guess,
+                x0=self.xcenter_ra,
+                y0=self.ycenter_dec,
                 sma=max(self.sma_guess, 5.0),
                 eps=np.clip(self.eps_guess, 0.0, 0.9),
                 pa=self.pa_guess,
