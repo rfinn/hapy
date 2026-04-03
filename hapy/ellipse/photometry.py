@@ -1626,7 +1626,9 @@ class EllipsePhotometry():
             )
 
             #ellipse = Ellipse(self.image_for_ellipse, geometry=geom)
-            ellipse = Ellipse(self.image, geometry=geom)
+            
+            #ellipse = Ellipse(self.image, geometry=geom)
+            ellipse = Ellipse(self.masked_image, geometry=geom)
             isolist = ellipse.fit_image(
                 sma0=max(self.sma_guess, 5.0),
                 minsma=max(2.0, 0.5 * self.sma_guess),
