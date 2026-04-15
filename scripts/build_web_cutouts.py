@@ -1524,10 +1524,10 @@ class build_html_cutout():
         else:
             pointing_str = "--"
 
-        if self.cutout.parent_url:
-            pointing_str = f"<a href={self.cutout.parent_url}>{self.run}</a>",
-        else:
-            pointing_str = "NA"
+        #if self.cutout.parent_url:
+        #    pointing_str = f"<a href={self.cutout.parent_url}>{self.run}</a>",
+        #else:
+        #    pointing_str = "NA"
             
         data = [
             get_result(self.cutout.results,"VFID", self.cutout.vfid),
