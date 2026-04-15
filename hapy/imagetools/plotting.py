@@ -259,7 +259,7 @@ def plot_segmentation_diagnostic(
     from matplotlib.colors import LogNorm
     seg_plot = np.array(se_seg, dtype=float)
     seg_plot[seg_plot <= 0] = np.nan
-    ax[1].imshow(se_plot, origin="lower", interpolation="nearest")
+    ax[1].imshow(seg_plot, origin="lower", interpolation="nearest", norm=LogNorm(vmin=1, vmax=np.nanmax(seg_plot)),)
     ax[1].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
                                   edgecolor="cyan", linewidth=2))
     ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
