@@ -1203,25 +1203,28 @@ class EllipsePhotometry():
         print("DEBUG mask true pixels:", np.sum(self.boolmask))
         print("DEBUG usable pixels:", np.sum(~self.boolmask & np.isfinite(self.image2)))
         if self.mask_flag:
-            self.threshold2 = detect_threshold(self.image2, nsigma=snrcut, mask=self.boolmask)
-            self.segmentation2 = detect_sources(self.image2, self.threshold2, npixels=10,mask=self.boolmask)
-            #self.cat2 = source_properties(self.image2, self.segmentation2, mask=self.boolmask)
-            cat2 = SourceCatalog(self.image2, self.segmentation2, mask=self.boolmask)            
+            thismask = self.boolmask
         else:
-            self.threshold2 = detect_threshold(self.image2, nsigma=snrcut)
-            self.segmentation2 = detect_sources(self.image2, self.threshold2, npixels=10)
-            #self.cat2 = source_properties(self.image2, self.segmentation2)
-            cat2 = SourceCatalog(self.image2, self.segmentation2)            
-
+            thismask = None
+            
+        self.threshold2 = detect_threshold(self.image2, nsigma=snrcut, mask=thismask)
+        self.segmentation2 = detect_sources(self.image2, self.threshold2, npixels=10,mask=thismask)
+        #self.cat2 = source_properties(self.image2, self.segmentation2, mask=self.boolmask)
+        cat2 = SourceCatalog(self.image2, self.segmentation2, mask=self.boolmask)            
+ 
         '''
         select pixels associated with rband image in the segmentation
         AND
         pixels that are above the SNR cut in the Halpha image (image2)
         '''
-        self.gini_pixels = (self.segmentation.data == self.cat.label[self.objectIndex]) & (self.segmentation2.data > 0.)
+        if len(cat2) == 0:
+            self.gini_pixels = None
+            self.gini2 = np.nan
+        else:
+            self.gini_pixels = (self.segmentation.data == self.cat.label[self.objectIndex]) & (self.segmentation2.data > 0.)
 
-        #self.tbl = self.cat.to_table()
-        self.gini2 = gini(self.image2[self.gini_pixels])
+            #self.tbl = self.cat.to_table()
+            self.gini2 = gini(self.image2[self.gini_pixels])
         #self.source_sum2 = np.sum(self.image2[self.gini_pixels])
         #self.source_sum2_erg = self.uconversion1*self.source_sum2
         #self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum2)
