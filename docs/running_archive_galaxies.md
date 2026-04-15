@@ -8,7 +8,8 @@ TBA
 
 
 # Update Headers
-- Move directory that contains subdirectories for each galaxy (e.g. /Users/rfinn/research/Virgo/koopmann-images/Virgo/raw)
+- Move to the directory that contains subdirectories for each galaxy
+  (e.g. on macbook, this is /Users/rfinn/research/Virgo/koopmann-images/Virgo/raw)
 - Clear any prior versions of fits files with updated headers:
 ```
 rm */h*.fits
@@ -18,6 +19,10 @@ rm */h*.fits
 python ~/github/hapy/scripts/update_archive_headers.py --center-file ~/research/Virgo/koopmann-images/offcenter_virgo_centers.csv
 ```
 # Rename Directories and Images
+
+This will create a parallel set of directories that are named
+according to the `Virgo Filament Survey` naming convention.  This
+allows for easier incorporation into the analysis downstream.
 ```
 python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/Virgo/raw --output-root ~/research/Virgo/koopmann-images/Virgo/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/virgo.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits --dry-run
 ```
@@ -42,7 +47,8 @@ cd /Users/rfinn/research/Virgo/koopmann-images/Virgo/
 rsync -avz cutouts draco:/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/.
 ```
 
-The remaining commands are executed on draco.
+The remaining commands are executed on draco and mirror the steps
+used for the VFS and UAT samples.
 
 ```
 cd /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401
@@ -86,27 +92,6 @@ Create some basic qc plots:
 python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
 ```
 
-Inspecting duplicate observations:
-```
-usage: qc_duplicates.py [-h] [--outdir OUTDIR] [--max-ha-filter-correction MAX_HA_FILTER_CORRECTION] table
-
-QC analysis for duplicate HAPY observations.
-
-positional arguments:
-  table                 Merged HAPY results table (e.g. merged_results.fits)
-
-options:
-  -h, --help            show this help message and exit
-  --outdir OUTDIR       Output directory
-  --max-ha-filter-correction MAX_HA_FILTER_CORRECTION
-                        Maximum Halpha filter correction for 'good' Halpha duplicate comparisons
-
-```
-
-To run:
-```
-python ~/github/hapy/scripts/qc_duplicates.py merged_results.fits
-```
 
 
 
@@ -136,7 +121,7 @@ find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260326/cutouts -mindep
 ```
 
 ```bash
-ROOTDIR=/data-pool/Halpha/hapy-output-20260310
+ROOTDIR=/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/
 ```
 then
 ```bash
@@ -146,13 +131,11 @@ parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs pyt
 ## Build Cutout Webpages
 Create a list of the cutout images:
 ```bash
-find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260326/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
+find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
 
 Test on one directory:
-```bash
-ROOTDIR=/data-pool/Halpha/hapy-output-20260313
-```
+
 ```bash
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --outdir $ROOTDIR/html/cutouts --oneimage VFID3757-NGC4561-TI2-19990101-n4561 
 ```
