@@ -2,7 +2,9 @@
  
 We are incorporating archival data for Virgo Cluster (KKY2001) and Isolated galaxies (KK2006) into our analysis of halpha/SFR properties as a function of environment.
 
-# Sort Programs
+# Sort Images into Directories
+
+TBA
 
 
 # Update Headers
