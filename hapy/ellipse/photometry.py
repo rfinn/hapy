@@ -1881,7 +1881,7 @@ class EllipsePhotometry():
         )
         self.xcenter_flux_peak = self.xcenter_flux
         self.ycenter_flux_peak = self.ycenter_flux
-        self.center_info_peak = self.center_info
+        self.center_info_peak = info
 
         # Case 2: guess-anchored center
         xc, yc, info = self.find_flux_center(
