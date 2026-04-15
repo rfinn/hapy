@@ -383,7 +383,7 @@ def initialize_result_row():
     # ---------- identity ----------
     for k in [
         "TAG", "CUTDIR",
-         "MASK_FITS","PSF_FITS",
+         "MASK_FITS","MASK_SOURCE","PSF_FITS",
          "R_FITS", "CS_FITS","SIGMA_FITS",
          "RFILTER_FILENAME", "RFILTER_CENTER","RFILTER_WIDTH",
          "HFILTER_FILENAME", "HFILTER_CENTER","HFILTER_WIDTH",         
@@ -1077,19 +1077,15 @@ def main():
     # why are we looking for a mask when we are suppose to make one?
     #mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
-    mask_fits = (
-        args.mask_fits
-        or (cutdir / params["mask_fits"] if params.get("mask_fits") else None)
-        or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
-        )
-    mask_fits = Path(mask_fits) if mask_fits is not None else None
 
+    
     sigma_image = args.sigma_image or _pick_one(str(cutdir / f"{tag}*-sigma.fits")) or _pick_one(str(cutdir / f"{tag}*-rms.fits"))
     psf_image = args.psf_image or _pick_one(str(cutdir / f"{tag}*-psf.fits"))
 
 
             
     row = initialize_result_row()
+
 
     
     from datetime import datetime
@@ -1315,7 +1311,20 @@ def main():
     ################################################################
     # Mask block
     ################################################################
+
+    manual_mask = cutdir / f"{tag}-mask-manual.fits"
+
+    mask_fits = (
+        args.mask_fits
+        or (cutdir / params["mask_fits"] if params.get("mask_fits") else None)
+        or (manual_mask if manual_mask.exists() else None)
+        or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
+    )
+
+    mask_fits = Path(mask_fits) if mask_fits is not None else None
+
     mask_out = cutdir / f"{tag}-mask.fits"
+
     if args.force_mask:
         logger.info("Force-mask enabled: rebuilding mask")
 
@@ -1339,12 +1348,22 @@ def main():
             dec=dec,
             use_gaia=use_gaia,
         )
+        row["MASK_SOURCE"] = "rebuilt"
 
     elif mask_fits is not None and mask_fits.exists():
         logger.info(f"Using existing mask: {mask_fits}")
         mask = fits.getdata(mask_fits)
         row["MASK_OK"] = True
         row["MASK_FITS"] = str(mask_fits)
+
+        if args.mask_fits:
+            row["MASK_SOURCE"] = "cli"
+        elif params.get("mask_fits"):
+            row["MASK_SOURCE"] = "params"
+        elif mask_fits == manual_mask:
+            row["MASK_SOURCE"] = "manual"
+        else:
+            row["MASK_SOURCE"] = "auto"
 
     elif args.make_mask:
         logger.info("No existing mask found; building mask")
@@ -1365,12 +1384,15 @@ def main():
             dec=dec,
             use_gaia=use_gaia,
         )
+        row["MASK_SOURCE"] = "built"
 
     else:
         logger.info("No mask provided and mask building not requested")
         mask = None
-    if mask is not None:
+        row["MASK_OK"] = False
+        row["MASK_SOURCE"] = "none"
 
+    if mask is not None:
         res = ellipse_mask_fraction(mask, ell0_params)
         row["ELL0_MASKFRAC"] = res.frac_masked
         row["ELL0_MASK_WARN"] = res.frac_masked > 0.3
@@ -1378,6 +1400,9 @@ def main():
         row["ELL0_NTOTPIX"] = res.n_total
 
     write_result_row_ecsv(results_path, row)
+
+    
+ 
 
 
     ################################################################

@@ -107,9 +107,10 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         self.r_overlay_mode = "off"
         self.ha_overlay_mode = "off"
         self.image_name = image
-        self.mask_image = self.image_name.replace('.fits','-mask.fits')
-        self.mask_inv_image=self.image_name.replace('.fits','-inv-mask.fits')
-                                                       
+
+        self.mask_image = self.image_name.replace('.fits','-mask-manual.fits')
+        self.mask_inv_image=self.image_name.replace('.fits','-inv-mask-manual.fits')
+        
         self.haimage_name = haimage
         self.weightim = weightim
         self.weight_threshold = weight_threshold
