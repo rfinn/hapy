@@ -1881,10 +1881,10 @@ class EllipsePhotometry():
         )
         self.xcenter_flux_peak = self.xcenter_flux
         self.ycenter_flux_peak = self.ycenter_flux
-        self.center_info_peak = info
+        self.center_info_peak = self.center_info
 
         # Case 2: guess-anchored center
-        self.find_flux_center(
+        xc, yc, info = self.find_flux_center(
             method="windowed",
             box_radius=box_radius,
             anchor_mode="input",
@@ -1893,7 +1893,7 @@ class EllipsePhotometry():
         )
         self.xcenter_flux_guess = self.xcenter_flux
         self.ycenter_flux_guess = self.ycenter_flux
-        self.center_info_guess = self.center_info
+        self.center_info_guess = info
 
         # Distances from guess center
         self.center_shift_peak = float(
