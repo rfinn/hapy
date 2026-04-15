@@ -222,6 +222,78 @@ def plot_mask_ellipse_diagnostic(
     print("Wrote:", outfile)
 
 
+# def plot_segmentation_diagnostic(
+#     r_fits,
+#     se_seg_fits,
+#     mask_fits,
+#     phot_seg_fits,
+#     e0,
+#     eph,
+#     outfile,
+#     row,
+# ):
+#     Xsize = 10
+
+#     r_data, r_hdr = fits.getdata(r_fits, header=True)
+#     se_seg = fits.getdata(se_seg_fits)
+#     m_data = fits.getdata(mask_fits)
+#     phot_seg = fits.getdata(phot_seg_fits)
+
+#     mmask = m_data > 0
+#     objid = row.get("OBJID", "")
+
+#     fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+
+#     # Panel 1: R image
+#     plt.sca(ax[0])
+#     display_image(r_data, mask=mmask)
+#     ax[0].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+#                                   edgecolor="cyan", linewidth=2))
+#     ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+#                                   edgecolor="magenta", linewidth=2))
+#     ax[0].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+#     ax[0].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+#     ax[0].set_title(f"R image: {objid}")
+
+#     # Panel 2: SE segmentation
+#     from matplotlib.colors import LogNorm
+#     seg_plot = np.array(se_seg, dtype=float)
+#     seg_plot[seg_plot <= 0] = np.nan
+#     ax[1].imshow(seg_plot, origin="lower", interpolation="nearest", norm=LogNorm(vmin=1, vmax=np.nanmax(seg_plot)),)
+#     ax[1].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+#                                   edgecolor="cyan", linewidth=2))
+#     ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+#                                   edgecolor="magenta", linewidth=2))
+#     ax[1].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+#     ax[1].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+#     ax[1].set_title("SE segmentation")
+
+#     # Panel 3: mask
+#     ax[2].imshow(m_data, origin="lower", interpolation="nearest")
+#     ax[2].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+#                                   edgecolor="cyan", linewidth=2))
+#     ax[2].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, e0.ba, eph.theta_deg,
+#                                   edgecolor="magenta", linewidth=2))
+#     ax[2].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+#     ax[2].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+#     ax[2].set_title("Mask from SE")
+
+#     # Panel 4: photutils segmentation
+#     ax[3].imshow(phot_seg, origin="lower", interpolation="nearest")
+#     ax[3].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+#                                   edgecolor="cyan", linewidth=2))
+#     ax[3].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+#                                   edgecolor="magenta", linewidth=2))
+#     ax[3].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+#     ax[3].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+#     ax[3].set_title("Photutils segmentation")
+
+#     plt.tight_layout()
+#     plt.savefig(outfile, dpi=150)
+#     plt.close(fig)
+#     print("Wrote:", outfile)
+
+
 def plot_segmentation_diagnostic(
     r_fits,
     se_seg_fits,
@@ -232,6 +304,11 @@ def plot_segmentation_diagnostic(
     outfile,
     row,
 ):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LogNorm
+    from astropy.io import fits
+
     Xsize = 10
 
     r_data, r_hdr = fits.getdata(r_fits, header=True)
@@ -242,51 +319,70 @@ def plot_segmentation_diagnostic(
     mmask = m_data > 0
     objid = row.get("OBJID", "")
 
-    fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+    fig, ax = plt.subplots(1, 5, figsize=(25, 5))
 
-    # Panel 1: R image
+    def add_overlays(this_ax):
+        this_ax.add_patch(
+            ellipse_patch(
+                e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                edgecolor="cyan", linewidth=2
+            )
+        )
+        this_ax.add_patch(
+            ellipse_patch(
+                eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+                edgecolor="magenta", linewidth=2
+            )
+        )
+        this_ax.plot(e0.xc, e0.yc, "cX", markersize=Xsize)
+        this_ax.plot(eph.xc, eph.yc, "mX", markersize=Xsize)
+
+    # Panel 1: R image (unmasked)
     plt.sca(ax[0])
-    display_image(r_data, mask=mmask)
-    ax[0].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
-                                  edgecolor="cyan", linewidth=2))
-    ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
-                                  edgecolor="magenta", linewidth=2))
-    ax[0].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
-    ax[0].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+    display_image(r_data)
+    add_overlays(ax[0])
     ax[0].set_title(f"R image: {objid}")
 
-    # Panel 2: SE segmentation
-    from matplotlib.colors import LogNorm
-    seg_plot = np.array(se_seg, dtype=float)
-    seg_plot[seg_plot <= 0] = np.nan
-    ax[1].imshow(seg_plot, origin="lower", interpolation="nearest", norm=LogNorm(vmin=1, vmax=np.nanmax(seg_plot)),)
-    ax[1].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
-                                  edgecolor="cyan", linewidth=2))
-    ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
-                                  edgecolor="magenta", linewidth=2))
-    ax[1].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
-    ax[1].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
-    ax[1].set_title("SE segmentation")
+    # Panel 2: R image with mask applied
+    plt.sca(ax[1])
+    display_image(r_data, mask=mmask)
+    add_overlays(ax[1])
+    ax[1].set_title("R image + mask")
 
-    # Panel 3: mask
-    ax[2].imshow(m_data, origin="lower", interpolation="nearest")
-    ax[2].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
-                                  edgecolor="cyan", linewidth=2))
-    ax[2].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, e0.ba, eph.theta_deg,
-                                  edgecolor="magenta", linewidth=2))
-    ax[2].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
-    ax[2].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
-    ax[2].set_title("Mask from SE")
+    # Colormap for segmentation images
+    cmap = plt.cm.viridis.copy()
+    cmap.set_bad(color="black")
 
-    # Panel 4: photutils segmentation
-    ax[3].imshow(phot_seg, origin="lower", interpolation="nearest")
-    ax[3].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
-                                  edgecolor="cyan", linewidth=2))
-    ax[3].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
-                                  edgecolor="magenta", linewidth=2))
-    ax[3].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
-    ax[3].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
-    ax[3].set_title("Photutils segmentation")
+    # Panel 3: SE segmentation
+    se_plot = np.array(se_seg, dtype=float)
+    se_plot[se_plot <= 0] = np.nan
+    ax[2].imshow(
+        se_plot,
+        origin="lower",
+        interpolation="nearest",
+        norm=LogNorm(vmin=1, vmax=np.nanmax(se_plot)),
+        cmap=cmap,
+    )
+    add_overlays(ax[2])
+    ax[2].set_title("SE segmentation")
+
+    # Panel 4: mask
+    ax[3].imshow(m_data, origin="lower", interpolation="nearest")
+    add_overlays(ax[3])
+    ax[3].set_title("Mask from SE")
+
+    # Panel 5: photutils segmentation
+    phot_plot = np.array(phot_seg, dtype=float)
+    phot_plot[phot_plot <= 0] = np.nan
+    ax[4].imshow(
+        phot_plot,
+        origin="lower",
+        interpolation="nearest",
+        norm=LogNorm(vmin=1, vmax=np.nanmax(phot_plot)),
+        cmap=cmap,
+    )
+    add_overlays(ax[4])
+    ax[4].set_title("Photutils segmentation")
 
     plt.tight_layout()
     plt.savefig(outfile, dpi=150)
