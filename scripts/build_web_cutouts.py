@@ -1663,7 +1663,7 @@ class build_html_cutout():
             images = [os.path.basename(i) for i in images]
             labels = ['HAPY Mask']
 
-            write_table(self.html,images=images,labels=labels,width="50%")
+            write_table(self.html,images=images,labels=labels,width="100%")
         # add table with
         # bright star quantities, mask fraction
         #write_text_table(self.html, labels, data)
