@@ -221,4 +221,71 @@ def plot_mask_ellipse_diagnostic(
     plt.close(fig)
     print("Wrote:", outfile)
 
-    pass
+
+def plot_segmentation_diagnostic(
+    r_fits,
+    se_seg_fits,
+    mask_fits,
+    phot_seg_fits,
+    e0,
+    eph,
+    outfile,
+    row,
+):
+    Xsize = 10
+
+    r_data, r_hdr = fits.getdata(r_fits, header=True)
+    se_seg = fits.getdata(se_seg_fits)
+    m_data = fits.getdata(mask_fits)
+    phot_seg = fits.getdata(phot_seg_fits)
+
+    mmask = m_data > 0
+    objid = row.get("OBJID", "")
+
+    fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+
+    # Panel 1: R image
+    plt.sca(ax[0])
+    display_image(r_data, mask=mmask)
+    ax[0].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                                  edgecolor="cyan", linewidth=2))
+    ax[0].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+                                  edgecolor="magenta", linewidth=2))
+    ax[0].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+    ax[0].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+    ax[0].set_title(f"R image: {objid}")
+
+    # Panel 2: SE segmentation
+    ax[1].imshow(se_seg, origin="lower", interpolation="nearest")
+    ax[1].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                                  edgecolor="cyan", linewidth=2))
+    ax[1].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+                                  edgecolor="magenta", linewidth=2))
+    ax[1].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+    ax[1].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+    ax[1].set_title("SE segmentation")
+
+    # Panel 3: mask
+    ax[2].imshow(m_data, origin="lower", interpolation="nearest")
+    ax[2].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                                  edgecolor="cyan", linewidth=2))
+    ax[2].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, e0.ba, eph.theta_deg,
+                                  edgecolor="magenta", linewidth=2))
+    ax[2].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+    ax[2].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+    ax[2].set_title("Mask from SE")
+
+    # Panel 4: photutils segmentation
+    ax[3].imshow(phot_seg, origin="lower", interpolation="nearest")
+    ax[3].add_patch(ellipse_patch(e0.xc, e0.yc, e0.sma_pix, e0.ba, e0.theta_deg,
+                                  edgecolor="cyan", linewidth=2))
+    ax[3].add_patch(ellipse_patch(eph.xc, eph.yc, eph.sma_pix, eph.ba, eph.theta_deg,
+                                  edgecolor="magenta", linewidth=2))
+    ax[3].plot(e0.xc, e0.yc, 'cX', markersize=Xsize)
+    ax[3].plot(eph.xc, eph.yc, 'mX', markersize=Xsize)
+    ax[3].set_title("Photutils segmentation")
+
+    plt.tight_layout()
+    plt.savefig(outfile, dpi=150)
+    plt.close(fig)
+    print("Wrote:", outfile)

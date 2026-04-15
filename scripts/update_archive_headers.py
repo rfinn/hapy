@@ -646,6 +646,7 @@ def main():
                 if os.path.isfile(f) & ('.fits' in f):
                     hdu = fits.open(f)
 
+                    # TODO - handle pixel scale for images that are binned 2x2 (4212, 4651, 4571, 4808)
                     if 'ha' in f.lower():
                         pixelScale = get_pixel_scale(h_instrument)
                         

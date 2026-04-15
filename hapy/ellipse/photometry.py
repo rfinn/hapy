@@ -119,7 +119,6 @@ dwavelength = {'4':60.44,\
 # define colors - need this for plotting line and fill_between in the same color
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-import numpy as np
 
 
 def find_segment_center(
@@ -130,6 +129,9 @@ def find_segment_center(
     method="windowed",
     box_radius=5,
     use_only_positive=True,
+    x0=None,
+    y0=None,
+    anchor_mode="peak",
 ):
     """
     Find a galaxy center within a segmentation region.
@@ -149,11 +151,18 @@ def find_segment_center(
         Centering method:
           - 'peak'     : brightest pixel in the segment
           - 'weighted' : flux-weighted centroid over whole segment
-          - 'windowed' : brightest pixel, then weighted centroid in local box
+          - 'windowed' : weighted centroid in a local box
     box_radius : int
         Half-size of local box for method='windowed'.
     use_only_positive : bool
         If True, only use positive-flux pixels in weighted centroid.
+    x0, y0 : float, optional
+        Input anchor position in pixel coordinates. Used when
+        anchor_mode='input' and method='windowed'.
+    anchor_mode : {'peak', 'input'}
+        Defines how the local window center is chosen for method='windowed':
+          - 'peak'  : center local box on brightest pixel in the segment
+          - 'input' : center local box on (x0, y0)
 
     Returns
     -------
@@ -174,32 +183,20 @@ def find_segment_center(
     if mask is not None:
         segmask = segmask & (~np.asarray(mask, dtype=bool))
 
-    finite = np.isfinite(img)
-    segmask = segmask & finite
+    segmask = segmask & np.isfinite(img)
 
     if not np.any(segmask):
         raise ValueError("Segmentation region is empty after applying mask/finite cut")
 
-    # coordinates in numpy order
     yy, xx = np.nonzero(segmask)
     vals = img[segmask]
 
-    # brightest pixel in the segment
     imax = np.argmax(vals)
     xpeak = float(xx[imax])
     ypeak = float(yy[imax])
     peak_flux = float(vals[imax])
 
-    if method == "peak":
-        return xpeak, ypeak, {
-            "method": "peak",
-            "xpeak": xpeak,
-            "ypeak": ypeak,
-            "peak_flux": peak_flux,
-            "npix": len(vals),
-        }
-
-    def weighted_centroid(xarr, yarr, fluxarr):
+    def weighted_centroid(xarr, yarr, fluxarr, fallback_x, fallback_y):
         w = np.asarray(fluxarr, dtype=float)
 
         if use_only_positive:
@@ -209,16 +206,29 @@ def find_segment_center(
             w = w[good]
 
         if len(w) == 0 or np.sum(w) <= 0:
-            return xpeak, ypeak, False
+            return fallback_x, fallback_y, False
 
         xc = float(np.sum(xarr * w) / np.sum(w))
         yc = float(np.sum(yarr * w) / np.sum(w))
         return xc, yc, True
 
+    if method == "peak":
+        return xpeak, ypeak, {
+            "method": "peak",
+            "anchor_mode": "peak",
+            "xpeak": xpeak,
+            "ypeak": ypeak,
+            "peak_flux": peak_flux,
+            "npix": len(vals),
+        }
+
     if method == "weighted":
-        xc, yc, ok = weighted_centroid(xx.astype(float), yy.astype(float), vals)
+        xc, yc, ok = weighted_centroid(
+            xx.astype(float), yy.astype(float), vals, xpeak, ypeak
+        )
         return xc, yc, {
             "method": "weighted",
+            "anchor_mode": "global",
             "xpeak": xpeak,
             "ypeak": ypeak,
             "peak_flux": peak_flux,
@@ -228,31 +238,57 @@ def find_segment_center(
 
     if method == "windowed":
         ny, nx = img.shape
-        x0 = max(0, int(np.floor(xpeak)) - box_radius)
-        x1 = min(nx, int(np.floor(xpeak)) + box_radius + 1)
-        y0 = max(0, int(np.floor(ypeak)) - box_radius)
-        y1 = min(ny, int(np.floor(ypeak)) + box_radius + 1)
 
-        local_seg = segmask[y0:y1, x0:x1]
+        if anchor_mode == "peak":
+            x_anchor = xpeak
+            y_anchor = ypeak
+        elif anchor_mode == "input":
+            if x0 is None or y0 is None:
+                raise ValueError("x0 and y0 must be provided when anchor_mode='input'")
+            x_anchor = float(x0)
+            y_anchor = float(y0)
+        else:
+            raise ValueError(f"Unknown anchor_mode: {anchor_mode}")
+
+        x0_box = max(0, int(np.floor(x_anchor)) - box_radius)
+        x1_box = min(nx, int(np.floor(x_anchor)) + box_radius + 1)
+        y0_box = max(0, int(np.floor(y_anchor)) - box_radius)
+        y1_box = min(ny, int(np.floor(y_anchor)) + box_radius + 1)
+
+        local_seg = segmask[y0_box:y1_box, x0_box:x1_box]
+
         if not np.any(local_seg):
-            return xpeak, ypeak, {
+            fallback_x = x_anchor if anchor_mode == "input" else xpeak
+            fallback_y = y_anchor if anchor_mode == "input" else ypeak
+            fallback_name = "input" if anchor_mode == "input" else "peak"
+            return fallback_x, fallback_y, {
                 "method": "windowed",
+                "anchor_mode": anchor_mode,
+                "x_anchor": x_anchor,
+                "y_anchor": y_anchor,
                 "xpeak": xpeak,
                 "ypeak": ypeak,
                 "peak_flux": peak_flux,
                 "npix": len(vals),
                 "success": False,
-                "fallback": "peak",
+                "fallback": fallback_name,
             }
 
         lyy, lxx = np.nonzero(local_seg)
-        lxx = lxx.astype(float) + x0
-        lyy = lyy.astype(float) + y0
-        lvals = img[y0:y1, x0:x1][local_seg]
+        lxx = lxx.astype(float) + x0_box
+        lyy = lyy.astype(float) + y0_box
+        lvals = img[y0_box:y1_box, x0_box:x1_box][local_seg]
 
-        xc, yc, ok = weighted_centroid(lxx, lyy, lvals)
+        fallback_x = x_anchor if anchor_mode == "input" else xpeak
+        fallback_y = y_anchor if anchor_mode == "input" else ypeak
+
+        xc, yc, ok = weighted_centroid(lxx, lyy, lvals, fallback_x, fallback_y)
+
         return xc, yc, {
             "method": "windowed",
+            "anchor_mode": anchor_mode,
+            "x_anchor": x_anchor,
+            "y_anchor": y_anchor,
             "xpeak": xpeak,
             "ypeak": ypeak,
             "peak_flux": peak_flux,
@@ -262,6 +298,7 @@ def find_segment_center(
         }
 
     raise ValueError(f"Unknown method: {method}")
+
 
 def _fraction_unmasked_pixels(cat, idx):
     """
@@ -636,7 +673,8 @@ class EllipsePhotometry():
         self.get_ellipse_guess()
 
         print("finding center of flux")
-        self.find_peak_flux_center()
+        #self.find_peak_flux_center()
+        self.choose_best_flux_center()
         print("fit central ellipse") 
         self.fit_central_ellipse()
         
@@ -777,12 +815,14 @@ class EllipsePhotometry():
             self.image2 -= self.sky2
 
         #TODO add this into image header
-    def detect_objects(self, snrcut=10.,npixels=10):
+    def detect_objects(self, snrcut=2.5.,npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
         
         this also measures the sky noise as the mean of the threshold image
+
+        had set the snrcut to 10, but this is too high and I am just getting the central pixels in some galaxies.
         '''               
         if self.mask_flag:
             #if np.isfinite(self.sky_noise):
@@ -1745,17 +1785,48 @@ class EllipsePhotometry():
     #         self.photutils_segment_flux = float(self.source_sum)
     #         self.photutils_segment_mag = self.magzp - 2.5 * np.log10(self.source_sum)
 
-    def find_peak_flux_center(self, method="windowed", box_radius=10):
+    def find_flux_center(
+        self,
+        method="windowed",
+        box_radius=10,
+        anchor_mode="peak",
+        x0=None,
+        y0=None,
+    ):
         """
         Find a center for the selected galaxy segment using image flux.
+
+        Parameters
+        ----------
+        method : {'peak', 'weighted', 'windowed'}
+            Centering method passed to find_segment_center().
+        box_radius : int
+            Half-size of local window for method='windowed'.
+        anchor_mode : {'peak', 'input'}
+            For method='windowed':
+              - 'peak'  : center local box on brightest pixel in the segment
+              - 'input' : center local box on (x0, y0)
+        x0, y0 : float, optional
+            Input anchor position when anchor_mode='input'.
+            If not provided, falls back to self.xcenter_guess/self.ycenter_guess.
         """
         obj = self.cat[self.objectIndex]
-
-        # use whichever label identifies the central source in your catalog
         label = int(obj.label)
 
         segdata = self.segmentation.data if hasattr(self.segmentation, "data") else self.segmentation
         mask = self.boolmask if getattr(self, "mask_flag", False) else None
+
+        if anchor_mode == "input":
+            if x0 is None:
+                x0 = getattr(self, "xcenter_guess", None)
+            if y0 is None:
+                y0 = getattr(self, "ycenter_guess", None)
+
+            if x0 is None or y0 is None:
+                raise ValueError(
+                    "anchor_mode='input' requires x0/y0 or pre-existing "
+                    "self.xcenter_guess/self.ycenter_guess"
+                )
 
         xc, yc, info = find_segment_center(
             self.image,
@@ -1764,16 +1835,95 @@ class EllipsePhotometry():
             mask=mask,
             method=method,
             box_radius=box_radius,
+            x0=x0,
+            y0=y0,
+            anchor_mode=anchor_mode,
         )
 
         self.xcenter_flux = xc
         self.ycenter_flux = yc
         self.center_method = info["method"]
-        self.xpeak_flux = info["xpeak"]
-        self.ypeak_flux = info["ypeak"]
-        self.peak_flux_value = info["peak_flux"]
-        print(f"DEBUG: in find_central_flux_center: xc={xc},yc={yc}")
+        self.center_anchor_mode = info.get("anchor_mode", anchor_mode)
+        self.xpeak_flux = info.get("xpeak", np.nan)
+        self.ypeak_flux = info.get("ypeak", np.nan)
+        self.peak_flux_value = info.get("peak_flux", np.nan)
+
+        if anchor_mode == "input":
+            self.xcenter_flux_anchor = float(x0)
+            self.ycenter_flux_anchor = float(y0)
+        else:
+            self.xcenter_flux_anchor = np.nan
+            self.ycenter_flux_anchor = np.nan
+
         return xc, yc, info
+
+
+    def choose_best_flux_center(self, box_radius=10, max_shift_pix=None):
+        """
+        Compute two flux-based centers and choose the best one.
+
+        The two cases are:
+          1) peak-anchored windowed center
+          2) guess-anchored windowed center
+
+        The adopted center is stored as:
+          - self.xcenter_best
+          - self.ycenter_best
+        """
+        xg = float(self.xcenter_guess)
+        yg = float(self.ycenter_guess)
+
+        # Case 1: peak-anchored center
+        self.find_flux_center(
+            method="windowed",
+            box_radius=box_radius,
+            anchor_mode="peak",
+        )
+        self.xcenter_flux_peak = self.xcenter_flux
+        self.ycenter_flux_peak = self.ycenter_flux
+        self.center_info_peak = self.center_info
+
+        # Case 2: guess-anchored center
+        self.find_flux_center(
+            method="windowed",
+            box_radius=box_radius,
+            anchor_mode="input",
+            x0=xg,
+            y0=yg,
+        )
+        self.xcenter_flux_guess = self.xcenter_flux
+        self.ycenter_flux_guess = self.ycenter_flux
+        self.center_info_guess = self.center_info
+
+        # Distances from guess center
+        self.center_shift_peak = float(
+            np.hypot(self.xcenter_flux_peak - xg, self.ycenter_flux_peak - yg)
+        )
+        self.center_shift_guess = float(
+            np.hypot(self.xcenter_flux_guess - xg, self.ycenter_flux_guess - yg)
+        )
+
+        # Default preference: guess-anchored center
+        self.xcenter_best = self.xcenter_flux_guess
+        self.ycenter_best = self.ycenter_flux_guess
+        self.center_method_best = "flux_guess_anchor"
+
+        # If peak-anchored result is closer to the guess center, use it instead
+        if self.center_shift_peak < self.center_shift_guess:
+            self.xcenter_best = self.xcenter_flux_peak
+            self.ycenter_best = self.ycenter_flux_peak
+            self.center_method_best = "flux_peak_anchor"
+
+        # Optional guardrail: if both are too far, fall back to guess center
+        if (max_shift_pix is not None) and (
+            min(self.center_shift_peak, self.center_shift_guess) > max_shift_pix
+        ):
+            self.xcenter_best = xg
+            self.ycenter_best = yg
+            self.center_method_best = "guess_fallback"
+        
+            
+ 
 
 
     def fit_central_ellipse(self,r=1,fix_center=True):
@@ -1785,11 +1935,11 @@ class EllipsePhotometry():
         # self.ycenter_fit = self.ycenter_guess
         # self.xcenter_fit = self.xcenter_ra
         # self.ycenter_fit = self.ycenter_dec
-        self.xcenter_fit = self.xcenter_flux
-        self.ycenter_fit = self.ycenter_flux
+        self.xcenter_fit = self.xcenter_best
+        self.ycenter_fit = self.ycenter_best
         self.eps_fit = self.eps_guess
         self.pa_fit = self.pa_guess
-        self.sma_fit = self.sma_guess/r
+        self.sma_fit = self.sma_guess
         self.ellipse_fit_ok = False
         print("at beginning of fit_central_ellipse")
         print(f"\txcenter_fit={self.xcenter_fit:.2f}\n",

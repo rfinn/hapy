@@ -26,7 +26,8 @@ from hapy.ellipse.photometry import run_ellipse_photometry
 from hapy.ellipse.utils import infer_ellipse_from_r_cutout, ellipse_missing
 from hapy.galfittools.rungalfit import RunGalfit
 from hapy.imagetools.imutils import get_pixel_scale_from_filename
-from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
+#from hapy.imagetools.plotting import plot_mask_ellipse_diagnostic
+from hapy.imagetools.plotting import plot_segmentation_diagnostic
 from hapy.masktools.api import MaskEngine, EllipseParams
 from hapy.masktools.gaia import make_gaia_mask,  get_gaia_stars, galaxy_overlaps_bright_star
 from hapy.masktools.maskops import distance_to_nearest_mask, largest_mask_region, ellipse_mask_fraction
@@ -1571,14 +1572,27 @@ def main():
     )
 
     outfile = cutdir / f"{tag}-diagnostic.png"
-    plot_mask_ellipse_diagnostic(
+    se_seg_fits = cutdir / f"{tag}-R-segmentation.fits"
+    phot_seg_fits = cutdir / f"{tag}-R-phot-segmentation.fits"    
+
+    plot_segmentation_diagnostic(
         r_fits=str(r_fits),
+        se_seg_fits=se_seg_fits,
         mask_fits=str(mask_fits),
+        phot_seg_fits=phot_seg_fits,
         e0=ell0_params,
         eph=ellphot_params,
         outfile=str(outfile),
         row=row,
         )
+    # plot_mask_ellipse_diagnostic(
+    #     r_fits=str(r_fits),
+    #     mask_fits=str(mask_fits),
+    #     e0=ell0_params,
+    #     eph=ellphot_params,
+    #     outfile=str(outfile),
+    #     row=row,
+    #     )
 
     # calculate hapy gini
     e.run_hapy_morphology()
