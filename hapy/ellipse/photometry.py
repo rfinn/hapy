@@ -1854,7 +1854,7 @@ class EllipsePhotometry():
         else:
             self.xcenter_flux_anchor = np.nan
             self.ycenter_flux_anchor = np.nan
-
+        
         return xc, yc, info
 
 
@@ -1874,14 +1874,14 @@ class EllipsePhotometry():
         yg = float(self.ycenter_guess)
 
         # Case 1: peak-anchored center
-        self.find_flux_center(
+        xc, yc, info = self.find_flux_center(
             method="windowed",
             box_radius=box_radius,
             anchor_mode="peak",
         )
         self.xcenter_flux_peak = self.xcenter_flux
         self.ycenter_flux_peak = self.ycenter_flux
-        self.center_info_peak = self.center_info
+        self.center_info_peak = info
 
         # Case 2: guess-anchored center
         self.find_flux_center(
