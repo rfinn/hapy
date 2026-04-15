@@ -588,6 +588,15 @@ def add_qc_tier(tab: Table) -> Table:
     tab["QC_TIER"] = tier
     return tab
 
+def add_vfindex(tab):
+    vfindex = np.zeros(len(tab))
+
+    for i in range(len(tab)):
+        vfindex[i] = int(tab['VFID'][i].replace('VFID',''))
+    vfindex = np.array(vfindex,'i')
+    tab["VFINDEX"] = vfindex
+    return tab
+
 def prepare_analysis_table(
     tab: Table,
     add_qc: bool = True,
@@ -621,6 +630,10 @@ def prepare_analysis_table(
     if add_science:
         tab = add_science_columns(tab)
 
+    # add vfindex
+    if ("VFID" in tab.colnames) and ("VFINDEX" not in tab.colnames):
+        tab = add_vfindex(tab)
+        
     if "REVIEW_PRIORITY" not in tab.colnames:
         tab["REVIEW_PRIORITY"] = get_review_priority(tab)
         priority = tab["REVIEW_PRIORITY"]

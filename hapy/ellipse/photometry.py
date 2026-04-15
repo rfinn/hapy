@@ -1315,9 +1315,12 @@ class EllipsePhotometry():
                     self.R_HAPY_SNP_ALL = float(np.nanmean(rvals_pos[good] / r_sigma_sky))
             morph.r_snp_all = self.R_HAPY_SNP_ALL
 
-            xc_r, yc_r = compute_flux_centroid(self.image, rmask)
+            # -- use the same xcenter_flux and ycenter_flux from fit_center_ellipse
+            # xc_r, yc_r = compute_flux_centroid(self.image, rmask)
+            xc_r, yc_r = self.xcenter_flux, self.ycenter_flux
             self.R_HAPY_XC = xc_r
             self.R_HAPY_YC = yc_r
+            print(f"DEBUG in photometry, from compute_flux_centroid:\n \tR_HAPY_XC,YC={self.R_HAPY_XC},{self.R_HAPY_YC}")
             morph.xc = xc_r
             morph.yc = yc_r
 
@@ -1331,12 +1334,14 @@ class EllipsePhotometry():
             self.R_HAPY_ASYM, self.R_HAPY_ASYM_ERR, self.R_HAPY_ASYM_CENTER, self.R_HAPY_ASYM_GRID = compute_asymmetry(
                 self.image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0
             )
-            print(f"DEBUG in photometry, R_HAPY_ASYM={self.R_HAPY_ASYM}")
+            
             morph.r_asym = self.R_HAPY_ASYM
             morph.r_asym_err = self.R_HAPY_ASYM_ERR
             morph.r_asym_center = self.R_HAPY_ASYM_CENTER
             morph.r_asym_grid = self.R_HAPY_ASYM_GRID
-            self.R_ASYM_YC, self.R_ASYM_XC = self.R_HAPY_ASYM_CENTER
+            self.R_HAPY_ASYM_YC = self.R_HAPY_ASYM_CENTER[0]
+            self.R_HAPY_ASYM_XC = self.R_HAPY_ASYM_CENTER[1]
+            print(f"DEBUG in photometry, R_HAPY_ASYM, XC, YC ={self.R_HAPY_ASYM}, {self.R_HAPY_ASYM_XC}, {self.R_HAPY_ASYM_YC}, {self.R_HAPY_ASYM_CENTER}")
             # -------------------------------------------------
             # Halpha availability
             # -------------------------------------------------
@@ -1776,10 +1781,10 @@ class EllipsePhotometry():
         Refine center, PA, and ellipticity from the r-band light distribution.
         Fall back to the guessed geometry if the fit fails.
         """
-        self.xcenter_fit = self.xcenter_guess
-        self.ycenter_fit = self.ycenter_guess
-        self.xcenter_fit = self.xcenter_ra
-        self.ycenter_fit = self.ycenter_dec
+        # self.xcenter_fit = self.xcenter_guess
+        # self.ycenter_fit = self.ycenter_guess
+        # self.xcenter_fit = self.xcenter_ra
+        # self.ycenter_fit = self.ycenter_dec
         self.xcenter_fit = self.xcenter_flux
         self.ycenter_fit = self.ycenter_flux
         self.eps_fit = self.eps_guess
@@ -1837,10 +1842,10 @@ class EllipsePhotometry():
             ellipse = Ellipse(self.masked_image, geometry=geom, threshold=self.threshold)
             isolist = ellipse.fit_image(#fix_center=fix_center)
                  sma0=max(self.sma_fit, 5.0),
-                 #minsma=max(2.0, 0.5 * self.sma_fit),
-                 #maxsma=max(self.sma_fit * 2.0, 20.0),
-                 minsma=0.5 * self.sma_fit,
-                 maxsma=self.sma_fit * 1.5,
+                 minsma=max(2.0, 0.5 * self.sma_fit),
+                 maxsma=max(self.sma_fit * 2.0, 20.0),
+                 #minsma=0.5 * self.sma_fit,
+                 #maxsma=self.sma_fit * 1.5,
                  fix_center=fix_center,
                  fix_pa=False,
                  fix_eps=False,
@@ -1848,7 +1853,7 @@ class EllipsePhotometry():
 
             iso = isolist.get_closest(self.sma_fit)
             try:
-                print(isolist.x0)
+                print(len(isolist.x0), isolist.x0, isolist.y0)
             except:
                 print("THAT DIDN'T WORK!")
             #for i in iso:

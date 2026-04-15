@@ -498,6 +498,9 @@ def initialize_result_row():
     row["H_GINI_THRESHOLD"] = np.nan
 
     # morphology
+    row["R_HAPY_XC"] = np.nan
+    row["H_HAPY_YC"] = np.nan
+    
     row["R_HAPY_GINI"] = np.nan
     row["H_HAPY_GINI"] = np.nan
     row["R_HAPY_M20"] = np.nan
@@ -1563,6 +1566,8 @@ def main():
     row["H_HAPY_SNP_ALL"] = e.H_HAPY_SNP_ALL
     row["H_HAPY_SNP_DET"] = e.H_HAPY_SNP_DET    
     row["H_GINI_THRESHOLD"] = e.ha_gini_threshold    
+    row["R_HAPY_XC"] = e.R_HAPY_XC
+    row["R_HAPY_YC"] = e.R_HAPY_YC
     row["R_HAPY_GINI"] = e.R_HAPY_GINI
     row["H_HAPY_GINI"] = e.H_HAPY_GINI
     row["R_HAPY_M20"] = e.R_HAPY_M20

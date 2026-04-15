@@ -396,11 +396,13 @@ def jointplot_with_hue(
     # -----------------------------
     good = np.isfinite(x) & np.isfinite(y)
 
-    df = pd.DataFrame({
-        xname: x[good],
-        yname: y[good],
-        catname: category[good],
-    })
+    ptab = Table([x[good],y[good],category[good]],names=[xname,yname,catname])
+    df = ptab.to_pandas()
+    # df = pd.DataFrame({
+    #     xname: x[good],
+    #     yname: y[good],
+    #     catname: category[good],
+    # })
 
     # -----------------------------
     # create jointplot

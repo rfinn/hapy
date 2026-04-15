@@ -269,7 +269,7 @@ python ~/github/hapy/scripts/validate_dashboards.py merged_results.fits --sample
 Run this command from the directory that contains
 e.g. `hapy-output-20260313` and `hapy-output-20260319`.
 ```
-rsync -av hapy-output-20260313/cutouts/ hapy-output-20260319/cutouts/
+rsync -av hapy-output-20260319/cutouts/ hapy-output-20260330/cutouts/
 --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
 --ignore-existing --prune-empty-dirs
 ```
@@ -338,7 +338,11 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 ```
 
 ```
-python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260310/
+python ~/github/hapy/scripts/build_cutout_index.py --runroot
+/data-pool/Halpha/hapy-output-20260330/ --results-table
+/data-pool/Halpha/hapy-output-20260330/merged_results.fits
+
+
 ```
 
 
