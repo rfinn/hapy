@@ -1186,48 +1186,67 @@ class EllipsePhotometry():
             res.fig_img2.savefig(out2)
 
 
-        
- 
-    def get_image2_detected_gini(self, snrcut=1.5):
-        ''' 
-        calculate gini coefficient for image2 using pixels that are associated with r-band object ID
 
-        this also calculates the sum and mag of the pixels associated with the central galaxy 
-        (not sure why this is done together...)
-        
-        '''
-        print("DEBUG: image2.dtype:", type(self.image2), self.image2.dtype)
-        print("DEBUG: checking if mask is boolean: ",self.boolmask.dtype == bool)
-        
-        print("DEBUG image2 finite pixels:", np.sum(np.isfinite(self.image2)))
-        print("DEBUG mask true pixels:", np.sum(self.boolmask))
-        print("DEBUG usable pixels:", np.sum(~self.boolmask & np.isfinite(self.image2)))
+            
+    def get_image2_detected_gini(self, snrcut=1.5):
+        """
+        Calculate Gini coefficient for image2 using pixels that are associated
+        with the r-band object ID and are detected in image2.
+        """
         if self.mask_flag:
             thismask = self.boolmask
         else:
             thismask = None
-            
-        self.threshold2 = detect_threshold(self.image2, nsigma=snrcut, mask=thismask)
-        self.segmentation2 = detect_sources(self.image2, self.threshold2, npixels=10,mask=thismask)
-        #self.cat2 = source_properties(self.image2, self.segmentation2, mask=self.boolmask)
-        cat2 = SourceCatalog(self.image2, self.segmentation2, mask=self.boolmask)            
- 
-        '''
-        select pixels associated with rband image in the segmentation
-        AND
-        pixels that are above the SNR cut in the Halpha image (image2)
-        '''
-        if len(cat2) == 0:
-            self.gini_pixels = None
-            self.gini2 = np.nan
-        else:
-            self.gini_pixels = (self.segmentation.data == self.cat.label[self.objectIndex]) & (self.segmentation2.data > 0.)
 
-            #self.tbl = self.cat.to_table()
-            self.gini2 = gini(self.image2[self.gini_pixels])
-        #self.source_sum2 = np.sum(self.image2[self.gini_pixels])
-        #self.source_sum2_erg = self.uconversion1*self.source_sum2
-        #self.source_sum2_mag = self.magzp2 - 2.5*np.log10(self.source_sum2)
+        self.threshold2 = None
+        self.segmentation2 = None
+        self.gini_pixels = None
+        self.gini2 = np.nan
+
+        if self.image2 is None:
+            return
+
+        finite = np.isfinite(self.image2)
+        usable = finite if thismask is None else (finite & (~thismask))
+        if np.sum(usable) == 0:
+            return
+
+        self.threshold2 = detect_threshold(self.image2, nsigma=snrcut, mask=thismask)
+        self.segmentation2 = detect_sources(
+            self.image2,
+            self.threshold2,
+            npixels=10,
+            mask=thismask,
+        )
+
+    
+         # No Halpha detections
+        if self.segmentation2 is None:
+            return
+
+        r_label = self.cat.label[self.objectIndex]
+
+        self.gini_pixels = (
+            (self.segmentation.data == r_label) &
+            (self.segmentation2.data > 0) &
+            finite
+        )
+
+        if thismask is not None:
+            self.gini_pixels &= (~thismask)
+
+        if np.sum(self.gini_pixels) == 0:
+            self.gini_pixels = None
+            return
+
+        vals = self.image2[self.gini_pixels]
+
+        if vals.size == 0:
+            self.gini_pixels = None
+            return
+
+        self.gini2 = gini(vals)
+    
 
     def build_rband_gini_mask(self, snrcut=2.5, npixels=10):
         obj_label = int(self.cat.label[self.objectIndex])
