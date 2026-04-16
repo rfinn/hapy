@@ -441,7 +441,7 @@ class cutout_dir():
             
         else:
             self.parent_url = None
-        print("DEBUG: parent_url = ",self.parent_url)
+        #print("DEBUG: parent_url = ",self.parent_url)
         #print("DEBUG: found results.ecsv file", self.results_file)
         #print("DEBUD: results colnames:")
         #print(self.results.colnames)

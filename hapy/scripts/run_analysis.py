@@ -457,7 +457,7 @@ def initialize_result_row():
     # ---------- ellipse ----------
     for k in [
         "ELLIP_XCENTROID", "ELLIP_YCENTROID",
-        "ELLIP_SMA_ARCSEC", "ELLIP_B_ARCSEC",
+        "ELLIP_SMA_PIX","ELLIP_SMA_ARCSEC","ELLIP_BA", "ELLIP_B_ARCSEC",
         "ELLIP_EPS", "ELLIP_THETA_RAD", "ELLIP_PA_DEG",
         "R_ELLIP_GINI","H_ELLIP_GINI", "ELLIP_SOURCE_SUM",
         "ELLIP_BA", "ELLIP_SEGMENT_FLUX",
@@ -1444,6 +1444,7 @@ def main():
         ("ELLIP_XCENTROID", "xcenter_fit"),
         ("ELLIP_YCENTROID", "ycenter_fit"),
         ("ELLIP_SMA_ARCSEC", "sma_fit"),
+        ("ELLIP_SMA_PIX", "sma_fit"),
         ("ELLIP_B_ARCSEC", "b"),
         ("ELLIP_EPS", "eps_fit"),
         ("ELLIP_THETA_RAD", "pa_fit"),
@@ -1475,7 +1476,13 @@ def main():
                 #print(f"Converting to arcsec for ",outk, attr)
                 sv = sv * pixscale
             row[outk] = sv  # leave as np.nan if missing/array/etc.
-
+    b = _scalar(e.b)
+    a = _scalar(e.sma_fit)
+    if np.isfinite(b) and np.isfinite(a) and (a > 0):
+        row["ELLIP_BA"] = b/a
+    else:
+    row["ELLIP_BA"] = np.nan
+        
     # convert theta to PA and store
     if row["ELLIP_THETA_RAD"] is not None:
         # convert to PA in deg and store result
