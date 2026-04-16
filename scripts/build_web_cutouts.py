@@ -436,7 +436,7 @@ class cutout_dir():
         #        print("DEBUG: ",c,tab[c])
         self.results = tab[0] if len(tab) > 0 else None
         if "PARENT_RIMAGE" in tab.colnames:
-            parent_dir = tab['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
+            parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
             self.parent_url = f"../../coadds/{parent_dir}/{parent_dir}.html"
             
         else:
