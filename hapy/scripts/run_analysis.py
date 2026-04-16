@@ -1481,7 +1481,7 @@ def main():
     if np.isfinite(b) and np.isfinite(a) and (a > 0):
         row["ELLIP_BA"] = b/a
     else:
-    row["ELLIP_BA"] = np.nan
+        row["ELLIP_BA"] = np.nan
         
     # convert theta to PA and store
     if row["ELLIP_THETA_RAD"] is not None:
