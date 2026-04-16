@@ -431,6 +431,9 @@ class cutout_dir():
 
         self.results_file = results_files[0]
         tab = Table.read(self.results_file, format="ascii.ecsv")
+        for c in tab.colnames:
+            if "PARENT" in c:
+                print("DEBUG: ",c,tab[c])
         self.results = tab[0] if len(tab) > 0 else None
         if getattr(self.results,"PARENT_RIMAGE", False):
             parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
