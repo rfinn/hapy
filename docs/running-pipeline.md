@@ -144,6 +144,20 @@ Final table columns: 19
 
 ```
 
+And after 20260330:
+```
+Searching for files  cutouts_summary*.ecsv
+Found 227 result files.
+Reading tables...
+Validating schema...
+	validated 227/227 tables
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260417/merged_cutouts_results.fits
+Done.
+Final table rows: 831
+Final table columns: 28
+```
+
 
 # Run Analysis 
 
@@ -153,7 +167,7 @@ Final table columns: 19
 ```bash
 run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
 --galfit --convflag --log-to-console --gaia-dir
-/data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
 ```
 
 
@@ -180,7 +194,7 @@ head -5 cutout_list.txt | parallel --bar -j 2 --joblog run_analysis.joblog \
   run_analysis --cutout-dir "{}" --make-mask \
   --psf-dir /data-pool/Halpha/psf-images/ \
   --statmorph --galfit --convflag \
-  --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+  --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/
 ```
 
 Test on 20 galaxies:
@@ -190,12 +204,12 @@ head -20 cutout_list.txt | parallel --bar -j 4 --joblog run_analysis.joblog \
   run_analysis --cutout-dir "{}" --make-mask \
   --psf-dir /data-pool/Halpha/psf-images/ \
   --statmorph --galfit --convflag \
-  --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+  --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/
 ```
 
 Run the next 20 galaxies:
 ```bash
-sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/
+sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/
 ```
 
 ### Run in Parallel
@@ -213,7 +227,7 @@ parallel --eta -j 4 \
   run_analysis --cutout-dir "{}" --make-mask \
   --psf-dir /data-pool/Halpha/psf-images/ \
   --statmorph --galfit --convflag \
-  --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ \
+  --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ \
   :::: cutout_list.txt
 ```
 
