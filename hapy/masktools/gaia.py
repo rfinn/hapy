@@ -10,7 +10,7 @@ import warnings
 from astropy.table import Table
 
 import numpy as np
-from hapy.imagetools.imutils import get_image_size_deg, get_image_center_deg
+from hapy.imagetools.imutils import get_image_size_deg, get_image_center_deg, get_image_footprint_box_deg
 from hapy.masktools.maskops import circle_pixels
 
 def mask_radius_for_mag(mag):
