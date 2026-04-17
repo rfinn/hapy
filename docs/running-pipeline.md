@@ -4,7 +4,7 @@
 Move to directory containing coadded images
 
 ```bash
-cd /data-pool/Halpha/coadds-2025DEC
+cd /data-pool/Halpha/coadds-v20260330
 ```
 
 Then start the download.
@@ -21,11 +21,11 @@ cd /data-pool/Halpha/
 ```
 
 ```bash
-mkdir hapy-output-20260309
+mkdir hapy-output-20260417
 ```
 
 ```bash
-cd hapy-output-20260309
+cd hapy-output-20260417
 ```
 
 
@@ -60,10 +60,11 @@ As of 2026-Mar-30:
 
 ```bash
 get_cutouts --rimage
-/data-pool/Halpha/coadds-2025DEC/VF-126.291+27.988-HDI-20180313-p004-R.fits
+/data-pool/Halpha/coadds-v20260330/VF-126.291+27.988-HDI-20180313-p004-R.fits
 --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
 --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images/
 ```
+this should create two folders in the cutouts/ directory.
 
 ```bash
 get_cutouts --rimage
@@ -77,6 +78,10 @@ get_cutouts --rimage
 
 ```bash
 cat fullpath_rcoadds_hapy_ready.txt | parallel -j 16 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+```
+
+```bash
+cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
 ```
 
 ### Check output
