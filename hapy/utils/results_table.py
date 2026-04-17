@@ -847,8 +847,7 @@ def get_review_priority(tab: Table) -> np.ndarray:
         safe_bool_array(tab, "WARN_CEN_ANY") |
         safe_bool_array(tab, "WARN_R_PROFILE_PEAK") |
         safe_bool_array(tab, "WARN_CUTOUT_MISSING") |
-        
-    )
+        )
 
     priority[medium & (~high)] = "medium"
 
