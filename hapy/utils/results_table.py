@@ -765,8 +765,7 @@ def add_qc_tier(tab: Table) -> Table:
             tier[i] = "F"
         elif (not use_r[i]) or (not use_ha[i]):
             tier[i] = "D"
-        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i] or r_profile_offcenter[i]
-            or cutout_missing_warn[i]:
+        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i] or r_profile_offcenter[i] or cutout_missing_warn[i]:
             tier[i] = "C"
         elif not use_hm[i]:
             tier[i] = "B"
