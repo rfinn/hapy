@@ -454,6 +454,22 @@ def initialize_result_row():
         row[k] = np.nan
     row["ELL0_SOURCE"] = ""
 
+    # ----- ELL0 good/back pixels
+    row["CUTOUT_ELL0_MISSING_FRAC_R"] = np.nan
+    row["CUTOUT_ELL0_MISSING_FRAC_H"] = np.nan
+    row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nan
+
+    row["CUTOUT_ELL0_NPIX_TOTAL_R"] = np.nan
+    row["CUTOUT_ELL0_NPIX_TOTAL_H"] = np.nan
+
+    row["CUTOUT_ELL0_NPIX_ONIMAGE_R"] = np.nan
+    row["CUTOUT_ELL0_NPIX_ONIMAGE_H"] = np.nan
+
+    row["CUTOUT_ELL0_NPIX_GOOD_R"] = np.nan
+    row["CUTOUT_ELL0_NPIX_GOOD_H"] = np.nan
+
+
+
     # ---------- ellipse ----------
     for k in [
         "ELLIP_XCENTROID", "ELLIP_YCENTROID",
@@ -1310,6 +1326,25 @@ def main():
         sma_pix = sma_arcsec/pixscale,
         theta_deg = photutils_theta_to_pa_ccw_north(pa_deg)
         )
+
+    # --- store coverage information about initial ellipse
+    cutout_map = {
+        "cutout_ell0_missing_frac_r": "CUTOUT_ELL0_MISSING_FRAC_R",
+        "cutout_ell0_missing_frac_h": "CUTOUT_ELL0_MISSING_FRAC_H",
+        "cutout_ell0_missing_frac_max": "CUTOUT_ELL0_MISSING_FRAC_MAX",
+        "cutout_ell0_npix_total_r": "CUTOUT_ELL0_NPIX_TOTAL_R",
+        "cutout_ell0_npix_total_h": "CUTOUT_ELL0_NPIX_TOTAL_H",
+        "cutout_ell0_npix_onimage_r": "CUTOUT_ELL0_NPIX_ONIMAGE_R",
+        "cutout_ell0_npix_onimage_h": "CUTOUT_ELL0_NPIX_ONIMAGE_H",
+        "cutout_ell0_npix_good_r": "CUTOUT_ELL0_NPIX_GOOD_R",
+        "cutout_ell0_npix_good_h": "CUTOUT_ELL0_NPIX_GOOD_H",
+    }
+
+    for pkey, rkey in cutout_map.items():
+        val = params.get(pkey)
+        if val is not None:
+            row[rkey] = float(val)
+        
 
     ################################################################
     # Mask block

@@ -435,7 +435,14 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
     flags["BRIGHT_STAR_FLAG"] = safe_bool_array(tab, "BRIGHT_STAR_FLAG")
     flags["ELL0_MASK_WARN"] = safe_bool_array(tab, "ELL0_MASK_WARN")
     flags["ELL_MISMATCH"] = safe_bool_array(tab, "ELL_MISMATCH")
-
+    flags["WARN_CUTOUT_MISSING"] = (
+        np.isfinite(flags["CUTOUT_ELL0_MISSING_FRAC_MAX"]) &
+        (flags["CUTOUT_ELL0_MISSING_FRAC_MAX"] > 0.3)
+        )
+    flags["WARN_CUTOUT_MISSING_SHAPE"] = (
+        flags["WARN_CUTOUT_MISSING"] &
+        flags["ELL_MISMATCH"]
+    )
     # -----------------------------
     # Filter correction
     # -----------------------------
@@ -747,6 +754,9 @@ def add_qc_tier(tab: Table) -> Table:
     warn_filter = safe_bool_array(tab, "FILTER_WARNING")
     center_warn = tab["WARN_CEN_ANY"]
     r_profile_offcenter = tab["WARN_R_PROFILE_PEAK"]
+
+    cutout_missing_warn = tab["WARN_CUTOUT_MISSING"]
+    cutout_missing_shape = tab["WARN_CUTOUT_MISSING_SHAPE"]     
     n = len(tab)
     tier = np.full(n, "F", dtype="U1")
 
@@ -755,7 +765,8 @@ def add_qc_tier(tab: Table) -> Table:
             tier[i] = "F"
         elif (not use_r[i]) or (not use_ha[i]):
             tier[i] = "D"
-        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i] or r_profile_offcenter[i]:
+        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i] or r_profile_offcenter[i]
+            or cutout_missing_warn[i]:
             tier[i] = "C"
         elif not use_hm[i]:
             tier[i] = "B"
@@ -821,7 +832,8 @@ def get_review_priority(tab: Table) -> np.ndarray:
         ~safe_bool_array(tab, "HAPY_MORPH_OK") |
         safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
         safe_bool_array(tab, "WARN_MASK") |
-        safe_bool_array(tab, "SEVERE_CEN_ANY")
+        safe_bool_array(tab, "SEVERE_CEN_ANY") |
+        safe_bool_array(tab, "WARN_CUTOUT_MISSING_SHAPE")
     )
 
     priority[high] = "high"
@@ -834,7 +846,9 @@ def get_review_priority(tab: Table) -> np.ndarray:
         safe_bool_array(tab, "WARN_WEAK_HA") |
         safe_bool_array(tab, "FILTER_WARNING") |
         safe_bool_array(tab, "WARN_CEN_ANY") |
-        safe_bool_array(tab, "WARN_R_PROFILE_PEAK")
+        safe_bool_array(tab, "WARN_R_PROFILE_PEAK") |
+        safe_bool_array(tab, "WARN_CUTOUT_MISSING") |
+        
     )
 
     priority[medium & (~high)] = "medium"

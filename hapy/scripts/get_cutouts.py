@@ -17,7 +17,7 @@ import json
 from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
 from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
 from hapy.utils.logging_utils import setup_logging
-
+from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta
 
 def resolve_sibling_path(base_image, sibling_name):
     """
@@ -185,6 +185,7 @@ def main(args=None):
             print(f"Skipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}")
             continue
 
+
         # --------------------------------------------------
         # Build rootname only after validity check
         # --------------------------------------------------
@@ -264,6 +265,12 @@ def main(args=None):
         # --------------------------------------------------
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
 
+        theta_deg = pa_ccw_north_to_photutils_theta(float(gPA[i]))
+        # semi major and minor axes in arcsec
+        a = float(gradius[i])
+        b = float(gBA[i]*gradius[i])
+        image_set.get_ellipse_coverage(x, y, a, b, theta_deg)
+        
         filter_warning = float(filter_corrections[i]) > 2
         rows.append(dict(
             objid=str(galid[i]),
@@ -285,6 +292,15 @@ def main(args=None):
             y_parent=float(y),
             valid_region=True,
             valid_status=str(status),
+            cutout_ell0_missing_frac_r=image_set.frac_missing_r,
+            cutout_ell0_missing_frac_h=image_set.frac_missing_h,
+            cutout_ell0_missing_frac_max=image_set.max_frac_missing,
+            cutout_ell0_npix_total_r=image_set.ellipse_npix_total_r,
+            cutout_ell0_npix_total_h=image_set.ellipse_npix_total_h,
+            cutout_ell0_npix_onimage_r=image_set.ellipse_npix_onimage_r,
+            cutout_ell0_npix_onimage_h=image_set.ellipse_npix_onimage_h,
+            cutout_ell0_npix_good_r=image_set.ellipse_npix_good_r,
+            cutout_ell0_npix_good_h=image_set.ellipse_npix_good_h,
         ))
 
 

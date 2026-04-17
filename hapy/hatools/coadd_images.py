@@ -184,6 +184,28 @@ def _weight_ok(weight_cutout, central_frac=0.25, min_center_frac=0.8):
     }
     return ok, stats
 
+def ellipse_missing_fraction(weight_data, xc, yc, a, b, theta):
+    """
+    Fraction of pixels inside ellipse with zero weight.
+    """
+    from photutils.aperture import EllipticalAperture
+    import numpy as np
+
+    aper = EllipticalAperture((xc, yc), a, b, theta=theta)
+    amask = aper.to_mask(method="center")
+    mask_image = amask.to_image(weight_data.shape)
+
+    if mask_image is None:
+        return np.nan, 0
+
+    inside = mask_image > 0
+    npix = np.sum(inside)
+    if npix == 0:
+        return np.nan, 0
+
+    missing = np.sum(weight_data[inside] <= 0)
+    return missing / npix, npix
+
 class CoaddImage:
     """
     Class to handle coadded images and create cutouts around galaxies.
@@ -295,6 +317,128 @@ class CoaddImage:
 
         ok, stats = _weight_ok(wcut, central_frac=central_frac, min_center_frac=min_center_frac)
         return ok, stats
+
+
+
+    def get_ellipse_missing_fraction(self, xc, yc, a_arcsec, b_arcsec, theta_deg):
+        """
+        Measure the fraction of the full intended ellipse that is missing.
+
+        Missing includes:
+          1) ellipse pixels that fall off the image
+          2) ellipse pixels on the image with weight == 0
+
+        Parameters
+        ----------
+        xc, yc : float
+            Ellipse center in image pixel coordinates.
+        a_arcsec, b_arcsec : float
+            Semi-major and semi-minor axes in arcseconds.
+        theta_deg : float
+            Ellipse position angle in degrees, in the convention expected by
+            EllipticalAperture.
+
+        Sets
+        ----
+        self.frac_missing : float
+            Fraction of the full ellipse area that is missing.
+        self.npix_total : int
+            Total number of pixels in the full intended ellipse.
+        self.npix_onimage : int
+            Number of ellipse pixels that overlap the image.
+        self.npix_good : int
+            Number of ellipse pixels on the image with weight > 0.
+        """
+        from photutils.aperture import EllipticalAperture
+        import numpy as np
+        from astropy.io import fits
+
+        self.frac_missing = np.nan
+        self.npix_total = 0
+        self.npix_onimage = 0
+        self.npix_good = 0
+
+        if not getattr(self, "weight_flag", False) or not getattr(self, "weight_image", None):
+            return
+
+        try:
+            wdata = fits.getdata(self.weight_image)
+        except Exception:
+            return
+
+        ny, nx = wdata.shape
+        a = a_arcsec/self.pixelscale
+        b = b_arcsec/self.pixelscale        
+        if not np.all(np.isfinite([xc, yc, a, b, theta_deg])) or a <= 0 or b <= 0:
+            return
+
+        # Build a bounding box large enough to contain the full ellipse.
+        # Add a small margin so edge pixels are not clipped.
+        halfsize_x = int(np.ceil(a)) + 3
+        halfsize_y = int(np.ceil(a)) + 3
+
+        x0 = int(np.floor(xc)) - halfsize_x
+        x1 = int(np.floor(xc)) + halfsize_x + 1
+        y0 = int(np.floor(yc)) - halfsize_y
+        y1 = int(np.floor(yc)) + halfsize_y + 1
+
+        # Ellipse center in local bounding-box coordinates
+        xc_local = xc - x0
+        yc_local = yc - y0
+
+        aper = EllipticalAperture((xc_local, yc_local), a, b, theta=np.deg2rad(theta_deg))
+        amask = aper.to_mask(method="center")
+
+        bbox_shape = (y1 - y0, x1 - x0)
+        mask_image = amask.to_image(bbox_shape)
+
+        if mask_image is None:
+            return
+
+        ellipse_full = mask_image > 0
+        npix_total = int(np.sum(ellipse_full))
+        self.npix_total = npix_total
+
+        if npix_total == 0:
+            return
+
+        # Figure out overlap of the bounding box with the real image
+        ix0 = max(0, x0)
+        ix1 = min(nx, x1)
+        iy0 = max(0, y0)
+        iy1 = min(ny, y1)
+
+        # No overlap with image at all
+        if ix0 >= ix1 or iy0 >= iy1:
+            self.npix_onimage = 0
+            self.npix_good = 0
+            self.frac_missing = 1.0
+            return
+
+        # Matching slices in the local ellipse-mask image
+        mx0 = ix0 - x0
+        mx1 = mx0 + (ix1 - ix0)
+        my0 = iy0 - y0
+        my1 = my0 + (iy1 - iy0)
+
+        ellipse_onimage = ellipse_full[my0:my1, mx0:mx1]
+        weight_onimage = wdata[iy0:iy1, ix0:ix1]
+
+        npix_onimage = int(np.sum(ellipse_onimage))
+        self.npix_onimage = npix_onimage
+
+        if npix_onimage == 0:
+            self.npix_good = 0
+            self.frac_missing = 1.0
+            return
+
+        # Good coverage means ellipse pixel is on-image and weight > 0
+        good = ellipse_onimage & np.isfinite(weight_onimage) & (weight_onimage > 0)
+        npix_good = int(np.sum(good))
+        self.npix_good = npix_good
+
+        self.frac_missing = 1.0 - (npix_good / npix_total)
+
         
     def make_cutout(self, ra, dec, size_arcsec, output_name=None,
                     subtract_sky=False, skycfg=None, return_cutout=True,
@@ -583,6 +727,23 @@ class HalphaImageSet:
 
         return True, "ok"
 
+        
+    def get_ellipse_coverage(self, xc, yc, a, b, theta_deg):
+        self.r.get_ellipse_missing_fraction(xc, yc, a, b, theta_deg)
+        self.h.get_ellipse_missing_fraction(xc, yc, a, b, theta_deg)
+
+        self.frac_missing_r = self.r.frac_missing
+        self.frac_missing_h = self.h.frac_missing
+        self.max_frac_missing = max(self.frac_missing_r, self.frac_missing_h)
+
+        self.ellipse_npix_total_r = self.r.npix_total
+        self.ellipse_npix_total_h = self.h.npix_total
+        self.ellipse_npix_onimage_r = self.r.npix_onimage
+        self.ellipse_npix_onimage_h = self.h.npix_onimage
+        self.ellipse_npix_good_r = self.r.npix_good
+        self.ellipse_npix_good_h = self.h.npix_good
+    
+        
     def get_cutout_all_filters_old(self, ra, dec, size_arcsec, rootname):
         
         self.r.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")

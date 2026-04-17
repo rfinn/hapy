@@ -124,3 +124,5 @@
   images.  I was not accounting for cos(dec) term, so RA width of
   returned catalog was too small.  Changed code to use astropy's
   calc_footprint, which gives coordinates of the image corners.
+- adding tracking of fraction of initial ellipse that has valid image
+  data in both the r and halpha images
