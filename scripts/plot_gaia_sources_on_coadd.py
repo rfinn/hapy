@@ -8,7 +8,7 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 from astropy.wcs import WCS
-
+from hapy.imagetools.plotting import display_image
 
 def display_limits(data):
     finite = np.isfinite(data)
@@ -49,28 +49,39 @@ def get_gaia_xy(tab, wcs):
 
 
 def plot_gaia_overlay(image_fits, gaia_fits, outfile):
+    import time
+    t0 = time.time()
+    # read image
+    
     data, hdr = fits.getdata(image_fits, header=True)
     wcs = WCS(hdr)
-
+    print("read image:", time.time() - t0)
+    t0 = time.time()
+    
     tab = Table.read(gaia_fits)
     xg, yg = get_gaia_xy(tab, wcs)
 
     ny, nx = data.shape
     inside = (xg >= 0) & (xg < nx) & (yg >= 0) & (yg < ny)
 
-    vmin, vmax = display_limits(data)
+    #vmin, vmax = display_limits(data)
+    #print("get display limits:", time.time() - t0)
+    t0 = time.time()
 
     fig, ax = plt.subplots(figsize=(8, 8))
-    ax.imshow(data, origin="lower", cmap="gray", vmin=vmin, vmax=vmax, interpolation="nearest")
+    display_image(data)
+    #ax.imshow(data, origin="lower", cmap="gray", vmin=vmin, vmax=vmax, interpolation="nearest")
 
     # all Gaia sources
-    ax.plot(xg, yg, "co", ms=7, mfc="none", mew=1.2, alpha=0.8, label="Gaia catalog")
+    ax.scatter(xg, yg, s=10,facecolors="none", edgecolors="c", alpha=0.8, label="Gaia catalog")
 
     # highlight those inside image footprint
-    ax.plot(
+    ax.scatter(
         xg[inside], yg[inside],
-        "r.", ms=4, alpha=0.9, label="Inside image"
+        s=10,color='r', label="Inside image"
     )
+    print("imshow and scatter:", time.time() - t0)
+    t0 = time.time()
 
     ax.set_title(Path(image_fits).name)
     ax.set_xlabel("x [pix]")
@@ -79,6 +90,8 @@ def plot_gaia_overlay(image_fits, gaia_fits, outfile):
     fig.tight_layout()
     fig.savefig(outfile, dpi=150)
     plt.close(fig)
+    print("saving figure:", time.time() - t0)
+    t0 = time.time()    
     print(f"Wrote: {outfile}")
 
 
@@ -86,6 +99,7 @@ import sys
 from pathlib import Path
 
 def main():
+    
     gaia_dir = Path("gaia_catalogs")
     outdir = Path("gaia_diagnostic")
     outdir.mkdir(exist_ok=True)
