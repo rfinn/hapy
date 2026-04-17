@@ -73,12 +73,12 @@ def plot_gaia_overlay(image_fits, gaia_fits, outfile):
     #ax.imshow(data, origin="lower", cmap="gray", vmin=vmin, vmax=vmax, interpolation="nearest")
 
     # all Gaia sources
-    ax.scatter(xg, yg, s=10,facecolors="none", edgecolors="c", alpha=0.8, label="Gaia catalog")
+    ax.scatter(xg, yg, s=15,facecolors="none", edgecolors="c", alpha=0.8, label="Gaia catalog", rasterized=True)
 
     # highlight those inside image footprint
     ax.scatter(
         xg[inside], yg[inside],
-        s=10,color='r', label="Inside image"
+        s=10,color='r', marker=".", label="Inside image", rasterized=True
     )
     print("imshow and scatter:", time.time() - t0)
     t0 = time.time()
