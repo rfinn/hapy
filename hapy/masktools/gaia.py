@@ -189,7 +189,7 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     ymax,xmax = image.shape
     xc = xmax/2.
     yc = ymax/2.
-    #image_wcs = WCS(imheader)
+    image_wcs = WCS(imheader)
     # get image dimensions in deg,deg
     #dxdeg,dydeg = get_image_size_deg(image_name)
 
