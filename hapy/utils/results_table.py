@@ -436,8 +436,8 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
     flags["ELL0_MASK_WARN"] = safe_bool_array(tab, "ELL0_MASK_WARN")
     flags["ELL_MISMATCH"] = safe_bool_array(tab, "ELL_MISMATCH")
     flags["WARN_CUTOUT_MISSING"] = (
-        np.isfinite(flags["CUTOUT_ELL0_MISSING_FRAC_MAX"]) &
-        (flags["CUTOUT_ELL0_MISSING_FRAC_MAX"] > 0.3)
+        np.isfinite(tab["CUTOUT_ELL0_MISSING_FRAC_MAX"]) &
+        (tab["CUTOUT_ELL0_MISSING_FRAC_MAX"] > 0.3)
         )
     flags["WARN_CUTOUT_MISSING_SHAPE"] = (
         flags["WARN_CUTOUT_MISSING"] &
