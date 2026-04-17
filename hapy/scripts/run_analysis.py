@@ -499,8 +499,8 @@ def initialize_result_row():
     row["H_GINI_THRESHOLD"] = np.nan
 
     # morphology
-    row["R_HAPY_XC"] = np.nan
-    row["H_HAPY_YC"] = np.nan
+    row["R_HAPY_XC"] = np.nan # R and H have the same center
+    row["R_HAPY_YC"] = np.nan
     
     row["R_HAPY_GINI"] = np.nan
     row["H_HAPY_GINI"] = np.nan
@@ -590,10 +590,12 @@ def initialize_result_row():
         "R_LOGFIT_SLOPE", "R_LOGFIT_INTERCEPT", "R_LOGFIT_RE_ARCSEC",
         "R_TOT_MAG_SNR",
         "R_TOT_FLUX_CGS_SNR", "R_TOT_FLUX_CGS_SNR_ERR",
-        "R_SNR_TRUNC_ARCSEC",
+        "R_SNR_TRUNC_ARCSEC", 
+        "R_PROFILE_PEAK_BIN", "R_PROFILE_PEAK_SMA"
     ]:
         row[k] = np.nan
 
+    row["R_PROFILE_NONCENTRAL_PEAK"] = False
 
     # ---------- Halpha profile summary ----------
     for k in [
@@ -1463,6 +1465,9 @@ def main():
         ("AREA_GUESS_ELLIPSE_PIX", "area_guess_ellipse_pix"),
         ("AREA_GUESS_ELLIPSE_UNMASKED_PIX", "area_guess_ellipse_unmasked_pix"),
         ("MASKFRAC_GUESS_ELLIPSE", "maskfrac_guess_ellipse"),
+        ("R_PROFILE_NONCENTRAL_PEAK","r_profile_noncentral_peak"),
+        ("R_PROFILE_PEAK_BIN","r_profile_peak_bin"),
+        ("R_PROFILE_PEAK_SMA","r_profile_peak_sma"),
         ]
 
 
@@ -1476,12 +1481,6 @@ def main():
                 #print(f"Converting to arcsec for ",outk, attr)
                 sv = sv * pixscale
             row[outk] = sv  # leave as np.nan if missing/array/etc.
-    b = _scalar(e.b)
-    a = _scalar(e.sma_fit)
-    if np.isfinite(b) and np.isfinite(a) and (a > 0):
-        row["ELLIP_BA"] = b/a
-    else:
-        row["ELLIP_BA"] = np.nan
         
     # convert theta to PA and store
     if row["ELLIP_THETA_RAD"] is not None:
@@ -1578,6 +1577,7 @@ def main():
         theta_deg = phot_theta_deg
     )
 
+    
     outfile = cutdir / f"{tag}-diagnostic.png"
     outfile2 = cutdir / f"{tag}-seg-diagnostic.png"
     se_seg_fits = cutdir / f"{tag}-R-segmentation.fits"

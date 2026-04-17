@@ -422,6 +422,7 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
     flags["PHOT_OK"] = safe_bool_array(tab, "PHOT_OK")
     flags["R_PROFILE_OK"] = safe_bool_array(tab, "R_PROFILE_OK")
     flags["H_PROFILE_OK"] = safe_bool_array(tab, "H_PROFILE_OK")
+    flags["WARN_R_PROFILE_PEAK"] = safe_bool_array(tab, "R_PROFILE_NONCENTRAL_PEAK")
     flags["R_SM_OK"] = safe_bool_array(tab, "R_SM_OK")
     flags["H_SM_OK"] = safe_bool_array(tab, "H_SM_OK")
     flags["GAL_NC_OK"] = safe_bool_array(tab, "GAL_NC_OK")
@@ -745,7 +746,7 @@ def add_qc_tier(tab: Table) -> Table:
     ell_warn = safe_bool_array(tab, "ELL_MISMATCH")
     warn_filter = safe_bool_array(tab, "FILTER_WARNING")
     center_warn = tab["WARN_CEN_ANY"]
-    
+    r_profile_offcenter = tab["WARN_R_PROFILE_PEAK"]
     n = len(tab)
     tier = np.full(n, "F", dtype="U1")
 
@@ -754,7 +755,7 @@ def add_qc_tier(tab: Table) -> Table:
             tier[i] = "F"
         elif (not use_r[i]) or (not use_ha[i]):
             tier[i] = "D"
-        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i]:
+        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i] or r_profile_offcenter[i]:
             tier[i] = "C"
         elif not use_hm[i]:
             tier[i] = "B"
@@ -832,7 +833,8 @@ def get_review_priority(tab: Table) -> np.ndarray:
         safe_bool_array(tab, "ELL_MISMATCH") |
         safe_bool_array(tab, "WARN_WEAK_HA") |
         safe_bool_array(tab, "FILTER_WARNING") |
-        safe_bool_array(tab, "WARN_CEN_ANY")
+        safe_bool_array(tab, "WARN_CEN_ANY") |
+        safe_bool_array(tab, "WARN_R_PROFILE_PEAK")
     )
 
     priority[medium & (~high)] = "medium"

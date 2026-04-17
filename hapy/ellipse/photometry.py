@@ -2438,7 +2438,8 @@ class EllipsePhotometry():
         else:
             print(f"DEBUG: len(flux1)={len(self.flux1)}")
 
-        
+
+
     def measure_phot_old(self):
         '''
         # alternative is to use ellipse from detect
@@ -2686,6 +2687,68 @@ class EllipsePhotometry():
                 self.sb2[i] = (self.flux2[i] - self.flux2[i-1])/(self.area[i]-self.area[i-1])
                 self.sb2_err[i] = self.get_noise_in_aper((self.flux2[i] - self.flux2[i-1]),(self.area[i]-self.area[i-1]))/(self.area[i]-self.area[i-1])
             self.sb2_snr = np.abs(self.sb2/self.sb2_err)
+
+        # check if the profile peaks at the center
+        self.check_profile_peak()
+
+
+    def check_profile_peak(self, peak_tol_pix=2.0, frac_tol=0.02):
+        """
+        Check whether the r-band surface-brightness profile peaks near the center.
+
+        Parameters
+        ----------
+        peak_tol_pix : float
+            Maximum semi-major axis (in pixels) within which the profile peak
+            is still considered central.
+        frac_tol : float
+            Fractional tolerance: if the innermost SB is within this fraction
+            of the maximum SB, do not flag as noncentral.
+        """
+        self.r_profile_peak_bin = -1
+        self.r_profile_peak_sma = np.nan
+        self.r_profile_peak_sb = np.nan
+        self.r_profile_noncentral_peak = False
+
+        if not hasattr(self, "apertures_a") or not hasattr(self, "sb1"):
+            return
+
+        a = np.asarray(self.apertures_a, dtype=float)
+        sb = np.asarray(self.sb1, dtype=float)
+
+        good = np.isfinite(a) & np.isfinite(sb)
+        if np.sum(good) == 0:
+            return
+
+        a_good = a[good]
+        sb_good = sb[good]
+
+        order = np.argsort(a_good)
+        a_good = a_good[order]
+        sb_good = sb_good[order]
+
+        imax = int(np.argmax(sb_good))
+        amax = float(a_good[imax])
+        sbmax = float(sb_good[imax])
+        sb0 = float(sb_good[0])
+
+        self.r_profile_peak_bin = imax
+        self.r_profile_peak_sma = amax
+        self.r_profile_peak_sb = sbmax
+
+        # Accept if the maximum is close enough to the center
+        if amax <= peak_tol_pix:
+            self.r_profile_noncentral_peak = False
+            return
+
+        # Also accept if the innermost point is nearly as high as the maximum
+        if np.isfinite(sb0) and np.isfinite(sbmax) and (sbmax > 0):
+            close_to_central = ((sbmax - sb0) / sbmax) <= frac_tol
+            if close_to_central:
+                self.r_profile_noncentral_peak = False
+                return
+
+        self.r_profile_noncentral_peak = True
 
     def get_filter_properties(self):
         try:
