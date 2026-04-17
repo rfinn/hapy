@@ -465,7 +465,7 @@ def initialize_result_row():
     ]:
         row[k] = np.nan
 
-
+    row["ELLIP_CENTER_METHOD"] = ""
     row["AREA_GUESS_ELLIPSE_PIX"] = np.nan
     row["AREA_GUESS_ELLIPSE_UNMASKED_PIX"] = np.nan
     row["MASKFRAC_GUESS_ELLIPSE"] = np.nan
@@ -1493,7 +1493,7 @@ def main():
     # add photutils B/A
     row["ELLIP_BA"] = 1. - float(row["ELLIP_EPS"])
     
-
+    row["ELLIP_CENTER_METHOD"] = e.center_method_best
     # JSON field (stable schema)
     # mf = getattr(e, "masked_fraction", None)
     # if mf is not None:
