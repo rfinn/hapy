@@ -352,7 +352,7 @@ def get_image_size_deg(imagename):
 
     # found a better way to get the pixel scale
     
-    image_wcs = WCS(imheader)        
+    #image_wcs = WCS(imheader)        
     pscalex,pscaley = image_wcs.proj_plane_pixel_scales()
     
 
@@ -367,6 +367,34 @@ def get_image_size_deg(imagename):
     # return the size without the unit
     return sizex.value,sizey.value
 
+def get_image_footprint_box_deg(imagename, buffer_deg=0.03):
+    """
+    Return center RA/Dec and rectangular footprint size in degrees
+    based on the actual WCS footprint, padded by buffer_deg.
+    """
+    from astropy.io import fits
+    from astropy.wcs import WCS
+    import numpy as np
+
+    image, imheader = fits.getdata(imagename, header=True)
+    wcs = WCS(imheader)
+
+    fp = wcs.calc_footprint()   # shape (4, 2), columns are RA, Dec
+    ra = fp[:, 0]
+    dec = fp[:, 1]
+
+    ra_min = np.min(ra)
+    ra_max = np.max(ra)
+    dec_min = np.min(dec)
+    dec_max = np.max(dec)
+
+    racenter = 0.5 * (ra_min + ra_max)
+    deccenter = 0.5 * (dec_min + dec_max)
+
+    width = (ra_max - ra_min) + 2.0 * buffer_deg
+    height = (dec_max - dec_min) + 2.0 * buffer_deg
+
+    return racenter, deccenter, width, height
 
 def get_image_center_deg(imagename):
     ''' takes in image and header and returns ra and dec of center in deg  '''

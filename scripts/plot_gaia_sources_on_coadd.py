@@ -82,10 +82,33 @@ def plot_gaia_overlay(image_fits, gaia_fits, outfile):
     print(f"Wrote: {outfile}")
 
 
+import sys
+from pathlib import Path
+
 def main():
     gaia_dir = Path("gaia_catalogs")
     outdir = Path("gaia_diagnostic")
     outdir.mkdir(exist_ok=True)
+
+    if len(sys.argv) > 1:
+        image_fits = Path(sys.argv[1])
+
+        if image_fits.suffix != ".fits":
+            image_fits = Path(f"{image_fits}.fits")
+
+        root = image_fits.name.replace(".fits", "")
+        gaia_fits = gaia_dir / f"{root}-gaia.fits"
+
+        if not image_fits.exists():
+            print(f"Missing image: {image_fits}")
+            return
+        if not gaia_fits.exists():
+            print(f"Missing Gaia catalog: {gaia_fits}")
+            return
+
+        outfile = outdir / f"{root}-gaia-check.png"
+        plot_gaia_overlay(image_fits, gaia_fits, outfile)
+        return
 
     gaia_files = sorted(gaia_dir.glob("*-gaia.fits"))
     if not gaia_files:
@@ -101,11 +124,12 @@ def main():
             continue
 
         outfile = outdir / f"{root}-gaia-check.png"
-
         try:
             plot_gaia_overlay(image_fits, gaia_fits, outfile)
         except Exception as e:
             print(f"ERROR processing {root}: {e}")
+
+
 
 
 if __name__ == "__main__":

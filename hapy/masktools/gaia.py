@@ -189,12 +189,19 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     ymax,xmax = image.shape
     xc = xmax/2.
     yc = ymax/2.
-    image_wcs = WCS(imheader)
+    #image_wcs = WCS(imheader)
     # get image dimensions in deg,deg
-    dxdeg,dydeg = get_image_size_deg(image_name)
-    # Get coord of image center.  will use when getting gaia stars
-    racenter,deccenter = get_image_center_deg(image_name) 
+    #dxdeg,dydeg = get_image_size_deg(image_name)
 
+
+    
+    # Get coord of image center.  will use when getting gaia stars
+    #racenter,deccenter = get_image_center_deg(image_name) 
+
+    racenter, deccenter, dxdeg, dydeg = get_image_footprint_box_deg(
+        image_name,
+        buffer_deg=0.03,
+        )
 
     
     # -------------------------------------------------
@@ -202,6 +209,13 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     # -------------------------------------------------
 
     print("Querying Gaia via astroquery...")
+
+    brightstar = gaia_stars_in_rectangle(
+        racenter,
+        deccenter,
+        dydeg,
+        dxdeg,
+        )    
     brightstar = gaia_stars_in_rectangle(
         racenter,
         deccenter,
