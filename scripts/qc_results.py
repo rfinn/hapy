@@ -951,6 +951,7 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
         # warnings
         "WARN_MASK", "WARN_WEAK_HA",
         "BRIGHT_STAR_FLAG", "FILTER_WARNING", "ELL_MISMATCH",
+        "SEVERE_CEN_ANY", "WARN_CEN_ANY",
         # metrics
         "H50_R50_RATIO", "H_MAXDET_R25_RATIO",
         "DELTA_GINI", "DELTA_M20", "DELTA_ASYM",
@@ -975,6 +976,12 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     review["VIS_CLASS"] = np.full(n, "", dtype=object)
     review["CATALOG_USE"] = np.full(n, "", dtype=object)
     review["VIS_NOTE"] = np.full(n, "", dtype=object)
+
+    # -- mask columns
+    review["MASK_FIX_NEEDED"] = np.full(n, "", dtype=object)
+    review["MASK_FIXED"] = np.full(n, "", dtype=object)
+    review["MASK_ISSUE"] = np.full(n, "", dtype=object)
+    review["MASK_NOTE"] = np.full(n, "", dtype=object)    
     #review["VIS_NOTE"] = np.full(n, "", dtype=object)
 
     # -------------------------
@@ -1090,7 +1097,7 @@ def main():
     #             title="R24 radius vs GALFIT Re",
     #             mask=masks["galfit_any_ok"])
 
-    plot_failure_fraction_vs_bright_star_distance(tab, plots_dir / "FAILURES_VS_BRIGHT_STAR_DIST.png")
+    #plot_failure_fraction_vs_bright_star_distance(tab, plots_dir / "FAILURES_VS_BRIGHT_STAR_DIST.png")
     plot_raincloud_by_telescope(tab, "R_FWHM_PSF", plots_dir / "raincloud_R_FWHM_by_telescope.png")
     plot_raincloud_by_telescope(tab, "H_FWHM_PSF", plots_dir / "raincloud_H_FWHM_by_telescope.png")
     #plot_raincloud_by_telescope(tab, "FILTER_CORRECTION", outdir / "raincloud_FILTER_CORRECTION_by_telescope.png")

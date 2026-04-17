@@ -84,7 +84,7 @@
 
 ## hapy v0.2.2 — run_maskgui and added functionality (2026-03-27)
 
-## Masking & GUI Updates
+### Masking & GUI Updates
 
 - Added interactive mask overlay modes (off / contour / filled with true mask footprint)
 - Implemented synchronized pan (auto) and zoom (manual via `z`) across panels
@@ -94,3 +94,29 @@
 - Standardized masking arguments across pipeline and CLI
 - Fixed overlay rendering (removed large bounding boxes; now pixel-accurate)
 - Fixed GUI quit behavior and keybinding conflicts
+
+
+## hapy v0.2.3 — improved centering and center-offset QC diagnostics (2026-04-17)
+
+### Centering & Photometry Updates
+
+- Reworked central-object centering in ellipse photometry to improve robustness
+- Added flux-based centering options within the selected photutils segmentation region
+- Added logic to compare peak-anchored and guess-anchored flux centers and adopt a best center
+- Improved behavior for centrally concentrated galaxies while reducing some large center offsets
+- Updated downstream geometry to use the improved adopted center where appropriate
+
+### QC / Analysis Table Updates
+
+- Added merged-table columns tracking center offsets between:
+  - input coordinates and photutils center
+  - input coordinates and GALFIT centers
+  - photutils center and GALFIT centers
+- Added center-offset warning and severe warning QC flags
+- Incorporated center-offset diagnostics into QC / review-priority logic
+- Added segmentation diagnostic plots showing:
+  - r-band image
+  - masked r-band image
+  - SExtractor segmentation
+  - mask image
+  - photutils segmentation

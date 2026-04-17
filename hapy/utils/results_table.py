@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import numpy as np
 from astropy.table import Table
+from astropy.table import Column
+
+
 #from hapy.utils.astro import KE_SFR_from_redshift
 
 # ----------------------------------------------------------------------
@@ -236,6 +239,172 @@ def add_duplicate_metadata(tab, id_col="VFID"):
 
     return tab
 
+
+
+
+def add_center_offset_columns(tab):
+    """
+    Add center-offset columns comparing:
+      - input coords vs photutils center
+      - input coords vs GALFIT center
+      - input coords vs GALFIT+conv center
+      - photutils center vs GALFIT center
+      - photutils center vs GALFIT+conv center
+      - GALFIT center vs GALFIT+conv center
+
+    Offsets are added in both pixels and arcsec.
+
+    Expected input columns
+    ----------------------
+    ELL0_XC, ELL0_YC
+    ELLIP_XCENTROID, ELLIP_YCENTROID
+    GAL_XC, GAL_YC
+    GAL_CXC, GAL_CYC
+    PIXSCALE
+    """
+
+    def _get(name):
+        return np.asarray(tab[name], dtype=float)
+
+    def _offsets(x1, y1, x2, y2, pixscale):
+        dx = x2 - x1
+        dy = y2 - y1
+        dr_pix = np.hypot(dx, dy)
+
+        bad = (
+            ~np.isfinite(x1) | ~np.isfinite(y1) |
+            ~np.isfinite(x2) | ~np.isfinite(y2)
+        )
+        dr_pix[bad] = np.nan
+
+        dr_arcsec = dr_pix * pixscale
+        bad_arc = bad | ~np.isfinite(pixscale) | (pixscale <= 0)
+        dr_arcsec[bad_arc] = np.nan
+
+        dx[bad] = np.nan
+        dy[bad] = np.nan
+        return dx, dy, dr_pix, dr_arcsec
+
+    xin = _get("ELL0_XC")
+    yin = _get("ELL0_YC")
+
+    xph = _get("ELLIP_XCENTROID")
+    yph = _get("ELLIP_YCENTROID")
+
+    xg = _get("GAL_XC")
+    yg = _get("GAL_YC")
+
+    xgc = _get("GAL_CXC")
+    ygc = _get("GAL_CYC")
+
+    pixscale = _get("PIXSCALE")
+
+    pairs = [
+        ("IN_PHOT", xin, yin, xph, yph),
+        ("IN_GAL", xin, yin, xg, yg),
+        ("IN_GALC", xin, yin, xgc, ygc),
+        ("PHOT_GAL", xph, yph, xg, yg),
+        ("PHOT_GALC", xph, yph, xgc, ygc),
+        ("GAL_GALC", xg, yg, xgc, ygc),
+    ]
+
+    for tag, x1, y1, x2, y2 in pairs:
+        dx, dy, dr_pix, dr_arcsec = _offsets(x1, y1, x2, y2, pixscale)
+
+        cols = {
+            f"DX_{tag}_PIX": dx,
+            f"DY_{tag}_PIX": dy,
+            f"DOFF_{tag}_PIX": dr_pix,
+            f"DOFF_{tag}_ARCSEC": dr_arcsec,
+        }
+
+        for name, values in cols.items():
+            if name in tab.colnames:
+                tab[name] = values
+            else:
+                tab.add_column(Column(values, name=name))
+
+    return tab
+
+
+def add_center_offset_flags(tab, warn_arcsec=2.0, severe_arcsec=5.0):
+    """
+    Add QC flags based on center offsets in arcsec.
+
+    Uses these scalar offset columns (created by add_center_offset_columns):
+      DOFF_IN_PHOT_ARCSEC
+      DOFF_IN_GAL_ARCSEC
+      DOFF_IN_GALC_ARCSEC
+      DOFF_PHOT_GAL_ARCSEC
+      DOFF_PHOT_GALC_ARCSEC
+      DOFF_GAL_GALC_ARCSEC
+
+    Parameters
+    ----------
+    warn_arcsec : float
+        Threshold for warning flags.
+    severe_arcsec : float
+        Threshold for severe flags.
+    """
+
+    def _flag_from_offset(colname, thresh):
+        vals = np.asarray(tab[colname], dtype=float)
+        return np.isfinite(vals) & (vals > thresh)
+
+    flag_map_warn = {
+        "WARN_CEN_IN_PHOT": "DOFF_IN_PHOT_ARCSEC",
+        "WARN_CEN_IN_GAL": "DOFF_IN_GAL_ARCSEC",
+        "WARN_CEN_IN_GALC": "DOFF_IN_GALC_ARCSEC",
+        "WARN_CEN_PHOT_GAL": "DOFF_PHOT_GAL_ARCSEC",
+        "WARN_CEN_PHOT_GALC": "DOFF_PHOT_GALC_ARCSEC",
+        "WARN_CEN_GAL_GALC": "DOFF_GAL_GALC_ARCSEC",
+    }
+
+    flag_map_severe = {
+        "SEVERE_CEN_IN_PHOT": "DOFF_IN_PHOT_ARCSEC",
+        "SEVERE_CEN_IN_GAL": "DOFF_IN_GAL_ARCSEC",
+        "SEVERE_CEN_IN_GALC": "DOFF_IN_GALC_ARCSEC",
+        "SEVERE_CEN_PHOT_GAL": "DOFF_PHOT_GAL_ARCSEC",
+        "SEVERE_CEN_PHOT_GALC": "DOFF_PHOT_GALC_ARCSEC",
+        "SEVERE_CEN_GAL_GALC": "DOFF_GAL_GALC_ARCSEC",
+    }
+
+    for flagname, offcol in flag_map_warn.items():
+        vals = _flag_from_offset(offcol, warn_arcsec)
+        if flagname in tab.colnames:
+            tab[flagname] = vals
+        else:
+            tab.add_column(Column(vals, name=flagname))
+
+    for flagname, offcol in flag_map_severe.items():
+        vals = _flag_from_offset(offcol, severe_arcsec)
+        if flagname in tab.colnames:
+            tab[flagname] = vals
+        else:
+            tab.add_column(Column(vals, name=flagname))
+
+    # combined summary flags
+    warn_any = np.zeros(len(tab), dtype=bool)
+    severe_any = np.zeros(len(tab), dtype=bool)
+
+    for name in flag_map_warn:
+        warn_any |= np.asarray(tab[name], dtype=bool)
+
+    for name in flag_map_severe:
+        severe_any |= np.asarray(tab[name], dtype=bool)
+
+    if "WARN_CEN_ANY" in tab.colnames:
+        tab["WARN_CEN_ANY"] = warn_any
+    else:
+        tab.add_column(Column(warn_any, name="WARN_CEN_ANY"))
+
+    if "SEVERE_CEN_ANY" in tab.colnames:
+        tab["SEVERE_CEN_ANY"] = severe_any
+    else:
+        tab.add_column(Column(severe_any, name="SEVERE_CEN_ANY"))
+
+    return tab
+
 def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, np.ndarray]:
     """
     Unified row-level QC flags for merged HAPY results.
@@ -381,135 +550,141 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
 
     return flags
 
-def add_qc_flags(tab: Table, qc: dict | None = None) -> Table:
-    """
-    Add QC tiering and usability flags.
 
-    Parameters
-    ----------
-    tab : astropy.table.Table
-        Input merged results table.
+# -- this is a duplicate function from when I was building this in scripts
+# -- this is currently NOT USED!!!
+# -- keeping in case some part is useful down the road...
+# def add_qc_flags(tab: Table, qc: dict | None = None) -> Table:
+#     """
+#     Add QC tiering and usability flags.
 
-    qc : dict or None
-        Optional override dictionary for QC thresholds.
-        Keys may include:
-          - r_profile_ngood_min
-          - ha_profile_ngood_min
-          - ha_npix_min_extent
-          - ha_npix_min_morph
-          - ha_snr_det_min
-          - filter_correction_warn
-    """
+#     Parameters
+#     ----------
+#     tab : astropy.table.Table
+#         Input merged results table.
 
-    if "QC_TIER" in tab.colnames:
-        return tab
+#     qc : dict or None
+#         Optional override dictionary for QC thresholds.
+#         Keys may include:
+#           - r_profile_ngood_min
+#           - ha_profile_ngood_min
+#           - ha_npix_min_extent
+#           - ha_npix_min_morph
+#           - ha_snr_det_min
+#           - filter_correction_warn
+#     """
 
-    cfg = QC_DEFAULTS.copy()
-    if qc is not None:
-        cfg.update(qc)
+#     if "QC_TIER" in tab.colnames:
+#         return tab
 
-    n = len(tab)
+#     cfg = QC_DEFAULTS.copy()
+#     if qc is not None:
+#         cfg.update(qc)
 
-    phot_ok = safe_bool_array(tab, "PHOT_OK")
-    rprof_ok = safe_bool_array(tab, "R_PROFILE_OK")
-    hprof_ok = safe_bool_array(tab, "H_PROFILE_OK")
-    morph_ok = safe_bool_array(tab, "HAPY_MORPH_OK")
-    h_sm_ok = safe_bool_array(tab, "H_SM_OK")
-    gal_nc_ok = safe_bool_array(tab, "GAL_NC_OK")
-    gal_cv_ok = safe_bool_array(tab, "GAL_CV_OK")
+#     n = len(tab)
 
-    bright_star = safe_bool_array(tab, "BRIGHT_STAR_FLAG")
-    mask_warn = safe_bool_array(tab, "ELL0_MASK_WARN")
-    ell_warn = safe_bool_array(tab, "ELL_MISMATCH")
+#     phot_ok = safe_bool_array(tab, "PHOT_OK")
+#     rprof_ok = safe_bool_array(tab, "R_PROFILE_OK")
+#     hprof_ok = safe_bool_array(tab, "H_PROFILE_OK")
+#     morph_ok = safe_bool_array(tab, "HAPY_MORPH_OK")
+#     h_sm_ok = safe_bool_array(tab, "H_SM_OK")
+#     gal_nc_ok = safe_bool_array(tab, "GAL_NC_OK")
+#     gal_cv_ok = safe_bool_array(tab, "GAL_CV_OK")
 
-    filt = safe_float_array(tab, "FILTER_CORRECTION")
-    warn_filter = np.isfinite(filt) & (filt > cfg["filter_correction_warn"])
+#     bright_star = safe_bool_array(tab, "BRIGHT_STAR_FLAG")
+#     mask_warn = safe_bool_array(tab, "ELL0_MASK_WARN")
+#     ell_warn = safe_bool_array(tab, "ELL_MISMATCH")
 
-    r50 = safe_float_array(tab, "R50_ARCSEC")
-    h50 = safe_float_array(tab, "H50_ARCSEC")
-    hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
+#     filt = safe_float_array(tab, "FILTER_CORRECTION")
+#     warn_filter = np.isfinite(filt) & (filt > cfg["filter_correction_warn"])
 
-    h_npix = safe_float_array(tab, "H_HAPY_NPIX")
-    h_ngood = safe_float_array(tab, "H_PROFILE_NGOOD")
-    h_snr = safe_float_array(tab, "H_HAPY_SNP_DET")
-    r_ngood = safe_float_array(tab, "R_PROFILE_NGOOD")
+#     r50 = safe_float_array(tab, "R50_ARCSEC")
+#     h50 = safe_float_array(tab, "H50_ARCSEC")
+#     hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
 
-    use_r = np.zeros(n, dtype=int)
-    use_ha = np.zeros(n, dtype=int)
-    use_hm = np.zeros(n, dtype=int)
-    use_gf = np.zeros(n, dtype=int)
+#     h_npix = safe_float_array(tab, "H_HAPY_NPIX")
+#     h_ngood = safe_float_array(tab, "H_PROFILE_NGOOD")
+#     h_snr = safe_float_array(tab, "H_HAPY_SNP_DET")
+#     r_ngood = safe_float_array(tab, "R_PROFILE_NGOOD")
 
-    good_r = (
-        phot_ok &
-        rprof_ok &
-        np.isfinite(r50) & (r50 > 0) &
-        np.isfinite(r_ngood) & (r_ngood >= cfg["r_profile_ngood_min"])
-    )
-    use_r[good_r] = 2
-    use_r[good_r & mask_warn] = 1
+#     use_r = np.zeros(n, dtype=int)
+#     use_ha = np.zeros(n, dtype=int)
+#     use_hm = np.zeros(n, dtype=int)
+#     use_gf = np.zeros(n, dtype=int)
 
-    good_ha = (
-        phot_ok &
-        hprof_ok &
-        np.isfinite(h50) & (h50 > 0) &
-        np.isfinite(hmax) & (hmax > 0) &
-        np.isfinite(h_npix) & (h_npix >= cfg["ha_npix_min_extent"]) &
-        np.isfinite(h_ngood) & (h_ngood >= cfg["ha_profile_ngood_min"]) &
-        (~warn_filter)
-    )
-    use_ha[good_ha] = 2
+#     good_r = (
+#         phot_ok &
+#         rprof_ok &
+#         np.isfinite(r50) & (r50 > 0) &
+#         np.isfinite(r_ngood) & (r_ngood >= cfg["r_profile_ngood_min"])
+#     )
+#     use_r[good_r] = 2
+#     use_r[good_r & mask_warn] = 1
 
-    weak_ha = (
-        (np.isfinite(h_npix) & (h_npix < cfg["ha_npix_min_extent"])) |
-        (np.isfinite(h_ngood) & (h_ngood < cfg["ha_profile_ngood_min"])) |
-        (np.isfinite(h_snr) & (h_snr < cfg["ha_snr_det_min"]))
-    )
-    use_ha[good_ha & weak_ha] = 1
+#     good_ha = (
+#         phot_ok &
+#         hprof_ok &
+#         np.isfinite(h50) & (h50 > 0) &
+#         np.isfinite(hmax) & (hmax > 0) &
+#         np.isfinite(h_npix) & (h_npix >= cfg["ha_npix_min_extent"]) &
+#         np.isfinite(h_ngood) & (h_ngood >= cfg["ha_profile_ngood_min"]) &
+#         (~warn_filter)
+#     )
+#     use_ha[good_ha] = 2
 
-    good_hm = (
-        morph_ok &
-        h_sm_ok &
-        np.isfinite(h_npix) & (h_npix >= cfg["ha_npix_min_morph"]) &
-        (~warn_filter)
-    )
-    use_hm[good_hm] = 2
-    use_hm[good_hm & weak_ha] = 1
+#     weak_ha = (
+#         (np.isfinite(h_npix) & (h_npix < cfg["ha_npix_min_extent"])) |
+#         (np.isfinite(h_ngood) & (h_ngood < cfg["ha_profile_ngood_min"])) |
+#         (np.isfinite(h_snr) & (h_snr < cfg["ha_snr_det_min"]))
+#     )
+#     use_ha[good_ha & weak_ha] = 1
 
-    use_gf[gal_nc_ok | gal_cv_ok] = 2
+#     good_hm = (
+#         morph_ok &
+#         h_sm_ok &
+#         np.isfinite(h_npix) & (h_npix >= cfg["ha_npix_min_morph"]) &
+#         (~warn_filter)
+#     )
+#     use_hm[good_hm] = 2
+#     use_hm[good_hm & weak_ha] = 1
 
-    tab["USE_R_STRUCTURE"] = use_r
-    tab["USE_HA_EXTENT"] = use_ha
-    tab["USE_HA_MORPH"] = use_hm
-    tab["USE_GALFIT"] = use_gf
+#     use_gf[gal_nc_ok | gal_cv_ok] = 2
 
-    if "WARN_FILTER" not in tab.colnames:
-        tab["WARN_FILTER"] = warn_filter
-    if "WARN_MASK" not in tab.colnames:
-        tab["WARN_MASK"] = mask_warn
-    if "WARN_BRIGHT_STAR" not in tab.colnames:
-        tab["WARN_BRIGHT_STAR"] = bright_star
-    if "WARN_ELLIPSE" not in tab.colnames:
-        tab["WARN_ELLIPSE"] = ell_warn
-    if "WARN_WEAK_HA" not in tab.colnames:
-        tab["WARN_WEAK_HA"] = weak_ha
+#     tab["USE_R_STRUCTURE"] = use_r
+#     tab["USE_HA_EXTENT"] = use_ha
+#     tab["USE_HA_MORPH"] = use_hm
+#     tab["USE_GALFIT"] = use_gf
 
-    tier = np.full(n, "F", dtype="U1")
+#     if "WARN_FILTER" not in tab.colnames:
+#         tab["WARN_FILTER"] = warn_filter
+#     if "WARN_MASK" not in tab.colnames:
+#         tab["WARN_MASK"] = mask_warn
+#     if "WARN_BRIGHT_STAR" not in tab.colnames:
+#         tab["WARN_BRIGHT_STAR"] = bright_star
+#     if "WARN_ELLIPSE" not in tab.colnames:
+#         tab["WARN_ELLIPSE"] = ell_warn
+#     if "WARN_WEAK_HA" not in tab.colnames:
+#         tab["WARN_WEAK_HA"] = weak_ha
 
-    for i in range(n):
-        if not phot_ok[i]:
-            tier[i] = "F"
-        elif use_r[i] == 0 or use_ha[i] == 0:
-            tier[i] = "D"
-        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i]:
-            tier[i] = "C"
-        elif use_hm[i] < 2:
-            tier[i] = "B"
-        else:
-            tier[i] = "A"
+#     center_warn = tab["WARN_CEN_ANY"]
+    
+#     tier = np.full(n, "F", dtype="U1")
 
-    tab["QC_TIER"] = tier
+#     for i in range(n):
+#         if not phot_ok[i]:
+#             tier[i] = "F"
+#         elif use_r[i] == 0 or use_ha[i] == 0:
+#             tier[i] = "D"
+#         elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i]:
+#         tier[i] = "C"
+#         elif use_hm[i] < 2:
+#             tier[i] = "B"
+#         else:
+#             tier[i] = "A"
 
-    return tab
+#     tab["QC_TIER"] = tier
+
+#     return tab
 
 
 # ----------------------------------------------------------------------
@@ -569,7 +744,8 @@ def add_qc_tier(tab: Table) -> Table:
     mask_warn = safe_bool_array(tab, "WARN_MASK")
     ell_warn = safe_bool_array(tab, "ELL_MISMATCH")
     warn_filter = safe_bool_array(tab, "FILTER_WARNING")
-
+    center_warn = tab["WARN_CEN_ANY"]
+    
     n = len(tab)
     tier = np.full(n, "F", dtype="U1")
 
@@ -578,7 +754,7 @@ def add_qc_tier(tab: Table) -> Table:
             tier[i] = "F"
         elif (not use_r[i]) or (not use_ha[i]):
             tier[i] = "D"
-        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i]:
+        elif mask_warn[i] or bright_star[i] or warn_filter[i] or ell_warn[i] or center_warn[i]:
             tier[i] = "C"
         elif not use_hm[i]:
             tier[i] = "B"
@@ -597,55 +773,7 @@ def add_vfindex(tab):
     tab["VFINDEX"] = vfindex
     return tab
 
-def prepare_analysis_table(
-    tab: Table,
-    add_qc: bool = True,
-    add_tier: bool = True,    
-    #add_derived: bool = True,
-    add_duplicates=True,    
-    add_science: bool = True,    
-    copy: bool = True,
-) -> Table:
-    """
-    Standard table preparation for QC, validation, and first-look science.
 
-    Safe to call from qc_results.py, validate_measurements.py,
-    validate_duplicates.py, validate_dashboards.py, and science_firstlook.py.
-    """
-    if copy:
-        tab = tab.copy()
-        
-    if add_qc:
-        tab = add_qc_columns(tab)
-
-    if add_tier:
-        tab = add_qc_tier(tab)
-
-    #if add_derived:
-    #    tab = add_derived_columns(tab)
-
-    if add_duplicates:
-        tab = add_duplicate_metadata(tab)
-
-    if add_science:
-        tab = add_science_columns(tab)
-
-    # add vfindex
-    if ("VFID" in tab.colnames) and ("VFINDEX" not in tab.colnames):
-        tab = add_vfindex(tab)
-        
-    if "REVIEW_PRIORITY" not in tab.colnames:
-        tab["REVIEW_PRIORITY"] = get_review_priority(tab)
-        priority = tab["REVIEW_PRIORITY"]
-        vals, counts = np.unique(priority, return_counts=True)
-        print("REVIEW_PRIORITY SUMMARY")
-        print(dict(zip(vals, counts)))
-
-        for name in ["ELL_MISMATCH", "FILTER_WARNING", "WARN_MASK", "BRIGHT_STAR_FLAG", "WARN_WEAK_HA"]:
-            arr = safe_bool_array(tab, name)
-            print(name, np.sum(arr))
-
-    return tab
 def select_sample(tab: Table, sample: str = "AB") -> np.ndarray:
     """
     Select QC subset.
@@ -691,7 +819,8 @@ def get_review_priority(tab: Table) -> np.ndarray:
         ~safe_bool_array(tab, "PHOT_OK") |
         ~safe_bool_array(tab, "HAPY_MORPH_OK") |
         safe_bool_array(tab, "BRIGHT_STAR_FLAG") |
-        safe_bool_array(tab, "WARN_MASK") 
+        safe_bool_array(tab, "WARN_MASK") |
+        safe_bool_array(tab, "SEVERE_CEN_ANY")
     )
 
     priority[high] = "high"
@@ -701,9 +830,9 @@ def get_review_priority(tab: Table) -> np.ndarray:
     # -----------------------------
     medium = (
         safe_bool_array(tab, "ELL_MISMATCH") |
-        safe_bool_array(tab, "WARN_MASK") |
         safe_bool_array(tab, "WARN_WEAK_HA") |
-        safe_bool_array(tab, "FILTER_WARNING")
+        safe_bool_array(tab, "FILTER_WARNING") |
+        safe_bool_array(tab, "WARN_CEN_ANY")
     )
 
     priority[medium & (~high)] = "medium"
@@ -711,3 +840,54 @@ def get_review_priority(tab: Table) -> np.ndarray:
     return priority
 
 
+def prepare_analysis_table(
+    tab: Table,
+    add_qc: bool = True,
+    add_tier: bool = True,    
+    #add_derived: bool = True,
+    add_duplicates=True,    
+    add_science: bool = True,    
+    copy: bool = True,
+) -> Table:
+    """
+    Standard table preparation for QC, validation, and first-look science.
+
+    Safe to call from qc_results.py, validate_measurements.py,
+    validate_duplicates.py, validate_dashboards.py, and science_firstlook.py.
+    """
+    if copy:
+        tab = tab.copy()
+        
+    if add_qc:
+        tab = add_center_offset_columns(tab)
+        tab = add_center_offset_flags(tab)
+        tab = add_qc_columns(tab)
+
+    if add_tier:
+        tab = add_qc_tier(tab)
+
+    #if add_derived:
+    #    tab = add_derived_columns(tab)
+
+    if add_duplicates:
+        tab = add_duplicate_metadata(tab)
+
+    if add_science:
+        tab = add_science_columns(tab)
+
+    # add vfindex
+    if ("VFID" in tab.colnames) and ("VFINDEX" not in tab.colnames):
+        tab = add_vfindex(tab)
+        
+    if "REVIEW_PRIORITY" not in tab.colnames:
+        tab["REVIEW_PRIORITY"] = get_review_priority(tab)
+        priority = tab["REVIEW_PRIORITY"]
+        vals, counts = np.unique(priority, return_counts=True)
+        print("REVIEW_PRIORITY SUMMARY")
+        print(dict(zip(vals, counts)))
+
+        for name in ["ELL_MISMATCH", "FILTER_WARNING", "WARN_MASK", "BRIGHT_STAR_FLAG", "WARN_WEAK_HA"]:
+            arr = safe_bool_array(tab, name)
+            print(name, np.sum(arr))
+
+    return tab
