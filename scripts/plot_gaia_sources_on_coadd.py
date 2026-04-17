@@ -88,7 +88,7 @@ def plot_gaia_overlay(image_fits, gaia_fits, outfile):
     ax.set_ylabel("y [pix]")
     ax.legend(loc="upper right", fontsize=8)
     fig.tight_layout()
-    fig.savefig(outfile, dpi=100)
+    fig.savefig(outfile, dpi=80)
     plt.close(fig)
     print("title, tighten, saving figure:", time.time() - t0)
     t0 = time.time()    
