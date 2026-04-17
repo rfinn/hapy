@@ -835,21 +835,26 @@ class cutout_dir():
 
         # initialize attributes (important for downstream HTML logic)
         self.mask_diagnostic = None
+        self.seg_diagnostic = None        
 
 
-        # --- R-band PDF ---
+        # 
         r_matches = glob.glob(os.path.join(self.cutoutdir, "*-diagnostic.png"))
 
         if len(r_matches) > 0:
-            mask_diag = r_matches[0]
-            self.mask_diagnostic = os.path.join(self.outdir, os.path.basename(mask_diag))
-
-            try:
-                shutil.copy2(mask_diag, self.mask_diagnostic)
-            except Exception as e:
-                print(f"Error copying mask diagnostic: {mask_diag}")
-                print(e)
-                self.sm_r_pdf = None
+            for rmatch in r_matches:
+                if "seg-diagnostic" in rmatch:
+                    self.seg_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
+                    destination = self.seg_diagnostic                    
+                else:
+                    self.mask_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
+                    destination = self.mask_diagnostic
+                try:
+                    shutil.copy2(rmatch, destination)
+                except Exception as e:
+                    print(f"Error copying mask diagnostic: {mask_diag}")
+                    print(e)
+                    self.sm_r_pdf = None
         else:
             print(f"No mask diagnostic found in {self.cutoutdir}")
             
@@ -1663,7 +1668,7 @@ class build_html_cutout():
         write_text_table(self.html, labels, data)
 
         if self.cutout.mask_diagnostic is not None:
-            images = [self.cutout.mask_diagnostic]
+            images = [self.cutout.seg_diagnostic] # using five panel plot on webpage; 2 panel plot on index page
             images = [os.path.basename(i) for i in images]
             labels = ['HAPY Mask']
 
