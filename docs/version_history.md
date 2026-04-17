@@ -120,3 +120,7 @@
   - SExtractor segmentation
   - mask image
   - photutils segmentation
+- Fixed bug with gaia coverage when downloading catalogs for coadd
+  images.  I was not accounting for cos(dec) term, so RA width of
+  returned catalog was too small.  Changed code to use astropy's
+  calc_footprint, which gives coordinates of the image corners.
