@@ -126,3 +126,5 @@
   calc_footprint, which gives coordinates of the image corners.
 - adding tracking of fraction of initial ellipse that has valid image
   data in both the r and halpha images
+  - Updated masktools.engine to grow mask BEFORE removing central
+    object to avoid neighboring objects bleeding into galaxy

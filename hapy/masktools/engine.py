@@ -156,11 +156,20 @@ class MaskEngine:
         )
         self.maskdat = segdata
 
-        #print("after sextractor", self.maskdat.shape)
- 
-        self._progress(progress_callback, stage="cleanup", fraction=0.45, message="Applying object removals / user masks")
-        # 2) remove center galaxy object(s)
 
+        # GROW MASK
+        
+        self._progress(progress_callback, stage="grow", fraction=0.7, message="Growing mask")
+        if grow_iterations > 0:
+            self._progress(progress_callback, stage="grow", fraction=0.7,
+                   message=f"Growing mask ({grow_iterations} iterations)")
+            self.grow(size=grow_size, ngrow=grow_iterations, preserve_gaia=True)
+
+        self._progress(progress_callback, stage="cleanup", fraction=0.45, message="Applying object removals / user masks")
+
+        
+        # REMOVE CENTER GALAXY OBJECT(S)
+        
         if remove_center_object:
             print("removing central object")
             self.maskdat, ellipse_params = remove_central_objects(
@@ -175,12 +184,6 @@ class MaskEngine:
             self.maskdat = apply_user_masks(self.maskdat, self.usr_mask)
 
 
-        # GROW MASK
-        self._progress(progress_callback, stage="grow", fraction=0.7, message="Growing mask")
-        if grow_iterations > 0:
-            self._progress(progress_callback, stage="grow", fraction=0.7,
-                   message=f"Growing mask ({grow_iterations} iterations)")
-            self.grow(size=grow_size, ngrow=grow_iterations, preserve_gaia=True)
 
         # ADD GAIA STARS
 
