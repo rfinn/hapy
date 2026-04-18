@@ -156,6 +156,16 @@ class MaskEngine:
         )
         self.maskdat = segdata
 
+        # REMOVE CENTER GALAXY OBJECT(S)
+        
+        if remove_center_object:
+            print("removing central object")
+            self.maskdat, ellipse_params = remove_central_objects(
+                self.maskdat,
+                #center_object_id=center_object_id,
+                ellipse_params=galaxy_ellipse,
+             )
+            self.ellipse_params = ellipse_params
 
         # GROW MASK
         
