@@ -1003,6 +1003,89 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     #review.write(outpath / "review_master.fits", format="fits", overwrite=True)
     print("writing ",outpath / "review_sample.csv")
     review.write(outpath / "review_sample.csv", format="ascii.csv", overwrite=True)
+
+def print_review_priority_drivers(tab):
+    """
+    Print counts for the individual flags that drive review priority.
+
+    Assumes `tab` already contains all derived columns from
+    `prepare_analysis_table()` / `get_review_priority()`.
+
+    Parameters
+    ----------
+    tab : astropy.table.Table
+        Analysis table with QC / warning columns.
+    """
+    import numpy as np
+
+    n = len(tab)
+    if n == 0:
+        print("Table is empty.")
+        return
+
+    def _safe_bool(name):
+        if name not in tab.colnames:
+            return np.zeros(n, dtype=bool)
+        arr = np.asarray(tab[name])
+        if arr.dtype == bool:
+            return arr
+        out = np.zeros(n, dtype=bool)
+        good = arr == arr
+        out[good] = arr[good].astype(bool)
+        return out
+
+    high_terms = {
+        "NOT_PHOT_OK": ~_safe_bool("PHOT_OK"),
+        "NOT_HAPY_MORPH_OK": ~_safe_bool("HAPY_MORPH_OK"),
+        "BRIGHT_STAR_FLAG": _safe_bool("BRIGHT_STAR_FLAG"),
+        "WARN_MASK": _safe_bool("WARN_MASK"),
+        "SEVERE_CEN_ANY": _safe_bool("SEVERE_CEN_ANY"),
+        "WARN_CUTOUT_MISSING_SHAPE": _safe_bool("WARN_CUTOUT_MISSING_SHAPE"),
+    }
+
+    medium_terms = {
+        "ELL_MISMATCH": _safe_bool("ELL_MISMATCH"),
+        "WARN_WEAK_HA": _safe_bool("WARN_WEAK_HA"),
+        "FILTER_WARNING": _safe_bool("FILTER_WARNING"),
+        "WARN_CEN_ANY": _safe_bool("WARN_CEN_ANY"),
+        "WARN_R_PROFILE_PEAK": _safe_bool("WARN_R_PROFILE_PEAK"),
+        "WARN_CUTOUT_MISSING": _safe_bool("WARN_CUTOUT_MISSING"),
+    }
+
+    high = np.zeros(n, dtype=bool)
+    for flag in high_terms.values():
+        high |= flag
+
+    medium = np.zeros(n, dtype=bool)
+    for flag in medium_terms.values():
+        medium |= flag
+
+    priority = np.full(n, "low", dtype="U16")
+    priority[high] = "high"
+    priority[medium & (~high)] = "medium"
+
+    unique, counts = np.unique(priority, return_counts=True)
+    summary = dict(zip(unique, counts))
+
+    print("\nREVIEW PRIORITY SUMMARY")
+    print(summary)
+
+    print("\nHIGH PRIORITY DRIVERS")
+    for name, flag in high_terms.items():
+        print(f"{name:28s}: total={np.sum(flag):4d}  in_high={np.sum(flag & high):4d}")
+
+    print("\nMEDIUM PRIORITY DRIVERS")
+    for name, flag in medium_terms.items():
+        print(f"{name:28s}: total={np.sum(flag):4d}  in_medium={np.sum(flag & (medium & ~high)):4d}")
+
+    print("\nOVERLAP AMONG HIGH DRIVERS")
+    high_names = list(high_terms.keys())
+    for i in range(len(high_names)):
+        for j in range(i + 1, len(high_names)):
+            n_ij = np.sum(high_terms[high_names[i]] & high_terms[high_names[j]])
+            if n_ij > 0:
+                print(f"{high_names[i]:28s} & {high_names[j]:28s}: {n_ij:4d}")
+
 # ----------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------
@@ -1112,6 +1195,9 @@ def main():
     
     tab[tab["QC_TIER"] == "A"].write(outdir / "tables" / "subsets" / "qc_tier_A.fits", format="fits", overwrite=True)
     tab[np.isin(tab["QC_TIER"], ["A", "B"])].write(outdir / "tables" / "subsets" /"qc_tier_AB.fits", format="fits", overwrite=True)
+
+    print()
+    print_review_priority_drivers(tab)
 
 if __name__ == "__main__":
     main()
