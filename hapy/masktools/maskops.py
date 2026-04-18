@@ -37,64 +37,159 @@ def circle_pixels(xc,yc,r,ximage,yimage):
     return pixel_flag
 
 
-def remove_central_objects(mask, ellipse_params=None):
-    """ 
-    find any pixels within central ellipse and set their values to zero 
+# def remove_central_objects(mask, ellipse_params=None):
+#     """ 
+#     find any pixels within central ellipse and set their values to zero 
 
-    PARAMS:
-    mask = 2D array containing masked pixels, like from SE segmentation image
-    ellipse_params = EllipseDataStructure 
-      - sma = semi-major axis in pixels
-      - BA = ratio of semi-minor to semi-major axes
-      - PA = position angle, measured in degree counter clockwise from +x axis
-      - xc
-      - yc
-    OPTIONAL ARGS:
-    xc = center of ellipse in pixels; assumed to be center of image if xc is not specified
-    yc = center of ellipse in pixels; assumed to be center of image if yc is not specified
+#     PARAMS:
+#     mask = 2D array containing masked pixels, like from SE segmentation image
+#     ellipse_params = EllipseDataStructure 
+#       - sma = semi-major axis in pixels
+#       - BA = ratio of semi-minor to semi-major axes
+#       - PA = position angle, measured in degree counter clockwise from +x axis
+#       - xc
+#       - yc
+#     OPTIONAL ARGS:
+#     xc = center of ellipse in pixels; assumed to be center of image if xc is not specified
+#     yc = center of ellipse in pixels; assumed to be center of image if yc is not specified
     
-    RETURNS:
-    newmask = copy of input mask, with pixels within ellipse set equal to zero
+#     RETURNS:
+#     newmask = copy of input mask, with pixels within ellipse set equal to zero
 
+#     """
+
+#     if ellipse_params is None:
+#         objid = find_central_objid(mask)
+#         newmask = remove_object_by_id(mask, objid)
+#         return newmask, ellipse_params
+#     else:
+#         # changing the xmax and ymax - if the ellipse looks wrong, then swap back
+#         ymax,xmax = mask.shape
+
+#         if ellipse_params is not None:
+#             xc = ellipse_params.xc
+#             yc = ellipse_params.yc
+#             a = ellipse_params.sma_pix
+#             b = ellipse_params.ba * a
+#             phirad = np.radians(ellipse_params.theta_deg)
+#         else:
+#             # set center of ellipse as the center of the image
+#             a = None
+#             b = None
+#             phirad = None
+#             xc = None
+#             yc = None
+
+#         if xc is None:
+#             xc = xmax//2
+#             yc = ymax//2
+
+#         X,Y = np.meshgrid(np.arange(xmax),np.arange(ymax))
+    
+#         p1 = ((X-xc)*np.cos(phirad)+(Y-yc)*np.sin(phirad))**2/a**2
+#         p2 = ((X-xc)*np.sin(phirad)-(Y-yc)*np.cos(phirad))**2/b**2
+#         flag2 = p1+p2 < 1
+#         newmask = np.copy(mask)
+#         newmask[flag2] = 0
+#         # we could also get all the unique values associated with flag2, and then remove them
+#         #ellipse_params = [xc,yc,sma,BA,phirad]
+#         return newmask,ellipse_params
+
+def remove_central_objects(mask, ellipse_params=None):
     """
+    Remove the central galaxy from a labeled mask.
+
+    Behavior
+    --------
+    1. If ellipse_params is None:
+       - find the object ID at the image center
+       - remove that object ID everywhere in the mask
+
+    2. If ellipse_params is provided:
+       - find all nonzero object IDs present at/near the central position
+       - remove those object IDs everywhere in the mask
+       - then zero any remaining nonzero pixels inside the central ellipse
+
+    Parameters
+    ----------
+    mask : 2D ndarray
+        Integer-valued segmentation/mask image.
+    ellipse_params : EllipseDataStructure, optional
+        Must provide:
+          - sma_pix
+          - ba
+          - theta_deg
+          - xc
+          - yc
+
+    Returns
+    -------
+    newmask : 2D ndarray
+        Copy of input mask with central-object pixels removed.
+    ellipse_params : unchanged
+    """
+    import numpy as np
+
+    newmask = np.copy(mask)
 
     if ellipse_params is None:
         objid = find_central_objid(mask)
         newmask = remove_object_by_id(mask, objid)
         return newmask, ellipse_params
-    else:
-        # changing the xmax and ymax - if the ellipse looks wrong, then swap back
-        ymax,xmax = mask.shape
 
-        if ellipse_params is not None:
-            xc = ellipse_params.xc
-            yc = ellipse_params.yc
-            a = ellipse_params.sma_pix
-            b = ellipse_params.ba * a
-            phirad = np.radians(ellipse_params.theta_deg)
-        else:
-            # set center of ellipse as the center of the image
-            a = None
-            b = None
-            phirad = None
-            xc = None
-            yc = None
+    ymax, xmax = mask.shape
 
-        if xc is None:
-            xc = xmax//2
-            yc = ymax//2
+    xc = ellipse_params.xc
+    yc = ellipse_params.yc
+    a = ellipse_params.sma_pix
+    b = ellipse_params.ba * a
+    phirad = np.radians(ellipse_params.theta_deg)
 
-        X,Y = np.meshgrid(np.arange(xmax),np.arange(ymax))
-    
-        p1 = ((X-xc)*np.cos(phirad)+(Y-yc)*np.sin(phirad))**2/a**2
-        p2 = ((X-xc)*np.sin(phirad)-(Y-yc)*np.cos(phirad))**2/b**2
-        flag2 = p1+p2 < 1
-        newmask = np.copy(mask)
-        newmask[flag2] = 0
-        # we could also get all the unique values associated with flag2, and then remove them
-        #ellipse_params = [xc,yc,sma,BA,phirad]
-        return newmask,ellipse_params
+    if xc is None:
+        xc = xmax // 2
+    if yc is None:
+        yc = ymax // 2
 
+    # -------------------------------------------------
+    # 1. Remove all object IDs present near the center
+    # -------------------------------------------------
+    xci = int(np.round(xc))
+    yci = int(np.round(yc))
+
+    labels_to_remove = set()
+
+    # check the exact central pixel if it is on the image
+    if (0 <= xci < xmax) and (0 <= yci < ymax):
+        val = mask[yci, xci]
+        if val > 0:
+            labels_to_remove.add(int(val))
+
+    # also check a small 3x3 region around the center in case the exact pixel is zero
+    x0 = max(0, xci - 1)
+    x1 = min(xmax, xci + 2)
+    y0 = max(0, yci - 1)
+    y1 = min(ymax, yci + 2)
+
+    center_vals = np.unique(mask[y0:y1, x0:x1])
+    center_vals = center_vals[center_vals > 0]
+    labels_to_remove.update(int(v) for v in center_vals)
+
+    for lab in labels_to_remove:
+        newmask[mask == lab] = 0
+
+    # -------------------------------------------------
+    # 2. Clean up any remaining nonzero pixels
+    #    inside the central ellipse
+    # -------------------------------------------------
+    Y, X = np.meshgrid(np.arange(ymax), np.arange(xmax), indexing="ij")
+
+    p1 = ((X - xc) * np.cos(phirad) + (Y - yc) * np.sin(phirad)) ** 2 / a**2
+    p2 = ((X - xc) * np.sin(phirad) - (Y - yc) * np.cos(phirad)) ** 2 / b**2
+    flag2 = (p1 + p2) < 1.0
+
+    newmask[flag2 & (newmask > 0)] = 0
+
+    return newmask, ellipse_params
 
 
 def find_central_objid(mask):
