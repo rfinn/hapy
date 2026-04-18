@@ -243,16 +243,106 @@ htop
 merge_results --indir cutouts --mode run_analysis
 ```
 
+Example output as of 2026-04-17:
+```
+Searching for files  *results.ecsv
+Found 823 result files.
+Reading tables...
+Validating schema...
+	validated 823/823 tables
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260417/merged_results.fits
+Done.
+Final table rows: 823
+Final table columns: 344
+```
+
 ### Summarize statistics in  `merged_results.py`
 ```
 python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --scheme virgo
 ```
 
+Results from 2026-04-17:
+
+```
+HAPY RUN SUMMARY
+----------------
+Total galaxies: 823
+Unique galaxies: 659
+
+Pipeline completion
+-------------------
+PSF_OK            :  823 OK  |    0 FAIL  (100.0%)
+MASK_OK           :  823 OK  |    0 FAIL  (100.0%)
+PHOT_OK           :  809 OK  |   14 FAIL  ( 98.3%)
+HAPY_MORPH_OK     :  771 OK  |   52 FAIL  ( 93.7%)
+R_PROFILE_OK      :  808 OK  |   15 FAIL  ( 98.2%)
+H_PROFILE_OK      :  652 OK  |  171 FAIL  ( 79.2%)
+R_SM_OK           :  724 OK  |   99 FAIL  ( 88.0%)
+H_SM_OK           :  724 OK  |   99 FAIL  ( 88.0%)
+GAL_NC_OK         :  657 OK  |  166 FAIL  ( 79.8%)
+GAL_CV_OK         :  653 OK  |  170 FAIL  ( 79.3%)
+R_PETRO_OK        :  775 OK  |   48 FAIL  ( 94.2%)
+R_EXPFIT_OK       :  808 OK  |   15 FAIL  ( 98.2%)
+R_LOGFIT_OK       :  808 OK  |   15 FAIL  ( 98.2%)
+H_PETRO_OK        :  492 OK  |  331 FAIL  ( 59.8%)
+H_EXPFIT_OK       :  495 OK  |  328 FAIL  ( 60.1%)
+H_LOGFIT_OK       :  495 OK  |  328 FAIL  ( 60.1%)
+BRIGHT_STAR_FLAG  :    9 OK  |  814 FAIL  (  1.1%)
+HAPY_MORPH_FLAG   :   38 OK  |  785 FAIL  (  4.6%)
+R_SM_FLAG         :  215 OK  |  608 FAIL  ( 73.9%)
+R_SM_SERSIC_FLAG  :  103 OK  |  720 FAIL  ( 87.5%)
+H_SM_FLAG         :  380 OK  |  443 FAIL  ( 53.8%)
+H_SM_SERSIC_FLAG  :  175 OK  |  648 FAIL  ( 78.7%)
+
+
+PROFILES_BOTH     :  652 ( 79.2%)
+
+STATMORPH_BOTH    :   87
+
+STATUS counts
+-------------
+ok          : 809
+running     : 14
+
+STAGE counts
+------------
+done        : 809
+mask        : 14
+
+Runtime medians (sec)
+---------------------
+MASK_SEC    : 0.17
+PHOT_SEC    : 8.27
+SM_SEC      : 4.38
+TOTAL_SEC   : 21.30
+
+Number with bad phot = 14
+
+```
 ## Make qc plots
 
 Create some basic qc plots:
 ```
 python ~/github/hapy/scripts/qc_results.py merged_results.fits --scheme virgo
+```
+
+Output from 2026-04-17:
+```
+Read 823 rows from merged_results.fits
+REVIEW_PRIORITY SUMMARY
+{np.str_('high'): np.int64(141), np.str_('low'): np.int64(256), np.str_('medium'): np.int64(426)}
+ELL_MISMATCH 269
+FILTER_WARNING 79
+WARN_MASK 29
+BRIGHT_STAR_FLAG 9
+WARN_WEAK_HA 297
+Unable to revert mtime: /usr/local/share/fonts
+/home/siena.edu/rfinn/github/hapy/scripts/qc_results.py:564: UserWarning: Warning: converting a masked element to nan.
+  out[i] = float(v)
+Wrote QC products to qc
+Number of high priority in qc/tables/review = 141
+writing  qc/tables/review/review_sample.csv
 ```
 
 Inspecting duplicate observations:

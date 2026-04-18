@@ -51,7 +51,7 @@ def find_mask_diagnostic_png(html_cutout_dir):
         matches = sorted(html_cutout_dir.glob(pattern))
         if len(matches) > 0:
             for m in matches:
-                if "seg-diagnostic" in m: # skip the 5-panel plot and use the two panel one for index page
+                if "seg-diagnostic" in m.name: # skip the 5-panel plot and use the two panel one for index page
                     continue
                 return m
     return None
