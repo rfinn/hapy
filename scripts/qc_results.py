@@ -913,7 +913,7 @@ def write_outlier_tables(tab: Table, outdir: Path, n_outliers: int = 25) -> None
         sub.write(outdir / "tables" / "outliers" /  fname, format="fits", overwrite=True)
 
         
-def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
+def write_review_table_old(tab: Table, outdir: Path, scheme: str) -> None:
     """
     Build a compact CSV table for Google Sheets QC review.
     Assumes prepare_analysis_table(tab) has already run.
@@ -1004,6 +1004,126 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     print("writing ",outpath / "review_sample.csv")
     review.write(outpath / "review_sample.csv", format="ascii.csv", overwrite=True)
 
+
+def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
+    """
+    Build a compact CSV table for Google Sheets QC review.
+    Assumes prepare_analysis_table(tab) has already run.
+    """
+
+    import numpy as np
+
+    # -------------------------
+    # Build WEBPAGE column
+    # -------------------------
+    if "TAG" in tab.colnames:
+        base = f"http://199.223.247.130/fits/{scheme}/cutouts"
+        tags = safe_str_array(tab, "TAG", default="")
+        webpage_list = [
+            f"{base}/{tag}/{tag}.html" if tag not in ("", "nan", "None") else ""
+            for tag in tags
+        ]
+    else:
+        webpage_list = [""] * len(tab)
+
+    maxlen = max([len(s) for s in webpage_list], default=1)
+
+    # -------------------------
+    # Columns to include
+    # Match review-priority drivers + useful diagnostics
+    # -------------------------
+    cols = [
+        # identity
+        "VFID", "GALNAME", "OBJID", "TAG",
+
+        # summary / overall
+        "QC_TIER", "SCIENCE_READY", "REVIEW_PRIORITY",
+
+        # core success/failure
+        "PHOT_OK", "HAPY_MORPH_OK",
+        "R_PROFILE_OK", "H_PROFILE_OK",
+        "GAL_NC_OK", "GAL_CV_OK",
+
+        # trigger columns used in review priority
+        "BRIGHT_STAR_FLAG",
+        "WARN_MASK",
+        "SEVERE_CEN_ANY",
+        "ELL_MISMATCH",
+        "WARN_WEAK_HA",
+        "FILTER_WARNING",
+        "WARN_CEN_ANY",
+        "WARN_R_PROFILE_PEAK",
+        "WARN_CUTOUT_MISSING",
+        "WARN_CUTOUT_MISSING_SHAPE",
+
+        # center diagnostics
+        "DOFF_IN_PHOT_ARCSEC",
+        "DOFF_IN_GAL_ARCSEC",
+        "DOFF_IN_GALC_ARCSEC",
+        "DOFF_PHOT_GAL_ARCSEC",
+        "DOFF_PHOT_GALC_ARCSEC",
+        "DOFF_GAL_GALC_ARCSEC",
+
+        # cutout coverage diagnostics
+        "CUTOUT_ELL0_MISSING_FRAC_R",
+        "CUTOUT_ELL0_MISSING_FRAC_H",
+        "CUTOUT_ELL0_MISSING_FRAC_MAX",
+        "CUTOUT_ELL0_NPIX_TOTAL_R",
+        "CUTOUT_ELL0_NPIX_TOTAL_H",
+        "CUTOUT_ELL0_NPIX_ONIMAGE_R",
+        "CUTOUT_ELL0_NPIX_ONIMAGE_H",
+        "CUTOUT_ELL0_NPIX_GOOD_R",
+        "CUTOUT_ELL0_NPIX_GOOD_H",
+
+        # profile / shape diagnostics
+        "R_PROFILE_NONCENTRAL_PEAK",
+        "R_PROFILE_PEAK_BIN",
+        "R_PROFILE_PEAK_SMA",
+
+        # science/QC context
+        "R_STRUCTURE_GOOD", "HA_EXTENT_GOOD", "HA_MORPH_GOOD",
+        "H50_R50_RATIO", "H_MAXDET_R25_RATIO",
+        "DELTA_GINI", "DELTA_M20", "DELTA_ASYM",
+        "H_HAPY_FILLFRAC", "H_HAPY_NPIX",
+    ]
+
+    cols = [c for c in cols if c in tab.colnames]
+    review = tab[cols].copy()
+
+    # -------------------------
+    # Add human-review columns
+    # -------------------------
+    n = len(review)
+
+    review["REVIEWED"] = np.full(n, "", dtype=object)
+    review["VIS_CLASS"] = np.full(n, "", dtype=object)
+    review["CATALOG_USE"] = np.full(n, "", dtype=object)
+    review["VIS_NOTE"] = np.full(n, "", dtype=object)
+
+    # mask / coverage follow-up
+    review["MASK_FIX_NEEDED"] = np.full(n, "", dtype=object)
+    review["MASK_FIXED"] = np.full(n, "", dtype=object)
+    review["MASK_ISSUE"] = np.full(n, "", dtype=object)
+    review["MASK_NOTE"] = np.full(n, "", dtype=object)
+
+    # -------------------------
+    # Add webpage last so URL doesn't block other columns
+    # -------------------------
+    review["WEBPAGE"] = np.array(webpage_list, dtype=f"<U{maxlen}")
+
+    # -------------------------
+    # Write outputs
+    # -------------------------
+    outpath = outdir / "tables" / "review"
+    ensure_dir(outpath)
+
+    if "REVIEW_PRIORITY" in review.colnames:
+        Nhigh = np.sum(review["REVIEW_PRIORITY"] == "high")
+        print(f"Number of high priority in {outpath} = {Nhigh}")
+
+    print("writing ", outpath / "review_sample.csv")
+    review.write(outpath / "review_sample.csv", format="ascii.csv", overwrite=True)
+    
 def print_review_priority_drivers(tab):
     """
     Print counts for the individual flags that drive review priority.

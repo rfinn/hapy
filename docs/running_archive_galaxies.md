@@ -2,6 +2,8 @@
  
 We are incorporating archival data for Virgo Cluster (KKY2001) and Isolated galaxies (KK2006) into our analysis of halpha/SFR properties as a function of environment.
 
+I am doing a lot of the pre-pipeline setup on my macbook and then
+moving the pipeline-ready files to draco to run `run_analysis`.
 # Sort Images into Directories
 
 TBA
@@ -9,7 +11,9 @@ TBA
 
 # Update Headers
 - Move to the directory that contains subdirectories for each galaxy
-  (e.g. on macbook, this is /Users/rfinn/research/Virgo/koopmann-images/Virgo/raw)
+  (e.g. on macbook, this is
+ `/Users/rfinn/research/Virgo/koopmann-images/Virgo/raw/` or 
+  `/Users/rfinn/research/Virgo/koopmann-images/KK06-isolated/raw/`
 - Clear any prior versions of fits files with updated headers:
 ```
 rm */h*.fits
@@ -27,9 +31,25 @@ allows for easier incorporation into the analysis downstream.
 python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/Virgo/raw --output-root ~/research/Virgo/koopmann-images/Virgo/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/virgo.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits --dry-run
 ```
 
+When the output looks correct, remove the `--dry-run` flag and rerun.
 
 ```
-python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/Virgo/raw --output-root ~/research/Virgo/koopmann-images/Virgo/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/virgo.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits --dry-run
+python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/Virgo/raw --output-root ~/research/Virgo/koopmann-images/Virgo/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/virgo.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits 
+```
+
+## For the isolated galaxies
+```
+python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/KK06-isolated/raw --output-root ~/research/Virgo/koopmann-images/KK06-isolated/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/isolated3.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits --dry-run
+```
+
+Only 11 of the isolated galaxies match the VFS catalog - the others
+are outside the VFS footprint.  
+
+When the output looks correct, remove the `--dry-run` flag and rerun
+for the isolated sample.
+
+```
+python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/KK06-isolated/raw --output-root ~/research/Virgo/koopmann-images/KK06-isolated/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/isolated3.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits 
 ```
 
 # Run `run_analysis`
@@ -63,6 +83,11 @@ Test one galaxy:
 ```bash
 run_analysis --cutout-dir cutouts/VFID3757-NGC4561-TI2-19990101-n4561 --make-mask --statmorph --galfit --convflag --no-gaia
 ```
+
+```bash
+run_analysis --cutout-dir cutouts/VFID0155-NGC2787-T2KA-19950203-n2787 --make-mask --statmorph --galfit --convflag --no-gaia
+```
+
 
 Run sample
 ```bash

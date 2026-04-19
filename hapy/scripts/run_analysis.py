@@ -1432,6 +1432,8 @@ def main():
 
     if mask is not None:
         res = ellipse_mask_fraction(mask, ell0_params)
+        print("DEBUG ellipse_mask_fraction type:", type(res))
+        print("DEBUG ellipse_mask_fraction value:", res)
         row["ELL0_MASKFRAC"] = res.frac_masked
         row["ELL0_MASK_WARN"] = res.frac_masked > 0.3
         row["ELL0_NMASKPIX"] = res.n_masked

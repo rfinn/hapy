@@ -345,6 +345,8 @@ Number of high priority in qc/tables/review = 141
 writing  qc/tables/review/review_sample.csv
 ```
 
+
+
 Inspecting duplicate observations:
 ```
 usage: qc_duplicates.py [-h] [--outdir OUTDIR] [--max-ha-filter-correction MAX_HA_FILTER_CORRECTION] table
