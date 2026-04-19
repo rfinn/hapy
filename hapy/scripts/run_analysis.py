@@ -1434,6 +1434,11 @@ def main():
         res = ellipse_mask_fraction(mask, ell0_params)
         print("DEBUG ellipse_mask_fraction type:", type(res))
         print("DEBUG ellipse_mask_fraction value:", res)
+        import inspect
+        print("DEBUG ellipse_mask_fraction module:", ellipse_mask_fraction.__module__)
+        print("DEBUG ellipse_mask_fraction file:", inspect.getsourcefile(ellipse_mask_fraction))
+        print("DEBUG ellipse_mask_fraction source:")
+        print(inspect.getsource(ellipse_mask_fraction))
         row["ELL0_MASKFRAC"] = res.frac_masked
         row["ELL0_MASK_WARN"] = res.frac_masked > 0.3
         row["ELL0_NMASKPIX"] = res.n_masked
