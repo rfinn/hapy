@@ -436,6 +436,7 @@ class cutout_dir():
         #        print("DEBUG: ",c,tab[c])
         self.results = tab[0] if len(tab) > 0 else None
 
+        # updating for use with archive, where images don't have a result for parent_rimage
         if "PARENT_RIMAGE" in self.results.colnames:
             parent_val = self.results["PARENT_RIMAGE"]
 
