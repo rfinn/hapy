@@ -532,7 +532,9 @@ def main():
     MainWindow = QtWidgets.QWidget()
     ui = galfitwindow(MainWindow, logger, image='MKW8-18216-R.fits', mask_image = 'MKW8-18216-R-mask.fits',
                       psf='MKW8_R.coadd-psf.fits',psf_oversampling=2.)
-    #ui.setupUi(MainWindow)
+
+    ui = galfitwindow(MainWindow, logger)
+        #ui.setupUi(MainWindow)
     #ui.test()
 
     MainWindow.show()

@@ -757,10 +757,13 @@ def load_gaia_table(params, args, logger):
         return None
 
     parent_rimage = params.get("parent_rimage")
+    logger.info(f"in load_gaia_table, parent_rimage: {parent_rimage}")
     if not parent_rimage or not args.gaia_dir:
+        logger.info(f"in load_gaia_table, not loading gaia table: {parent_rimage}")
         return None
 
     path = Path(args.gaia_dir) / parent_rimage.replace(".fits", "-gaia.fits")
+    logger.info(f"in load_gaia_table, gaia table: {path}")    
     if path.exists():
         logger.info(f"Using Gaia catalog: {path}")
         return Table.read(path)
