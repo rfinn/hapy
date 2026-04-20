@@ -348,13 +348,37 @@ def ellipse_mask_fraction(mask, ell: EllipseParams):
     mask_bool = np.asarray(mask) > 0
 
     if not np.isfinite(ell.xc) or not np.isfinite(ell.yc):
-        return np.nan, 0, 0, 0
+        print("WARNING: ellipse_mask_fraction xc/yc not finite")
+        return MaskFractionResult(
+            frac_masked=np.nan,
+            n_total=0,
+            n_masked=0,
+            n_unmasked=0
+            ) 
     if not np.isfinite(ell.sma_pix) or ell.sma_pix <= 0:
-        return np.nan, 0, 0, 0
+        print("WARNING: ellipse_mask_fraction sma_pix not finite")        
+        return MaskFractionResult(
+            frac_masked=np.nan,
+            n_total=0,
+            n_masked=0,
+            n_unmasked=0
+            ) 
     if not np.isfinite(ell.ba) or ell.ba <= 0:
-        return np.nan, 0, 0, 0
+        print("WARNING: ellipse_mask_fraction ell.ba not finite")
+        return MaskFractionResult(
+            frac_masked=np.nan,
+            n_total=0,
+            n_masked=0,
+            n_unmasked=0
+            )
     if not np.isfinite(ell.theta_deg):
-        return np.nan, 0, 0, 0
+        print("WARNING: ellipse_mask_fraction ell.theta_deg not finite")        
+        return MaskFractionResult(
+            frac_masked=np.nan,
+            n_total=0,
+            n_masked=0,
+            n_unmasked=0
+            )
 
     smb_pix = ell.sma_pix * ell.ba
     theta_rad = np.deg2rad(ell.theta_deg)
