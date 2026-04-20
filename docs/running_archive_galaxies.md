@@ -150,6 +150,12 @@ python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID28
 find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260326/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_legacy.txt
 ```
 
+Isolated sample:
+```
+find /data-pool/HalphaArchive/isolated/hapy-output-20260419/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_legacy.txt
+```
+
+
 ```bash
 ROOTDIR=/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/
 ```
@@ -163,6 +169,14 @@ Create a list of the cutout images:
 ```bash
 find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
+
+
+or 
+
+```bash
+find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260419/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
+```
+
 
 Test on one directory:
 

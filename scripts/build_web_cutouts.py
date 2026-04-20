@@ -435,12 +435,24 @@ class cutout_dir():
         #    if "PARENT" in c:
         #        print("DEBUG: ",c,tab[c])
         self.results = tab[0] if len(tab) > 0 else None
+
         if "PARENT_RIMAGE" in self.results.colnames:
-            parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
-            self.parent_url = f"../../coadds/{parent_dir}/{parent_dir}.html"
-            
+            parent_val = self.results["PARENT_RIMAGE"]
+
+            if isinstance(parent_val, str) and parent_val not in ("", "None", "nan"):
+                parent_dir = parent_val.replace("-r.fits", "").replace("-R.fits", "")
+                self.parent_url = f"../../coadds/{parent_dir}/{parent_dir}.html"
+            else:
+                self.parent_url = None
         else:
             self.parent_url = None
+    
+        # if "PARENT_RIMAGE" in self.results.colnames:
+        #     parent_dir = self.results['PARENT_RIMAGE'].replace('-r.fits','').replace('-R.fits','')
+        #     self.parent_url = f"../../coadds/{parent_dir}/{parent_dir}.html"
+            
+        # else:
+        #     self.parent_url = None
         #print("DEBUG: parent_url = ",self.parent_url)
         #print("DEBUG: found results.ecsv file", self.results_file)
         #print("DEBUD: results colnames:")
