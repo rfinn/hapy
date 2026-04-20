@@ -101,7 +101,7 @@ def get_coords(galname):
                     ra = ':'.join(t[2:5])
                     dec = ':'.join(t[5:8])
                     print(f"ra = {ra}, dec = {dec}")
-                    c = SkyCoord(ra,dec,unit=(u.hourangle,u.deg),frame=FK5(equinox=Time('J1950')))
+                    c = SkyCoord(ra,dec,unit=(u.hourangle,u.deg),frame=FK5(equinox=Time('J2000')))
                     foundMatch = True
                     break
         input.close()

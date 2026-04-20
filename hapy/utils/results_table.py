@@ -776,13 +776,28 @@ def add_qc_tier(tab: Table) -> Table:
     return tab
 
 def add_vfindex(tab):
-    vfindex = np.zeros(len(tab))
+    vfindex = np.full(len(tab), -1, dtype=int)
 
     for i in range(len(tab)):
-        vfindex[i] = int(tab['VFID'][i].replace('VFID',''))
-    vfindex = np.array(vfindex,'i')
+        val = tab["VFID"][i]
+
+        if isinstance(val, str) and val.startswith("VFID"):
+            try:
+                vfindex[i] = int(val.replace("VFID", ""))
+            except ValueError:
+                pass
+
     tab["VFINDEX"] = vfindex
     return tab
+
+# def add_vfindex(tab):
+#     vfindex = np.zeros(len(tab))
+
+#     for i in range(len(tab)):
+#         vfindex[i] = int(tab['VFID'][i].replace('VFID',''))
+#     vfindex = np.array(vfindex,'i')
+#     tab["VFINDEX"] = vfindex
+#     return tab
 
 
 def select_sample(tab: Table, sample: str = "AB") -> np.ndarray:
@@ -843,7 +858,6 @@ def get_review_priority(tab: Table) -> np.ndarray:
     medium = (
         safe_bool_array(tab, "ELL_MISMATCH") |
         safe_bool_array(tab, "WARN_WEAK_HA") |
-        safe_bool_array(tab, "FILTER_WARNING") |
         safe_bool_array(tab, "WARN_CEN_ANY") |
         safe_bool_array(tab, "WARN_R_PROFILE_PEAK") |
         safe_bool_array(tab, "WARN_CUTOUT_MISSING") 
@@ -890,8 +904,16 @@ def prepare_analysis_table(
         tab = add_science_columns(tab)
 
     # add vfindex
+    #if ("VFID" in tab.colnames) and ("VFINDEX" not in tab.colnames):
+    #    tab = add_vfindex(tab)
+
+    # improving logic so it doesn't call add_vfindex if VFID column is empty
     if ("VFID" in tab.colnames) and ("VFINDEX" not in tab.colnames):
-        tab = add_vfindex(tab)
+        vfid = np.asarray(tab["VFID"])
+        has_valid_vfid = np.any([isinstance(x, str) and x.startswith("VFID") for x in vfid])
+        if has_valid_vfid:
+            tab = add_vfindex(tab)
+
         
     if "REVIEW_PRIORITY" not in tab.colnames:
         tab["REVIEW_PRIORITY"] = get_review_priority(tab)
