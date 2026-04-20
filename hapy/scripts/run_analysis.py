@@ -1168,6 +1168,7 @@ def main():
             brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
         else:
             brightstar = gaia_table
+            from astropy.coordinates import SkyCoord
             starcoord = SkyCoord(
                 brightstar["ra"],
                 brightstar["dec"],
