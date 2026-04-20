@@ -7,6 +7,8 @@ from astropy.stats import sigma_clip
 from astropy.io import fits
 
 from matplotlib.patches import Ellipse
+from pathlib import Path
+
 def ellipse_patch(xc, yc, sma_pix, ba, pa_deg, **kwargs):
     # matplotlib Ellipse needs angle relative to +x axis
     return Ellipse(
@@ -294,6 +296,14 @@ def plot_mask_ellipse_diagnostic(
 #     print("Wrote:", outfile)
 
 
+def _read_fits_if_exists(path, header=False):
+    if path is None:
+        return (None, None) if header else None
+    path = Path(path)
+    if not path.exists():
+        return (None, None) if header else None
+    return fits.getdata(path, header=header)
+
 def plot_segmentation_diagnostic(
     r_fits,
     se_seg_fits,
@@ -311,10 +321,14 @@ def plot_segmentation_diagnostic(
 
     Xsize = 10
 
-    r_data, r_hdr = fits.getdata(r_fits, header=True)
-    se_seg = fits.getdata(se_seg_fits)
-    m_data = fits.getdata(mask_fits)
-    phot_seg = fits.getdata(phot_seg_fits)
+    r_data, r_hdr = _read_fits_if_exists(r_fits, header=True)
+    se_seg = _read_fits_if_exists(se_seg_fits)
+    m_data = _read_fits_if_exists(mask_fits)
+    phot_seg = _read_fits_if_exists(phot_seg_fits)
+
+    if r_data is None or m_data is None:
+        print(f"Skipping diagnostic plot; missing required files for {outfile}")
+        return
 
     mmask = m_data > 0
     objid = row.get("OBJID", "")
@@ -353,17 +367,21 @@ def plot_segmentation_diagnostic(
     cmap = plt.cm.viridis.copy()
     cmap.set_bad(color="black")
 
+    if se_seg is not None:
     # Panel 3: SE segmentation
-    se_plot = np.array(se_seg, dtype=float)
-    se_plot[se_plot <= 0] = np.nan
-    ax[2].imshow(
-        se_plot,
-        origin="lower",
-        interpolation="nearest",
-        norm=LogNorm(vmin=1, vmax=np.nanmax(se_plot)),
-        cmap=cmap,
-    )
-    add_overlays(ax[2])
+        se_plot = np.array(se_seg, dtype=float)
+        se_plot[se_plot <= 0] = np.nan
+        ax[2].imshow(
+            se_plot,
+            origin="lower",
+            interpolation="nearest",
+            norm=LogNorm(vmin=1, vmax=np.nanmax(se_plot)),
+            cmap=cmap,
+            )
+        add_overlays(ax[2])
+    else:
+        ax[2].text(0.5, 0.5, "SE segmentation\nnot found",
+               ha="center", va="center", transform=ax[2].transAxes)
     ax[2].set_title("SE segmentation")
 
     # Panel 4: mask
@@ -372,16 +390,20 @@ def plot_segmentation_diagnostic(
     ax[3].set_title("Mask from SE")
 
     # Panel 5: photutils segmentation
-    phot_plot = np.array(phot_seg, dtype=float)
-    phot_plot[phot_plot <= 0] = np.nan
-    ax[4].imshow(
-        phot_plot,
-        origin="lower",
-        interpolation="nearest",
-        norm=LogNorm(vmin=1, vmax=np.nanmax(phot_plot)),
-        cmap=cmap,
-    )
-    add_overlays(ax[4])
+    if phot_seg is not None:
+        phot_plot = np.array(phot_seg, dtype=float)
+        phot_plot[phot_plot <= 0] = np.nan
+        ax[4].imshow(
+            phot_plot,
+            origin="lower",
+            interpolation="nearest",
+            norm=LogNorm(vmin=1, vmax=np.nanmax(phot_plot)),
+            cmap=cmap,
+            )
+        add_overlays(ax[4])
+    else:
+        ax[4].text(0.5, 0.5, "Photutils segmentation\nnot found",
+               ha="center", va="center", transform=ax[2].transAxes)
     ax[4].set_title("Photutils segmentation")
 
     plt.tight_layout()
