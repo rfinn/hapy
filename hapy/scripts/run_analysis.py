@@ -1164,7 +1164,19 @@ def main():
         # 
         # get gaia mask
         gaia_table = load_gaia_table(params, args, logger)
-        #brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
+        if gaia_table is None:
+            brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
+        else:
+            brightstar = gaia_table
+            starcoord = SkyCoord(
+                brightstar["ra"],
+                brightstar["dec"],
+                frame="icrs",
+                unit="deg",
+                )
+
+            star_xpix, star_ypix = wcs.world_to_pixel(starcoord)
+
         mask_array = np.zeros_like(data,  dtype=np.int32)
         # could add a radius_scale_factor that depends on image FWHM
         # (FWHM-1.5)
