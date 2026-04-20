@@ -98,6 +98,11 @@ head -5 cutout_with_dir.txt | parallel --bar -j 2 --joblog run_analysis.joblog -
 parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --statmorph --galfit --no-gaia :::: cutouts_with_dir.txt
 ```
 
+```
+parallel --bar  -j 4 --memfree 60G --joblog run_analysis.joblog
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask
+--statmorph --galfit --no-gaia :::: cutouts_with_dir.txt
+```
 
 ## Merge Results From `run_analysis`
 
