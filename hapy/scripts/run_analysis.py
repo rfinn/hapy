@@ -1154,16 +1154,21 @@ def main():
 
     t0_total = time.perf_counter()
 
-
+    #######################################################
     # --- check for valid input ellipse
+    #######################################################    
     if ellipse_missing(params):
         print("\nGetting initial ellipse estimate from photutils...\n")
+        # check for gaia catalog
+
+        # 
         # get gaia mask
-        brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
+        gaia_table = load_gaia_table(params, args, logger)
+        #brightstar, star_xpix, star_ypix = get_gaia_stars(r_fits)
         mask_array = np.zeros_like(data,  dtype=np.int32)
         # could add a radius_scale_factor that depends on image FWHM
         # (FWHM-1.5)
-        mask_array, gaia_mask = make_gaia_mask(mask_array,star_xpix,star_ypix,pixscale/3600.,gaia_table=brightstar,radius_scale_factor=1)
+        mask_array, gaia_mask = make_gaia_mask(mask_array,star_xpix,star_ypix,pixscale/3600.,gaia_table=gaia_table,radius_scale_factor=1)
 
         # convert to boolean mask
         gaia_mask = gaia_mask > 0
