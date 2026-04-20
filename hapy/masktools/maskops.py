@@ -393,21 +393,22 @@ def ellipse_mask_fraction(mask, ell: EllipseParams):
     aper_mask = aper.to_mask(method="center")
     aper_image = aper_mask.to_image(mask_bool.shape)
 
-    if aper_image is None:
-        return np.nan, 0, 0, 0
+    if aper_image is None: 
+        print("WARNING: ellipse_mask_fraction aper_image is None")
+        return MaskFractionResult(
+            frac_masked=np.nan,
+            n_total=0,
+            n_masked=0,
+            n_unmasked=0
+            )        
 
     inside = aper_image > 0
     n_total = int(np.sum(inside))
 
-    if n_total == 0:
-        return np.nan, 0, 0, 0
 
-
-    n_masked = int(np.sum(mask_bool[inside]))
-    n_unmasked = n_total - n_masked
-    frac_masked = n_masked / n_total
 
     if n_total == 0:
+        print("WARNING: ellipse_mask_fraction n_total = 0")
         return MaskFractionResult(
             frac_masked=np.nan,
             n_total=0,
@@ -415,6 +416,9 @@ def ellipse_mask_fraction(mask, ell: EllipseParams):
             n_unmasked=0
             )
     else:
+        n_masked = int(np.sum(mask_bool[inside]))
+        n_unmasked = n_total - n_masked
+        frac_masked = n_masked / n_total
         return MaskFractionResult(
             frac_masked=frac_masked,
             n_total=n_total,
