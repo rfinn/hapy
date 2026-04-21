@@ -1035,28 +1035,11 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     # -------------------------
     cols = [
         # identity
-        "VFID", "GALNAME", "OBJID", "TAG",
+        "VFID",  "TAG", "GALNAME", #"OBJID",
 
-        # summary / overall
-        "QC_TIER", "SCIENCE_READY", "REVIEW_PRIORITY",
 
-        # core success/failure
-        "PHOT_OK", "HAPY_MORPH_OK",
-        "R_PROFILE_OK", "H_PROFILE_OK",
-        "GAL_NC_OK", "GAL_CV_OK",
-
-        # trigger columns used in review priority
-        "BRIGHT_STAR_FLAG",
-        "WARN_MASK",
-        "SEVERE_CEN_ANY",
-        "ELL_MISMATCH",
-        "WARN_WEAK_HA",
-        "FILTER_WARNING",
-        "WARN_CEN_ANY",
-        "WARN_R_PROFILE_PEAK",
-        "WARN_CUTOUT_MISSING",
-        "WARN_CUTOUT_MISSING_SHAPE",
-
+ 
+        
         # center diagnostics
         "DOFF_IN_PHOT_ARCSEC",
         "DOFF_IN_GAL_ARCSEC",
@@ -1066,15 +1049,15 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
         "DOFF_GAL_GALC_ARCSEC",
 
         # cutout coverage diagnostics
-        "CUTOUT_ELL0_MISSING_FRAC_R",
-        "CUTOUT_ELL0_MISSING_FRAC_H",
-        "CUTOUT_ELL0_MISSING_FRAC_MAX",
-        "CUTOUT_ELL0_NPIX_TOTAL_R",
-        "CUTOUT_ELL0_NPIX_TOTAL_H",
-        "CUTOUT_ELL0_NPIX_ONIMAGE_R",
-        "CUTOUT_ELL0_NPIX_ONIMAGE_H",
-        "CUTOUT_ELL0_NPIX_GOOD_R",
-        "CUTOUT_ELL0_NPIX_GOOD_H",
+        #"CUTOUT_ELL0_MISSING_FRAC_R",
+        #"CUTOUT_ELL0_MISSING_FRAC_H",
+        #"CUTOUT_ELL0_MISSING_FRAC_MAX",
+        #"CUTOUT_ELL0_NPIX_TOTAL_R",
+        #"CUTOUT_ELL0_NPIX_TOTAL_H",
+        #"CUTOUT_ELL0_NPIX_ONIMAGE_R",
+        #"CUTOUT_ELL0_NPIX_ONIMAGE_H",
+        #"CUTOUT_ELL0_NPIX_GOOD_R",
+        #"CUTOUT_ELL0_NPIX_GOOD_H",
 
         # profile / shape diagnostics
         "R_PROFILE_NONCENTRAL_PEAK",
@@ -1086,6 +1069,37 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
         "H50_R50_RATIO", "H_MAXDET_R25_RATIO",
         "DELTA_GINI", "DELTA_M20", "DELTA_ASYM",
         "H_HAPY_FILLFRAC", "H_HAPY_NPIX",
+
+        # other flags - don't care as much about these
+        "R_PROFILE_OK", "H_PROFILE_OK",
+        "GAL_NC_OK", "GAL_CV_OK",
+        
+        ##
+        # -- keeping core flags near where user works
+        ##
+        # core success/failure
+        "PHOT_OK", "HAPY_MORPH_OK",
+
+
+        # trigger columns used in review priority
+        "BRIGHT_STAR_FLAG",
+        "WARN_MASK",
+        "SEVERE_CEN_ANY",
+
+        # medium drivers
+        "ELL_MISMATCH",
+        "WARN_WEAK_HA",
+        "FILTER_WARNING",
+        "WARN_CEN_ANY",
+        "WARN_R_PROFILE_PEAK",
+        "WARN_CUTOUT_MISSING",
+        "WARN_CUTOUT_MISSING_SHAPE",
+
+        
+        # add these close to where user enters data
+        # summary / overall
+        "QC_TIER", "SCIENCE_READY", "REVIEW_PRIORITY",
+
     ]
 
     cols = [c for c in cols if c in tab.colnames]
