@@ -38,7 +38,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.table import Table
 from hapy.utils.plotting import QC_TIER_ORDER, QC_TIER_PALETTE
-
+from hapy.utils.results_table import ensure_dir, safe_float_array, safe_bool_array, safe_str_array, prepare_analysis_table
 # ----------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------
@@ -407,9 +407,9 @@ def main():
     tab = Table.read(args.table)
     print(f"Read {len(tab)} rows from {args.table}")
 
-    tab = add_science_columns(tab)
-    tab = add_qc_flags(tab)
-
+    #tab = add_science_columns(tab)
+    #tab = add_qc_flags(tab)
+    tab = prepare_analysis_table(tab)
     sample_mask = select_sample(tab, args.sample)
     sub = tab[sample_mask]
     print(f"Selected {len(sub)} rows for sample {args.sample}")
