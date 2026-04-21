@@ -162,6 +162,49 @@ def merge_tables(files, output, mode):
     print(f"Final table rows: {len(merged)}")
     print(f"Final table columns: {len(merged.colnames)}")
 
+from astropy.table import Table
+
+def infer_scheme_from_result_files(files, max_files=None):
+    """
+    Infer scheme label from input result tables.
+
+    Returns
+    -------
+    scheme : str or None
+        Single scheme if all readable files agree, "mixed" if multiple
+        schemes are found, or None if no scheme could be determined.
+    """
+    schemes = set()
+    use_files = files if max_files is None else files[:max_files]
+
+    for f in use_files:
+        try:
+            t = Table.read(f, format="ascii.ecsv")
+        except Exception:
+            continue
+
+        if "SCHEME" not in t.colnames or len(t) == 0:
+            continue
+
+        val = t["SCHEME"][0]
+        if hasattr(val, "item"):
+            try:
+                val = val.item()
+            except Exception:
+                pass
+
+        if isinstance(val, str):
+            val = val.strip()
+
+        if isinstance(val, str) and val not in ("", "None", "nan"):
+            schemes.add(val)
+
+    if len(schemes) == 1:
+        return next(iter(schemes))
+    elif len(schemes) > 1:
+        return "mixed"
+    else:
+        return None
 
 def main():
     parser = argparse.ArgumentParser(
@@ -184,13 +227,13 @@ def main():
     default=None,
     help="Optional filename pattern to override the mode-specific default."
     )
-    
 
     parser.add_argument(
         "--out",
-        default="merged_results.fits",
-        help="Output FITS filename (default: merged_results.fits)"
+        default=None,
+        help="Output FITS filename"
     )
+
     parser.add_argument(
         "--mode",
         choices=["run_analysis", "get_cutouts"],
@@ -210,19 +253,33 @@ def main():
         pattern = "cutouts_summary*.ecsv"
     else:
         pattern = "*results.ecsv"
-    
+
+
     files = find_result_files(args.indir, pattern)
-    
+
     if args.mode == "get_cutouts" and args.latest_only:
         files = keep_latest_cutout_summaries(files)
         print(f"Keeping latest summary per tag: {len(files)} files")
-    
+
+    from datetime import datetime
+    today = datetime.now().strftime("%Y%m%d")
+
+    if args.out is None:
+        scheme = infer_scheme_from_result_files(files, max_files=1)
+        if scheme is not None:
+            args.out = f"merged_results_{scheme}_{today}.fits"
+        else:
+            args.out = f"merged_results_{today}.fits"
+
     if args.outdir:
         outpath = Path(args.outdir).resolve() / args.out
     else:
         outpath = Path(args.out).resolve()
-    
+
     merge_tables(files, outpath, args.mode)
+
+
+ 
 
 
 if __name__ == "__main__":
