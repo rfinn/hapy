@@ -949,8 +949,9 @@ def write_review_table_old(tab: Table, outdir: Path, scheme: str) -> None:
         "QC_TIER", "SCIENCE_READY",
         "R_STRUCTURE_GOOD", "HA_EXTENT_GOOD", "HA_MORPH_GOOD",
         # warnings
+        "FILTER_WARNING",
         "WARN_MASK", "WARN_WEAK_HA",
-        "BRIGHT_STAR_FLAG", "FILTER_WARNING", "ELL_MISMATCH",
+        "BRIGHT_STAR_FLAG",  "ELL_MISMATCH",
         "SEVERE_CEN_ANY", "WARN_CEN_ANY",
         # metrics
         "H50_R50_RATIO", "H_MAXDET_R25_RATIO",
@@ -1166,7 +1167,6 @@ def print_review_priority_drivers(tab):
     medium_terms = {
         "ELL_MISMATCH": _safe_bool("ELL_MISMATCH"),
         "WARN_WEAK_HA": _safe_bool("WARN_WEAK_HA"),
-        "FILTER_WARNING": _safe_bool("FILTER_WARNING"),
         "WARN_CEN_ANY": _safe_bool("WARN_CEN_ANY"),
         "WARN_R_PROFILE_PEAK": _safe_bool("WARN_R_PROFILE_PEAK"),
         "WARN_CUTOUT_MISSING": _safe_bool("WARN_CUTOUT_MISSING"),
