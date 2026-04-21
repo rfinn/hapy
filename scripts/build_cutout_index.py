@@ -19,7 +19,7 @@ Expected layout:
 
 import argparse
 from pathlib import Path
-from qc_helpers import prepare_analysis_table
+from hapy.utils.results_table import prepare_analysis_table
 
 from build_web_common import (
     find_results_file,
