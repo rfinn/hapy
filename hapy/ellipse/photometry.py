@@ -1521,6 +1521,9 @@ class EllipsePhotometry():
 
             fatal_bits = self.HAPY_MORPH_FLAG & (1 | 2 | 8 | 16)
 
+            # 2026-04-22 updating mask logic so galaxies with no halpha are still ok
+            
+
             self.HAPY_MORPH_OK = (
                 core_r_ok and
                 fatal_bits == 0 and
@@ -1528,6 +1531,7 @@ class EllipsePhotometry():
                     core_h_ok or (self.HAPY_MORPH_FLAG & 4)
                 )
             )
+            
             # fatal_bits = self.HAPY_MORPH_FLAG & (1 | 8 | 16)
 
             # self.HAPY_MORPH_OK = (
