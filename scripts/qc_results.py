@@ -1111,6 +1111,7 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     n = len(review)
 
     review["REVIEWED"] = np.full(n, "", dtype=object)
+    review["FIX_STATUS"] = np.full(n, "", dtype=object)    
     review["VIS_CLASS"] = np.full(n, "", dtype=object)
     review["CATALOG_USE"] = np.full(n, "", dtype=object)
     review["VIS_NOTE"] = np.full(n, "", dtype=object)

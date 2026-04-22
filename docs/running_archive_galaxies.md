@@ -174,8 +174,10 @@ find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/cutouts -mindep
 or 
 
 ```bash
-find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260419/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
+find /data-pool/HalphaArchive/isolated/hapy-output-20260419/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
+
+
 
 
 Test on one directory:
@@ -195,9 +197,17 @@ parallel --bar -j 16 --memfree 60G --joblog build_web_cutouts.joblog --results b
 python ~/github/hapy/scripts/build_cutout_index.py --help
 ```
 
+For cluster sample:
 ```
 python ~/github/hapy/scripts/build_cutout_index.py --runroot
 /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/
+--results-table merged_results.fits 
+```
+
+For isolated sample:
+```
+python ~/github/hapy/scripts/build_cutout_index.py --runroot
+/data-pool/HalphaArchive/isolated/hapy-output-20260419/
 --results-table merged_results.fits 
 ```
 
@@ -205,4 +215,10 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot
 
 ```
 rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/archive/.
+```
+
+From `/data-pool/HalphaArchive/isolated/hapy-output-20260419`:
+```
+rsync -avz html/cutouts
+fitsxfr.siena.edu:/var/www/html/fits/archive/isolated/.
 ```

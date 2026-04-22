@@ -1511,20 +1511,31 @@ class EllipsePhotometry():
 
             # Halpha is considered successfully calculated even if there are no
             # detections above threshold, provided the metrics are finite.
-            if not core_h_ok:
+            # but metrics are set to np.nan if there are no pixels above the threshold
+            if (self.H_HAPY_NPIX > 0) and not core_h_ok:
                 self.HAPY_MORPH_FLAG |= 8
 
             # -------------------------------------------------
             # Final OK logic
             # -------------------------------------------------
-            fatal_bits = self.HAPY_MORPH_FLAG & (1 | 8 | 16)
+
+            fatal_bits = self.HAPY_MORPH_FLAG & (1 | 2 | 8 | 16)
 
             self.HAPY_MORPH_OK = (
                 core_r_ok and
-                core_h_ok and
                 fatal_bits == 0 and
-                not (self.HAPY_MORPH_FLAG & 2)
+                (
+                    core_h_ok or (self.HAPY_MORPH_FLAG & 4)
+                )
             )
+            # fatal_bits = self.HAPY_MORPH_FLAG & (1 | 8 | 16)
+
+            # self.HAPY_MORPH_OK = (
+            #     core_r_ok and
+            #     core_h_ok and
+            #     fatal_bits == 0 and
+            #     not (self.HAPY_MORPH_FLAG & 2)
+            # )
 
             morph.ok = self.HAPY_MORPH_OK
             morph.flag = self.HAPY_MORPH_FLAG

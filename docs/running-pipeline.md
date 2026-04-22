@@ -573,6 +573,9 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 ```
 
 ```
+python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260421.fits
+```
+```
 python ~/github/hapy/scripts/build_cutout_index.py --runroot
 /data-pool/Halpha/hapy-output-20260417/ --results-table
 /data-pool/Halpha/hapy-output-20260417/merged_results.fits
