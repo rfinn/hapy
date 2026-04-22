@@ -257,6 +257,22 @@ Final table rows: 823
 Final table columns: 344
 ```
 
+
+After removing bad HDI p012-p013 coadd:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260417$ merge_results --indir cutouts --mode run_analysis
+Searching for files  *results.ecsv
+Found 821 result files.
+Reading tables...
+Validating schema...
+	validated 821/821 tables
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260421.fits
+Done.
+Final table rows: 821
+Final table columns: 344
+```
+
 ### Summarize statistics in  `merged_results.py`
 ```
 python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --scheme virgo
@@ -320,6 +336,64 @@ TOTAL_SEC   : 21.30
 Number with bad phot = 14
 
 ```
+
+After fixing p012-p013 craziness, one less gal with bad phot!:
+```
+HAPY RUN SUMMARY
+----------------
+Total galaxies: 821
+Unique galaxies: 659
+
+Pipeline completion
+-------------------
+PSF_OK            :  821 OK  |    0 FAIL  (100.0%)
+MASK_OK           :  821 OK  |    0 FAIL  (100.0%)
+PHOT_OK           :  809 OK  |   12 FAIL  ( 98.5%)
+HAPY_MORPH_OK     :  773 OK  |   48 FAIL  ( 94.2%)
+R_PROFILE_OK      :  809 OK  |   12 FAIL  ( 98.5%)
+H_PROFILE_OK      :  654 OK  |  167 FAIL  ( 79.7%)
+R_SM_OK           :  729 OK  |   92 FAIL  ( 88.8%)
+H_SM_OK           :  729 OK  |   92 FAIL  ( 88.8%)
+GAL_NC_OK         :  653 OK  |  168 FAIL  ( 79.5%)
+GAL_CV_OK         :  650 OK  |  171 FAIL  ( 79.2%)
+R_PETRO_OK        :  773 OK  |   48 FAIL  ( 94.2%)
+R_EXPFIT_OK       :  809 OK  |   12 FAIL  ( 98.5%)
+R_LOGFIT_OK       :  809 OK  |   12 FAIL  ( 98.5%)
+H_PETRO_OK        :  493 OK  |  328 FAIL  ( 60.0%)
+H_EXPFIT_OK       :  492 OK  |  329 FAIL  ( 59.9%)
+H_LOGFIT_OK       :  492 OK  |  329 FAIL  ( 59.9%)
+BRIGHT_STAR_FLAG  :    9 OK  |  812 FAIL  (  1.1%)
+HAPY_MORPH_FLAG   :   36 OK  |  785 FAIL  (  4.4%)
+R_SM_FLAG         :  210 OK  |  611 FAIL  ( 74.4%)
+R_SM_SERSIC_FLAG  :   99 OK  |  722 FAIL  ( 87.9%)
+H_SM_FLAG         :  381 OK  |  440 FAIL  ( 53.6%)
+H_SM_SERSIC_FLAG  :  179 OK  |  642 FAIL  ( 78.2%)
+
+
+PROFILES_BOTH     :  654 ( 79.7%)
+
+STATMORPH_BOTH    :   92
+
+STATUS counts
+-------------
+ok          : 809
+running     : 12
+
+STAGE counts
+------------
+done        : 809
+mask        : 12
+
+Runtime medians (sec)
+---------------------
+MASK_SEC    : 0.16
+PHOT_SEC    : 8.73
+SM_SEC      : 4.39
+TOTAL_SEC   : 22.71
+
+Number with bad phot = 12
+
+```
 ## Make qc plots
 
 Create some basic qc plots:
@@ -343,6 +417,54 @@ Unable to revert mtime: /usr/local/share/fonts
 Wrote QC products to qc
 Number of high priority in qc/tables/review = 141
 writing  qc/tables/review/review_sample.csv
+```
+
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260417$ python ~/github/hapy/scripts/qc_results.py merged_results_virgo_20260421.fits --scheme virgo
+Read 821 rows from merged_results_virgo_20260421.fits
+REVIEW_PRIORITY SUMMARY
+{np.str_('high'): np.int64(141), np.str_('low'): np.int64(278), np.str_('medium'): np.int64(402)}
+ELL_MISMATCH 265
+FILTER_WARNING 79
+WARN_MASK 17
+BRIGHT_STAR_FLAG 9
+WARN_WEAK_HA 296
+Unable to revert mtime: /usr/local/share/fonts
+/home/siena.edu/rfinn/github/hapy/scripts/qc_results.py:564: UserWarning: Warning: converting a masked element to nan.
+  out[i] = float(v)
+Wrote QC products to qc
+Number of high priority in qc/tables/review = 141
+writing  qc/tables/review/review_sample.csv
+
+
+REVIEW PRIORITY SUMMARY
+{np.str_('high'): np.int64(141), np.str_('low'): np.int64(278), np.str_('medium'): np.int64(402)}
+
+HIGH PRIORITY DRIVERS
+NOT_PHOT_OK                 : total=  12  in_high=  12
+NOT_HAPY_MORPH_OK           : total=  48  in_high=  48
+BRIGHT_STAR_FLAG            : total=   9  in_high=   9
+WARN_MASK                   : total=  17  in_high=  17
+SEVERE_CEN_ANY              : total=  89  in_high=  89
+WARN_CUTOUT_MISSING_SHAPE   : total=   0  in_high=   0
+
+MEDIUM PRIORITY DRIVERS
+ELL_MISMATCH                : total= 265  in_medium= 153
+WARN_WEAK_HA                : total= 296  in_medium= 230
+WARN_CEN_ANY                : total= 217  in_medium= 118
+WARN_R_PROFILE_PEAK         : total= 142  in_medium=  81
+WARN_CUTOUT_MISSING         : total=   0  in_medium=   0
+
+OVERLAP AMONG HIGH DRIVERS
+NOT_PHOT_OK                  & NOT_HAPY_MORPH_OK           :   12
+NOT_PHOT_OK                  & WARN_MASK                   :    1
+NOT_HAPY_MORPH_OK            & BRIGHT_STAR_FLAG            :    1
+NOT_HAPY_MORPH_OK            & WARN_MASK                   :    4
+NOT_HAPY_MORPH_OK            & SEVERE_CEN_ANY              :    6
+BRIGHT_STAR_FLAG             & WARN_MASK                   :    4
+BRIGHT_STAR_FLAG             & SEVERE_CEN_ANY              :    5
+WARN_MASK                    & SEVERE_CEN_ANY              :    9
+
 ```
 
 

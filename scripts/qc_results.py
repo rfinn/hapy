@@ -1035,7 +1035,7 @@ def write_review_table(tab: Table, outdir: Path, scheme: str) -> None:
     # -------------------------
     cols = [
         # identity
-        "VFID",  "TAG", "GALNAME", #"OBJID",
+        "VFID",  "TAG", "GALNAME", "OBJID",
 
 
  
