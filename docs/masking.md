@@ -71,7 +71,7 @@ Here’s a concise description you can drop into `docs/masking.md`:
 
 ---
 
-## Running `maskgui` with Metadata
+# Running `maskgui` with Metadata
 
 You can launch the interactive masking GUI using the ellipse geometry and target information stored in a cutout’s `metadata.json`.
 
