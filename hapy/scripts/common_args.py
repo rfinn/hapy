@@ -59,6 +59,11 @@ def add_masking_args(parser, *, include_force_mask: bool = False, include_gaia_d
             default="gaia_catalogs",
             help="Directory containing precomputed Gaia catalogs (default: gaia_catalogs)",
         )
+        g_mask.add_argument(
+            "--gaia-catalog",
+            default=None,
+            help="File containing gaia stars",
+        )
 
     g_mask.add_argument(
         "--no-gaia",

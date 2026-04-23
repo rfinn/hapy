@@ -35,6 +35,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
              ngrow=3,
              weightim=None,
              weight_threshold=None,
+             gaia_catalog=None,
              addgaia=True,
              cmap="gist_heat_r"):
 
@@ -248,7 +249,12 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
         def _progress_cb(stage, fraction, message=None):
             print(f"[mask] {stage} {fraction:0.2f} {message or ''}".strip())
-        
+
+        # load gaia table
+        gaia_table = None
+        if gaia_catalog is not None:
+            from astropy.table import Table
+            gaia_table = Table.read(gaia_catalog)
 
         # IMPORTANT: pass progress_callback, and only build once
         self.maskdat = self.engine.build_initial_mask(
@@ -256,6 +262,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             weight_threshold=weight_threshold,
             progress_callback=_progress_cb,
             galaxy_ellipse = self.ellipseparams,
+            gaia_table=gaia_table,
+            gaia_min_radius=gaia_min_radius_deg,
         )
         
 

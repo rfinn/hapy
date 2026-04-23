@@ -13,6 +13,38 @@ def pick_one(*paths):
     return None
 
 
+def resolve_gaia_catalog(meta, args, verbose=False):
+    """
+    Resolve a direct Gaia catalog path using the same logic as run_analysis.
+
+    Returns
+    -------
+    str or None
+        Path to Gaia catalog FITS if found, else None.
+    """
+    scheme = (meta.get("scheme") or "").lower()
+    if args.no_gaia or scheme == "archive":
+        if verbose:
+            print("Gaia masking disabled")
+        return None
+
+    parent_rimage = meta.get("parent_rimage")
+    if not parent_rimage or not args.gaia_dir:
+        if verbose:
+            print(f"Not loading Gaia catalog: parent_rimage={parent_rimage}, gaia_dir={args.gaia_dir}")
+        return None
+
+    gaia_path = Path(args.gaia_dir) / parent_rimage.replace(".fits", "-gaia.fits")
+    if gaia_path.exists():
+        if verbose:
+            print(f"Using Gaia catalog: {gaia_path}")
+        return str(gaia_path)
+
+    if verbose:
+        print(f"WARNING: Gaia catalog not found: {gaia_path}")
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Launch run_maskgui using metadata.json from a cutout directory."
@@ -25,7 +57,7 @@ def main():
     parser.add_argument(
         "--gaia-dir",
         default=None,
-        help="Optional Gaia catalog directory to pass through",
+        help="Directory containing precomputed Gaia catalogs",
     )
     parser.add_argument(
         "--no-gaia",
@@ -70,6 +102,8 @@ def main():
         cutdir / f"{tag}-weight.fits",
     )
 
+    gaia_catalog = resolve_gaia_catalog(meta, args, verbose=args.verbose)
+
     cmd = [
         "run_maskgui",
         "--image", rimage,
@@ -87,13 +121,12 @@ def main():
     if weightim is not None:
         cmd += ["--weightim", weightim]
 
-    if args.gaia_dir is not None:
-        cmd += ["--gaia-dir", args.gaia_dir]
-
-    if args.no_gaia:
+    if gaia_catalog is not None:
+        cmd += ["--gaia-catalog", gaia_catalog]
+    elif args.no_gaia:
         cmd += ["--no-gaia"]
 
-    # pass through any extra args directly to run_maskgui
+    # pass through any additional args directly to run_maskgui
     cmd += extra
 
     if args.verbose:
@@ -105,3 +138,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    

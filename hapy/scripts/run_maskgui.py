@@ -112,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         ngrow=args.grow_iterations,
         weightim=args.weightim,
         weight_threshold=args.weight_threshold,
+        gaia_catalog=args.gaia_catalog,
         addgaia=not args.no_gaia,
     )
 
