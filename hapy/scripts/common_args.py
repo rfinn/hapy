@@ -64,6 +64,11 @@ def add_masking_args(parser, *, include_force_mask: bool = False, include_gaia_d
             default=None,
             help="File containing gaia stars",
         )
+        g_mask.add_argument(
+            "--gaia-min-radius",
+            default=None,
+            help="Min radius of gaia stars in arcsec",
+        )
 
     g_mask.add_argument(
         "--no-gaia",

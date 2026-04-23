@@ -123,6 +123,9 @@ def main():
 
     if gaia_catalog is not None:
         cmd += ["--gaia-catalog", gaia_catalog]
+        max_fwhm = max(meta["R_FWHM_PSF"], meta["H_FWHM_PSF"])
+        gaia_min_radius_arcsec = 4 * max_fwhm
+        cmd += ["--gaia-min-radius", gaia_min_radius_arcsec]
     elif args.no_gaia:
         cmd += ["--no-gaia"]
 

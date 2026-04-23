@@ -113,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         weightim=args.weightim,
         weight_threshold=args.weight_threshold,
         gaia_catalog=args.gaia_catalog,
+        gaia_min_radius=args.gaia_min_radius,
         addgaia=not args.no_gaia,
     )
 
