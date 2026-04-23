@@ -675,7 +675,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               '\n\n DISPLAY TOOLS'
               '\n \t d = if target is off center (and program is removing the wrong object);'
               '\n \t m = toggle mask view on current image (outline, filled, none);'
-              "\t z = sync pan/zoom from active panel to the other panels\n"
+              "\n \t z = sync pan/zoom from active panel to the other panels\n"
               #'\n \t s to change the size of the mask box;'
               #'\n \t t to adjust SE threshold (0=lots, 1=no deblend );'
               #'\n \t n to adjust SE SNR; '
