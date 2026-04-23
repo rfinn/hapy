@@ -358,43 +358,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         self.hacutout.key_pressed.connect(lambda text: self.key_press_func(text, "ha"))
         self.maskcutout.key_pressed.connect(lambda text: self.key_press_func(text, "mask"))
 
-        """
-        # remove placeholder widget that collides with our grid
-        if hasattr(self.ui, "dummyWidget") and self.ui.dummyWidget is not None:
-            self.ui.cutoutsLayout.removeWidget(self.ui.dummyWidget)
-            self.ui.dummyWidget.setParent(None)
-            self.ui.dummyWidget.deleteLater()
-            self.ui.dummyWidget = None
-        # r-band cutout
-        a = QtWidgets.QLabel('r-band')
-        self.ui.cutoutsLayout.addWidget(a, 0, 0, 1, 1)
-        
-        a = QtWidgets.QLabel('CS Halpha')
-        self.ui.cutoutsLayout.addWidget(a, 0, 1, 1, 1)
-        
-        a = QtWidgets.QLabel('Mask')
-        self.ui.cutoutsLayout.addWidget(a, 0, 2, 1, 1)
-
-        #self.ui.cutoutsLayout.addWidget(self.cutout, row, col, drow, dcol)
-
-        print("rcutout.widget parent:", self.rcutout.widget.parent())
-        print("cutoutsLayout parent:", self.ui.cutoutsLayout.parentWidget())
-
-
-        #self.maskcutout.mouse_clicked.connect(self.add_object)
-
-
-
-        # this allows the user to press editing keys in any of the 3 image panels
-        # not just in the mask panel
-        self.maskcutout.key_pressed.connect(self.key_press_func)
-        self.rcutout.key_pressed.connect(self.key_press_func)
-        self.hacutout.key_pressed.connect(self.key_press_func)
-        self.ui.cutoutsLayout.setRowStretch(1, 1)
-        self.ui.cutoutsLayout.setColumnStretch(0, 1)
-        self.ui.cutoutsLayout.setColumnStretch(1, 1)
-        self.ui.cutoutsLayout.setColumnStretch(2, 1)
-        """
+ 
 
     def get_viewers(self):
         viewers = {
@@ -732,23 +696,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
 
     
-    # def set_threshold(self,t):
-    #     '''
-    #     adjust threshold used in SE deblending
-    #      (0=lots, 1=no deblend )
-    #     '''
-    #     print('Adjust threshold for SE deblending')
-    #     print('0=lots, 1=no deblend')
-    #     #t = raw_input('enter new threshold')
-    #     try:
-    #         self.threshold = float(t)
-    #         if self.runse_flag:
-    #             self.runse(weightim=self.weightim,weight_threshold=self.weight_threshold)
-    #         else:
-    #             self.run_photutil()
 
-    #     except ValueError:
-    #         pass
         
     def set_sesnr(self,t):
         #t = raw_input('enter new SNR')

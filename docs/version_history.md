@@ -128,3 +128,4 @@
   data in both the r and halpha images
   - Updated masktools.engine to grow mask BEFORE removing central
     object to avoid neighboring objects bleeding into galaxy
+- updated the `HAPY_MORPH_OK` flag so that this can still be true if the halpha flux is zero.  No halpha is still a valid measurement and not a failure of the morphology code.

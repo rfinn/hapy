@@ -66,6 +66,54 @@ When launched, the GUI:
   * Mask
 * Allows interactive editing of the mask
 
+
+Here’s a concise description you can drop into `docs/masking.md`:
+
+---
+
+## Running `maskgui` with Metadata
+
+You can launch the interactive masking GUI using the ellipse geometry and target information stored in a cutout’s `metadata.json`.
+
+Use the helper script:
+
+```bash
+run_maskgui_from_metadata --cutout-dir cutouts/<tag>
+```
+
+This will:
+
+* read `metadata.json` in the cutout directory
+* load the r-band image (and Hα/CS image if present)
+* pass the target galaxy parameters to `run_maskgui`:
+
+  * RA / Dec
+  * semi-major axis (`sma_arcsec`)
+  * axis ratio (`b/a`)
+  * position angle (`pa_deg`)
+
+This ensures the GUI is initialized with the same geometry used by `run_analysis`.
+
+### Optional arguments
+
+```bash
+--gaia-dir <path>    # use precomputed Gaia catalogs
+--no-gaia            # disable Gaia star masking
+```
+
+Any additional arguments are passed directly to `run_maskgui`.
+
+### Output
+
+Mask files are written automatically to the cutout directory as:
+
+```
+<tag>-mask-manual.fits
+<tag>-inv-mask-manual.fits
+```
+
+No need to change directories before running — the full image path is used to determine the output location.
+
 ---
 
 # Interactive Editing
