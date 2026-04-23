@@ -4,7 +4,7 @@ from astropy.wcs import WCS
 import os
 from scipy.stats import scoreatpercentile
 import numpy as np
-
+from pathlib import Path
 from .maskWidget import Ui_Form as Ui_maskWindow
 from .cutout_view import CutoutPanel
 
@@ -108,8 +108,19 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         self.ha_overlay_mode = "off"
         self.image_name = image
 
-        self.mask_image = self.image_name.replace('.fits','-mask-manual.fits')
-        self.mask_inv_image=self.image_name.replace('.fits','-inv-mask-manual.fits')
+
+
+        image_path = Path(self.image_name)
+        stem = image_path.stem
+
+        if stem.endswith("-R") or stem.endswith("-r"):
+            stem = stem[:-2]
+            
+        self.mask_image = str(image_path.with_name(f"{stem}-mask-manual.fits"))
+        self.mask_inv_image = str(image_path.with_name(f"{stem}-inv-mask-manual.fits"))
+
+        #self.mask_image = self.image_name.replace('-R.fits','-mask-manual.fits')
+        #self.mask_inv_image=self.image_name.replace('-R.fits','-inv-mask-manual.fits')
         
         self.haimage_name = haimage
         self.weightim = weightim
