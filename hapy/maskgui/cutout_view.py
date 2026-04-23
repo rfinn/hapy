@@ -65,7 +65,7 @@ class CutoutPanel(QtCore.QObject):
         logger,
         grid_pos: Tuple[int, int, int, int],
         readout_pos = None,
-        autocut_params: str = "stddev",
+        autocut_params: str = "zscale",
         enable_drawing: bool = True,
     ):
         super().__init__()

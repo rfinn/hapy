@@ -56,6 +56,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
         self._syncing_views = False
         self._last_active_panel = None
+
+        self.display_mode = "zscale"   # or "minmax"
         #########################################
         # WINDOW MAGIC
         #########################################       
@@ -391,6 +393,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         return {k: v for k, v in viewers.items() if v is not None}
 
 
+        
     def sync_pan_to(self, x: float, y: float, source_panel: str | None = None) -> None:
         if self._syncing_views:
             return
@@ -480,8 +483,42 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
                         print(f"Could not sync zoom for {name}: {e}")
         finally:
             self._syncing_views = False
-        
+            
+    def apply_display_mode_to_panel(self, cutout):
+        fi = cutout.fitsimage
+        fi.set_autocut_params(self.display_mode)
+        fi.auto_levels()
+        fi.redraw(whence=0)
+
+
+    def apply_display_mode(self):
+        self.apply_display_mode_to_panel(self.rcutout)
+        self.apply_display_mode_to_panel(self.maskcutout)
+
+        if self.haimage_name is not None:
+            self.apply_display_mode_to_panel(self.hacutout)
+
+    def toggle_display_mode(self):
+        if self.display_mode == "zscale":
+            self.display_mode = "minmax"
+        else:
+            self.display_mode = "zscale"
+
+        print(f"display mode -> {self.display_mode}")
+        self.apply_display_mode()
+    
     def display_cutouts(self):
+
+        self.rcutout.load_file(self.image_name)
+
+        if self.haimage_name is not None:
+            self.hacutout.load_file(self.haimage_name)
+
+        self.display_mask()
+
+        self.apply_display_mode()
+
+
         self.rcutout.load_file(self.image_name)
         self.rcutout.fitsimage.set_autocut_params('stddev')
 
@@ -599,6 +636,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
             self.add_circ_object()
         elif key == 'b':
             self.add_box_object()
+        elif key == 'd':
+            self.toggle_display_mode()
         elif key == 'r': 
             print('removing object')
             self.remove_object(int(self.cursor_value))
@@ -627,21 +666,24 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         
     def print_help_menu(self):
         print('Click on mask or r/ha image, then enter:\n \t r = remove object in mask at the cursor position;'
+              '\n\n MASKING COMMANDS'
               '\n \t c = add CIRCULAR mask at cursor position;'
               '\n \t b = add BOX mask at cursor position;'
               '\n \t g = grow the size of the current masks;'              
               '\n \t o = if target is off center (and program is removing the wrong object);'
               '\n \t v = print pixel values at cursor position;'
+              '\n\n DISPLAY TOOLS'
+              '\n \t d = if target is off center (and program is removing the wrong object);'
               '\n \t m = toggle mask view on current image (outline, filled, none);'
               "\t z = sync pan/zoom from active panel to the other panels\n"
               #'\n \t s to change the size of the mask box;'
               #'\n \t t to adjust SE threshold (0=lots, 1=no deblend );'
               #'\n \t n to adjust SE SNR; '
+              '\n\n FLOW CONTROL'
               '\n \t h = print this menu; '
               '\n \t w = write the mask image;'
               '\n \t q = quit;'
-              '\n\n'
-              'Display shortcuts (click on image to adjust):'
+              '\n\n DISPLAY SHORTCUTS (click on image to adjust):'
               '\n \t scroll  = zoom'
               '\n \t `       = zoom to fit'
               '\n \t space+s = enable contrast adjustment, click+drag, scroll wheel'
