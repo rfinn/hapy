@@ -256,7 +256,9 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         if gaia_catalog is not None:
             from astropy.table import Table
             gaia_table = Table.read(gaia_catalog)
-        gaia_min_radius_deg = gaia_min_radius/3600.
+        gaia_min_radius_deg = None
+        if gaia_min_radius is not None:
+            gaia_min_radius_deg = float(gaia_min_radius)/3600.
         # IMPORTANT: pass progress_callback, and only build once
         self.maskdat = self.engine.build_initial_mask(
             weightim=weightim,
