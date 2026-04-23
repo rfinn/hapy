@@ -114,7 +114,7 @@ def main():
         "--image", rimage,
         "--title", tag,]
 
-    if not args.no-central-ellipse:
+    if not args.no_central_ellipse:
         cmd += [
         "--objra", str(meta["ra"]),
         "--objdec", str(meta["dec"]),
