@@ -126,7 +126,7 @@ def main():
         # fixing names
         max_fwhm = max(meta["rimage_fwhm_psf_arcsec"], meta["himage_fwhm_psf_arcsec"])
         gaia_min_radius_arcsec = 4 * max_fwhm
-        cmd += ["--gaia-min-radius", gaia_min_radius_arcsec]
+        cmd += ["--gaia-min-radius", str(gaia_min_radius_arcsec)]
     elif args.no_gaia:
         cmd += ["--no-gaia"]
 
