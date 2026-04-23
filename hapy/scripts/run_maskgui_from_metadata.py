@@ -65,6 +65,11 @@ def main():
         help="Disable Gaia masking",
     )
     parser.add_argument(
+        "--no-central-ellipse",
+        action="store_true",
+        help="Disable clearing objects in the central ellipse",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print command before running",
@@ -107,7 +112,10 @@ def main():
     cmd = [
         "run_maskgui",
         "--image", rimage,
-        "--title", tag,
+        "--title", tag,]
+
+    if not args.no-central-ellipse:
+        cmd += [
         "--objra", str(meta["ra"]),
         "--objdec", str(meta["dec"]),
         "--objsma", str(meta["sma_arcsec"]),

@@ -500,7 +500,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
 
     def toggle_display_mode(self):
         if self.display_mode == "zscale":
-            self.display_mode = "minmax"
+            self.display_mode = "stddev"
         else:
             self.display_mode = "zscale"
 
