@@ -56,12 +56,14 @@ def parse_objparams(args: argparse.Namespace):
             "--objra --objdec --objsma --objba --objpa must be provided."
         )
 
+    # convert args.objpa to CCW from +x axis
+    theta_deg = float(args.objpa) - 90.
     return [
         float(args.objra),
         float(args.objdec),
         float(args.objsma),
         float(args.objba),
-        float(args.objpa),
+        theta_deg,
     ]
 
 
