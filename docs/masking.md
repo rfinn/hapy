@@ -67,7 +67,19 @@ When launched, the GUI:
 * Allows interactive editing of the mask
 
 
-Here’s a concise description you can drop into `docs/masking.md`:
+---
+
+### Direct Gaia catalog input
+
+`run_maskgui` now supports a direct Gaia catalog input via:
+
+```bash
+--gaia-catalog <path-to-gaia-fits>
+```
+
+This is useful when launching the masking GUI from a cutout directory, because it avoids reconstructing the Gaia filename internally and ensures the GUI uses the same precomputed Gaia catalog as the pipeline.
+
+
 
 ---
 
@@ -78,7 +90,7 @@ You can launch the interactive masking GUI using the ellipse geometry and target
 Use the helper script:
 
 ```bash
-run_maskgui_from_metadata --cutout-dir cutouts/<tag>
+run_maskgui_from_metadata --cutout-dir cutouts/<tag> --gaia-dir /data-pool/Halpha/coadds/gaia_catalogs/
 ```
 
 This will:
@@ -94,6 +106,10 @@ This will:
 
 This ensures the GUI is initialized with the same geometry used by `run_analysis`.
 
+The helper script `run_maskgui_from_metadata` now reads `parent_rimage` from `metadata.json`, looks for the corresponding Gaia catalog in the supplied `--gaia-dir`, and passes the resolved file directly to `run_maskgui` with `--gaia-catalog`.
+
+This makes the interactive masking workflow consistent with run_analysis and avoids unnecessary live Gaia queries.
+
 ### Optional arguments
 
 ```bash
@@ -102,6 +118,9 @@ This ensures the GUI is initialized with the same geometry used by `run_analysis
 ```
 
 Any additional arguments are passed directly to `run_maskgui`.
+
+
+---
 
 ### Output
 
