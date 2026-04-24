@@ -158,7 +158,7 @@ def merge_tables(files, output, mode):
 
     # adding protection for HAPY_MORPH_OK and other _OK columns
 
-    ok_cols = [c for c in t.colnames if c.endswith("_OK")]
+    ok_cols = [c for c in tables[0].colnames if c.endswith("_OK")]
     t = coerce_bool_columns(t, columns=ok_cols)
     
     #if mode == "run_analysis":
