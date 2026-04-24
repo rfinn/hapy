@@ -154,12 +154,19 @@ def merge_tables(files, output, mode):
     print(f"Found {len(files)} result files.")
     print("Reading tables...")
 
-    tables = [Table.read(f, format="ascii.ecsv") for f in files]
+    tables = []
+    for f in files:
+        t = Table.read(f, format="ascii.ecsv")
+        ok_cols = [c for c in t.colnames if c.endswith("_OK")]
+        t = coerce_bool_columns(t, columns=ok_cols)
+        tables.append(t)
+    
+    # tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
-    # adding protection for HAPY_MORPH_OK and other _OK columns
-
-    ok_cols = [c for c in tables[0].colnames if c.endswith("_OK")]
-    t = coerce_bool_columns(t, columns=ok_cols)
+    # # adding protection for HAPY_MORPH_OK and other _OK columns
+    # for t in tables:
+    #     ok_cols = [c for c in t.colnames if c.endswith("_OK")]
+    #     t = coerce_bool_columns(t, columns=ok_cols)
     
     #if mode == "run_analysis":
         #for t in tables:
