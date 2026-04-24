@@ -26,6 +26,38 @@ import sys
 from collections import defaultdict
 
 
+def coerce_bool_columns(tab, columns=None):
+    """
+    Force selected columns to boolean to avoid merge dtype conflicts.
+    """
+    import numpy as np
+
+    if columns is None:
+        columns = [
+            "HAPY_MORPH_OK",
+        ]
+
+    for col in columns:
+        if col not in tab.colnames:
+            continue
+
+        vals = np.asarray(tab[col])
+
+        # Handles bool, int 0/1, strings like True/False, masked values
+        out = np.zeros(len(tab), dtype=bool)
+
+        for i, v in enumerate(vals):
+            if np.ma.is_masked(v):
+                out[i] = False
+            elif isinstance(v, str):
+                out[i] = v.strip().lower() in ("true", "t", "1", "yes")
+            else:
+                out[i] = bool(v)
+
+        tab[col] = out
+
+    return tab
+
 def keep_latest_cutout_summaries(files):
     latest = {}
 
@@ -124,6 +156,11 @@ def merge_tables(files, output, mode):
 
     tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
+    # adding protection for HAPY_MORPH_OK and other _OK columns
+
+    ok_cols = [c for c in t.colnames if c.endswith("_OK")]
+    t = coerce_bool_columns(t, columns=ok_cols)
+    
     #if mode == "run_analysis":
         #for t in tables:
         #    _coerce_bool_col(t, "R_SM_FLAG", default=False)
