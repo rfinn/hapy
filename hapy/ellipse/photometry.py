@@ -1503,8 +1503,22 @@ class EllipsePhotometry():
             # -------------------------------------------------
             # Validate core morphology metrics
             # -------------------------------------------------
-            core_r_ok = np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20) and np.isfinite(self.R_HAPY_ASYM)
-            core_h_ok = np.isfinite(self.H_HAPY_GINI) and np.isfinite(self.H_HAPY_M20) and np.isfinite(self.H_HAPY_ASYM)
+
+            core_r_ok = bool(
+                np.isfinite(self.R_HAPY_GINI) and
+                np.isfinite(self.R_HAPY_M20) and
+                np.isfinite(self.R_HAPY_ASYM)
+            )
+
+            core_h_ok = bool(
+                np.isfinite(self.H_HAPY_GINI) and
+                np.isfinite(self.H_HAPY_M20) and
+                np.isfinite(self.H_HAPY_ASYM)
+            )
+
+
+            #core_r_ok = np.isfinite(self.R_HAPY_GINI) and np.isfinite(self.R_HAPY_M20) and np.isfinite(self.R_HAPY_ASYM)
+            #core_h_ok = np.isfinite(self.H_HAPY_GINI) and np.isfinite(self.H_HAPY_M20) and np.isfinite(self.H_HAPY_ASYM)
 
             if not core_r_ok:
                 self.HAPY_MORPH_FLAG |= 8
@@ -1518,28 +1532,17 @@ class EllipsePhotometry():
             # -------------------------------------------------
             # Final OK logic
             # -------------------------------------------------
-
             fatal_bits = self.HAPY_MORPH_FLAG & (1 | 2 | 8 | 16)
 
-            # 2026-04-22 updating mask logic so galaxies with no halpha are still ok
-            
-
-            self.HAPY_MORPH_OK = (
+            self.HAPY_MORPH_OK = bool(
                 core_r_ok and
-                fatal_bits == 0 and
+                (fatal_bits == 0) and
                 (
-                    core_h_ok or (self.HAPY_MORPH_FLAG & 4)
+                    core_h_ok or ((self.HAPY_MORPH_FLAG & 4) != 0)
                 )
             )
-            
-            # fatal_bits = self.HAPY_MORPH_FLAG & (1 | 8 | 16)
 
-            # self.HAPY_MORPH_OK = (
-            #     core_r_ok and
-            #     core_h_ok and
-            #     fatal_bits == 0 and
-            #     not (self.HAPY_MORPH_FLAG & 2)
-            # )
+
 
             morph.ok = self.HAPY_MORPH_OK
             morph.flag = self.HAPY_MORPH_FLAG

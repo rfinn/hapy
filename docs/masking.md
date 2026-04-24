@@ -106,6 +106,7 @@ This will:
 
 This ensures the GUI is initialized with the same geometry used by `run_analysis`.
 
+
 The helper script `run_maskgui_from_metadata` now reads `parent_rimage` from `metadata.json`, looks for the corresponding Gaia catalog in the supplied `--gaia-dir`, and passes the resolved file directly to `run_maskgui` with `--gaia-catalog`.
 
 This makes the interactive masking workflow consistent with run_analysis and avoids unnecessary live Gaia queries.
@@ -115,6 +116,7 @@ This makes the interactive masking workflow consistent with run_analysis and avo
 ```bash
 --gaia-dir <path>    # use precomputed Gaia catalogs
 --no-gaia            # disable Gaia star masking
+--no-central-ellipse # don't unmask objects in the central ellipse
 ```
 
 Any additional arguments are passed directly to `run_maskgui`.
