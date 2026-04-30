@@ -19,8 +19,10 @@ TBA
 rm */h*.fits
 ```
 - Then update headers:
+
 ```
-python ~/github/hapy/scripts/update_archive_headers.py --center-file ~/research/Virgo/koopmann-images/offcenter_virgo_centers.csv
+python ~/github/hapy/scripts/update_archive_headers.py --center-file
+~/research/Virgo/koopmann-images/becky_input_params.fits
 ```
 # Rename Directories and Images
 
@@ -36,6 +38,8 @@ When the output looks correct, remove the `--dry-run` flag and rerun.
 ```
 python ~/github/hapy/scripts/build_metadata_archive.py --archive-root ~/research/Virgo/koopmann-images/Virgo/raw --output-root ~/research/Virgo/koopmann-images/Virgo/cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --image-list ~/research/Virgo/koopmann-images/virgo.list --shape-catalog ~/research/Virgo/tables-north/v2/vf_v2_legacy_ephot.fits 
 ```
+
+This will create 58 directories for the cluster sample.
 
 ## For the isolated galaxies
 ```
@@ -71,7 +75,7 @@ The remaining commands are executed on draco and mirror the steps
 used for the VFS and UAT samples.
 
 ```
-cd /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401
+cd /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260430
 ```
 
 Build a directory list:
@@ -117,9 +121,9 @@ python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --sch
 
 ## Make qc plots
 
-Create some basic qc plots:
+Create some basic qc plots and input that is used to build web pages:
 ```
-python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
+python ~/github/hapy/scripts/qc_results.py merged_results_archive_20260430.fits --scheme virgo
 ```
 
 
@@ -133,7 +137,7 @@ python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
 Run this command from the directory that contains
 e.g. `hapy-output-20260401` and `hapy-output-20260429`.
 ```
-rsync -av hapy-output-20260401/cutouts/ hapy-output-20260429/cutouts/
+rsync -av hapy-output-20260429/cutouts/ hapy-output-20260430/cutouts/
 --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
 --ignore-existing --prune-empty-dirs
 ```
@@ -152,7 +156,7 @@ find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260326/cutouts -mindep
 
 Isolated sample:
 ```
-find /data-pool/HalphaArchive/isolated/hapy-output-20260419/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_legacy.txt
+find /data-pool/HalphaArchive/isolated/hapy-output-20260430/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_legacy.txt
 ```
 
 
@@ -167,7 +171,7 @@ parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs pyt
 ## Build Cutout Webpages
 Create a list of the cutout images:
 ```bash
-find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260429/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
+find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260430/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
 
 
@@ -204,8 +208,8 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 For cluster sample:
 ```
 python ~/github/hapy/scripts/build_cutout_index.py --runroot
-/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/
---results-table merged_results.fits 
+/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260430/
+--results-table merged_results_archive_20260430.fits 
 ```
 
 For isolated sample:

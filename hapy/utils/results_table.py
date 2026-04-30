@@ -909,10 +909,14 @@ def prepare_analysis_table(
 
     # improving logic so it doesn't call add_vfindex if VFID column is empty
     if ("VFID" in tab.colnames) and ("VFINDEX" not in tab.colnames):
-        vfid = np.asarray(tab["VFID"])
+        #vfid = np.asarray(tab["VFID"])
+        vfid = tab["VFID"]
         has_valid_vfid = np.any([isinstance(x, str) and x.startswith("VFID") for x in vfid])
         if has_valid_vfid:
+            print("UPDATE: adding VFINDEX")
             tab = add_vfindex(tab)
+        else:
+            print("WARNING: not adding VFINDEX")
 
         
     if "REVIEW_PRIORITY" not in tab.colnames:

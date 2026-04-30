@@ -34,6 +34,7 @@ method:
 import argparse
 import os
 from astropy.io import fits
+from astropy.table import Table
 import sys
 
 from pydantic_core.core_schema import filter_dict_schema
@@ -541,7 +542,59 @@ def get_zp(galname, image_props):
 
     return image_props
 
-def get_center(galname, cfile="virgo.centers"):
+def normalize_archive_name(name):
+    """Normalize archive names like n4254, ic3392, u1234 to NGC4254, IC3392, UGC1234."""
+    name = str(name).strip()
+
+    lower = name.lower().replace(" ", "")
+
+    if lower.startswith("ngc") or lower.startswith("ic") or lower.startswith("ugc"):
+        return lower.upper()
+
+    if lower.startswith("ic"):
+        return "IC" + lower[2:]
+
+    if lower.startswith("n"):
+        return "NGC" + lower[1:]
+
+    if lower.startswith("u"):
+        return "UGC" + lower[1:]
+
+    return lower.upper()
+
+def get_center(galname, cfile="becky_input_params.fits"):
+    tab = Table.read(cfile)
+
+    target = normalize_archive_name(galname)
+    if target == "NGC4504":
+        return 274., 264.
+
+    if target == "NGC4298":
+        return 333.96, 289.82
+    if target == "NGC4216":
+        return 273.23, 265.13
+    if target == "NGC4567":
+        return 280.28, 344.21   
+    if target == "NGC4568":
+        return 252.65, 255.11    
+    if target == "NGC4411":
+        return 210.29, 282.75     
+    if target == "NGC4424":
+        return 280.0, 241.50
+    if target == "NGC4526":
+        return 216.87,146.99
+    
+    for row in tab:
+        gname = normalize_archive_name(row["Gal"])
+
+        if gname == target:
+            print(f"found alt center for {target}")
+            return float(row["xc"]), float(row["yc"])
+
+    return np.nan, np.nan
+
+
+def get_center_old(galname, cfile="virgo.centers"):
     infile = open(cfile,'r')
     for line in infile:
         if line.startswith(galname):
@@ -574,6 +627,7 @@ def main():
             # construct galname
             # n4178 -> NGC4178
             # ic3392 -> IC3398
+            print(d)
             if d.startswith('n'):
                 galname = 'NGC'+d[1:]
             elif d.startswith('ic'):
