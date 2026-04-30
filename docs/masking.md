@@ -368,4 +368,3 @@ If none of the above apply:
 
 ---
 
-If you want, I can also give you a short **one-line version** for commit messages or docstrings.

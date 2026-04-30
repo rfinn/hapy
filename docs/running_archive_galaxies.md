@@ -131,9 +131,9 @@ python ~/github/hapy/scripts/qc_results.py merge_results.fits --scheme virgo
 ### To copy legacy images from a prior run
 
 Run this command from the directory that contains
-e.g. `hapy-output-20260313` and `hapy-output-20260319`.
+e.g. `hapy-output-20260401` and `hapy-output-20260429`.
 ```
-rsync -av hapy-output-20260313/cutouts/ hapy-output-20260319/cutouts/
+rsync -av hapy-output-20260401/cutouts/ hapy-output-20260429/cutouts/
 --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
 --ignore-existing --prune-empty-dirs
 ```
@@ -167,7 +167,7 @@ parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs pyt
 ## Build Cutout Webpages
 Create a list of the cutout images:
 ```bash
-find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260401/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
+find /data-pool/HalphaArchive/virgo_cluster/hapy-output-20260429/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
 
 
@@ -178,7 +178,11 @@ find /data-pool/HalphaArchive/isolated/hapy-output-20260419/cutouts -mindepth 1 
 ```
 
 
+Set the ROOTDIR
 
+```
+ROOTDIR=/data-pool/HalphaArchive/virgo_cluster/hapy-output-20260429/
+```
 
 Test on one directory:
 
@@ -214,7 +218,7 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot
 ## Transfer to fitsxfr
 
 ```
-rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/archive/.
+rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/archive/cluster/.
 ```
 
 From `/data-pool/HalphaArchive/isolated/hapy-output-20260419`:
