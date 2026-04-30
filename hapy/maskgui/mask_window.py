@@ -653,6 +653,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         #    self.set_sesnr()
         elif key == 'h': 
             self.print_help_menu()
+        elif key == '?': 
+            self.print_help_menu()
         elif key == "m" and panel in ("r", "ha"):
             self.cycle_overlay_mode(panel)
         elif key == "z":
@@ -681,6 +683,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               #'\n \t n to adjust SE SNR; '
               '\n\n FLOW CONTROL'
               '\n \t h = print this menu; '
+              '\n \t ? = print this menu; '              
               '\n \t w = write the mask image;'
               '\n \t q = quit;'
               '\n\n DISPLAY SHORTCUTS (click on image to adjust):'
