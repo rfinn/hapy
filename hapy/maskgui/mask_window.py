@@ -662,6 +662,8 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         elif key == 'w': 
             self.save_mask()
         elif key == 'q':
+            print("saving mask before quitting...")
+            self.save_mask()
             self.quit_program()
         else:
             print('did not understand that.  \n Try again!')
