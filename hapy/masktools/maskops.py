@@ -12,7 +12,7 @@ defaultcat='default.sex.HDI.mask'
 #from hapy.imagetools.imutils import circle_pixels
 
 
-def circle_pixels(xc,yc,r,ximage,yimage):
+def circle_pixels_old(xc,yc,r,ximage,yimage):
     '''
     GOAL:
     - return pixel values that lie within a circular aperture within radius r of position (x,y)
@@ -34,6 +34,41 @@ def circle_pixels(xc,yc,r,ximage,yimage):
     rows,cols = np.mgrid[0:yimage,0:ximage]
     distance = np.sqrt((rows-yc)**2+(cols-xc)**2)
     pixel_flag = distance < r
+    return pixel_flag
+
+
+def circle_pixels(xc, yc, r, ximage, yimage):
+    """
+    Return a 2D boolean array for pixels within radius r of (xc, yc).
+
+    Optimized version:
+    - only computes the distance grid inside the circle bounding box
+    - returns a full-size boolean mask for compatibility
+    """
+
+    pixel_flag = np.zeros((yimage, ximage), dtype=bool)
+
+    if not np.isfinite(xc) or not np.isfinite(yc) or not np.isfinite(r):
+        return pixel_flag
+
+    if r <= 0:
+        return pixel_flag
+
+    r_int = int(np.ceil(r))
+
+    x0 = max(0, int(np.floor(xc)) - r_int)
+    x1 = min(ximage, int(np.floor(xc)) + r_int + 1)
+    y0 = max(0, int(np.floor(yc)) - r_int)
+    y1 = min(yimage, int(np.floor(yc)) + r_int + 1)
+
+    if x0 >= x1 or y0 >= y1:
+        return pixel_flag
+
+    rows, cols = np.ogrid[y0:y1, x0:x1]
+    local_flag = (rows - yc)**2 + (cols - xc)**2 < r**2
+
+    pixel_flag[y0:y1, x0:x1] = local_flag
+
     return pixel_flag
 
 

@@ -143,7 +143,7 @@ rsync -av hapy-output-20260429/cutouts/ hapy-output-20260430/cutouts/
 ```
 
 ### To download images...
-To test on one cutout:
+To test on one cutout, back in e.g. `hapy-output-20260430`:
 ```bash
 python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
 ```

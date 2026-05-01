@@ -568,7 +568,6 @@ def get_center(galname, cfile="becky_input_params.fits"):
     target = normalize_archive_name(galname)
     if target == "NGC4504":
         return 274., 264.
-
     if target == "NGC4298":
         return 333.96, 289.82
     if target == "NGC4216":

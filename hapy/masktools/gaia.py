@@ -310,29 +310,46 @@ def make_gaia_mask(
     rad_deg = gaia_table["radius"]
     rad_pixels = rad_deg / pixel_scale_deg
 
-    mask_value = np.max(mask_array) + 100
-    print("mask value =", mask_value)
+    base_mask_value = int(np.max(mask_array)) + 100
+    print("mask value =", base_mask_value)
 
+    import time
+    t0 = time.time()
+
+    print(f"[gaia] masking {len(mag)} stars")
+    
     for i in range(len(mag)):
-        # print(
-        #     f"star {i}: "
-        #     f"{x_pixels[i]:.1f},"
-        #     f"{y_pixels[i]:.1f},"
-        #     f"{rad_pixels[i]:.1f}"
-        # )
+        radius_pix = float(rad_pixels[i] * radius_scale_factor)
+        x = float(x_pixels[i])
+        y = float(y_pixels[i])
+        gmag = float(mag[i])
+
+        # increment the mask value so that each star gets a different value
+        mask_value = base_mask_value + i  
+        
+        if radius_pix > 200:
+            print(
+                f"[gaia] LARGE radius: i={i} "
+                f"x={x:.1f} y={y:.1f} "
+                f"mag={gmag:.2f} radius_pix={radius_pix:.1f}"
+            )
 
         pixel_mask = circle_pixels(
-            float(x_pixels[i]),
-            float(y_pixels[i]),
-            float(rad_pixels[i]*radius_scale_factor),
+            x,
+            y,
+            radius_pix,
             nx,
             ny,
         )
 
         gaia_mask[pixel_mask] = mask_value
+        if i % 25 == 0:
+            print(f"[gaia] star {i}/{len(mag)} elapsed={time.time()-t0:.1f}s")
+            
 
-    updated_mask = mask_array + gaia_mask
-
+    #updated_mask = mask_array + gaia_mask
+    updated_mask = mask_array.copy()
+    updated_mask[gaia_mask > 0] = gaia_mask[gaia_mask > 0]
     return updated_mask, gaia_mask
 
 
