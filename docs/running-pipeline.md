@@ -572,7 +572,7 @@ parallel --bar -j 20 --memfree 60G --joblog build_web_cutouts.joblog --results b
 python ~/github/hapy/scripts/build_cutout_index.py --help
 ```
 
-```
+```bash
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260421.fits
 ```
 ```
@@ -687,10 +687,75 @@ cat missing_manual_reruns.txt
 merge_results --indir cutouts --mode run_analysis
 ```
 
+Update files used to build cutout index (I think):
+
+```bash
+python ~/github/hapy/scripts/qc_results.py merged_results.fits --scheme virgo
+```
+
+After mask updates:
+```
+Read 823 rows from merged_results.fits
+UPDATE: adding VFINDEX
+REVIEW_PRIORITY SUMMARY
+{np.str_('high'): np.int64(143), np.str_('low'): np.int64(278), np.str_('medium'): np.int64(402)}
+ELL_MISMATCH 267
+FILTER_WARNING 79
+WARN_MASK 18
+BRIGHT_STAR_FLAG 9
+WARN_WEAK_HA 297
+Unable to revert mtime: /usr/local/share/fonts
+/home/siena.edu/rfinn/github/hapy/scripts/qc_results.py:564: UserWarning: Warning: converting a masked element to nan.
+  out[i] = float(v)
+Wrote QC products to qc
+Number of high priority in qc/tables/review = 143
+writing  qc/tables/review/review_sample.csv
+
+
+REVIEW PRIORITY SUMMARY
+{np.str_('high'): np.int64(143), np.str_('low'): np.int64(278), np.str_('medium'): np.int64(402)}
+
+HIGH PRIORITY DRIVERS
+NOT_PHOT_OK                 : total=  13  in_high=  13
+NOT_HAPY_MORPH_OK           : total=  49  in_high=  49
+BRIGHT_STAR_FLAG            : total=   9  in_high=   9
+WARN_MASK                   : total=  18  in_high=  18
+SEVERE_CEN_ANY              : total=  89  in_high=  89
+WARN_CUTOUT_MISSING_SHAPE   : total=   0  in_high=   0
+
+MEDIUM PRIORITY DRIVERS
+ELL_MISMATCH                : total= 267  in_medium= 154
+WARN_WEAK_HA                : total= 297  in_medium= 230
+WARN_CEN_ANY                : total= 217  in_medium= 117
+WARN_R_PROFILE_PEAK         : total= 142  in_medium=  81
+WARN_CUTOUT_MISSING         : total=   0  in_medium=   0
+
+OVERLAP AMONG HIGH DRIVERS
+NOT_PHOT_OK                  & NOT_HAPY_MORPH_OK           :   13
+NOT_PHOT_OK                  & WARN_MASK                   :    1
+NOT_HAPY_MORPH_OK            & BRIGHT_STAR_FLAG            :    1
+NOT_HAPY_MORPH_OK            & WARN_MASK                   :    4
+NOT_HAPY_MORPH_OK            & SEVERE_CEN_ANY              :    6
+BRIGHT_STAR_FLAG             & WARN_MASK                   :    4
+BRIGHT_STAR_FLAG             & SEVERE_CEN_ANY              :    5
+WARN_MASK                    & SEVERE_CEN_ANY              :    9
+
+```
 ## 5. Rebuild webpages
 
 Build the file list:
 
 ```bash
 find cutouts -mindepth 2 -maxdepth 2 -name "*-mask-manual.fits" | xargs -n1 dirname | xargs -n1 basename | sort -u > tags_with_manual_masks.txt
+```
+
+Rebulid webpages:
+```bash 
+parallel --bar -j 20 --memfree 60G --joblog build_web_cutouts_manual_masks.joblog --results build_web_manual_masks_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage "{}" --outdir $ROOTDIR/html/cutouts :::: tags_with_manual_masks.txt
+```
+
+
+Rebuild cutout index:
+```bash
+python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260501.fits
 ```
