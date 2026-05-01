@@ -628,3 +628,65 @@ run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coa
 run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3 --gaia-dir
 /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3/ --cutout-dir cutouts/VFID1588-NGC5169-HDI-20170523-p023
 ```
+
+
+# After completing manual masking
+
+- I identified galaxies that needed manual masking and then created
+  the masks.
+- I have to rerun `run_analysis` on these galaxies
+
+## Identify the galaxies that have a manual mask:
+```bash
+find cutouts -mindepth 2 -maxdepth 2 -name "*-mask-manual.fits" \
+  | xargs -n1 dirname \
+  | sort -u > cutouts_with_manual_masks.txt
+```
+
+Check the number:
+```
+wc -l cutouts_with_manual_masks.txt
+head cutouts_with_manual_masks.txt
+```
+## 2. Rerun `run_analysis` only on these
+
+```
+parallel --bar -j 16 --memfree 60G \
+  --joblog run_analysis_manual_masks.joblog \
+  --results parallel-logs-manual-masks \
+  run_analysis \
+    --cutout-dir {} \
+    --make-mask \
+    --psf-dir /data-pool/Halpha/psf-images/ \
+    --statmorph \
+    --galfit \
+    --convflag \
+    --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ \
+  :::: cutouts_with_manual_masks.txt
+```
+
+## 3. Check Completion
+
+```bash
+awk 'NR==1 || $7 != 0' run_analysis_manual_masks.joblog
+```
+
+Find any missing:
+```bash
+while read d; do
+  tag=$(basename "$d")
+  test -f "$d/${tag}-results.ecsv" || echo "$d"
+done < cutouts_with_manual_masks.txt > missing_manual_reruns.txt
+
+wc -l missing_manual_reruns.txt
+cat missing_manual_reruns.txt
+```
+
+## 4. Regenerate merged table
+
+```bash
+merge_results --indir cutouts --mode run_analysis
+```
+
+## 5. Rebuild webpages
+
