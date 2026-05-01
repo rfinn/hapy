@@ -37,6 +37,33 @@ def circle_pixels_old(xc,yc,r,ximage,yimage):
     return pixel_flag
 
 
+def circle_pixel_bbox(xc, yc, r, ximage, yimage):
+    """
+    Return bounding-box slices and a local boolean mask for pixels
+    within radius r of (xc, yc).
+    """
+
+    if not np.isfinite(xc) or not np.isfinite(yc) or not np.isfinite(r):
+        return None, None, None
+
+    if r <= 0:
+        return None, None, None
+
+    r_int = int(np.ceil(r))
+
+    x0 = max(0, int(np.floor(xc)) - r_int)
+    x1 = min(ximage, int(np.floor(xc)) + r_int + 1)
+    y0 = max(0, int(np.floor(yc)) - r_int)
+    y1 = min(yimage, int(np.floor(yc)) + r_int + 1)
+
+    if x0 >= x1 or y0 >= y1:
+        return None, None, None
+
+    rows, cols = np.ogrid[y0:y1, x0:x1]
+    local_mask = (rows - yc)**2 + (cols - xc)**2 < r**2
+
+    return slice(y0, y1), slice(x0, x1), local_mask
+
 def circle_pixels(xc, yc, r, ximage, yimage):
     """
     Return a 2D boolean array for pixels within radius r of (xc, yc).

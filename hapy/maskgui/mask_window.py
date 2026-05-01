@@ -726,19 +726,33 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
         print(f"added mask object {mask_value}")
 
 
+    # def add_circ_object(self):
+    #     print('adding circular obj to the mask, with radius = ',self.mask_size)
+    #     # mask out a rectangle around click
+    #     # size is given by mask_size
+
+        
+    #     #pixel_mask = circle_pixels(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.),self.xmax,self.ymax)
+
+    #     mask_value = self.engine.add_circular_mask(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.))
+
+    #     self.save_mask()
+    #     print(f'added mask object {mask_value}')
+
     def add_circ_object(self):
-        print('adding circular obj to the mask, with radius = ',self.mask_size)
-        # mask out a rectangle around click
-        # size is given by mask_size
+        print('adding circular obj to the mask, with radius = ', self.mask_size)
 
-        
-        #pixel_mask = circle_pixels(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.),self.xmax,self.ymax)
+        mask_value = self.engine.add_circular_mask(
+            float(self.xcursor),
+            float(self.ycursor),
+            float(self.mask_size / 2.)
+        )
 
-        mask_value = self.engine.add_circular_mask(float(self.xcursor),float(self.ycursor),float(self.mask_size/2.))
+        self.maskdat = self.engine.maskdat
+        self.display_mask()   # or better: refresh existing mask panel only
 
-        self.save_mask()
         print(f'added mask object {mask_value}')
-        
+    
     def remove_object(self, objID):
         '''
         this will remove masked pixels near the cursor

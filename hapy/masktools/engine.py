@@ -17,6 +17,7 @@ from .maskops import (
     apply_user_masks,
     grow_mask_square,
     circle_pixels,
+    circle_pixel_bbox
 )
 from .gaia import get_gaia_stars, make_gaia_mask, gaia_foreground_filter
 from hapy.external.sextractor import run_sextractor
@@ -257,28 +258,54 @@ class MaskEngine:
         self._progress(progress_callback, stage="done", fraction=1.0, message="Mask build complete")
         return self.maskdat
 
-        
     def add_circular_mask(self, x: float, y: float, radius_pix: float) -> int:
         """
         Add a circular user mask centered at (x, y) with radius in pixels.
         Returns the integer mask value used.
         """
-        # lazily create a user mask if you don't already have one
+
         if getattr(self, "usr_mask", None) is None:
-            self.usr_mask = np.zeros_like(self.maskdat, dtype=float)
+            self.usr_mask = np.zeros_like(self.maskdat, dtype=self.maskdat.dtype)
 
         ymax, xmax = self.maskdat.shape
 
-        # compute boolean pixel mask
-        pixel_mask = circle_pixels(float(x), float(y), float(radius_pix), xmax, ymax)
+        yslice, xslice, local_mask = circle_pixel_bbox(
+            float(x), float(y), float(radius_pix), xmax, ymax
+        )
 
-        # choose next id
-        mask_value = int(np.max(self.maskdat)) + 1
+        if local_mask is None:
+            return -1
 
-        self.usr_mask[pixel_mask] = mask_value
-        self.maskdat = self.maskdat + self.usr_mask
-        
+        mask_value = int(np.nanmax(self.maskdat)) + 1
+
+        self.usr_mask[yslice, xslice][local_mask] = mask_value
+        self.maskdat[yslice, xslice][local_mask] = mask_value
+
         return mask_value
+
+
+    
+    # def add_circular_mask(self, x: float, y: float, radius_pix: float) -> int:
+    #     """
+    #     Add a circular user mask centered at (x, y) with radius in pixels.
+    #     Returns the integer mask value used.
+    #     """
+    #     # lazily create a user mask if you don't already have one
+    #     if getattr(self, "usr_mask", None) is None:
+    #         self.usr_mask = np.zeros_like(self.maskdat, dtype=float)
+
+    #     ymax, xmax = self.maskdat.shape
+
+    #     # compute boolean pixel mask
+    #     pixel_mask = circle_pixels(float(x), float(y), float(radius_pix), xmax, ymax)
+
+    #     # choose next id
+    #     mask_value = int(np.max(self.maskdat)) + 1
+
+    #     self.usr_mask[pixel_mask] = mask_value
+    #     self.maskdat = self.maskdat + self.usr_mask
+        
+    #     return mask_value
     # ---------- galaxy removal ----------
     def remove_object(self, objid):
         """Remove an object from the mask by zeroing all pixels with value obj_id."""
