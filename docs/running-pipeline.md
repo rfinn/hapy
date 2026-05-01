@@ -656,17 +656,11 @@ head cutouts_with_manual_masks.txt
 ## 2. Rerun `run_analysis` only on these
 
 ```
-parallel --bar -j 16 --memfree 60G \
-  --joblog run_analysis_manual_masks.joblog \
-  --results parallel-logs-manual-masks \
-  run_analysis \
-    --cutout-dir {} \
-    --make-mask \
-    --psf-dir /data-pool/Halpha/psf-images/ \
-    --statmorph \
-    --galfit \
-    --convflag \
-    --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ \
+parallel --bar -j 16 --memfree 60G --joblog
+  run_analysis_manual_masks.joblog --results
+  parallel-logs-manual-masks run_analysis --cutout-dir {} --make-mask
+  --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
+  --convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ 
   :::: cutouts_with_manual_masks.txt
 ```
 
@@ -695,3 +689,8 @@ merge_results --indir cutouts --mode run_analysis
 
 ## 5. Rebuild webpages
 
+Build the file list:
+
+```bash
+find cutouts -mindepth 2 -maxdepth 2 -name "*-mask-manual.fits" | xargs -n1 dirname | xargs -n1 basename | sort -u > tags_with_manual_masks.txt
+```
