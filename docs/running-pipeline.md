@@ -648,6 +648,11 @@ Check the number:
 wc -l cutouts_with_manual_masks.txt
 head cutouts_with_manual_masks.txt
 ```
+
+
+> [!NOTE] 
+> In `virgo_qc_results`, 87 have `MASK_FIXED == YES`.  This is the same number in the file.  Check!
+
 ## 2. Rerun `run_analysis` only on these
 
 ```
