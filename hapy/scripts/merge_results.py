@@ -25,7 +25,7 @@ import sys
 
 from collections import defaultdict
 
-
+from hapy.utils.results_table import get_excluded_tags
 def coerce_bool_columns(tab, columns=None):
     """
     Force selected columns to boolean to avoid merge dtype conflicts.
@@ -289,17 +289,40 @@ def main():
         action="store_true",
         help="For get_cutouts mode, keep only the newest summary file per tag."
     )
+
+    parser.add_argument(
+    "--review-csv",
+    default=None,
+    help="Optional review CSV; rows with CATALOG_USE == EXCLUDE are skipped"
+    )
+    
     args = parser.parse_args()
 
+    files = find_result_files(args.indir, pattern)
+
+    if args.review_csv is not None:
+        excluded_tags = get_excluded_tags(args.review_csv)
+
+        kept = []
+        skipped = []
+
+        for f in files:
+            tag = Path(f).parent.name
+            if tag in excluded_tags:
+                skipped.append(f)
+            else:
+                kept.append(f)
+
+        print(f"Skipping {len(skipped)} files with CATALOG_USE == EXCLUDE")
+        files = kept
+    
     if args.pattern is not None:
         pattern = args.pattern
     elif args.mode == "get_cutouts":
         pattern = "cutouts_summary*.ecsv"
     else:
         pattern = "*results.ecsv"
-
-
-    files = find_result_files(args.indir, pattern)
+    
 
     if args.mode == "get_cutouts" and args.latest_only:
         files = keep_latest_cutout_summaries(files)

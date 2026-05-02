@@ -21,6 +21,8 @@ import numpy as np
 from astropy.table import Table
 from astropy.table import Column
 
+from pathlib import Path
+
 
 #from hapy.utils.astro import KE_SFR_from_redshift
 
@@ -167,6 +169,70 @@ def get_std(dx: np.ndarray) -> tuple[float, float]:
     std = np.nanstd(dx[good])
     return std
 
+
+# ----------------------------------------------------------------------
+# functions for filtering based on visual inspection
+# ----------------------------------------------------------------------
+
+def read_review_csv(review_csv):
+    """
+    Read Google Sheets review CSV and keep only real galaxy rows.
+
+    Summary rows are ignored by requiring VFID to start with 'VFID'.
+    """
+    review_csv = Path(review_csv)
+    review = Table.read(review_csv, format="ascii.csv")
+
+    tag = np.array([str(x).strip() for x in review["TAG"]])
+    keep = np.array([(x not in ("", "None", "nan")) and ("-" in x) for x in tag])
+
+    return review[keep]
+
+
+def get_excluded_tags(review_csv):
+    """
+    Return set of TAG values where CATALOG_USE == EXCLUDE.
+    """
+    review = read_review_csv(review_csv)
+
+    if "TAG" not in review.colnames:
+        raise ValueError("Review CSV does not contain TAG column")
+
+    if "CATALOG_USE" not in review.colnames:
+        return set()
+
+    tags = np.array([str(x).strip() for x in review["TAG"]])
+    use = np.array([str(x).strip().upper() for x in review["CATALOG_USE"]])
+
+    exclude = use == "EXCLUDE"
+    return set(tags[exclude])
+
+def write_filtered_cutout_lists(cutout_dir, review_csv, out_prefix="cutouts_keep"):
+    """
+    Write both:
+      - cutouts/<tag> list
+      - <tag> list
+
+    Excludes rows with CATALOG_USE == EXCLUDE.
+    """
+    cutout_dir = Path(cutout_dir)
+    excluded = get_excluded_tags(review_csv)
+
+    dirs = sorted([p for p in cutout_dir.iterdir() if p.is_dir()])
+    keep_dirs = [p for p in dirs if p.name not in excluded]
+    keep_tags = [p.name for p in keep_dirs]
+
+    with open(f"{out_prefix}_with_dir.txt", "w") as fh:
+        for p in keep_dirs:
+            fh.write(str(p) + "\n")
+
+    with open(f"{out_prefix}_tags.txt", "w") as fh:
+        for tag in keep_tags:
+            fh.write(tag + "\n")
+
+    print(f"Found {len(dirs)} cutout dirs")
+    print(f"Excluded {len(excluded)} reviewed objects")
+    print(f"Wrote {len(keep_dirs)} kept dirs")
 
 # ----------------------------------------------------------------------
 # science columns
