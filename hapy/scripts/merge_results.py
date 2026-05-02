@@ -301,6 +301,13 @@ def main():
     
     args = parser.parse_args()
 
+    if args.pattern is not None:
+        pattern = args.pattern
+    elif args.mode == "get_cutouts":
+        pattern = "cutouts_summary*.ecsv"
+    else:
+        pattern = "*results.ecsv"
+    
     files = find_result_files(args.indir, pattern)
 
     if args.review_csv is not None:
@@ -319,12 +326,7 @@ def main():
         print(f"Skipping {len(skipped)} files with CATALOG_USE == EXCLUDE")
         files = kept
     
-    if args.pattern is not None:
-        pattern = args.pattern
-    elif args.mode == "get_cutouts":
-        pattern = "cutouts_summary*.ecsv"
-    else:
-        pattern = "*results.ecsv"
+
     
 
     if args.mode == "get_cutouts" and args.latest_only:
