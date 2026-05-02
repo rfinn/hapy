@@ -271,26 +271,30 @@ def add_review_columns(tab, review_csv, key="TAG", review_cols=None):
 
     tags = [str(x).strip() for x in tab[key]]
 
+
     for col in review_cols:
         values = []
-        mask = []
 
         for tag in tags:
             if tag in review_map:
                 val = review_map[tag][col]
                 values.append(str(val).strip())
-                mask.append(False)
             else:
                 values.append("")
-                mask.append(True)
 
         outname = f"REVIEW_{col}" if col in tab.colnames else col
 
-        if outname in tab.colnames:
-            tab[outname] = MaskedColumn(values, mask=mask, dtype=object)
-        else:
-            tab.add_column(MaskedColumn(values, mask=mask, name=outname, dtype=object))
+        maxlen = max([len(v) for v in values] + [1])
+        arr = np.array(values, dtype=f"<U{maxlen}")
 
+        if outname in tab.colnames:
+            tab[outname] = arr
+        else:
+            tab.add_column(arr, name=outname)
+        
+
+            tab.add_column(arr, name=outname)
+    
     return tab
     
 # ----------------------------------------------------------------------
