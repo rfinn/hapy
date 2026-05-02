@@ -25,7 +25,7 @@ import sys
 
 from collections import defaultdict
 
-from hapy.utils.results_table import get_excluded_tags
+from hapy.utils.results_table import get_excluded_tags, add_review_columns
 def coerce_bool_columns(tab, columns=None):
     """
     Force selected columns to boolean to avoid merge dtype conflicts.
@@ -149,7 +149,7 @@ def _coerce_bool_col(tab, name, default=False):
     else:
         tab[name] = np.array(col, dtype=bool)
         
-def merge_tables(files, output, mode):
+def merge_tables(files, output, mode, review_csv=None):
     """Read, validate, merge, and write output FITS table."""
     print(f"Found {len(files)} result files.")
     print("Reading tables...")
@@ -198,7 +198,10 @@ def merge_tables(files, output, mode):
 
     if "SIGMA_FITS" in merged.colnames:
         merged.remove_column("SIGMA_FITS")
-    
+
+    if review_csv is not None:
+        merged = add_review_columns(merged, review_csv)
+        
     print(f"Writing merged table → {output}")
     merged.write(output, format="fits", overwrite=True)
 
@@ -206,7 +209,7 @@ def merge_tables(files, output, mode):
     print(f"Final table rows: {len(merged)}")
     print(f"Final table columns: {len(merged.colnames)}")
 
-from astropy.table import Table
+
 
 def infer_scheme_from_result_files(files, max_files=None):
     """
@@ -343,7 +346,7 @@ def main():
     else:
         outpath = Path(args.out).resolve()
 
-    merge_tables(files, outpath, args.mode)
+    merge_tables(files, outpath, args.mode, review_csv=args.review_csv)
 
 
  

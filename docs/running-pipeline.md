@@ -240,7 +240,7 @@ htop
 ## Merge Results From `run_analysis`
 
 ```bash
-merge_results --indir cutouts --mode run_analysis
+merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260502.csv
 ```
 
 Example output as of 2026-04-17:

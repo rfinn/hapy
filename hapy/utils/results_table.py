@@ -234,6 +234,65 @@ def write_filtered_cutout_lists(cutout_dir, review_csv, out_prefix="cutouts_keep
     print(f"Excluded {len(excluded)} reviewed objects")
     print(f"Wrote {len(keep_dirs)} kept dirs")
 
+def add_review_columns(tab, review_csv, key="TAG", review_cols=None):
+    """
+    Add selected columns from review CSV to merged results table by matching TAG.
+    """
+    import numpy as np
+    from astropy.table import MaskedColumn
+
+    review = read_review_csv(review_csv)
+
+    if review_cols is None:
+        review_cols = [
+            "REVIEWED",
+            "STATUS",
+            "CATALOG_USE",
+            "VIS_CLASS",
+            "VIS_NOTE",
+            "MASK_FIX_NEEDED",
+            "MASK_FIXED",
+            "MASK_ISSUE",
+            "MASK_NOTE",
+        ]
+
+    if key not in tab.colnames:
+        raise ValueError(f"Input table does not contain key column {key}")
+    if key not in review.colnames:
+        raise ValueError(f"Review CSV does not contain key column {key}")
+
+    review_cols = [c for c in review_cols if c in review.colnames]
+
+    review_map = {
+        str(row[key]).strip(): row
+        for row in review
+        if str(row[key]).strip() not in ("", "None", "nan")
+    }
+
+    tags = [str(x).strip() for x in tab[key]]
+
+    for col in review_cols:
+        values = []
+        mask = []
+
+        for tag in tags:
+            if tag in review_map:
+                val = review_map[tag][col]
+                values.append(str(val).strip())
+                mask.append(False)
+            else:
+                values.append("")
+                mask.append(True)
+
+        outname = f"REVIEW_{col}" if col in tab.colnames else col
+
+        if outname in tab.colnames:
+            tab[outname] = MaskedColumn(values, mask=mask, dtype=object)
+        else:
+            tab.add_column(MaskedColumn(values, mask=mask, name=outname, dtype=object))
+
+    return tab
+    
 # ----------------------------------------------------------------------
 # science columns
 # ----------------------------------------------------------------------
