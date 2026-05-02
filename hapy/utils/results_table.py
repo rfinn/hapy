@@ -292,8 +292,6 @@ def add_review_columns(tab, review_csv, key="TAG", review_cols=None):
         else:
             tab.add_column(arr, name=outname)
         
-
-            tab.add_column(arr, name=outname)
     
     return tab
     
