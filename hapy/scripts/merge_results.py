@@ -151,7 +151,7 @@ def _coerce_bool_col(tab, name, default=False):
         
 def merge_tables(files, output, mode, review_csv=None):
     """Read, validate, merge, and write output FITS table."""
-    print(f"Found {len(files)} result files.")
+    print(f"Merging {len(files)} result files.")
     print("Reading tables...")
 
     tables = []
@@ -309,7 +309,8 @@ def main():
         pattern = "*results.ecsv"
     
     files = find_result_files(args.indir, pattern)
-
+    print(f"Found {len(files)} result files.")
+    
     if args.review_csv is not None:
         excluded_tags = get_excluded_tags(args.review_csv)
 
