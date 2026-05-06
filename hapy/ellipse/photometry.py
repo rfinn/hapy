@@ -1329,6 +1329,16 @@ class EllipsePhotometry():
         self.H_HAPY_SNP_ALL = np.nan
         self.R_HAPY_XC = np.nan
         self.R_HAPY_YC = np.nan
+
+        self.R_HAPY_FLUX_SEG = np.nan
+        self.R_HAPY_MTOT2 = np.nan
+        self.R_HAPY_RMOM = np.nan
+
+        self.H_HAPY_FLUX_SEG = np.nan
+        self.H_HAPY_MTOT2 = np.nan
+        self.H_HAPY_RMOM = np.nan
+        
+
         self.R_HAPY_ASYM_XC = np.nan
         self.R_HAPY_ASYM_YC = np.nan
 
@@ -1393,6 +1403,16 @@ class EllipsePhotometry():
             morph.r_mtot = self.R_HAPY_MTOT
             morph.r_m20sum = self.R_HAPY_M20SUM
 
+            self.R_HAPY_FLUX_SEG, self.R_HAPY_MTOT2, self.R_HAPY_RMOM, _, _ = compute_second_moment_metrics(
+                self.image, rmask, xc=xc_r, yc=yc_r
+            )
+
+            morph.r_flux_seg = self.R_HAPY_FLUX_SEG
+            morph.r_mtot2 = self.R_HAPY_MTOT2
+            morph.r_rmom = self.R_HAPY_RMOM
+
+
+            
             self.R_HAPY_ASYM, self.R_HAPY_ASYM_ERR, self.R_HAPY_ASYM_CENTER, self.R_HAPY_ASYM_GRID = compute_asymmetry(
                 self.image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0
             )
@@ -1490,6 +1510,15 @@ class EllipsePhotometry():
             morph.h_m20 = self.H_HAPY_M20
             morph.h_mtot = self.H_HAPY_MTOT
             morph.h_m20sum = self.H_HAPY_M20SUM
+
+            self.H_HAPY_FLUX_SEG, self.H_HAPY_MTOT2, self.H_HAPY_RMOM, _, _ = compute_second_moment_metrics(
+                ha_morph_image, rmask, xc=xc_r, yc=yc_r
+            )
+
+            morph.h_flux_seg = self.H_HAPY_FLUX_SEG
+            morph.h_mtot2 = self.H_HAPY_MTOT2
+            morph.h_rmom = self.H_HAPY_RMOM
+
 
             self.H_HAPY_ASYM, self.H_HAPY_ASYM_ERR, self.H_HAPY_ASYM_CENTER, self.H_HAPY_ASYM_GRID = compute_asymmetry(
                 ha_morph_image, rmask, xc=xc_r, yc=yc_r, search_radius=1, step=1.0

@@ -59,3 +59,10 @@ if __name__ == '__main__':
             flag[indx] = True
 
         trunctab = ctab[flag]
+
+        flag = np.zeros(len(ctab),'bool')
+        for vfid in central_HII:
+            indx = ctab['VFID'] == vfid
+            flag[indx] = True
+
+        centralctab = ctab[flag]        

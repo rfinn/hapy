@@ -40,6 +40,7 @@ import matplotlib.pyplot as plt
 from hapy.utils.plotting import raincloud_by_group
 from hapy.utils.results_table import safe_bool_array, safe_float_array, safe_str_array, first_existing_col, first_populated_col
 from hapy.utils.results_table import build_row_qc_flags, ensure_dir, median_and_mad, get_std
+from hapy.utils.results_table import prepare_analysis_table
 from validate_measurements import _robust_limits
 # ----------------------------------------------------------------------
 # helpers
@@ -652,8 +653,16 @@ def main():
     tab = Table.read(args.table)
     print(f"Read {len(tab)} rows from {args.table}")
 
-    if "VFID" not in tab.colnames:
-        raise RuntimeError("Merged results table must contain VFID for duplicate analysis.")
+    tab = prepare_analysis_table(tab)
+
+    # remove galaxies with CATALOG_USE == CAUTION or TBD
+    # and MASK_WARN, BRIGHT_STAR, and a few others
+    # NOTE: filter warning is not included
+    tab = tab[tab["CLEAN"]]
+
+    print(f"length of table after applying CLEAN flag = {len(tab)}")
+    #if "VFID" not in tab.colnames:
+    #    raise RuntimeError("Merged results table must contain VFID for duplicate analysis.")
 
     if args.scheme == "agc":
         colid = "OBJID"
@@ -671,6 +680,10 @@ def main():
     r_fwhm_col = first_populated_col(tab, ["R_FWHM_PSF", "R_FWHM", "R_FHWM"])
     h_fwhm_col = first_populated_col(tab, ["H_FWHM_PSF", "H_FWHM", "H_FHWM"])
 
+    review_priority = tab["REVIEW_PRIORITY"]
+
+    rmag24 = tab["R24_MAG"]
+    hmag
     if r_fwhm_col is not None:
         print(f"Using {r_fwhm_col} for R-band FWHM coloring")
     if h_fwhm_col is not None:
@@ -740,11 +753,11 @@ def main():
     ]
         
     galfit_nc_cols = [
-        "GAL_MAG", "GAL_RE_ARCSEC", "GAL_N", "GAL_BA", "GAL_PA", "GAL_CHISQ",
+        "GAL_MAG", "GAL_RE_ARCSEC", "GAL_N", "GAL_BA", "GAL_PA",
     ]
 
     galfit_cv_cols = [
-        "GAL_CMAG", "GAL_CRE_ARCSEC", "GAL_CN", "GAL_CBA", "GAL_CPA", "GAL_CCHISQ",
+        "GAL_CMAG", "GAL_CRE_ARCSEC", "GAL_CN", "GAL_CBA", "GAL_CPA",
     ]
 
     # plots

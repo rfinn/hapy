@@ -311,6 +311,9 @@ def add_science_columns(tab: Table) -> Table:
     r75 = safe_float_array(tab, "R75_ARCSEC")
     h75 = safe_float_array(tab, "H75_ARCSEC")
 
+    r_c30 = safe_float_array(tab, "R_C30")
+    h_c30 = safe_float_array(tab, "H_C30_R24")
+    
     r25 = safe_float_array(tab, "R25_ARCSEC")
     hmax = safe_float_array(tab, "H_MAXDET_ARCSEC")
 
@@ -322,11 +325,23 @@ def add_science_columns(tab: Table) -> Table:
 
     r_m20 = safe_float_array(tab, "R_HAPY_M20")
     h_m20 = safe_float_array(tab, "H_HAPY_M20")
+    
+    r_sm_gini = safe_float_array(tab, "R_SM_GINI")
+    h_sm_gini = safe_float_array(tab, "H_SM_GINI")
+
+    r_sm_m20 = safe_float_array(tab, "R_SM_M20")
+    h_sm_m20 = safe_float_array(tab, "H_SM_M20")
 
     # optional, but useful for consistency with validation/science plots
     r_asym = safe_float_array(tab, "R_HAPY_ASYM")
     h_asym = safe_float_array(tab, "H_HAPY_ASYM")
 
+    r_mtot = safe_float_array(tab, "R_HAPY_MTOT")
+    h_mtot = safe_float_array(tab, "H_HAPY_MTOT")
+
+    r_flux_r24 = safe_float_array(tab, "R24_FLUX_CGS")
+    h_flux_r24 = safe_float_array(tab, "H_R24_FLUX_CGS")    
+    
     # derived
     if "H50_R50_RATIO" not in tab.colnames:
         tab["H50_R50_RATIO"] = safe_ratio(h50, r50)
@@ -337,6 +352,9 @@ def add_science_columns(tab: Table) -> Table:
     if "H_PETRO_R50_RATIO" not in tab.colnames:
         tab["H_PETRO_R50_RATIO"] = safe_ratio(h_p50, r_p50)
 
+    if "DELTA_C30" not in tab.colnames:
+        tab["DELTA_C30"] = h_c30 - r_c30
+
     if "DELTA_GINI" not in tab.colnames:
         tab["DELTA_GINI"] = h_gini - r_gini
     if "DELTA_M20" not in tab.colnames:
@@ -344,6 +362,18 @@ def add_science_columns(tab: Table) -> Table:
     if "DELTA_ASYM" not in tab.colnames:
         tab["DELTA_ASYM"] = h_asym - r_asym
 
+    if "DELTA_SM_GINI" not in tab.colnames:
+        tab["DELTA_SM_GINI"] = h_sm_gini - r_sm_gini
+    if "DELTA_SN_M20" not in tab.colnames:
+        tab["DELTA_SM_M20"] = h_sm_m20 - r_sm_m20
+
+    if "RATIO_HAPY_MTOT" not in tab.colnames:
+        tab["RATIO_HAPY_MTOT"] = np.sqrt(h_mtot/r_mtot)
+
+    if "RATIO_HRMOM_RRMOM" not in tab.colnames:
+        tab["RATIO_HRMOM_RRMOM"] = np.sqrt(h_mtot/h_flux_r24) / (r_mtot/r_flux_r24)
+        
+    
     return tab
 
 
@@ -994,6 +1024,41 @@ def get_review_priority(tab: Table) -> np.ndarray:
 
     return priority
 
+def get_clean_science_mask(tab, exclude_caution=True, exclude_tbd=True):
+    """
+    Return boolean mask for clean science/validation samples.
+    """
+    import numpy as np
+
+    keep = np.ones(len(tab), dtype=bool)
+
+    if "CATALOG_USE" in tab.colnames:
+        use = np.array([str(x).strip().upper() for x in tab["CATALOG_USE"]])
+
+        keep &= use != "EXCLUDE"
+
+        if exclude_caution:
+            keep &= use != "CAUTION"
+
+        if exclude_tbd:
+            keep &= use != "TBD"
+
+    # Basic quality cuts
+    for col in ["PHOT_OK", "MASK_OK"]:
+        if col in tab.colnames:
+            keep &= np.asarray(tab[col], dtype=bool)
+
+    # Avoid known warning cases
+    for col in [
+        "WARN_MASK",
+        "BRIGHT_STAR_FLAG",
+        "WARN_CUTOUT_MISSING",
+        "WARN_CUTOUT_MISSING_SHAPE",
+    ]:
+        if col in tab.colnames:
+            keep &= ~np.asarray(tab[col], dtype=bool)
+
+    return keep
 
 def prepare_analysis_table(
     tab: Table,
@@ -1056,5 +1121,8 @@ def prepare_analysis_table(
         for name in ["ELL_MISMATCH", "FILTER_WARNING", "WARN_MASK", "BRIGHT_STAR_FLAG", "WARN_WEAK_HA"]:
             arr = safe_bool_array(tab, name)
             print(name, np.sum(arr))
-
+    keep = get_clean_science_mask(tab)
+    hkeep = keep & ~tab["FILTER_WARNING"]
+    tab["CLEAN"] = keep
+    tab["HCLEAN"] = hkeep    
     return tab

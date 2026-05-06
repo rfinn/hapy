@@ -1,6 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Any
+
 
 import numpy as np
 
@@ -10,6 +11,8 @@ from statmorph.utils.image_diagnostics import make_figure
 
 from astropy.utils import lazyproperty
 import scipy.ndimage as ndi
+from scipy.ndimage import shift
+
 import warnings
 import matplotlib.pyplot as plt
 from astropy.utils.exceptions import AstropyUserWarning
@@ -20,10 +23,6 @@ from astropy.utils.exceptions import AstropyUserWarning
 #         return segmap[self._slice_stamp]
 
 
-
-from dataclasses import dataclass, field
-from typing import Optional, Any
-import numpy as np
 
 @dataclass
 class MorphologyResult:
@@ -72,13 +71,26 @@ class HapyMorphology:
     h_asym_err: float = np.nan
 
     # -----------------------------
-    # Second-moment bookkeeping
+    # Second-moment bookkeeping, m20
     # -----------------------------
     r_mtot: float = np.nan
     h_mtot: float = np.nan
 
     r_m20sum: float = np.nan
     h_m20sum: float = np.nan
+
+    # -----------------------------
+    # Second-moment bookkeeping
+    # -----------------------------
+    r_mtot2: float = np.nan
+    h_mtot2: float = np.nan
+
+    r_flux_seg: float = np.nan
+    h_flux_seg: float = np.nan
+
+    r_rmom: float = np.nan
+    h_rmom: float = np.nan
+    
 
     # -----------------------------
     # Pixel bookkeeping
@@ -1044,9 +1056,75 @@ def compute_m20(image, segmap, xc=None, yc=None):
     m20 = np.log10(second_moment_20 / second_moment_tot)
     return float(m20), float(second_moment_tot), float(second_moment_20)
 
+def compute_second_moment_metrics(image, segmap, xc=None, yc=None):
+    """
+    Compute flux, total second moment, and second-moment radius
+    on a specified image and segmentation mask.
 
-import numpy as np
-from scipy.ndimage import shift
+    Uses the same conventions as compute_m20:
+      - nonzero segmap pixels define the object
+      - non-finite values are set to zero
+      - negative values are clipped to zero
+      - if xc/yc are not supplied, use the flux-weighted centroid
+
+    Returns
+    -------
+    total_flux : float
+        Total positive flux inside segmap.
+    second_moment_tot : float
+        Total second-order moment.
+    rmom : float
+        Flux-normalized second-moment radius:
+            sqrt(second_moment_tot / total_flux)
+    xc : float
+        Center used for calculation.
+    yc : float
+        Center used for calculation.
+    """
+    img = np.asarray(image, dtype=float)
+    mask = np.asarray(segmap).astype(bool)
+
+    if img.shape != mask.shape:
+        raise ValueError("image and segmap must have the same shape")
+
+    vals = np.array(img, copy=True)
+    vals[~np.isfinite(vals)] = 0.0
+    vals[vals < 0] = 0.0
+    vals[~mask] = 0.0
+
+    if np.sum(mask) == 0:
+        return np.nan, np.nan, np.nan, np.nan, np.nan
+
+    total_flux = np.sum(vals[mask])
+    if total_flux <= 0:
+        return np.nan, np.nan, np.nan, np.nan, np.nan
+
+    y, x = np.indices(vals.shape)
+
+    if xc is None or yc is None:
+        flux = vals[mask]
+        xmask = x[mask]
+        ymask = y[mask]
+        xc = np.sum(flux * xmask) / total_flux
+        yc = np.sum(flux * ymask) / total_flux
+
+    distsq = (x - xc) ** 2 + (y - yc) ** 2
+    mi = vals * distsq
+
+    second_moment_tot = np.sum(mi[mask])
+    if second_moment_tot <= 0:
+        return float(total_flux), np.nan, np.nan, float(xc), float(yc)
+
+    rmom = np.sqrt(second_moment_tot / total_flux)
+
+    return (
+        float(total_flux),
+        float(second_moment_tot),
+        float(rmom),
+        float(xc),
+        float(yc),
+    )
+
 
 def quick_asym_test(image, mask, xc, yc):
     ypix, xpix = np.where(mask)
