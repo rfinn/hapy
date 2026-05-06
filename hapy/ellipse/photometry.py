@@ -1296,6 +1296,7 @@ class EllipsePhotometry():
             compute_m20,
             compute_flux_centroid,
             compute_asymmetry,
+            compute_second_moment_metrics,
             plot_hapy_morphology_diagnostic,
         )
 
