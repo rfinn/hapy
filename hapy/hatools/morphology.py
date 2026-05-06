@@ -1283,6 +1283,35 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
     return asym, asym_err, best_center, asym_grid
 
 
+def _get_bbox_from_mask(mask, pad=25, min_size=75):
+    """
+    Return xlim, ylim for a padded bounding box around True pixels in mask.
+    Falls back to full image if mask is empty.
+    """
+    yy, xx = np.where(mask)
+
+    ny, nx = mask.shape
+    if xx.size == 0 or yy.size == 0:
+        return (0, nx - 1), (0, ny - 1)
+
+    xmin, xmax = xx.min(), xx.max()
+    ymin, ymax = yy.min(), yy.max()
+
+    # enforce minimum size
+    xcen = 0.5 * (xmin + xmax)
+    ycen = 0.5 * (ymin + ymax)
+
+    half_x = max(0.5 * (xmax - xmin + 1) + pad, 0.5 * min_size)
+    half_y = max(0.5 * (ymax - ymin + 1) + pad, 0.5 * min_size)
+
+    xmin = max(0, int(np.floor(xcen - half_x)))
+    xmax = min(nx - 1, int(np.ceil(xcen + half_x)))
+    ymin = max(0, int(np.floor(ycen - half_y)))
+    ymax = min(ny - 1, int(np.ceil(ycen + half_y)))
+
+    return (xmin, xmax), (ymin, ymax)
+
+
 def plot_hapy_morphology_diagnostic(
     r_image,
     ha_image,
@@ -1380,6 +1409,8 @@ def plot_hapy_morphology_diagnostic(
     else:
         hagi_vmin, hagi_vmax = 0.0, 1.0
 
+    xlim, ylim = _get_bbox_from_mask(r_gini_mask, pad=25, min_size=75)
+        
     fig, axes = plt.subplots(2, 4, figsize=(18, 9), constrained_layout=True)
     ax = axes.ravel()
 
@@ -1470,6 +1501,21 @@ def plot_hapy_morphology_diagnostic(
     if morph.note:
         rtext_lines.append(morph.note)
 
+
+    # Zoom image panels to the r-band segmentation bounding box.
+    # Leave histogram panels unzoomed.
+    image_axes = [ax[0], ax[1], ax[2], ax[4], ax[5], ax[6]]
+
+    for a in image_axes:
+        a.set_xlim(*xlim)
+        a.set_ylim(*ylim)
+        a.set_xlabel("x [pix]")
+        a.set_ylabel("y [pix]")
+
+    for a in [ax[3], ax[7]]:
+        a.set_xlabel(a.get_xlabel())
+        a.set_ylabel(a.get_ylabel())
+    
     rtext_lines.extend([
         f"HAPY_MORPH_OK = {morph.ok}",
         f"HAPY_MORPH_FLAG = {morph.flag}",

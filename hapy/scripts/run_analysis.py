@@ -535,11 +535,11 @@ def initialize_result_row():
 
     row["H_HAPY_FLUX_SEG"] = np.nan        
     row["H_HAPY_MTOT2"] = np.nan        
-    row["H_HAPY_RMOM"] = np.nan        
+    row["H_HAPY_RMOM_ARCSEC"] = np.nan        
     
     row["R_HAPY_FLUX_SEG"] = np.nan        
     row["R_HAPY_MTOT2"] = np.nan        
-    row["R_HAPY_RMOM"] = np.nan
+    row["R_HAPY_RMOM_ARCSEC"] = np.nan
 
     
     
@@ -1704,11 +1704,11 @@ def main():
     
     row["H_HAPY_FLUX_SEG"] = e.H_HAPY_FLUX_SEG
     row["H_HAPY_MTOT2"] = e.H_HAPY_MTOT2
-    row["H_HAPY_RMOM"] = e.H_HAPY_RMOM
+    row["H_HAPY_RMOM_ARCSEC"] = e.H_HAPY_RMOM * pixscale
     
     row["R_HAPY_FLUX_SEG"] = e.R_HAPY_FLUX_SEG
     row["R_HAPY_MTOT2"] = e.R_HAPY_MTOT2
-    row["R_HAPY_RMOM"] = e.R_HAPY_RMOM
+    row["R_HAPY_RMOM_ARCSEC"] = e.R_HAPY_RMOM * pixscale
     # set flags
     row["HAPY_MORPH_OK"] = e.HAPY_MORPH_OK       
     row["HAPY_MORPH_FLAG"] = e.HAPY_MORPH_FLAG   
