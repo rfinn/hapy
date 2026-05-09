@@ -308,7 +308,7 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
         add_panel_text(
             ax,
             f"R FWHM={r_fwhm:.2f} ({r_fwhm_n:.2f}x)\n"
-            f"R sky={r_sky_n:.2f}x",
+            f"R sky={r_sky:.2g} ({r_sky_n:.2f}x)",
         )
 
         # ============================================================
@@ -351,7 +351,7 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
         add_panel_text(
             ax,
             f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}x)\n"
-            f"H sky={h_sky_n:.2f}x\n"
+            f"H sky={h_sky:.3g}x ({h_sky_n:.2f}x)\n"
             f"filter corr={fcorr:.2f}",
         )
 
