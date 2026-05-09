@@ -588,6 +588,7 @@ def main():
                 "BEST_TAG": str(tab[best_global]["TAG"]),
                 "BEST_SCORE": scores[best_local],
                 "ALL_TAGS": ",".join(str(tab[i]["TAG"]) for i in idx),
+                "ALL_SCORES": ",".join(f"{s:.4f}" for s in scores),
             }
         )
 
@@ -606,9 +607,22 @@ def main():
         print(f"{galid}: best = {tab[best_global]['TAG']} -> {png}")
 
     best_tab = Table(rows=best_rows)
-    out_table = Path(args.outdir) / "best_duplicates.fits"
+
+    # Add manual override columns
+    best_tab["USE_TAG"] = best_tab["BEST_TAG"]
+    best_tab["MANUAL_OVERRIDE"] = False
+    best_tab["NOTES"] = ""
+
+    out_table = Path(args.outdir) / "best_duplicates.ecsv"
     Path(args.outdir).mkdir(exist_ok=True, parents=True)
-    best_tab.write(out_table, overwrite=True)
+
+    best_tab.write(out_table, format="ascii.ecsv", overwrite=True)
+
+
+    #best_tab = Table(rows=best_rows)
+    #out_table = Path(args.outdir) / "best_duplicates.fits"
+    #Path(args.outdir).mkdir(exist_ok=True, parents=True)
+    #best_tab.write(out_table, overwrite=True)
 
     print(f"\nWrote {len(best_tab)} duplicate selections to {out_table}")
     print(f"Wrote {len(pngs)} PNGs to {args.outdir}/")
