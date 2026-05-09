@@ -19,6 +19,15 @@ TEL_PRIORITY = {
 }
 
 
+def finite_median(tab, col):
+    if col not in tab.colnames:
+        return np.nan
+    vals = np.array([safe_float(x) for x in tab[col]])
+    vals = vals[np.isfinite(vals) & (vals > 0)]
+    if len(vals) == 0:
+        return np.nan
+    return np.nanmedian(vals)
+
 def short_tag(tag):
     parts = str(tag).split("-")
     if len(parts) > 2:
@@ -95,37 +104,53 @@ def telescope_rank(row):
     return 2
 
 
-def score_duplicate(row):
+def score_duplicate(row, norms=None):
+    if norms is None:
+        norms = {}
+
     r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
     h_fwhm = safe_float(get_col(row, ["H_FWHM_PSF", "H_FWHM_PSF_ARCSEC"]))
-    r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
-    h_sky = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
-    fcorr = safe_float(get_col(row, ["FILTER_CORRECTION"]))
+    r_sky  = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
+    h_sky  = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
+    fcorr  = safe_float(get_col(row, ["FILTER_CORRECTION"]))
+
+    # --- normalize ---
+    def norm(val, key):
+        med = norms.get(key, np.nan)
+        if np.isfinite(val) and np.isfinite(med) and med > 0:
+            return val / med
+        return np.nan
+
+    r_fwhm_n = norm(r_fwhm, "R_FWHM_PSF")
+    h_fwhm_n = norm(h_fwhm, "H_FWHM_PSF")
+    r_sky_n  = norm(r_sky,  "R_SKYSTD_PHYS")
+    h_sky_n  = norm(h_sky,  "H_SKYSTD_PHYS")
 
     score = 0.0
 
-    # FWHM should dominate
+    # --- weights (now dimensionless) ---
     for val, weight in [
-        (r_fwhm, 10.0),
-        (h_fwhm, 10.0),
-        (r_sky, 1.0),
-        (h_sky, 1.0),
+        (r_fwhm_n, 5.0),
+        (h_fwhm_n, 5.0),
+        (r_sky_n,  1.5),
+        (h_sky_n,  1.5),
     ]:
         if np.isfinite(val):
             score += weight * val
         else:
             score += 999.0
 
+    # --- filter correction penalty ---
     if np.isfinite(fcorr):
         if fcorr >= 1.2:
             score += 100.0 + 50.0 * (fcorr - 1.2)
     else:
         score += 50.0
 
-    score += 0.5 * telescope_rank(row)
+    # --- telescope tie-break ---
+    score += 0.3 * telescope_rank(row)
 
     return score
-
 
 def find_image(cutout_dir, tag, suffixes):
     cdir = Path(cutout_dir) / tag
@@ -175,7 +200,7 @@ def add_panel_text(ax, text):
         transform=ax.transAxes,
         ha="left",
         va="top",
-        fontsize=9,
+        fontsize=11,
         color="white",
         bbox=dict(facecolor="black", alpha=0.55, edgecolor="none"),
     )
@@ -223,7 +248,12 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
 
         r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
         r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
-        add_panel_text(ax, f"R FWHM={r_fwhm:.2f}\nR sky={r_sky:.3g}")
+        add_panel_text(
+            ax,
+            f"R FWHM={r_fwhm:.2f} ({r_fwhm_n:.2f}×)\n"
+            f"R sky={rsky:.3g} ({r_sky_n:.2f}×)"
+        )
+        #add_panel_text(ax, f"R FWHM={r_fwhm:.2f}\nR sky={r_sky:.3g}")
 
         limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
 
@@ -246,8 +276,10 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
         fcorr = safe_float(get_col(row, ["FILTER_CORRECTION"]))
         add_panel_text(
             ax,
-            f"H FWHM={h_fwhm:.2f}\nH sky={h_sky:.3g}\nfilter corr={fcorr:.2f}",
-        )
+            f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}×)\n"
+            f"H sky={h_sky:.3g} ({h_sky_n:.2f}×)\n"
+            f"fcorr={fcorr:.2f}"
+            )
 
         limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
 
@@ -307,6 +339,14 @@ def main():
 
     tab = Table.read(args.merged_results)
 
+    norms = {
+        "R_FWHM_PSF": finite_median(tab, "R_FWHM_PSF"),
+        "H_FWHM_PSF": finite_median(tab, "H_FWHM_PSF"),
+        "R_SKYSTD_PHYS": finite_median(tab, "R_SKYSTD_PHYS"),
+        "H_SKYSTD_PHYS": finite_median(tab, "H_SKYSTD_PHYS"),
+        }
+
+        
     if "TAG" not in tab.colnames:
         raise ValueError("Expected a TAG column in merged_results table.")
 
@@ -322,7 +362,8 @@ def main():
             continue
 
         rows = tab[idx]
-        scores = np.array([score_duplicate(row) for row in rows])
+        scores = np.array([score_duplicate(row, norms=norms) for row in rows])
+
         best_local = int(np.nanargmin(scores))
         best_global = idx[best_local]
 
