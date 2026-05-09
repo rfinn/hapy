@@ -341,6 +341,9 @@ def add_science_columns(tab: Table) -> Table:
 
     r_flux_r24 = safe_float_array(tab, "R24_FLUX_CGS")
     h_flux_r24 = safe_float_array(tab, "H_R24_FLUX_CGS")    
+
+    r_rmom = safe_float_array(tab,"R_HAPY_RMOM_ARCSEC")
+    h_rmom = safe_float_array(tab,"H_HAPY_RMOM_ARCSEC")
     
     # derived
     if "H50_R50_RATIO" not in tab.colnames:
@@ -352,6 +355,9 @@ def add_science_columns(tab: Table) -> Table:
     if "H_PETRO_R50_RATIO" not in tab.colnames:
         tab["H_PETRO_R50_RATIO"] = safe_ratio(h_p50, r_p50)
 
+    if "HAPY_RMOM_RATIO" not in tab.colnames:
+        tab["HAPY_RMOM_RATIO"] = h_rmom/r_rmom
+         
     if "DELTA_C30" not in tab.colnames:
         tab["DELTA_C30"] = h_c30 - r_c30
 
@@ -370,8 +376,6 @@ def add_science_columns(tab: Table) -> Table:
     if "RATIO_HAPY_MTOT" not in tab.colnames:
         tab["RATIO_HAPY_MTOT"] = np.sqrt(h_mtot/r_mtot)
 
-    if "RATIO_HRMOM_RRMOM" not in tab.colnames:
-        tab["RATIO_HRMOM_RRMOM"] = np.sqrt(h_mtot/h_flux_r24) / (r_mtot/r_flux_r24)
         
     
     return tab
