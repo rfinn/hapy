@@ -28,11 +28,7 @@ def finite_median(tab, col):
         return np.nan
     return np.nanmedian(vals)
 
-def short_tag(tag):
-    parts = str(tag).split("-")
-    if len(parts) > 2:
-        return "-".join(parts[2:])
-    return str(tag)
+
 
 
 def full_galname_from_tag(tag):
@@ -84,6 +80,12 @@ def infer_galid(row):
     return tag.split("-")[0]
 
 
+def normalized_value(val, key, norms):
+    med = norms.get(key, np.nan)
+    if np.isfinite(val) and np.isfinite(med) and med > 0:
+        return val / med
+    return np.nan
+
 def safe_float(x):
     try:
         if np.ma.is_masked(x):
@@ -91,7 +93,12 @@ def safe_float(x):
         return float(x)
     except Exception:
         return np.nan
-
+    
+def short_tag(tag):
+    parts = str(tag).split("-")
+    if len(parts) > 2:
+        return "-".join(parts[2:])
+    return str(tag)
 
 def telescope_rank(row):
     tel = str(get_col(row, ["TELESCOPE", "telescope", "INSTRUMENT", "instrument"], ""))
