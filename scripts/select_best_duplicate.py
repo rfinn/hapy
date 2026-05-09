@@ -43,7 +43,35 @@ def get_col(row, names, default=np.nan):
             return row[name]
     return default
 
-def get_display_limits_from_row(row, shape, buffer_pix=100):
+
+def get_display_limits_from_row(row, shape, buffer_pix=100, halfsize_pix=None):
+    ny, nx = shape
+
+    xc = safe_float(get_col(row, ["ELLIP_XCENTROID", "GAL_XC", "XC", "xcenter"]))
+    yc = safe_float(get_col(row, ["ELLIP_YCENTROID", "GAL_YC", "YC", "ycenter"]))
+
+    sma = safe_float(get_col(row, ["ELLIP_SMA_PIX", "SMA_PIX", "sma_pix"]))
+
+    if not np.isfinite(xc):
+        xc = nx / 2
+    if not np.isfinite(yc):
+        yc = ny / 2
+
+    if halfsize_pix is not None:
+        halfsize = halfsize_pix
+    elif np.isfinite(sma):
+        halfsize = sma + buffer_pix
+    else:
+        return None
+
+    xmin = max(0, int(xc - halfsize))
+    xmax = min(nx - 1, int(xc + halfsize))
+    ymin = max(0, int(yc - halfsize))
+    ymax = min(ny - 1, int(yc + halfsize))
+
+    return (xmin, xmax), (ymin, ymax)
+
+def get_display_limits_from_row_v0(row, shape, buffer_pix=100):
     """
     Fallback display crop using ellipse size if segmentation map is unavailable.
     """
@@ -69,6 +97,37 @@ def get_display_limits_from_row(row, shape, buffer_pix=100):
     ymax = min(ny - 1, int(yc + halfsize))
 
     return (xmin, xmax), (ymin, ymax)
+
+
+def get_group_display_halfsize_arcsec(rows, min_buffer_arcsec=60, scale=1.2):
+    """
+    Pick one angular half-size for all duplicate panels.
+
+    Uses the largest available SMA-like radius, then adds buffer.
+    """
+    sizes = []
+
+    for row in rows:
+        sma_arcsec = safe_float(
+            get_col(
+                row,
+                [
+                    "SMA_ARCSEC",
+                    "sma_arcsec",
+                    "ELLIP_SMA_ARCSEC",
+                    "R25_ARCSEC",
+                    "R24_ARCSEC",
+                ],
+            )
+        )
+
+        if np.isfinite(sma_arcsec) and sma_arcsec > 0:
+            sizes.append(scale * sma_arcsec + min_buffer_arcsec)
+
+    if len(sizes) == 0:
+        return None
+
+    return np.nanmax(sizes)
 
 def infer_galid(row):
     for col in ["VFID", "OBJID", "objid", "GALID", "galid"]:
@@ -112,6 +171,63 @@ def telescope_rank(row):
 
 
 def score_duplicate(row, norms=None):
+    """
+    Lower score is better.
+
+    Uses log(value / median) so:
+      0      = typical
+      < 0    = better than median
+      > 0    = worse than median
+
+    FWHM is weighted more strongly than sky.
+    """
+    if norms is None:
+        norms = {}
+
+    def log_norm(val, key):
+        med = norms.get(key, np.nan)
+        if np.isfinite(val) and np.isfinite(med) and med > 0 and val > 0:
+            return np.log(val / med)
+        return np.nan
+
+    r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
+    h_fwhm = safe_float(get_col(row, ["H_FWHM_PSF", "H_FWHM_PSF_ARCSEC"]))
+    r_sky  = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
+    h_sky  = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
+    fcorr  = safe_float(get_col(row, ["FILTER_CORRECTION"]))
+
+    r_fwhm_n = log_norm(r_fwhm, "R_FWHM_PSF")
+    h_fwhm_n = log_norm(h_fwhm, "H_FWHM_PSF")
+    r_sky_n  = log_norm(r_sky,  "R_SKYSTD_PHYS")
+    h_sky_n  = log_norm(h_sky,  "H_SKYSTD_PHYS")
+
+    score = 0.0
+
+    # FWHM dominates; sky matters but less
+    for val, weight in [
+        (r_fwhm_n, 6.0),
+        (h_fwhm_n, 6.0),
+        (r_sky_n,  1.5),
+        (h_sky_n,  1.5),
+    ]:
+        if np.isfinite(val):
+            score += weight * val
+        else:
+            score += 999.0
+
+    # Strong penalty if filter correction is too large
+    if np.isfinite(fcorr):
+        if fcorr >= 1.2:
+            score += 100.0 + 50.0 * (fcorr - 1.2)
+    else:
+        score += 50.0
+
+    # Mild tie-breaker: BOK/INT preferred over HDI/MOS
+    score += 0.3 * telescope_rank(row)
+
+    return score
+
+def score_duplicate_old(row, norms=None):
     if norms is None:
         norms = {}
 
@@ -243,6 +359,11 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
 
     full_galname = full_galname_from_tag(str(rows[0]["TAG"]))
 
+    group_halfsize_arcsec = get_group_display_halfsize_arcsec(
+        rows,
+        min_buffer_arcsec=60,
+        scale=1.2,
+        )
     for j, row in enumerate(rows):
         tag = str(row["TAG"])
 
@@ -264,8 +385,27 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
         # ------------------------------------------------------------
         # Display limits: prefer ellipse/row-based zoom over full cutout
         # ------------------------------------------------------------
+
+        
+        #limits = None
+        #if r_img is not None:
+        #    limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
+
+
         limits = None
-        if r_img is not None:
+
+        if r_img is not None and group_halfsize_arcsec is not None:
+            pixscale = safe_float(get_col(row, ["PIXSCALE", "pixscale"]))
+
+            if np.isfinite(pixscale) and pixscale > 0:
+                buffer_pix = group_halfsize_arcsec / pixscale
+                limits = get_display_limits_from_row(
+                    row,
+                    r_img.shape,
+                    buffer_pix=buffer_pix,
+                )
+
+        if limits is None and r_img is not None:
             limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
 
         # ============================================================
