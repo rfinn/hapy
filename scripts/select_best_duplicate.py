@@ -19,12 +19,51 @@ TEL_PRIORITY = {
 }
 
 
+def short_tag(tag):
+    parts = str(tag).split("-")
+    if len(parts) > 2:
+        return "-".join(parts[2:])
+    return str(tag)
+
+
+def full_galname_from_tag(tag):
+    parts = str(tag).split("-")
+    if len(parts) >= 2:
+        return "-".join(parts[:2])
+    return str(tag)
+
 def get_col(row, names, default=np.nan):
     for name in names:
         if name in row.colnames:
             return row[name]
     return default
 
+def get_display_limits_from_row(row, shape, buffer_pix=100):
+    """
+    Fallback display crop using ellipse size if segmentation map is unavailable.
+    """
+    ny, nx = shape
+
+    xc = safe_float(get_col(row, ["ELLIP_XCENTROID", "GAL_XC", "XC", "xcenter"]))
+    yc = safe_float(get_col(row, ["ELLIP_YCENTROID", "GAL_YC", "YC", "ycenter"]))
+
+    sma = safe_float(get_col(row, ["ELLIP_SMA_PIX", "SMA_PIX", "sma_pix"]))
+
+    if not np.isfinite(xc):
+        xc = nx / 2
+    if not np.isfinite(yc):
+        yc = ny / 2
+    if not np.isfinite(sma):
+        return None
+
+    halfsize = sma + buffer_pix
+
+    xmin = max(0, int(xc - halfsize))
+    xmax = min(nx - 1, int(xc + halfsize))
+    ymin = max(0, int(yc - halfsize))
+    ymax = min(ny - 1, int(yc + halfsize))
+
+    return (xmin, xmax), (ymin, ymax)
 
 def infer_galid(row):
     for col in ["VFID", "OBJID", "objid", "GALID", "galid"]:
@@ -57,10 +96,6 @@ def telescope_rank(row):
 
 
 def score_duplicate(row):
-    """
-    Lower score is better.
-    Uses ranked/penalty style scoring so missing values do not dominate.
-    """
     r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
     h_fwhm = safe_float(get_col(row, ["H_FWHM_PSF", "H_FWHM_PSF_ARCSEC"]))
     r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
@@ -69,26 +104,24 @@ def score_duplicate(row):
 
     score = 0.0
 
-    # Core image-quality/depth terms
+    # FWHM should dominate
     for val, weight in [
-        (r_fwhm, 3.0),
-        (h_fwhm, 3.0),
-        (r_sky, 2.0),
-        (h_sky, 2.0),
+        (r_fwhm, 10.0),
+        (h_fwhm, 10.0),
+        (r_sky, 1.0),
+        (h_sky, 1.0),
     ]:
         if np.isfinite(val):
             score += weight * val
         else:
             score += 999.0
 
-    # Strong penalty for questionable filter correction
     if np.isfinite(fcorr):
         if fcorr >= 1.2:
             score += 100.0 + 50.0 * (fcorr - 1.2)
     else:
         score += 50.0
 
-    # Tie-breaker preference
     score += 0.5 * telescope_rank(row)
 
     return score
@@ -183,7 +216,8 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
             ax.imshow(r_img, origin="lower", cmap="gray", norm=image_norm(r_img, "asinh"))
         else:
             ax.text(0.5, 0.5, "missing R image", ha="center", va="center")
-        ax.set_title(tag, fontsize=10)
+        #ax.set_title(tag, fontsize=10)
+        ax.set_title(short_tag(tag), fontsize=10)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -191,6 +225,13 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
         r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
         add_panel_text(ax, f"R FWHM={r_fwhm:.2f}\nR sky={r_sky:.3g}")
 
+        limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
+
+        if limits is not None:
+            xlim, ylim = limits
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+        
         # Bottom row: CS-ZP, zscale
         ax = axes[1, j]
         if cs_img is not None:
@@ -208,6 +249,13 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
             f"H FWHM={h_fwhm:.2f}\nH sky={h_sky:.3g}\nfilter corr={fcorr:.2f}",
         )
 
+        limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
+
+        if limits is not None:
+            xlim, ylim = limits
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+            
         if j == best_idx:
             mark_best_panel(axes[0, j])
             mark_best_panel(axes[1, j])
@@ -223,7 +271,9 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
                 fontweight="bold",
             )
 
-    fig.suptitle(f"Duplicate comparison: {galid}", fontsize=16)
+    #fig.suptitle(f"Duplicate comparison: {galid}", fontsize=16)
+    full_galname = full_galname_from_tag(str(rows[0]["TAG"]))
+    fig.suptitle(f"Duplicate comparison: {full_galname}", fontsize=16)
 
     outdir = Path(outdir)
     outdir.mkdir(exist_ok=True, parents=True)
