@@ -212,8 +212,20 @@ def mark_best_panel(ax):
         spine.set_linewidth(4)
 
 
-def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
+def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
+    """
+    Make duplicate comparison plot.
+
+    Top row: R-band image, asinh stretch
+    Bottom row: Halpha CS-ZP image, zscale stretch
+
+    Best duplicate is outlined in green.
+    """
+    if norms is None:
+        norms = {}
+
     n = len(rows)
+
     fig, axes = plt.subplots(
         2,
         n,
@@ -222,10 +234,17 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
         constrained_layout=True,
     )
 
+    full_galname = full_galname_from_tag(str(rows[0]["TAG"]))
+
     for j, row in enumerate(rows):
         tag = str(row["TAG"])
 
-        r_path = find_image(cutout_dir, tag, ["-R.fits", "_R.fits", "-r.fits"])
+        r_path = find_image(
+            cutout_dir,
+            tag,
+            ["-R.fits", "_R.fits", "-r.fits"],
+        )
+
         cs_path = find_image(
             cutout_dir,
             tag,
@@ -235,62 +254,107 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
         r_img = read_image(r_path)
         cs_img = read_image(cs_path)
 
-        # Top row: r-band, asinh
-        ax = axes[0, j]
+        # ------------------------------------------------------------
+        # Display limits: prefer ellipse/row-based zoom over full cutout
+        # ------------------------------------------------------------
+        limits = None
         if r_img is not None:
-            ax.imshow(r_img, origin="lower", cmap="gray", norm=image_norm(r_img, "asinh"))
+            limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
+
+        # ============================================================
+        # Top row: R band
+        # ============================================================
+        ax = axes[0, j]
+
+        if r_img is not None:
+            ax.imshow(
+                r_img,
+                origin="lower",
+                cmap="gray",
+                norm=image_norm(r_img, "asinh"),
+            )
         else:
-            ax.text(0.5, 0.5, "missing R image", ha="center", va="center")
-        #ax.set_title(tag, fontsize=10)
+            ax.text(
+                0.5,
+                0.5,
+                "missing R image",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+
         ax.set_title(short_tag(tag), fontsize=10)
         ax.set_xticks([])
         ax.set_yticks([])
 
+        if limits is not None:
+            xlim, ylim = limits
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+
         r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
         r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
+
+        r_fwhm_n = normalized_value(r_fwhm, "R_FWHM_PSF", norms)
+        r_sky_n = normalized_value(r_sky, "R_SKYSTD_PHYS", norms)
+
         add_panel_text(
             ax,
-            f"R FWHM={r_fwhm:.2f} ({r_fwhm_n:.2f}×)\n"
-            f"R sky={rsky:.3g} ({r_sky_n:.2f}×)"
+            f"R FWHM={r_fwhm:.2f} ({r_fwhm_n:.2f}x)\n"
+            f"R sky={r_sky_n:.2f}x",
         )
-        #add_panel_text(ax, f"R FWHM={r_fwhm:.2f}\nR sky={r_sky:.3g}")
 
-        limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
+        # ============================================================
+        # Bottom row: continuum-subtracted Halpha
+        # ============================================================
+        ax = axes[1, j]
+
+        if cs_img is not None:
+            ax.imshow(
+                cs_img,
+                origin="lower",
+                cmap="gray",
+                norm=image_norm(cs_img, "zscale"),
+            )
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                "missing CS-ZP image",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+
+        ax.set_xticks([])
+        ax.set_yticks([])
 
         if limits is not None:
             xlim, ylim = limits
             ax.set_xlim(*xlim)
             ax.set_ylim(*ylim)
-        
-        # Bottom row: CS-ZP, zscale
-        ax = axes[1, j]
-        if cs_img is not None:
-            ax.imshow(cs_img, origin="lower", cmap="gray", norm=image_norm(cs_img, "zscale"))
-        else:
-            ax.text(0.5, 0.5, "missing CS-ZP image", ha="center", va="center")
-        ax.set_xticks([])
-        ax.set_yticks([])
 
         h_fwhm = safe_float(get_col(row, ["H_FWHM_PSF", "H_FWHM_PSF_ARCSEC"]))
         h_sky = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
         fcorr = safe_float(get_col(row, ["FILTER_CORRECTION"]))
+
+        h_fwhm_n = normalized_value(h_fwhm, "H_FWHM_PSF", norms)
+        h_sky_n = normalized_value(h_sky, "H_SKYSTD_PHYS", norms)
+
         add_panel_text(
             ax,
-            f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}×)\n"
-            f"H sky={h_sky:.3g} ({h_sky_n:.2f}×)\n"
-            f"fcorr={fcorr:.2f}"
-            )
+            f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}x)\n"
+            f"H sky={h_sky_n:.2f}x\n"
+            f"filter corr={fcorr:.2f}",
+        )
 
-        limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
-
-        if limits is not None:
-            xlim, ylim = limits
-            ax.set_xlim(*xlim)
-            ax.set_ylim(*ylim)
-            
+        # ------------------------------------------------------------
+        # Mark best duplicate
+        # ------------------------------------------------------------
         if j == best_idx:
             mark_best_panel(axes[0, j])
             mark_best_panel(axes[1, j])
+
             axes[0, j].text(
                 0.5,
                 1.08,
@@ -303,18 +367,18 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid):
                 fontweight="bold",
             )
 
-    #fig.suptitle(f"Duplicate comparison: {galid}", fontsize=16)
-    full_galname = full_galname_from_tag(str(rows[0]["TAG"]))
     fig.suptitle(f"Duplicate comparison: {full_galname}", fontsize=16)
 
     outdir = Path(outdir)
     outdir.mkdir(exist_ok=True, parents=True)
-    outfile = outdir / f"{galid}_duplicate_comparison.png"
+
+    outfile = outdir / f"{full_galname}_duplicate_comparison.png"
     fig.savefig(outfile, dpi=150)
     plt.close(fig)
 
     return outfile
-
+        
+ 
 
 def main():
     parser = argparse.ArgumentParser()
@@ -380,13 +444,17 @@ def main():
             }
         )
 
+
         png = plot_duplicate_group(
             rows=rows,
             best_idx=best_local,
             cutout_dir=args.cutout_dir,
             outdir=args.outdir,
             galid=galid,
+            norms=norms,
         )
+
+
         pngs.append(png)
         print(f"{galid}: best = {tab[best_global]['TAG']} -> {png}")
 
