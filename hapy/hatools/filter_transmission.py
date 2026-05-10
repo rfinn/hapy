@@ -14,11 +14,12 @@ from astropy.table import Table
 wave_halpha = 6563. # angstrom
 from . import utils
 
+#from hapy.hatools.filter_properties import filter_center_width
 
-# --- Filter central wavelength and width --- #
-#
-# We calculate these in github/filter_transformations/filtertrans-dev.ipynb
-# Becky cross checked with plots that she has
+# # --- Filter central wavelength and width --- #
+# #
+# # We calculate these in github/filter_transformations/filtertrans-dev.ipynb
+# # Becky cross checked with plots that she has
 
 filter_center_width = {
     '90prime-BASSr.fits':(6410.8, 1398.8),
@@ -44,6 +45,8 @@ filter_center_width = {
     'panstarrs-g.fits':(4866.5, 1166.4),
     'panstarrs-r.fits':(6214.6, 1318.0),
 }
+    
+
 
 instrument_to_prefix = {'INT':'WFC','BOK':'90prime','HDI':'HDI','MOS':'MOS'}
 

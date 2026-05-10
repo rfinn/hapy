@@ -49,6 +49,7 @@ from reproject import reproject_interp
 
 
 from hapy.hatools.filter_transformations import halpha_minus_r_color_from_metadata
+from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_metadata
 
 #import warnings
 #warnings.filterwarnings('ignore')
@@ -288,6 +289,8 @@ if __name__ == '__main__':
     pointing = meta.get("pointing", "")
     hafilter = meta.get("hafilter", "")
 
+
+    
     # Metadata-driven filter correction and filter properties
     halpha_filter_cor = float(meta.get("filter_correction", 1.0))
     if halpha_filter_cor == 0:
@@ -315,6 +318,10 @@ if __name__ == '__main__':
     print(f"{tag}: continuum scale factor = {contscale:.3f}")
     print(f"{tag}: MW extinction correction = {halpha_extinction_correction:.3f}")
 
+
+    cont_oversub = get_continuum_oversubtraction_from_metadata(meta)
+    print(f"{tag}: continuum oversubtraction correction = {cont_oversub:.4f}")
+    
     # move to subdirectory specified in the command line
     os.chdir(cutdir)
 
@@ -439,9 +446,15 @@ if __name__ == '__main__':
 
     print("\nGenerate NET image\n")
 
+    ############################################################
+    ## Subtract local sky from cutouts
+    ############################################################
+
     # TODO - revisit this and examine the masking.
     # the mask we are currently using does not mask the central galaxy
     # also, we already subtract the sky from each continuum image when making cutouts...
+
+
     
     # subtract sky from r-band image
     print("Computing median values for r and halpha images")
@@ -464,6 +477,11 @@ if __name__ == '__main__':
     print("Subtracting {0:3.2e} from halpha image".format(stat_h[1]))
     data_NB = hhdu[0].data - stat_h[1]
 
+
+    ############################################################
+    ## Transform images
+    ############################################################
+    
     ##
     # These comments are from Matteo's program
     ##
@@ -501,6 +519,10 @@ if __name__ == '__main__':
     # Matteo Comment: Go to cgs units
     ##
 
+    # TODO - make sure filter quantities are correct
+    # need:
+    #   - center wavelength in A
+    
     fnu_NB = 3.631E3 * data_NB * 1E-12
     flam_NB = 2.99792458E-5 * fnu_NB / (hfilter_center_A**2) * 1E18
 
@@ -512,11 +534,13 @@ if __name__ == '__main__':
 
     # correct CS flux for variations in filter transmission and oversubtraction due to halpha in r-band filter
 
-    # TODO - need to update continuum oversubtraction terms for full filters
+    # TODONE - need to update continuum oversubtraction terms for full filters
     # skipping for now
     # flam_net = flam_net * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
 
-
+    cont_oversub = get_continuum_oversubtraction_from_metadata(meta)
+    flam_net = flam_net * cont_oversub * halpha_filter_cor
+    
     # MW extinction correction is currently neutral because it is not in metadata.json
     flam_net = flam_net * halpha_extinction_correction
 
@@ -525,9 +549,10 @@ if __name__ == '__main__':
 
     # correct for filter transmission variations and for halpha emission in the continuum filter
 
-    # TODO - need to update oversubtraction terms using the correct filter traces
+    # TODONE - need to update oversubtraction terms using the correct filter traces
     # skipping for now
     # NB_ABmag = NB_ABmag * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
+    NB_ABmag = NB_ABmag * cont_oversub * halpha_filter_cor
 
 
     # MW extinction correction is currently neutral because it is not in metadata.json
@@ -541,7 +566,7 @@ if __name__ == '__main__':
     hhdu[0].header.set("CONSCALE", float(f"{contscale:.4f}"), "Continuum scale factor")
     hhdu[0].header.set("FILT_COR", float(f"{halpha_filter_cor:.4f}"), "Filter transmission correction")
     hhdu[0].header.set("FLTRATIO", float(f"{rscale:.8f}"), "r-to-Halpha continuum scale")
-    hhdu[0].header.set("CONTOSUB", float(f"{halpha_continuum_oversubtraction[telescope]:.4f}"), "CONT OVERSUB COR")
+    hhdu[0].header.set("CONTOSUB", float(f"{cont_oversub:.4f}"), "CONT OVERSUB COR")
     hhdu[0].header.set("MWEXTCOR", float(f"{halpha_extinction_correction:.4f}"), "MW extinction correction")
     hhdu[0].header.set("HACEN_A", float(f"{hfilter_center_A:.2f}"), "Halpha filter center Angstrom")
     hhdu[0].header.set("HAWID_A", float(f"{hfilter_width_A:.2f}"), "Halpha filter width Angstrom")
