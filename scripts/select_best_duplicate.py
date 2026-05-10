@@ -230,7 +230,7 @@ def score_duplicate(row, norms=None):
     h_cost = fcorr * (h_fwhm_n ** 2) * h_sky_n 
 
     #r_cost = (r_fwhm ** 2) * r_sky 
-    h#_cost = fcorr * (h_fwhm ** 2) * h_sky 
+    #h_cost = fcorr * (h_fwhm ** 2) * h_sky 
     
     score = (0.3 * r_cost + 0.7 * h_cost)/1e-17
 
