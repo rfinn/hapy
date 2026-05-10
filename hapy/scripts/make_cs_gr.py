@@ -323,6 +323,11 @@ if __name__ == '__main__':
     Hfile = f"{tag}-Ha.fits"      # halpha image
     outname = f"{tag}-CS-gr.fits"
 
+
+    ############################################################
+    ## Define image names
+    ############################################################
+    
     # get legacy images that are reprojected to the halpha image
     # these are in the legacy subdirectory
     legacy_path = os.path.join("legacy", vfid + "*r-ha.fits")
@@ -389,8 +394,14 @@ if __name__ == '__main__':
         os.chdir(topdir)
         sys.exit()
 
-    outimage = leg_rfile.replace("r-ha.fits", "gr-smooth.fits")
 
+
+
+    ############################################################
+    ## Get g-r image
+    ############################################################
+    outimage = leg_rfile.replace("r-ha.fits", "gr-smooth.fits")
+    
     if os.path.exists(outimage) & (not overwrite):
         print("found g-r image. not remaking this")
         hdu = fits.open(outimage)
@@ -430,9 +441,11 @@ if __name__ == '__main__':
 
     # TODO - revisit this and examine the masking.
     # the mask we are currently using does not mask the central galaxy
-
+    # also, we already subtract the sky from each continuum image when making cutouts...
+    
     # subtract sky from r-band image
     print("Computing median values for r and halpha images")
+    
     print("subtracting these values from the image...")
 
     stat_r = stats.sigma_clipped_stats(rhdu[0].data, mask=mask)
