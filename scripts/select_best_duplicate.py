@@ -204,12 +204,14 @@ def score_duplicate(row, norms=None):
     score = 0.0
 
     # FWHM dominates; sky matters but less
+
     for val, weight in [
-        (r_fwhm_n, 10.0),
-        (h_fwhm_n, 10.0),
-        (r_sky_n,  1.),
-        (h_sky_n,  1.),
-    ]:
+        (2.0 * r_fwhm_n, 10.0),
+        (2.0 * h_fwhm_n, 10.0),
+        (r_sky_n,       1.0),
+        (h_sky_n,       1.0),
+    ]:    
+
         if np.isfinite(val):
             score += weight * val
         else:
