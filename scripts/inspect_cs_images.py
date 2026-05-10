@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+"""
+Inspect HAPY continuum-subtracted images and select best duplicate observations.
+
+Creates per-galaxy comparison PNGs for single and duplicate observations.
+For duplicates, computes a quality score and writes best_duplicates.csv/ecsv.
+
+# all galaxies, including singles
+python select_best_duplicate.py merged_results_virgo_20260507.fits --min-dups 1
+
+# duplicates/triples only
+python select_best_duplicate.py merged_results_virgo_20260507.fits --min-dups 2
+
+
+"""
+
 
 import argparse
 from pathlib import Path
@@ -407,7 +422,9 @@ def mark_best_panel(ax):
         spine.set_edgecolor("lime")
         spine.set_linewidth(4)
 
-def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
+#def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
+def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None, mark_best=True):
+
     """
     Duplicate comparison plot.
 
@@ -612,7 +629,7 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
         # ------------------------------------------------------------
         # Mark best duplicate
         # ------------------------------------------------------------
-        if j == best_idx:
+        if mark_best and j == best_idx:
             for rownum in range(nrows):
                 mark_best_panel(axes[rownum, j])
 
@@ -628,16 +645,26 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
                 fontweight="bold",
             )
 
-    fig.suptitle(f"Duplicate comparison: {full_galname}", fontsize=16)
-
+    #fig.suptitle(f"Duplicate comparison: {full_galname}", fontsize=16)
+    if len(rows) == 1:
+        fig.suptitle(f"Continuum subtraction inspection: {full_galname}", fontsize=16)
+    else:
+        fig.suptitle(f"Observation comparison: {full_galname}", fontsize=16)
+    
     outdir = Path(outdir)
     outdir.mkdir(exist_ok=True, parents=True)
 
-    outfile = outdir / f"{full_galname}_duplicate_comparison.png"
+    #outfile = outdir / f"{full_galname}_observation_comparison.png"
+    outdir = Path(outdir)
+    outdir.mkdir(exist_ok=True, parents=True)
+    outfile = outdir / f"nobs{len(rows)}_{full_galname}_observation_comparison.png"
+    #outfile = outdir / f"{full_galname}_nobs{len(rows)}_comparison.png"
+
     fig.savefig(outfile, dpi=150)
     plt.close(fig)
 
     return outfile
+
         
 def plot_duplicate_group_v0(rows, best_idx, cutout_dir, outdir, galid, norms=None):
     """
@@ -839,11 +866,13 @@ def main():
         default="cutouts",
         help="Directory containing cutouts/<TAG>/",
     )
+
     parser.add_argument(
         "--outdir",
-        default="duplicate_comparison",
-        help="Output directory for PNGs and table",
-    )
+        default="cs_image_inspection",
+        help="Output directory for continuum-subtraction inspection plots and duplicate-selection tables.",
+        )
+
     parser.add_argument(
         "--min-dups",
         type=int,
@@ -876,10 +905,16 @@ def main():
         if len(idx) < args.min_dups:
             continue
 
-        rows = tab[idx]
-        scores = np.array([score_duplicate(row, norms=norms) for row in rows])
+        rows = tab[idx]        
 
-        best_local = int(np.nanargmin(scores))
+        if len(idx) > 1:
+            scores = np.array([score_duplicate(row, norms=norms) for row in rows])
+            best_local = int(np.nanargmin(scores))
+            mark_best = True
+        else:
+            best_local = 0
+            mark_best = False
+            
         best_global = idx[best_local]
 
         manual_tag = MANUAL_BEST_TAG.get(galid, None)
@@ -920,7 +955,7 @@ def main():
         )
 
 
-        png = plot_duplicate_group(
+        png = plot_observation_group(
             rows=rows,
             best_idx=best_local,
             cutout_dir=args.cutout_dir,
@@ -933,18 +968,6 @@ def main():
         pngs.append(png)
         print(f"{galid}: best = {tab[best_global]['TAG']} -> {png}")
 
-    best_tab = Table(rows=best_rows)
-
-    # Add manual override columns
-    best_tab["USE_TAG"] = best_tab["BEST_TAG"]
-    best_tab["MANUAL_OVERRIDE"] = False
-    best_tab["NOTES"] = ""
-
-
-    
-
-    out_table = Path(args.outdir) / "best_duplicates.ecsv"
-    Path(args.outdir).mkdir(exist_ok=True, parents=True)
 
 
     best_tab = Table(rows=best_rows)
@@ -957,11 +980,11 @@ def main():
     outdir = Path(args.outdir)
     outdir.mkdir(exist_ok=True, parents=True)
 
-    # --- ECSV (pipeline-safe) ---
+    # --- ECSV, pipeline-safe ---
     ecsv_file = outdir / "best_duplicates.ecsv"
     best_tab.write(ecsv_file, format="ascii.ecsv", overwrite=True)
 
-    # --- CSV (human-editable) ---
+    # --- CSV, human-editable ---
     csv_file = outdir / "best_duplicates.csv"
     best_tab.write(csv_file, format="ascii.csv", overwrite=True)
 
@@ -970,10 +993,7 @@ def main():
     print(f"  {csv_file}")
 
 
-
-
-    print(f"\nWrote {len(best_tab)} duplicate selections to {out_table}")
-    print(f"Wrote {len(pngs)} PNGs to {args.outdir}/")
+ 
 
 
 if __name__ == "__main__":

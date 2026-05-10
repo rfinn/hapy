@@ -40,7 +40,56 @@ from hapy.utils.paths import astromatic_dir
 from hapy.ellipse.profile_summary import summarize_dual_profiles
 
 
+def copy_image2_fields_to_row(e, row, prefix):
+    fields = [
+        ("SKYSTD_ADU", "sky_noise2"),
+        ("SKYMED_ADU", "sky2"),
+        ("SKYSTD_PHYS", "im2_skynoise"),
+        ("M20", "M20_2"),
+        ("ASYM", "asym2"),
+        ("ASYM_ERR", "asym2_err"),
+        ("SCALE_ADU_CGS", "uconversion2"),
+    ]
 
+    for outk, attr in fields:
+        sv = _scalar(getattr(e, attr, None))
+        if sv is not None:
+            row[f"{prefix}_{outk}"] = sv
+
+
+def copy_hapy_cs_fields_to_row(e, row, prefix, pixscale):
+    fields = [
+        ("HAPY_NPIX", "H_HAPY_NPIX"),
+        ("HAPY_FILLFRAC", "H_HAPY_FILLFRAC"),
+        ("HAPY_SNP_ALL", "H_HAPY_SNP_ALL"),
+        ("HAPY_SNP_DET", "H_HAPY_SNP_DET"),
+        ("GINI_THRESHOLD", "ha_gini_threshold"),
+        ("HAPY_GINI", "H_HAPY_GINI"),
+        ("HAPY_M20", "H_HAPY_M20"),
+        ("HAPY_ASYM", "H_HAPY_ASYM"),
+        ("HAPY_ASYM_ERR", "H_HAPY_ASYM_ERR"),
+        ("HAPY_MTOT", "H_HAPY_MTOT"),
+        ("HAPY_M20SUM", "H_HAPY_M20SUM"),
+        ("HAPY_FLUX_SEG", "H_HAPY_FLUX_SEG"),
+        ("HAPY_MTOT2", "H_HAPY_MTOT2"),
+    ]
+
+    for outk, attr in fields:
+        sv = _scalar(getattr(e, attr, None))
+        if sv is not None:
+            row[f"{prefix}_{outk}"] = sv
+
+    rmom = _scalar(getattr(e, "H_HAPY_RMOM", None))
+    if rmom is not None:
+        row[f"{prefix}_HAPY_RMOM_ARCSEC"] = rmom * pixscale
+
+    row[f"{prefix}_HAPY_MORPH_OK"] = bool(getattr(e, "HAPY_MORPH_OK", False))
+    row[f"{prefix}_HAPY_MORPH_FLAG"] = int(getattr(e, "HAPY_MORPH_FLAG", 0))
+    
+
+def prefix_dict_keys(d, prefix):
+    return {f"{prefix}_{k}": v for k, v in d.items()}
+            
 def init_cutout_logger(tag: str, cutdir: str | Path, level: str = "INFO",
                        log_to_console: bool = False, log_dir: str | Path | None = None):
     """
@@ -398,7 +447,7 @@ def initialize_result_row():
     for k in ["STAGE", "STATUS"]:
         row[k] = ""
 
-    for k in ["MASK_SEC", "PHOT_SEC", "SM_SEC", "GAL_NC_SEC","GAL_CV_SEC", "TOTAL_SEC"]:
+    for k in ["MASK_SEC", "PHOT_SEC","CSGR_SEC", "SM_SEC", "GAL_NC_SEC","GAL_CV_SEC", "TOTAL_SEC"]:
         row[k] = np.nan    
    
     # ---------- pipeline status ----------
@@ -710,8 +759,51 @@ def initialize_result_row():
         
     #row["GAL_CV_OK"] = False
 
+    
     return row
 
+def init_csgr_row_defaults(row):
+    """
+    Initialize optional CS-gr output columns.
+
+    These stay NaN/False/empty when no *-CS-gr.fits image exists.
+    """
+    defaults = {
+        # file/status
+        "CSGR_EXISTS": False,
+        "CSGR_FITS": "",
+        "CSGR_PHOT_OK": False,
+        "CSGR_HAPY_MORPH_OK": False,
+        "CSGR_HAPY_MORPH_FLAG": 0,
+
+        # image2 / ellipse photometry scalars
+        "CSGR_SKYSTD_ADU": np.nan,
+        "CSGR_SKYMED_ADU": np.nan,
+        "CSGR_SKYSTD_PHYS": np.nan,
+        "CSGR_M20": np.nan,
+        "CSGR_ASYM": np.nan,
+        "CSGR_ASYM_ERR": np.nan,
+        "CSGR_SCALE_ADU_CGS": np.nan,
+
+        # HAPY morphology, CS-gr image side only
+        "CSGR_HAPY_NPIX": np.nan,
+        "CSGR_HAPY_FILLFRAC": np.nan,
+        "CSGR_HAPY_SNP_ALL": np.nan,
+        "CSGR_HAPY_SNP_DET": np.nan,
+        "CSGR_GINI_THRESHOLD": np.nan,
+        "CSGR_HAPY_GINI": np.nan,
+        "CSGR_HAPY_M20": np.nan,
+        "CSGR_HAPY_ASYM": np.nan,
+        "CSGR_HAPY_ASYM_ERR": np.nan,
+        "CSGR_HAPY_MTOT": np.nan,
+        "CSGR_HAPY_M20SUM": np.nan,
+        "CSGR_HAPY_FLUX_SEG": np.nan,
+        "CSGR_HAPY_MTOT2": np.nan,
+        "CSGR_HAPY_RMOM_ARCSEC": np.nan,
+    }
+
+    for key, val in defaults.items():
+        row.setdefault(key, val)
 def _print_psf_image(p,logger):
     if logger is not None:
         logger.info(f"PSF image = {str(p)}")
@@ -1108,7 +1200,16 @@ def main():
     # why are we looking for a mask when we are suppose to make one?
     #mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
+    # look for CS-gr image and log it if found
+    csgr_fits = (
+        str(cutdir / params.get("csgr_fits")) if params.get("csgr_fits") else None
+    ) or _pick_one(str(cutdir / f"{tag}*-CS-gr.fits"))
 
+
+    if csgr_fits:
+        logger.info(f"Found CS-gr image: {csgr_fits}")
+    else:
+        logger.info("No CS-gr image found")
     
     sigma_image = args.sigma_image or _pick_one(str(cutdir / f"{tag}*-sigma.fits")) or _pick_one(str(cutdir / f"{tag}*-rms.fits"))
     psf_image = args.psf_image or _pick_one(str(cutdir / f"{tag}*-psf.fits"))
@@ -1117,7 +1218,7 @@ def main():
             
     row = initialize_result_row()
 
-
+    init_csgr_row_defaults(row)
     
     from datetime import datetime
     row["RUN_DATE"] = datetime.utcnow().strftime("%Y-%m-%d")
@@ -1131,6 +1232,7 @@ def main():
     row["STATUS"] = "running"
     row["MASK_SEC"] = 0.0
     row["PHOT_SEC"] = 0.0
+    row["CSGR_SEC"] = 0.0
     row["GAL_NC_SEC"] = 0.0
     row["GAL_CV_SEC"] = 0.0    
     row["SM_SEC"] = 0.0    
@@ -1739,6 +1841,52 @@ def main():
         e.plot_fancy_profiles()
         e.draw_phot_results_mpl()
 
+    ################################################################
+    # block for cs-gr if the image exists
+    ################################################################
+
+    if csgr_fits:
+        t0 = time.perf_counter()
+        logger.info("Running optional CS-gr ellipse photometry")
+
+        row["CSGR_EXISTS"] = True
+        row["CSGR_FITS"] = Path(csgr_fits).name
+
+        e_gr = run_ellipse_photometry(
+            r_fits=r_fits,
+            cs_fits=csgr_fits,
+            mask_fits=mask_fits,
+            image2_filter=hafilter,
+            filter_ratio=filter_ratio,
+            objra=ra,
+            objdec=dec,
+            fixcenter=args.fixcenter,
+            logger=logger,
+        )
+
+        copy_image2_fields_to_row(e_gr, row, "CSGR")
+
+        e_gr.run_hapy_morphology()
+        copy_hapy_cs_fields_to_row(e_gr, row, "CSGR", pixscale=pixscale)
+
+        if valid_file(e_gr.photfile) and valid_file(e_gr.photfile2):
+            row["CSGR_PHOT_OK"] = True
+
+            rtab = Table.read(e_gr.photfile)
+            hatab = Table.read(e_gr.photfile2)
+
+            profile_results_gr = summarize_dual_profiles(
+                rtab=rtab,
+                hatab=hatab,
+                r_magzp=magzp,
+            )
+
+            row.update(prefix_dict_keys(profile_results_gr, "CSGR"))
+
+        row["CSGR_SEC"] = _scalar(time.perf_counter() - t0)
+    
+
+        
     ################################################################
     # statmorph block
     ################################################################
