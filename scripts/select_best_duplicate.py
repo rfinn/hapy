@@ -226,15 +226,15 @@ def score_duplicate(row, norms=None):
     if not np.isfinite(fcorr) or fcorr <= 0:
         fcorr = 99.0
 
-    r_cost = (r_fwhm_n ** 2) * r_sky_n
-    h_cost = fcorr * (h_fwhm_n ** 2) * h_sky_n
+    r_cost = (r_fwhm_n ** 2) * r_sky_n 
+    h_cost = fcorr * (h_fwhm_n ** 2) * h_sky_n * fcorr
 
     score = 0.3 * r_cost + 0.7 * h_cost
 
     # Strong extra penalty for large filter correction.
     # This keeps fcorr in the score continuously, but still flags risky cases.
-    if fcorr >= 1.2:
-        score += 10.0 * (fcorr - 1.2)
+    #if fcorr >= 1.2:
+    #    score += 10.0 * (fcorr - 1.2)
 
     # Mild telescope tie-breaker.
     score += 0.05 * telescope_rank(row)
