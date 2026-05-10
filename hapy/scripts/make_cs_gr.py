@@ -227,7 +227,7 @@ def get_gr(gfile,rfile,mask=None):
     
     # save gr color image
     hdu = fits.PrimaryHDU(gr_col, header=r[0].header)
-    outimage = rfile.replace('r.fits','gr-smooth.fits')
+    outimage = rfile.replace('r-ha.fits','gr-smooth.fits')
     #print(f"name for g-r image is {outimage}")
     print(f"writing g-r color image to {outimage}")
     hdu.writeto(outimage, overwrite=True)
