@@ -772,7 +772,7 @@ find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*' | sort > reproject_cu
 
 
 ```bash
-parallel --bar -j 16 --memfree 60G --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
+parallel --bar -j 20 --memfree 60G --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
 ```
 
 ## Then make CS-gr images

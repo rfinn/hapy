@@ -325,7 +325,7 @@ if __name__ == '__main__':
 
     # get legacy images that are reprojected to the halpha image
     # these are in the legacy subdirectory
-    legacy_path = os.path.join("legacy", vfid + "*r.fits")
+    legacy_path = os.path.join("legacy", vfid + "*r-ha.fits")
     rfiles = glob.glob(legacy_path)
 
     if len(rfiles) < 1:
@@ -336,10 +336,10 @@ if __name__ == '__main__':
         leg_rfile = rfiles[0]  # legacy r-band image
 
     # legacy g-band image, shifted to match halpha footprint and pixel scale
-    gfiles = glob.glob(os.path.join("legacy", vfid + "*g.fits"))
+    gfiles = glob.glob(os.path.join("legacy", vfid + "*g-ha.fits"))
 
     if len(gfiles) < 1:
-        print("problem getting g.fits legacy image")
+        print("problem getting g-ha.fits legacy image")
         os.chdir(topdir)
         sys.exit()
     else:
@@ -389,7 +389,7 @@ if __name__ == '__main__':
         os.chdir(topdir)
         sys.exit()
 
-    outimage = leg_rfile.replace("r.fits", "gr-smooth.fits")
+    outimage = leg_rfile.replace("r-ha.fits", "gr-smooth.fits")
 
     if os.path.exists(outimage) & (not overwrite):
         print("found g-r image. not remaking this")
