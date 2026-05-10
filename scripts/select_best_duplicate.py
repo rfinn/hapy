@@ -229,7 +229,10 @@ def score_duplicate(row, norms=None):
     r_cost = (r_fwhm_n ** 2) * r_sky_n 
     h_cost = fcorr * (h_fwhm_n ** 2) * h_sky_n * fcorr
 
-    score = 0.3 * r_cost + 0.7 * h_cost
+    r_cost = (r_fwhm ** 2) * r_sky 
+    h_cost = fcorr * (h_fwhm ** 2) * h_sky * fcorr
+    
+    score = (0.3 * r_cost + 0.7 * h_cost)/1e-17
 
     # Strong extra penalty for large filter correction.
     # This keeps fcorr in the score continuously, but still flags risky cases.
