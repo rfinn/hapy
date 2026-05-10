@@ -31,33 +31,59 @@ from hapy.hatools.filter_transmission import (
 )
 
 
-
-
 def _filter_stem(filtername):
     """
     Convert canonical filter filename to lookup key.
-
-    Examples
-    --------
-    BOK90prime-BASSr.fits -> BOK90prime-BASSr
-    WFC-SDSSr-214.fits   -> WFC-SDSSr214
-    90prime-Ha+4nm.fits  -> BOK90prime-Ha4nm
     """
     stem = Path(str(filtername)).stem
 
-    # Remove plus signs used in metadata/filter filenames
+    # Remove plus signs used in some Halpha names
     stem = stem.replace("+", "")
-
-    # Historical key for INT/WFC transformation table
-    if stem == "WFC-SDSSr-214":
-        return "WFC-SDSSr214"
 
     # BOK Halpha filter files may be named 90prime-Ha4nm,
     # while coefficient table uses BOK90prime-Ha4nm.
     if stem.startswith("90prime-Ha"):
         return "BOK" + stem
 
+    # Historical key for INT/WFC r-band transformation table
+    if stem == "WFC-SDSSr-214":
+        return "WFC-SDSSr214"
+
+    # Historical keys for INT/WFC Halpha transformation table
+    if stem == "WFC-Ha-197":
+        return "WFC-Ha197"
+
+    if stem == "WFC-Ha-227":
+        return "WFC-Ha227"
+
     return stem
+
+
+# def _filter_stem(filtername):
+#     """
+#     Convert canonical filter filename to lookup key.
+
+#     Examples
+#     --------
+#     BOK90prime-BASSr.fits -> BOK90prime-BASSr
+#     WFC-SDSSr-214.fits   -> WFC-SDSSr214
+#     90prime-Ha+4nm.fits  -> BOK90prime-Ha4nm
+#     """
+#     stem = Path(str(filtername)).stem
+
+#     # Remove plus signs used in metadata/filter filenames
+#     stem = stem.replace("+", "")
+
+#     # Historical key for INT/WFC transformation table
+#     if stem == "WFC-SDSSr-214":
+#         return "WFC-SDSSr214"
+
+#     # BOK Halpha filter files may be named 90prime-Ha4nm,
+#     # while coefficient table uses BOK90prime-Ha4nm.
+#     if stem.startswith("90prime-Ha"):
+#         return "BOK" + stem
+
+#     return stem
 
 
 HALPHA_MINUS_R_COEFFS = {

@@ -784,6 +784,11 @@ python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0377-IC1210-BOK-2021
 
 
 ```bash
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010
+```
+
+
+```bash
 parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
 ~/github/hapy/hapy/scripts/make_cs_gr.py "{}"  :::: reproject_cutout_list.txt
 ```
@@ -799,4 +804,8 @@ grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_repr
 parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/github/hapy/hapy/scripts/make_cs_gr.fits "{}" :::: cutout_with_dir.txt
 ```
 
+## Visualize CS Images and Select Best Duplicate
 
+```
+time python ~/github/hapy/scripts/inspect_cs_images.py merged_results_virgo_20260507.fits --min-dups 1
+```

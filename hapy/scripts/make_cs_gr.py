@@ -174,7 +174,7 @@ def filter_transformation(telescope,rfilter, gr_col):
 def getCorrelation(Halpha, cont):
     return filter2D(Halpha, ddepth=-1, kernel=cont)
      
-            
+
 def get_gr(gfile,rfile,mask=None):
     
     """ take g and r filenames, return g-r data and save g-r color image """
