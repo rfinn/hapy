@@ -912,6 +912,7 @@ def main():
             best_local = int(np.nanargmin(scores))
             mark_best = True
         else:
+            scores = np.array([np.nan])
             best_local = 0
             mark_best = False
             
