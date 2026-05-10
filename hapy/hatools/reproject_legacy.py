@@ -77,7 +77,7 @@ def find_legacy_images(cutdir):
     images = []
 
     for band in ["g", "r", "z"]:
-        images.extend(legacy_dir.glob(f"*{band}.fits"))
+        images.extend(legacy_dir.glob(f"*-{band}.fits"))
 
     # Avoid reprocessing outputs such as *r-ha.fits
     images = [

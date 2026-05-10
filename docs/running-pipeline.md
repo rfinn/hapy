@@ -764,6 +764,36 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/h
 # Create cs-gr images
 
 
+## Reproject Legacy images
+
+```bash
+find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*' | sort > reproject_cutout_list.txt
+```
+
+
+```bash
+parallel --bar -j 16 --memfree 60G --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
+```
+
+## Then make CS-gr images
+
+
+
+```bash
+parallel --bar -j 16 --memfree 60G --joblog csgr.joblog --results csgr_logs
+python ~/github/hapy/hapy/scripts/make_cs_gr.py "{}" 
+:::: cutout_list.txt
+```
+
+## Check failures
+
+```bash
+grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_reproject logs_cs_gr
+```
+
+
 ```bash
 parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/github/hapy/hapy/scripts/make_cs_gr.fits "{}" :::: cutout_with_dir.txt
 ```
+
+
