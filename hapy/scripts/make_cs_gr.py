@@ -209,7 +209,7 @@ def get_gr(gfile,rfile,mask=None):
     # calculate the g-r color 
     gr_col = -2.5*np.log10(data_g/data_r)
 
-    # TODO - should add masking here - we don't want stars to be in our g-r image, right?
+    # TODONE - should add masking here - we don't want stars to be in our g-r image, right?
     if mask is not None:
         gr_col[mask] = np.nan
     print('Smoothing images for color calculation')
@@ -447,35 +447,56 @@ if __name__ == '__main__':
     print("\nGenerate NET image\n")
 
     ############################################################
-    ## Subtract local sky from cutouts
+    ## Use already sky-subtracted HAPY cutouts
     ############################################################
 
-    # TODO - revisit this and examine the masking.
-    # the mask we are currently using does not mask the central galaxy
-    # also, we already subtract the sky from each continuum image when making cutouts...
+    print("Using HAPY cutout images without additional local sky subtraction")
 
+    # HAPY cutouts should already be sky-subtracted when
+    # metadata["cutout_sky_subtracted"] == True.
+    data_r = rhdu[0].data.astype(float)
+    data_NB = hhdu[0].data.astype(float)
 
-    
-    # subtract sky from r-band image
-    print("Computing median values for r and halpha images")
-    
-    print("subtracting these values from the image...")
-
-    stat_r = stats.sigma_clipped_stats(rhdu[0].data, mask=mask)
-    print("Subtracting {0:3.2e} from r-band image".format(stat_r[1]))
-
-    data_r = rhdu[0].data - stat_r[1]
     data_r_to_Ha = data_r * rscale
 
-    # sky subtracted r-band image
-    skysub_r_name = Rfile.replace("-R.fits", "-R-sky.fits")
-    hdu = fits.PrimaryHDU(data_r, header=rhdu[0].header)
-    hdu.writeto(skysub_r_name, overwrite=True)
+    # Optional diagnostic only; do not subtract
+    stat_r = stats.sigma_clipped_stats(data_r, mask=mask)
+    stat_h = stats.sigma_clipped_stats(data_NB, mask=mask)
 
-    # subtract sky from Halpha image
-    stat_h = stats.sigma_clipped_stats(hhdu[0].data, mask=mask)
-    print("Subtracting {0:3.2e} from halpha image".format(stat_h[1]))
-    data_NB = hhdu[0].data - stat_h[1]
+    print("r-band clipped median = {0:3.2e}".format(stat_r[1]))
+    print("Halpha clipped median = {0:3.2e}".format(stat_h[1]))
+
+    
+    # ############################################################
+    # ## Subtract local sky from cutouts
+    # ############################################################
+
+    # # TODONE - revisit this and examine the masking. - skipping sky subtraction here b/c already done when making cutouts
+    # # the mask we are currently using does not mask the central galaxy
+    # # also, we already subtract the sky from each continuum image when making cutouts...
+
+
+    
+    # # subtract sky from r-band image
+    # print("Computing median values for r and halpha images")
+    
+    # print("subtracting these values from the image...")
+
+    # stat_r = stats.sigma_clipped_stats(rhdu[0].data, mask=mask)
+    # print("Subtracting {0:3.2e} from r-band image".format(stat_r[1]))
+
+    # data_r = rhdu[0].data - stat_r[1]
+    # data_r_to_Ha = data_r * rscale
+
+    # # sky subtracted r-band image
+    # skysub_r_name = Rfile.replace("-R.fits", "-R-sky.fits")
+    # hdu = fits.PrimaryHDU(data_r, header=rhdu[0].header)
+    # hdu.writeto(skysub_r_name, overwrite=True)
+
+    # # subtract sky from Halpha image
+    # stat_h = stats.sigma_clipped_stats(hhdu[0].data, mask=mask)
+    # print("Subtracting {0:3.2e} from halpha image".format(stat_h[1]))
+    # data_NB = hhdu[0].data - stat_h[1]
 
 
     ############################################################
@@ -519,7 +540,7 @@ if __name__ == '__main__':
     # Matteo Comment: Go to cgs units
     ##
 
-    # TODO - make sure filter quantities are correct
+    # TODONE - make sure filter quantities are correct
     # need:
     #   - center wavelength in A
     
