@@ -18,6 +18,11 @@ TEL_PRIORITY = {
     "MOSAIC": 1,
 }
 
+MANUAL_BEST_TAG = {
+    # "DUP_GALID": "TAG to use"
+    "VFID1234": "VFID1234-NGC4567-INT-20210414-p001",
+    "VFID5678": "VFID5678-NGC9999-BOK-20220312-VFID0000",
+}
 
 def finite_median(tab, col):
     if col not in tab.colnames:
@@ -174,6 +179,72 @@ def score_duplicate(row, norms=None):
     """
     Lower score is better.
 
+    Approximate inverse S/N cost:
+
+        cost ~ FILTER_CORRECTION * FWHM^2 * SKYSTD
+
+    Halpha term is weighted more strongly because duplicate choice is mainly
+    driven by Halpha morphology/extent quality.
+    """
+    if norms is None:
+        norms = {}
+
+    def ratio_norm(val, key):
+        med = norms.get(key, np.nan)
+        if np.isfinite(val) and np.isfinite(med) and med > 0 and val > 0:
+            return val / med
+        return np.nan
+
+    r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
+    h_fwhm = safe_float(get_col(row, ["H_FWHM_PSF", "H_FWHM_PSF_ARCSEC"]))
+    r_sky  = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
+    h_sky  = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
+    fcorr  = safe_float(get_col(row, ["FILTER_CORRECTION"]))
+
+    r_fwhm_n = ratio_norm(r_fwhm, "R_FWHM_PSF")
+    h_fwhm_n = ratio_norm(h_fwhm, "H_FWHM_PSF")
+    r_sky_n  = ratio_norm(r_sky,  "R_SKYSTD_PHYS")
+    h_sky_n  = ratio_norm(h_sky,  "H_SKYSTD_PHYS")
+
+    # MOS sky values are artificially low after convolution.
+    # Do not let MOS win because of unrealistically low SKYSTD.
+    is_mos = "MOS" in str(row["TAG"]).upper() or "MOSAIC" in str(row["TAG"]).upper()
+    if is_mos:
+        r_sky_n = 1.0
+        h_sky_n = 1.0
+
+    # Missing values should lose.
+    if not np.isfinite(r_fwhm_n):
+        r_fwhm_n = 99.0
+    if not np.isfinite(h_fwhm_n):
+        h_fwhm_n = 99.0
+    if not np.isfinite(r_sky_n):
+        r_sky_n = 99.0
+    if not np.isfinite(h_sky_n):
+        h_sky_n = 99.0
+
+    if not np.isfinite(fcorr) or fcorr <= 0:
+        fcorr = 99.0
+
+    r_cost = (r_fwhm_n ** 2) * r_sky_n
+    h_cost = fcorr * (h_fwhm_n ** 2) * h_sky_n
+
+    score = 0.3 * r_cost + 0.7 * h_cost
+
+    # Strong extra penalty for large filter correction.
+    # This keeps fcorr in the score continuously, but still flags risky cases.
+    if fcorr >= 1.2:
+        score += 10.0 * (fcorr - 1.2)
+
+    # Mild telescope tie-breaker.
+    score += 0.05 * telescope_rank(row)
+
+    return score
+
+def score_duplicate_v1(row, norms=None):
+    """
+    Lower score is better.
+
     Uses log(value / median) so:
       0      = typical
       < 0    = better than median
@@ -229,7 +300,7 @@ def score_duplicate(row, norms=None):
 
     return score
 
-def score_duplicate_old(row, norms=None):
+def score_duplicate_v0(row, norms=None):
     if norms is None:
         norms = {}
 
@@ -493,7 +564,7 @@ def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
         add_panel_text(
             ax,
             f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}x)\n"
-            f"H sky={h_sky:.3g}x ({h_sky_n:.2f}x)\n"
+            f"H sky={h_sky:.3g} ({h_sky_n:.2f}x)\n"
             f"filter corr={fcorr:.2f}",
         )
 
@@ -580,9 +651,29 @@ def main():
         best_local = int(np.nanargmin(scores))
         best_global = idx[best_local]
 
+        manual_tag = MANUAL_BEST_TAG.get(galid, None)
+
+        if manual_tag is not None:
+            matches = np.where(np.array([str(tab[i]["TAG"]) for i in idx]) == manual_tag)[0]
+
+            if len(matches) == 1:
+                best_local = int(matches[0])
+                best_global = idx[best_local]
+                manual_override = True
+                override_note = "hard-coded manual override"
+            else:
+                manual_override = False
+                override_note = f"manual override tag not found: {manual_tag}"
+        else:
+            manual_override = False
+            override_note = ""
+
+        
         for k, global_i in enumerate(idx):
             tab["BEST_DUPLICATE"] = False if "BEST_DUPLICATE" not in tab.colnames else tab["BEST_DUPLICATE"]
 
+    
+            
         best_rows.append(
             {
                 "DUP_GALID": galid,
@@ -591,6 +682,9 @@ def main():
                 "BEST_SCORE": scores[best_local],
                 "ALL_TAGS": ",".join(str(tab[i]["TAG"]) for i in idx),
                 "ALL_SCORES": ",".join(f"{s:.4f}" for s in scores),
+                "USE_TAG": str(tab[best_global]["TAG"]),
+                "MANUAL_OVERRIDE": manual_override,
+                "NOTES": override_note,
             }
         )
 
@@ -615,16 +709,37 @@ def main():
     best_tab["MANUAL_OVERRIDE"] = False
     best_tab["NOTES"] = ""
 
+
+    
+
     out_table = Path(args.outdir) / "best_duplicates.ecsv"
     Path(args.outdir).mkdir(exist_ok=True, parents=True)
 
-    best_tab.write(out_table, format="ascii.ecsv", overwrite=True)
+
+    best_tab = Table(rows=best_rows)
+
+    # Add override columns
+    best_tab["USE_TAG"] = best_tab["BEST_TAG"]
+    best_tab["MANUAL_OVERRIDE"] = False
+    best_tab["NOTES"] = ""
+
+    outdir = Path(args.outdir)
+    outdir.mkdir(exist_ok=True, parents=True)
+
+    # --- ECSV (pipeline-safe) ---
+    ecsv_file = outdir / "best_duplicates.ecsv"
+    best_tab.write(ecsv_file, format="ascii.ecsv", overwrite=True)
+
+    # --- CSV (human-editable) ---
+    csv_file = outdir / "best_duplicates.csv"
+    best_tab.write(csv_file, format="ascii.csv", overwrite=True)
+
+    print(f"\nWrote {len(best_tab)} rows:")
+    print(f"  {ecsv_file}")
+    print(f"  {csv_file}")
 
 
-    #best_tab = Table(rows=best_rows)
-    #out_table = Path(args.outdir) / "best_duplicates.fits"
-    #Path(args.outdir).mkdir(exist_ok=True, parents=True)
-    #best_tab.write(out_table, overwrite=True)
+
 
     print(f"\nWrote {len(best_tab)} duplicate selections to {out_table}")
     print(f"Wrote {len(pngs)} PNGs to {args.outdir}/")
