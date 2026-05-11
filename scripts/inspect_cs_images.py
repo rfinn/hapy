@@ -422,6 +422,38 @@ def mark_best_panel(ax):
         spine.set_edgecolor("lime")
         spine.set_linewidth(4)
 
+def write_group_table(results, outfile):
+    # read merged table
+    # group by GALID / VFID / full_galname
+    # determine best_idx / BEST flag
+    # write one row per observation
+    pass
+
+
+def plot_group_from_table(group_table, galid, cutout_dir, outdir):
+    tab = Table.read(group_table)
+
+    rows = tab[tab["GALID"] == galid]
+
+    best = np.where(rows["BEST"])[0]
+    best_idx = int(best[0]) if len(best) > 0 else 0
+
+    return plot_observation_group(
+        rows=rows,
+        best_idx=best_idx,
+        cutout_dir=cutout_dir,
+        outdir=outdir,
+        galid=galid,
+        norms=None,
+        mark_best=True,
+    )
+
+
+def list_groups(group_table):
+    tab = Table.read(group_table)
+    for galid in np.unique(tab["GALID"]):
+        print(galid)
+        
 def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None, mark_best=True):
     """
     Duplicate / continuum-subtraction comparison plot.
@@ -636,16 +668,18 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
         if np.any(good):
             cs_values.append(img[good])
 
-    if len(cs_values) > 0:
-        cs_sample = np.concatenate(cs_values)
-        cs_norm = image_norm(cs_sample, "zscale")
-    else:
-        cs_norm = None
+    # if len(cs_values) > 0:
+    #     cs_sample = np.concatenate(cs_values)
+    #     cs_norm = image_norm(cs_sample, "zscale")
+    # else:
+    #     cs_norm = None
 
     # ------------------------------------------------------------
     # Observation columns start at column 1
     # ------------------------------------------------------------
     for j, row in enumerate(rows):
+
+    
         col = j + 1
         tag = str(row["TAG"])
 
@@ -666,6 +700,22 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
         r_img = read_image(r_path)
         cszp_img = cszp_imgs[j]
         csgr_img = csgr_imgs[j]
+
+
+        cs_norm = None
+        cs_pair_values = []
+
+        for img in [cszp_img, csgr_img]:
+            if img is None:
+                continue
+            good = np.isfinite(img)
+            if np.any(good):
+                cs_pair_values.append(img[good])
+
+        if len(cs_pair_values) > 0:
+            cs_pair_sample = np.concatenate(cs_pair_values)
+            cs_norm = image_norm(cs_pair_sample, "zscale")
+        
 
         # ------------------------------------------------------------
         # Shared display limits for this observation
