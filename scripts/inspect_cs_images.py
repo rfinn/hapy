@@ -563,7 +563,7 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
     # Row 2: smoothed g-r
     ax = axes[1, 0]
     if gr_img is not None:
-        ax.imshow(
+        im = ax.imshow(
             gr_img,
             origin="lower",
             cmap="viridis",
@@ -588,7 +588,7 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
     if has_csgr:
         ax = axes[2, 0]
         if delta_img is not None:
-            ax.imshow(
+            im = ax.imshow(
                 delta_img,
                 origin="lower",
                 cmap="viridis",
