@@ -491,7 +491,7 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
             legacy_jpg = jpgs[0]
 
     gr_path = find_image(
-        cutout_dir,
+        legacy_dir,
         first_tag,
         [
             "-gr-ha-smooth.fits",
@@ -504,7 +504,7 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
     # fallback: search directly in legacy directory
     gr_path = None
     if legacy_dir.exists():
-        matches = sorted(legacy_dir.glob("*gr-ha-smooth.fits"))
+        matches = sorted(legacy_dir.glob("*gr-smooth.fits"))
         if len(matches) > 0:
             gr_path = matches[0]
 
