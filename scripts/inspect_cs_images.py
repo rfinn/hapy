@@ -1290,6 +1290,12 @@ def main():
         default=2,
         help="Minimum number of observations required",
     )
+
+    parser.add_argument(
+        "--testing",
+        type=bool,
+        help="Run first galaxy only",
+    )
     args = parser.parse_args()
 
     tab = Table.read(args.merged_results)
@@ -1379,7 +1385,9 @@ def main():
 
         pngs.append(png)
         print(f"{galid}: best = {tab[best_global]['TAG']} -> {png}")
-
+        if args.testing:
+            import sys
+            sys.exit()
 
 
     best_tab = Table(rows=best_rows)
