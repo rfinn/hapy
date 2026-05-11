@@ -1079,8 +1079,7 @@ def plot_observation_group_v1(rows, best_idx, cutout_dir, outdir, galid, norms=N
 
     return outfile
 
-        
-d
+
         
  
 
