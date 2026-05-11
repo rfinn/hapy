@@ -5,11 +5,17 @@ Inspect HAPY continuum-subtracted images and select best duplicate observations.
 Creates per-galaxy comparison PNGs for single and duplicate observations.
 For duplicates, computes a quality score and writes best_duplicates.csv/ecsv.
 
-# all galaxies, including singles
-python select_best_duplicate.py merged_results_virgo_20260507.fits --min-dups 1
 
-# duplicates/triples only
-python select_best_duplicate.py merged_results_virgo_20260507.fits --min-dups 2
+To just write the duplicates table:
+python cs_image_inspection.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
+
+
+To create an input list for running in parallel:
+python cs_image_inspection.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
+
+
+To build the plots in parallel:
+parallel --bar -j 16 --joblog cs_image_plot.joblog --results cs_image_plot_logs python cs_image_inspection.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 
 
 """
@@ -1130,153 +1136,244 @@ def plot_observation_group_v1(rows, best_idx, cutout_dir, outdir, galid, norms=N
     return outfile
 
 
-        
- 
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("merged_results", help="merged_results_*.fits file")
-    parser.add_argument(
-        "--cutout-dir",
-        default="cutouts",
-        help="Directory containing cutouts/<TAG>/",
+
+    subparsers = parser.add_subparsers(dest="mode", required=True)
+
+    # ------------------------------------------------------------
+    # make-table mode
+    # ------------------------------------------------------------
+    p_table = subparsers.add_parser(
+        "make-table",
+        help="Write duplicate-selection/group tables from merged_results.",
     )
 
-    parser.add_argument(
-        "--outdir",
-        default="cs_image_inspection",
-        help="Output directory for continuum-subtraction inspection plots and duplicate-selection tables.",
-        )
+    p_table.add_argument("merged_results", help="merged_results_*.fits file")
+    p_table.add_argument("--outdir", default="cs_image_inspection")
+    p_table.add_argument("--min-dups", type=int, default=1)
+    p_table.add_argument("--testing", action="store_true")
 
-    parser.add_argument(
-        "--min-dups",
-        type=int,
-        default=2,
-        help="Minimum number of observations required",
+    # ------------------------------------------------------------
+    # plot-all mode
+    # ------------------------------------------------------------
+    p_plot_all = subparsers.add_parser(
+        "plot-all",
+        help="Plot all groups from saved group table.",
     )
 
-    parser.add_argument(
-        "--testing",
-        action="store_true",
-        help="Run first galaxy only",
+    p_plot_all.add_argument("group_table", help="Group table written by make-table")
+    p_plot_all.add_argument("--cutout-dir", default="cutouts")
+    p_plot_all.add_argument("--outdir", default="cs_image_inspection")
+    p_plot_all.add_argument("--testing", action="store_true")
+
+    # ------------------------------------------------------------
+    # plot-one mode
+    # ------------------------------------------------------------
+    p_plot_one = subparsers.add_parser(
+        "plot-one",
+        help="Plot one group from saved group table.",
     )
+
+    p_plot_one.add_argument("group_table", help="Group table written by make-table")
+    p_plot_one.add_argument("galid", help="DUP_GALID to plot")
+    p_plot_one.add_argument("--cutout-dir", default="cutouts")
+    p_plot_one.add_argument("--outdir", default="cs_image_inspection")
+
+    # ------------------------------------------------------------
+    # list-groups mode
+    # ------------------------------------------------------------
+    p_list = subparsers.add_parser(
+        "list-groups",
+        help="Print unique DUP_GALID values from saved group table.",
+    )
+
+    p_list.add_argument("group_table", help="Group table written by make-table")
+
     args = parser.parse_args()
 
-    tab = Table.read(args.merged_results)
+    # ============================================================
+    # make-table
+    # ============================================================
+    if args.mode == "make-table":
+        tab = Table.read(args.merged_results)
 
-    norms = {
-        "R_FWHM_PSF": finite_median(tab, "R_FWHM_PSF"),
-        "H_FWHM_PSF": finite_median(tab, "H_FWHM_PSF"),
-        "R_SKYSTD_PHYS": finite_median(tab, "R_SKYSTD_PHYS"),
-        "H_SKYSTD_PHYS": finite_median(tab, "H_SKYSTD_PHYS"),
+        if "TAG" not in tab.colnames:
+            raise ValueError("Expected a TAG column in merged_results table.")
+
+        norms = {
+            "R_FWHM_PSF": finite_median(tab, "R_FWHM_PSF"),
+            "H_FWHM_PSF": finite_median(tab, "H_FWHM_PSF"),
+            "R_SKYSTD_PHYS": finite_median(tab, "R_SKYSTD_PHYS"),
+            "H_SKYSTD_PHYS": finite_median(tab, "H_SKYSTD_PHYS"),
         }
 
-        
-    if "TAG" not in tab.colnames:
-        raise ValueError("Expected a TAG column in merged_results table.")
+        galids = np.array([infer_galid(row) for row in tab])
+        tab["DUP_GALID"] = galids
 
-    galids = np.array([infer_galid(row) for row in tab])
-    tab["DUP_GALID"] = galids
+        best_rows = []
+        group_rows = []
 
-    best_rows = []
-    pngs = []
+        for galid in sorted(set(galids)):
+            idx = np.where(galids == galid)[0]
 
-    for galid in sorted(set(galids)):
-        idx = np.where(galids == galid)[0]
-        if len(idx) < args.min_dups:
-            continue
+            if len(idx) < args.min_dups:
+                continue
 
-        rows = tab[idx]        
+            rows = tab[idx]
 
-        if len(idx) > 1:
-            scores = np.array([score_duplicate(row, norms=norms) for row in rows])
-            best_local = int(np.nanargmin(scores))
-            mark_best = True
-        else:
-            scores = np.array([np.nan])
-            best_local = 0
-            mark_best = False
-            
-        best_global = idx[best_local]
+            if len(idx) > 1:
+                scores = np.array([score_duplicate(row, norms=norms) for row in rows])
+                best_local = int(np.nanargmin(scores))
+                mark_best = True
+            else:
+                scores = np.array([np.nan])
+                best_local = 0
+                mark_best = False
 
-        manual_tag = MANUAL_BEST_TAG.get(galid, None)
+            best_global = idx[best_local]
 
-        if manual_tag is not None:
-            matches = np.where(np.array([str(tab[i]["TAG"]) for i in idx]) == manual_tag)[0]
+            manual_tag = MANUAL_BEST_TAG.get(galid, None)
 
-            if len(matches) == 1:
-                best_local = int(matches[0])
-                best_global = idx[best_local]
-                manual_override = True
-                override_note = "hard-coded manual override"
+            if manual_tag is not None:
+                matches = np.where(np.array([str(tab[i]["TAG"]) for i in idx]) == manual_tag)[0]
+
+                if len(matches) == 1:
+                    best_local = int(matches[0])
+                    best_global = idx[best_local]
+                    manual_override = True
+                    override_note = "hard-coded manual override"
+                else:
+                    manual_override = False
+                    override_note = f"manual override tag not found: {manual_tag}"
             else:
                 manual_override = False
-                override_note = f"manual override tag not found: {manual_tag}"
+                override_note = ""
+
+            best_tag = str(tab[best_global]["TAG"])
+
+            best_rows.append(
+                {
+                    "DUP_GALID": galid,
+                    "N_DUP": len(idx),
+                    "BEST_TAG": best_tag,
+                    "BEST_SCORE": scores[best_local],
+                    "ALL_TAGS": ",".join(str(tab[i]["TAG"]) for i in idx),
+                    "ALL_SCORES": ",".join(f"{s:.4f}" if np.isfinite(s) else "nan" for s in scores),
+                    "USE_TAG": best_tag,
+                    "MANUAL_OVERRIDE": manual_override,
+                    "NOTES": override_note,
+                }
+            )
+
+            for k, global_i in enumerate(idx):
+                group_rows.append(
+                    {
+                        "DUP_GALID": galid,
+                        "N_DUP": len(idx),
+                        "TAG": str(tab[global_i]["TAG"]),
+                        "SCORE": scores[k],
+                        "BEST_DUPLICATE": k == best_local,
+                        "BEST_TAG": best_tag,
+                        "USE_TAG": best_tag,
+                        "MANUAL_OVERRIDE": manual_override,
+                        "NOTES": override_note,
+                    }
+                )
+
+            print(f"{galid}: best = {best_tag}")
+
+            if args.testing:
+                break
+
+        best_tab = Table(rows=best_rows)
+        group_tab = Table(rows=group_rows)
+
+        outdir = Path(args.outdir)
+        outdir.mkdir(exist_ok=True, parents=True)
+
+        best_ecsv = outdir / "best_duplicates.ecsv"
+        best_csv = outdir / "best_duplicates.csv"
+        group_ecsv = outdir / "cs_image_inspection_groups.ecsv"
+        group_csv = outdir / "cs_image_inspection_groups.csv"
+
+        best_tab.write(best_ecsv, format="ascii.ecsv", overwrite=True)
+        best_tab.write(best_csv, format="ascii.csv", overwrite=True)
+        group_tab.write(group_ecsv, format="ascii.ecsv", overwrite=True)
+        group_tab.write(group_csv, format="ascii.csv", overwrite=True)
+
+        print(f"\nWrote {len(best_tab)} best-duplicate rows:")
+        print(f"  {best_ecsv}")
+        print(f"  {best_csv}")
+        print(f"\nWrote {len(group_tab)} group rows:")
+        print(f"  {group_ecsv}")
+        print(f"  {group_csv}")
+
+        return
+
+    # ============================================================
+    # list-groups
+    # ============================================================
+    if args.mode == "list-groups":
+        group_tab = Table.read(args.group_table)
+
+        if "DUP_GALID" not in group_tab.colnames:
+            raise ValueError("Expected DUP_GALID column in group table.")
+
+        for galid in sorted(set(np.array(group_tab["DUP_GALID"]).astype(str))):
+            print(galid)
+
+        return
+
+    # ============================================================
+    # plot-one / plot-all
+    # ============================================================
+    group_tab = Table.read(args.group_table)
+
+    if "DUP_GALID" not in group_tab.colnames:
+        raise ValueError("Expected DUP_GALID column in group table.")
+
+    if args.mode == "plot-one":
+        galids_to_plot = [args.galid]
+    else:
+        galids_to_plot = sorted(set(np.array(group_tab["DUP_GALID"]).astype(str)))
+
+    pngs = []
+
+    for galid in galids_to_plot:
+        rows = group_tab[np.array(group_tab["DUP_GALID"]).astype(str) == str(galid)]
+
+        if len(rows) == 0:
+            print(f"WARNING: no rows found for {galid}")
+            continue
+
+        if "BEST_DUPLICATE" in rows.colnames:
+            best = np.where(np.array(rows["BEST_DUPLICATE"], dtype=bool))[0]
+            best_idx = int(best[0]) if len(best) > 0 else 0
+            mark_best = len(best) > 0
         else:
-            manual_override = False
-            override_note = ""
-
-        
-        for k, global_i in enumerate(idx):
-            tab["BEST_DUPLICATE"] = False if "BEST_DUPLICATE" not in tab.colnames else tab["BEST_DUPLICATE"]
-
-    
-            
-        best_rows.append(
-            {
-                "DUP_GALID": galid,
-                "N_DUP": len(idx),
-                "BEST_TAG": str(tab[best_global]["TAG"]),
-                "BEST_SCORE": scores[best_local],
-                "ALL_TAGS": ",".join(str(tab[i]["TAG"]) for i in idx),
-                "ALL_SCORES": ",".join(f"{s:.4f}" for s in scores),
-                "USE_TAG": str(tab[best_global]["TAG"]),
-                "MANUAL_OVERRIDE": manual_override,
-                "NOTES": override_note,
-            }
-        )
-
+            best_idx = 0
+            mark_best = False
 
         png = plot_observation_group(
             rows=rows,
-            best_idx=best_local,
+            best_idx=best_idx,
             cutout_dir=args.cutout_dir,
             outdir=args.outdir,
             galid=galid,
-            norms=norms,
+            norms=None,
+            mark_best=mark_best,
         )
 
-
         pngs.append(png)
-        print(f"{galid}: best = {tab[best_global]['TAG']} -> {png}")
-        if args.testing:
-            # break out of loop and return
-            import sys
-            sys.exit()
+        print(f"{galid}: wrote {png}")
 
+        if getattr(args, "testing", False):
+            break
 
-    best_tab = Table(rows=best_rows)
-
-    # Add override columns
-    best_tab["USE_TAG"] = best_tab["BEST_TAG"]
-    best_tab["MANUAL_OVERRIDE"] = False
-    best_tab["NOTES"] = ""
-
-    outdir = Path(args.outdir)
-    outdir.mkdir(exist_ok=True, parents=True)
-
-    # --- ECSV, pipeline-safe ---
-    ecsv_file = outdir / "best_duplicates.ecsv"
-    best_tab.write(ecsv_file, format="ascii.ecsv", overwrite=True)
-
-    # --- CSV, human-editable ---
-    csv_file = outdir / "best_duplicates.csv"
-    best_tab.write(csv_file, format="ascii.csv", overwrite=True)
-
-    print(f"\nWrote {len(best_tab)} rows:")
-    print(f"  {ecsv_file}")
-    print(f"  {csv_file}")
-
+    print(f"\nWrote {len(pngs)} plots")
+    
+ 
 
  
 
