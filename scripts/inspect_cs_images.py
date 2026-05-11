@@ -422,8 +422,419 @@ def mark_best_panel(ax):
         spine.set_edgecolor("lime")
         spine.set_linewidth(4)
 
-#def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
 def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None, mark_best=True):
+    """
+    Duplicate / continuum-subtraction comparison plot.
+
+    Left diagnostic column:
+      1. Legacy JPG image
+      2. smoothed g-r image
+      3. delta_mag = Halpha_mag - R_mag
+
+    Observation columns:
+      1. R-band image, asinh stretch
+      2. Halpha CS-ZP image, shared zscale with CS-gr
+      3. Halpha CS-gr image, shared zscale with CS-ZP, only if any CS-gr image exists
+
+    Best duplicate is outlined in green.
+    """
+
+    if norms is None:
+        norms = {}
+
+    nobs = len(rows)
+    ncols = nobs + 1   # extra left diagnostic column
+    full_galname = full_galname_from_tag(str(rows[0]["TAG"]))
+
+    # ------------------------------------------------------------
+    # Check whether any duplicate has a CS-gr image
+    # ------------------------------------------------------------
+    csgr_paths = []
+    for row in rows:
+        tag = str(row["TAG"])
+        csgr_path = find_image(
+            cutout_dir,
+            tag,
+            [
+                "-CS-gr.fits",
+                "_CS-gr.fits",
+                "-CS-GR.fits",
+                "_CS-GR.fits",
+                "-CS-g-r.fits",
+                "_CS-g-r.fits",
+            ],
+        )
+        csgr_paths.append(csgr_path)
+
+    has_csgr = any(p is not None for p in csgr_paths)
+    nrows = 3 if has_csgr else 2
+
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(4.2 * ncols, 4.0 * nrows),
+        squeeze=False,
+        constrained_layout=True,
+    )
+
+    # ------------------------------------------------------------
+    # Use first row/tag for left diagnostic column
+    # ------------------------------------------------------------
+    first_tag = str(rows[0]["TAG"])
+    first_cutdir = Path(cutout_dir) / first_tag
+
+    legacy_jpg = None
+    legacy_dir = first_cutdir / "legacy"
+    if legacy_dir.exists():
+        jpgs = sorted(list(legacy_dir.glob("*.jpg")) + list(legacy_dir.glob("*.jpeg")) + list(legacy_dir.glob("*.png")))
+        if len(jpgs) > 0:
+            legacy_jpg = jpgs[0]
+
+    gr_path = find_image(
+        cutout_dir,
+        first_tag,
+        [
+            "-gr-ha-smooth.fits",
+            "_gr-ha-smooth.fits",
+            "-gr-smooth.fits",
+            "_gr-smooth.fits",
+        ],
+    )
+
+    # fallback: search directly in legacy directory
+    if gr_path is None and legacy_dir.exists():
+        matches = sorted(legacy_dir.glob("*gr-ha-smooth.fits"))
+        if len(matches) > 0:
+            gr_path = matches[0]
+
+    delta_path = find_image(
+        cutout_dir,
+        first_tag,
+        [
+            "-CS-gr-delta-mag.fits",
+            "_CS-gr-delta-mag.fits",
+        ],
+    )
+
+    # fallback: exact current naming convention
+    if delta_path is None:
+        candidate = first_cutdir / f"{first_tag}-CS-gr-delta-mag.fits"
+        if candidate.exists():
+            delta_path = candidate
+
+    gr_img = read_image(gr_path)
+    delta_img = read_image(delta_path)
+
+    # ------------------------------------------------------------
+    # Left diagnostic column
+    # ------------------------------------------------------------
+
+    # Row 1: Legacy JPG
+    ax = axes[0, 0]
+    if legacy_jpg is not None:
+        try:
+            legacy_img = plt.imread(legacy_jpg)
+            ax.imshow(legacy_img, origin="upper")
+        except Exception:
+            ax.text(
+                0.5,
+                0.5,
+                "could not read\nLegacy JPG",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+    else:
+        ax.text(
+            0.5,
+            0.5,
+            "missing\nLegacy JPG",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+
+    ax.set_title("Diagnostics", fontsize=10)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    add_panel_text(ax, "Legacy JPG")
+
+    # Row 2: smoothed g-r
+    ax = axes[1, 0]
+    if gr_img is not None:
+        ax.imshow(
+            gr_img,
+            origin="lower",
+            cmap="viridis",
+            norm=image_norm(gr_img, "zscale"),
+        )
+    else:
+        ax.text(
+            0.5,
+            0.5,
+            "missing\ng-r image",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    add_panel_text(ax, "smoothed g-r")
+
+    # Row 3: delta_mag
+    if has_csgr:
+        ax = axes[2, 0]
+        if delta_img is not None:
+            ax.imshow(
+                delta_img,
+                origin="lower",
+                cmap="viridis",
+                norm=image_norm(delta_img, "zscale"),
+            )
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                "missing\nCS-gr delta-mag",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+        add_panel_text(ax, r"$\Delta m = H\alpha - R$")
+
+    # ------------------------------------------------------------
+    # Read CS images first so CS-ZP and CS-gr can share zscale
+    # ------------------------------------------------------------
+    cszp_imgs = []
+    csgr_imgs = []
+
+    for j, row in enumerate(rows):
+        tag = str(row["TAG"])
+
+        cszp_path = find_image(
+            cutout_dir,
+            tag,
+            ["-CS-ZP.fits", "_CS-ZP.fits", "-CS.fits", "_CS.fits"],
+        )
+
+        cszp_imgs.append(read_image(cszp_path))
+        csgr_imgs.append(read_image(csgr_paths[j]))
+
+    # Shared CS display norm across all CS-ZP and CS-gr images in this group
+    cs_values = []
+    for img in cszp_imgs + csgr_imgs:
+        if img is None:
+            continue
+        good = np.isfinite(img)
+        if np.any(good):
+            cs_values.append(img[good])
+
+    if len(cs_values) > 0:
+        cs_sample = np.concatenate(cs_values)
+        cs_norm = image_norm(cs_sample, "zscale")
+    else:
+        cs_norm = None
+
+    # ------------------------------------------------------------
+    # Observation columns start at column 1
+    # ------------------------------------------------------------
+    for j, row in enumerate(rows):
+        col = j + 1
+        tag = str(row["TAG"])
+
+        r_path = find_image(
+            cutout_dir,
+            tag,
+            ["-R.fits", "_R.fits", "-r.fits"],
+        )
+
+        cszp_path = find_image(
+            cutout_dir,
+            tag,
+            ["-CS-ZP.fits", "_CS-ZP.fits", "-CS.fits", "_CS.fits"],
+        )
+
+        csgr_path = csgr_paths[j]
+
+        r_img = read_image(r_path)
+        cszp_img = cszp_imgs[j]
+        csgr_img = csgr_imgs[j]
+
+        # ------------------------------------------------------------
+        # Shared display limits for this observation
+        # ------------------------------------------------------------
+        limits = None
+        if r_img is not None:
+            limits = get_display_limits_from_row(row, r_img.shape, buffer_pix=125)
+
+        # ============================================================
+        # Row 1: R band
+        # ============================================================
+        ax = axes[0, col]
+
+        if r_img is not None:
+            ax.imshow(
+                r_img,
+                origin="lower",
+                cmap="gray",
+                norm=image_norm(r_img, "asinh"),
+            )
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                "missing R image",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+
+        ax.set_title(short_tag(tag), fontsize=10)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        if limits is not None:
+            xlim, ylim = limits
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+
+        r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
+        r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
+
+        r_fwhm_n = normalized_value(r_fwhm, "R_FWHM_PSF", norms)
+        r_sky_n = normalized_value(r_sky, "R_SKYSTD_PHYS", norms)
+
+        add_panel_text(
+            ax,
+            f"R\n"
+            f"FWHM={r_fwhm:.2f} ({r_fwhm_n:.2f}x)\n"
+            f"sky={r_sky_n:.2f}x",
+        )
+
+        # ============================================================
+        # Row 2: CS-ZP
+        # ============================================================
+        ax = axes[1, col]
+
+        if cszp_img is not None:
+            ax.imshow(
+                cszp_img,
+                origin="lower",
+                cmap="gray",
+                norm=cs_norm if cs_norm is not None else image_norm(cszp_img, "zscale"),
+            )
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                "missing CS-ZP image",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        if limits is not None:
+            xlim, ylim = limits
+            ax.set_xlim(*xlim)
+            ax.set_ylim(*ylim)
+
+        h_fwhm = safe_float(get_col(row, ["H_FWHM_PSF", "H_FWHM_PSF_ARCSEC"]))
+        h_sky = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
+        fcorr = safe_float(get_col(row, ["FILTER_CORRECTION"]))
+
+        h_fwhm_n = normalized_value(h_fwhm, "H_FWHM_PSF", norms)
+        h_sky_n = normalized_value(h_sky, "H_SKYSTD_PHYS", norms)
+
+        add_panel_text(
+            ax,
+            f"CS-ZP\n"
+            f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}x)\n"
+            f"H sky={h_sky_n:.2f}x\n"
+            f"fcorr={fcorr:.2f}",
+        )
+
+        # ============================================================
+        # Row 3: CS-gr, optional
+        # ============================================================
+        if has_csgr:
+            ax = axes[2, col]
+
+            if csgr_img is not None:
+                ax.imshow(
+                    csgr_img,
+                    origin="lower",
+                    cmap="gray",
+                    norm=cs_norm if cs_norm is not None else image_norm(csgr_img, "zscale"),
+                )
+            else:
+                ax.text(
+                    0.5,
+                    0.5,
+                    "missing CS-gr image",
+                    ha="center",
+                    va="center",
+                    transform=ax.transAxes,
+                )
+
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            if limits is not None:
+                xlim, ylim = limits
+                ax.set_xlim(*xlim)
+                ax.set_ylim(*ylim)
+
+            add_panel_text(
+                ax,
+                f"CS-gr\n"
+                f"H FWHM={h_fwhm:.2f} ({h_fwhm_n:.2f}x)\n"
+                f"H sky={h_sky_n:.2f}x\n"
+                f"fcorr={fcorr:.2f}",
+            )
+
+        # ------------------------------------------------------------
+        # Mark best duplicate
+        # ------------------------------------------------------------
+        if mark_best and j == best_idx:
+            for rownum in range(nrows):
+                mark_best_panel(axes[rownum, col])
+
+            axes[0, col].text(
+                0.5,
+                1.08,
+                "BEST",
+                transform=axes[0, col].transAxes,
+                ha="center",
+                va="bottom",
+                fontsize=13,
+                color="lime",
+                fontweight="bold",
+            )
+
+    if len(rows) == 1:
+        fig.suptitle(f"Continuum subtraction inspection: {full_galname}", fontsize=16)
+    else:
+        fig.suptitle(f"Observation comparison: {full_galname}", fontsize=16)
+
+    outdir = Path(outdir)
+    outdir.mkdir(exist_ok=True, parents=True)
+
+    outfile = outdir / f"nobs{len(rows)}_{full_galname}_observation_comparison.png"
+
+    fig.savefig(outfile, dpi=150)
+    plt.close(fig)
+
+    return outfile
+        
+#def plot_duplicate_group(rows, best_idx, cutout_dir, outdir, galid, norms=None):
+def plot_observation_group_v1(rows, best_idx, cutout_dir, outdir, galid, norms=None, mark_best=True):
 
     """
     Duplicate comparison plot.

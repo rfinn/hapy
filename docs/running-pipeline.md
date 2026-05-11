@@ -793,6 +793,16 @@ parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
 ~/github/hapy/hapy/scripts/make_cs_gr.py "{}"  :::: reproject_cutout_list.txt
 ```
 
+Needed to rerun on the INT images (filter lookup issue)
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*INT*' | sort > int_cutout_list.txt
+```
+
+```
+parallel --bar -j 16 --joblog cs_gr_int.joblog --results cs_gr_int_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} :::: int_cutout_list.txt
+```
+
 ## Check failures
 
 ```bash

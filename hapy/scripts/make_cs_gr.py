@@ -527,6 +527,13 @@ if __name__ == '__main__':
     # delta_mag = (halpha - r) = f(g-r)
     delta_mag = halpha_minus_r_color_from_metadata(meta, gr_col)
 
+    delta_mag_name = f"{tag}-CS-gr-delta-mag.fits"
+    hdu = fits.PrimaryHDU(delta_mag, header=hhdu[0].header)
+    hdu.header.set("IMTYPE", "DELTMAG", "Halpha - R color correction")
+    hdu.header.set("CSTYPE", "CS-gr", "Used for CS-gr continuum subtraction")
+    hdu.writeto(delta_mag_name, overwrite=True)
+    print(f"Wrote {delta_mag_name}")
+    
     # mag_r_to_Ha and mag_r should 
     mag_r_to_Ha = mag_r + delta_mag
     
