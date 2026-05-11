@@ -1293,7 +1293,6 @@ def main():
 
     parser.add_argument(
         "--testing",
-        type=bool,
         action="store_true",
         help="Run first galaxy only",
     )
