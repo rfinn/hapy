@@ -1386,6 +1386,7 @@ def main():
         pngs.append(png)
         print(f"{galid}: best = {tab[best_global]['TAG']} -> {png}")
         if args.testing:
+            # break out of loop and return
             import sys
             sys.exit()
 
