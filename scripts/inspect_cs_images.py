@@ -1267,19 +1267,48 @@ def main():
             )
 
             for k, global_i in enumerate(idx):
-                group_rows.append(
-                    {
-                        "DUP_GALID": galid,
-                        "N_DUP": len(idx),
-                        "TAG": str(tab[global_i]["TAG"]),
-                        "SCORE": scores[k],
-                        "BEST_DUPLICATE": k == best_local,
-                        "BEST_TAG": best_tag,
-                        "USE_TAG": best_tag,
-                        "MANUAL_OVERRIDE": manual_override,
-                        "NOTES": override_note,
-                    }
-                )
+                group_row = {
+                    "DUP_GALID": galid,
+                    "N_DUP": len(idx),
+                    "TAG": str(tab[global_i]["TAG"]),
+                    "SCORE": scores[k],
+                    "BEST_DUPLICATE": k == best_local,
+                    "BEST_TAG": best_tag,
+                    "USE_TAG": best_tag,
+                    "MANUAL_OVERRIDE": manual_override,
+                    "NOTES": override_note,
+                }
+
+                # Keep columns needed by plot_observation_group()
+                plot_cols = [
+                    "R_FWHM_PSF",
+                    "R_FWHM_PSF_ARCSEC",
+                    "H_FWHM_PSF",
+                    "H_FWHM_PSF_ARCSEC",
+                    "R_SKYSTD_PHYS",
+                    "H_SKYSTD_PHYS",
+                    "FILTER_CORRECTION",
+                    "ELLIP_XCENTROID",
+                    "ELLIP_YCENTROID",
+                    "ELL0_XCENTROID",
+                    "ELL0_YCENTROID",
+                    "GAL_XC",
+                    "GAL_YC",
+                    "GAL_CXC",
+                    "GAL_CYC",
+                    "R24_PIX",
+                    "R25_PIX",
+                    "SMA_PIX",
+                    "BA",
+                    "PA",
+                ]
+
+                for col in plot_cols:
+                    if col in tab.colnames:
+                        group_row[col] = tab[global_i][col]
+
+                group_rows.append(group_row)
+
 
             print(f"{galid}: best = {best_tag}")
 
