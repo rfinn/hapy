@@ -175,7 +175,7 @@ def getCorrelation(Halpha, cont):
     return filter2D(Halpha, ddepth=-1, kernel=cont)
      
 
-def get_gr(gfile,rfile,mask=None):
+def get_gr(gfile,rfile,mask=None, smooth_kernel=0):
     
     """ take g and r filenames, return g-r data and save g-r color image """
     g = fits.open(gfile)
@@ -220,10 +220,24 @@ def get_gr(gfile,rfile,mask=None):
 
     # we are using the legacy images that are reprojected on the halpha footprint,
     # so pixel scale is slightly larger than native
-    gr_col = convolution.convolve_fft(gr_col, convolution.Box2DKernel(10), allow_huge=True, nan_treatment='interpolate')
+    if smooth_kernel and smooth_kernel > 0:
+        print(f"Smoothing g-r image with Box2DKernel({smooth_kernel})")
+        gr_col = convolution.convolve_fft(gr_col, convolution.Box2DKernel(10), allow_huge=True, nan_treatment='interpolate')
+
+        if mask is not None:
+            gr_col[mask] = np.nan
+    else:
+        print("Not smoothing g-r image")
+
+    bad = np.logical_not(usemask)
+
+    if mask is not None:
+        bad = bad | mask
+
+    gr_col[bad] = np.nan
 
     # set the pixel with SNR < 10 to nan - don't use these for color correction
-    gr_col[np.logical_not(usemask)] = np.nan
+    #gr_col[np.logical_not(usemask)] = np.nan
     
     # save gr color image
     hdu = fits.PrimaryHDU(gr_col, header=r[0].header)
@@ -415,7 +429,7 @@ if __name__ == '__main__':
         gr_col = hdu[0].data
         hdu.close()
     else:
-        gr_col = get_gr(leg_gfile, leg_rfile, mask=mask)
+        gr_col = get_gr(leg_gfile, leg_rfile, mask=mask, smooth_kernel=0)
 
     # usemask should be all the values in the color image that are not equal to np.nan
     usemask = ~np.isnan(gr_col)  # these are the good values in the g-r color

@@ -606,6 +606,8 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
             origin="lower",
             cmap="viridis",
             norm=image_norm(gr_img, "zscale"),
+            vmin=-0.5,
+            vmax=1.2,
         )
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     else:
@@ -631,6 +633,8 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
                 origin="lower",
                 cmap="viridis",
                 norm=image_norm(delta_img, "zscale"),
+                vmin=-0.25,
+                vmax=0.15,
             )
             fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         else:
