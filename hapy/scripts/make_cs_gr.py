@@ -197,14 +197,15 @@ def get_gr(gfile,rfile,mask=None, smooth_kernel=0):
 
     # this is not going to mask out the galaxy, so the sky values will likely be skewed
     # I am going to assume that the legacy images don't need another round of sky subtraction???
-    #data_r -= stat_r[1]
+    data_r -= stat_r[1]
     stat_g = stats.sigma_clipped_stats(data_g,mask=mask)
     print('Subtracting {0:3.2e} from g-band image'.format(stat_g[1]))
-    #data_g -= stat_g[1]
+    data_g -= stat_g[1]
 
     # create a mask, where SNR > 10
     # QUESTION : why is this 3 instead of 10?
-    usemask = (data_g>3*stat_g[2])
+    #usemask = (data_g>3*stat_g[2])
+    usemask = (data_r>10*stat_r[2])    
 
     # calculate the g-r color 
     gr_col = -2.5*np.log10(data_g/data_r)
