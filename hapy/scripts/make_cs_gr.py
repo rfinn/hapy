@@ -523,12 +523,12 @@ if __name__ == '__main__':
     # Generate the r band mag image and the r band calibrated to Halpha wave
     # This works only for positive flux pixels. Take this into account
 
-    mag_r = -2.5 * np.log10(data_r) + rZP
+    mag_r_to_Ha = -2.5 * np.log10(data_r_to_Ha) + rZP
     mag_NB = -2.5 * np.log10(data_NB) + hZP
 
     # now calc fluxes using the same ZP
-    data_r_ZP30 = 10.0 ** (-0.4 * (mag_r - 30))
-    data_NB_ZP30 = 10.0 ** (-0.4 * (mag_NB - 30))
+    #data_r_ZP30 = 10.0 ** (-0.4 * (mag_r - 30))
+    #data_NB_ZP30 = 10.0 ** (-0.4 * (mag_NB - 30))
 
     # Transform the mag_r image to the observed Halpha filter
     #
@@ -549,7 +549,7 @@ if __name__ == '__main__':
     print(f"Wrote {delta_mag_name}")
     
     # mag_r_to_Ha and mag_r should 
-    mag_r_to_Ha = mag_r + delta_mag
+    mag_r_to_Ha = mag_r_to_Ha + delta_mag
     
     # convert to flux units
     delta_flux = 10.0 ** (-0.4 * delta_mag)
@@ -587,18 +587,21 @@ if __name__ == '__main__':
     flam_net = flam_net * halpha_extinction_correction
 
     # Save a version in AB/count-like units for compatibility with HAPY photometry programs
-    NB_ABmag = data_NB - contscale * data_r_to_Ha
+
+    # why are we using contscale again here when data_r_to_Ha is already scaled already
+    # here, contscale is an extra factor the user can input to tweak the continuum subtraction
+    csgr_data = data_NB - contscale * data_r_to_Ha
 
     # correct for filter transmission variations and for halpha emission in the continuum filter
 
     # TODONE - need to update oversubtraction terms using the correct filter traces
     # skipping for now
     # NB_ABmag = NB_ABmag * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
-    NB_ABmag = NB_ABmag * cont_oversub * halpha_filter_cor
+    csgr_data = csgr_data * cont_oversub * halpha_filter_cor
 
 
     # MW extinction correction is currently neutral because it is not in metadata.json
-    NB_ABmag = NB_ABmag * halpha_extinction_correction
+    csgr_data = csgr_data * halpha_extinction_correction
 
     ############################################################
     # Write CS-gr image
@@ -614,7 +617,7 @@ if __name__ == '__main__':
     hhdu[0].header.set("HAWID_A", float(f"{hfilter_width_A:.2f}"), "Halpha filter width Angstrom")
     hhdu[0].header.set("SRCMETA", "metadata.json", "Source of correction metadata")
 
-    hdu = fits.PrimaryHDU(NB_ABmag, header=hhdu[0].header)
+    hdu = fits.PrimaryHDU(csgr_data, header=hhdu[0].header)
     hdu.writeto(outname, overwrite=True)
 
     print(f"Wrote {outname}")
@@ -643,7 +646,7 @@ if __name__ == '__main__':
     print("Smoothing net image")
     flam_net_smooth = convolution.convolve_fft(
         flam_net,
-        convolution.Box2DKernel(15),
+        convolution.Box2DKernel(10),
         allow_huge=True,
         nan_treatment="interpolate",
     )
