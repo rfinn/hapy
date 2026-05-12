@@ -123,35 +123,35 @@ HALPHA_MINUS_R_COEFFS_QUADRATIC = {
 HALPHA_MINUS_R_COEFFS = {
     'BOK90prime-BASSr':{
         'BOK90prime-Ha4nm': [0.0140,-0.1210,],
-        }
+        },
     'MOS-SDSSr':{
         'MOS-Ha4nm': [0.0170,-0.1760,],
         'MOS-Ha8nm': [0.0051,-0.1787,],
         'MOS-Ha12nm': [0.0037,-0.1877,],
         'MOS-Ha16nm': [0.0039,-0.1958,],
-        }
+        },
     'MOS-HarrisR':{
         'MOS-Ha4nm': [0.0032,-0.0511,],
         'MOS-Ha8nm': [-0.0095,-0.0518,],
         'MOS-Ha12nm': [-0.0106,-0.0615,],
         'MOS-Ha16nm': [-0.0097,-0.0714,],
-        }
+        },
     'HDI-SDSSr':{
         'HDI-Ha4nm': [0.0097,-0.1888,],
         'HDI-Ha8nm': [0.0045,-0.1996,],
         'HDI-Ha12nm': [0.0035,-0.2103,],
         'HDI-Ha16nm': [0.0039,-0.2192,],
-    }
+    },
     'HDI-HarrisR':{
         'HDI-Ha4nm': [-0.0030,-0.0597,],
         'HDI-Ha8nm': [-0.0087,-0.0693,],
         'HDI-Ha12nm': [-0.0090,-0.0813,],
         'HDI-Ha16nm': [-0.0079,-0.0919,],
-    }
+    },
     'WFC-SDSSr214':{
         'WFC-Ha197': [0.0721,-0.2296,],
         'WFC-Ha227': [0.0059,-0.2022,],
-    }
+    },
 }
 
 def get_halpha_minus_r_coeffs(instrument, rfilter, hfilter):
