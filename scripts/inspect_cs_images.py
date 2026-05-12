@@ -764,8 +764,11 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
         r_fwhm = safe_float(get_col(row, ["R_FWHM_PSF", "R_FWHM_PSF_ARCSEC"]))
         r_sky = safe_float(get_col(row, ["R_SKYSTD_PHYS"]))
 
-        r_fwhm_n = normalized_value(r_fwhm, "R_FWHM_PSF", norms)
-        r_sky_n = normalized_value(r_sky, "R_SKYSTD_PHYS", norms)
+        r_fwhm_n = safe_float(get_col(row, ["R_FWHM_PSF_NORM"]))
+        r_sky_n = safe_float(get_col(row, ["R_SKYSTD_PHYS_NORM"]))
+
+        #r_fwhm_n = normalized_value(r_fwhm, "R_FWHM_PSF", norms)
+        #r_sky_n = normalized_value(r_sky, "R_SKYSTD_PHYS", norms)
 
         add_panel_text(
             ax,
@@ -808,8 +811,11 @@ def plot_observation_group(rows, best_idx, cutout_dir, outdir, galid, norms=None
         h_sky = safe_float(get_col(row, ["H_SKYSTD_PHYS"]))
         fcorr = safe_float(get_col(row, ["FILTER_CORRECTION"]))
 
-        h_fwhm_n = normalized_value(h_fwhm, "H_FWHM_PSF", norms)
-        h_sky_n = normalized_value(h_sky, "H_SKYSTD_PHYS", norms)
+        #h_fwhm_n = normalized_value(h_fwhm, "H_FWHM_PSF", norms)
+        #h_sky_n = normalized_value(h_sky, "H_SKYSTD_PHYS", norms)
+
+        h_fwhm_n = safe_float(get_col(row, ["H_FWHM_PSF_NORM"]))
+        h_sky_n = safe_float(get_col(row, ["H_SKYSTD_PHYS_NORM"]))
 
         add_panel_text(
             ax,
@@ -1309,6 +1315,19 @@ def main():
 
                 group_rows.append(group_row)
 
+                # Store normalized values so plot-one does not need merged_results
+                norm_cols = [
+                    ("R_FWHM_PSF", "R_FWHM_PSF_NORM"),
+                    ("H_FWHM_PSF", "H_FWHM_PSF_NORM"),
+                    ("R_SKYSTD_PHYS", "R_SKYSTD_PHYS_NORM"),
+                    ("H_SKYSTD_PHYS", "H_SKYSTD_PHYS_NORM"),
+                ]
+
+                for raw_col, norm_col in norm_cols:
+                    if raw_col in tab.colnames:
+                        val = safe_float(tab[global_i][raw_col])
+                        med = safe_float(norms.get(raw_col, np.nan))
+                        group_row[norm_col] = val / med if np.isfinite(val) and np.isfinite(med) and med != 0 else np.nan
 
             print(f"{galid}: best = {best_tag}")
 
