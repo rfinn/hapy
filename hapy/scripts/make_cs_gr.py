@@ -556,7 +556,7 @@ if __name__ == '__main__':
     delta_flux = 10.0 ** (-0.4 * delta_mag)
 
     # use the color correction for pixels with sufficient SNR
-    data_r_to_Ha[usemask] = data_r_to_Ha[usemask] * delta_flux[usemask]
+    data_r_to_Ha[usemask] = data_r_to_Ha[usemask] #* delta_flux[usemask]
 
     ##
     # Matteo Comment: Go to cgs units
