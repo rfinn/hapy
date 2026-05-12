@@ -474,7 +474,7 @@ if __name__ == '__main__':
 
     data_r_to_Ha = data_r * rscale
     zp_fratio = 10.**(-0.4*(hZP-rZP))
-    print(f"scaling r-band continuum by {rscale:.6f}, ratio of ZP={zp_fration}")
+    print(f"scaling r-band continuum by {rscale:.6f}, ratio of ZP={zp_fratio}")
 
     # Optional diagnostic only; do not subtract
     stat_r = stats.sigma_clipped_stats(data_r, mask=mask)
