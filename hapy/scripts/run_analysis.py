@@ -800,6 +800,9 @@ def init_csgr_row_defaults(row):
         "CSGR_HAPY_FLUX_SEG": np.nan,
         "CSGR_HAPY_MTOT2": np.nan,
         "CSGR_HAPY_RMOM_ARCSEC": np.nan,
+        "CSGR_CONTSCL": np.nan,
+        "CSGR_EXISTS": False,
+        "CSGR_FITS": np.nan,
     }
 
     for key, val in defaults.items():
@@ -1208,6 +1211,9 @@ def main():
 
     if csgr_fits:
         logger.info(f"Found CS-gr image: {csgr_fits}")
+        row["CSGR_EXISTS"] = True
+        row["CSGR_FITS"] = Path(csgr_fits).name
+        row["CSGR_CONTSCL"] = fits.getheader(csgr_fits).get("CONTSCL", np.nan)
     else:
         logger.info("No CS-gr image found")
     
