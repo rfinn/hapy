@@ -702,8 +702,8 @@ if __name__ == '__main__':
     print("r-band clipped median = {0:3.2e}".format(stat_r[1]))
     print("Halpha clipped median = {0:3.2e}".format(stat_h[1]))
 
-    stat_r -= stat_r[1]
-    stat_NB -= stat_h[1]    
+    data_r = data_r - stat_r[1]
+    data_NB = data_NB - stat_h[1]    
     # ############################################################
     # ## Subtract local sky from cutouts
     # ############################################################
