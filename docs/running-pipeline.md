@@ -787,6 +787,10 @@ python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0377-IC1210-BOK-2021
 python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010
 ```
 
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010 --auto-contscale
+--auto-contscale-percentile 30 --overwrite
+```
 
 ```bash
 parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
@@ -833,7 +837,12 @@ To create an input list for running in parallel:
 ```
 python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
 ```
-
+To test one:
+```
+python ~/github/hapy/scripts/inspect_cs_images.py plot-one
+cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
+cutouts --outdir cs_image_inspection :::: cs_group_list.txt
+```
 
 To build the plots in parallel:
 ```
@@ -842,3 +851,5 @@ cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py plot-one
 cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
 cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 ```
+
+
