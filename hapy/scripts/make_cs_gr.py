@@ -58,25 +58,97 @@ from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_me
 ######################################################################
 ###  FILTER DEFINITIONS
 ######################################################################
-# Halpha filter width in angstrom
-filter_width_AA = {'BOK':80.48,'HDI':80.48,'INT':95,'MOS':80.48,'INT6657':80}
+# # Halpha filter width in angstrom
+# filter_width_AA = {'BOK':80.48,'HDI':80.48,'INT':95,'MOS':80.48,'INT6657':80}
 
-# central wavelength in angstroms
-filter_lambda_c_AA = {'BOK':6620.52,'HDI':6620.52,'INT':6568,'MOS':6620.52,'INT6657':6657}
+# # central wavelength in angstroms
+# filter_lambda_c_AA = {'BOK':6620.52,'HDI':6620.52,'INT':6568,'MOS':6620.52,'INT6657':6657}
 
 
-# integral of filter transmission
-# calculated in Halpha-paper1.ipynb
-filter_Rlambda = {"KPNO_Ha+4nm": 78.58, "WFC_Ha": 84.21, "WFC_Ha6657": 71.96,\
-                  "KPNO_R" : 1341.54, "KPNO_r" : 1283.47, "BASS_r": 1042.18, "WFC_r": 1097.07}
+# # integral of filter transmission
+# # calculated in Halpha-paper1.ipynb
+# filter_Rlambda = {"KPNO_Ha+4nm": 78.58, "WFC_Ha": 84.21, "WFC_Ha6657": 71.96,\
+#                   "KPNO_R" : 1341.54, "KPNO_r" : 1283.47, "BASS_r": 1042.18, "WFC_r": 1097.07}
 
-# from oversubtraction of continuum, a la Gavazzi+2006
-# take telescope as the key
-halpha_continuum_oversubtraction = {'BOK':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["BASS_r"]),\
-                            'HDI':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["KPNO_r"]),\
-                            'INT':(1 +filter_Rlambda["WFC_Ha"]/filter_Rlambda["WFC_r"]),\
-                            'MOS':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["KPNO_R"]),\
-                            'INT6657':(1 +filter_Rlambda["WFC_Ha6657"]/filter_Rlambda["WFC_r"])}
+# # from oversubtraction of continuum, a la Gavazzi+2006
+# # take telescope as the key
+# halpha_continuum_oversubtraction = {'BOK':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["BASS_r"]),\
+#                             'HDI':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["KPNO_r"]),\
+#                             'INT':(1 +filter_Rlambda["WFC_Ha"]/filter_Rlambda["WFC_r"]),\
+#                             'MOS':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["KPNO_R"]),\
+#                             'INT6657':(1 +filter_Rlambda["WFC_Ha6657"]/filter_Rlambda["WFC_r"])}
+
+def estimate_extra_continuum_scale(
+    ha_data,
+    rcont_data,
+    galaxy_mask,
+    bad_mask=None,
+    min_pixels=100,
+    clip_range=(0.75, 1.15),
+    ratio_range=(0.7, 1.3),
+    scale_percentile=30.0,
+):
+    good = (
+        galaxy_mask
+        & np.isfinite(ha_data)
+        & np.isfinite(rcont_data)
+        & (rcont_data > 0)
+    )
+
+    if bad_mask is not None:
+        good &= ~bad_mask
+
+    if np.count_nonzero(good) < min_pixels:
+        print("WARNING: not enough valid pixels for auto continuum scaling")
+        return 1.0
+
+    ratio = ha_data[good] / rcont_data[good]
+    ratio = ratio[np.isfinite(ratio)]
+
+    if ratio_range is not None:
+        lo, hi = ratio_range
+        ratio = ratio[(ratio > lo) & (ratio < hi)]
+
+    if len(ratio) < min_pixels:
+        print("WARNING: not enough pixels after ratio clipping for auto continuum scaling")
+        return 1.0
+
+    raw_scale = np.nanpercentile(ratio, scale_percentile)
+    scale = raw_scale
+
+    if clip_range is not None:
+        scale = np.clip(scale, clip_range[0], clip_range[1])
+
+    print(f"auto continuum raw scale = {raw_scale:.4f}")
+    print(f"auto continuum clipped scale = {scale:.4f}")
+    print(f"auto continuum percentile = {scale_percentile:.1f}")
+    print(f"pixels used for auto continuum scale = {len(ratio)}")
+
+    return float(scale)
+
+
+
+
+
+def get_galaxy_region_from_segmap(segfile, mask=None, label=None):
+    seg = fits.getdata(segfile)
+
+    if label is None:
+        labels = np.unique(seg)
+        labels = labels[labels > 0]
+
+        if len(labels) == 0:
+            return None
+
+        # fallback: use largest segment
+        label = labels[np.argmax([(seg == lab).sum() for lab in labels])]
+
+    galaxy_region = seg == label
+
+    if mask is not None:
+        galaxy_region &= ~mask
+
+    return galaxy_region
 
 def getEllipseFocii(xcent, ycent, a, ba, pa):
     pa_rad = pa * np.pi/180.
@@ -205,7 +277,7 @@ def get_gr(gfile,rfile,mask=None, smooth_kernel=0):
     # create a mask, where SNR > 10
     # QUESTION : why is this 3 instead of 10?
     #usemask = (data_g>3*stat_g[2])
-    usemask = (data_r>10*stat_r[2])    
+    usemask = (data_r>5*stat_r[2]) & (data_g>5*stat_g[2])
 
     # calculate the g-r color 
     gr_col = -2.5*np.log10(data_g/data_r)
@@ -265,21 +337,44 @@ def plot_image(data):
     #plt.show()
     #plt.draw()
 
+def zp_scale_r_to_ha(zp_ha, zp_r):
+    """Scale factor alpha so that CS = Ha - alpha * R."""
+    if zp_ha is None or zp_r is None:
+        return np.nan
+    zp_ha = float(zp_ha)
+    zp_r = float(zp_r)
+    if not (np.isfinite(zp_ha) and np.isfinite(zp_r)):
+        print("WARNING: could not calculate the zp scale!")
+        return np.nan
+    return float(10 ** (-0.4 * (zp_r - zp_ha)))
+
 
 if __name__ == '__main__':
 
     import json
     from pathlib import Path
+    import argparse
 
-    # directory to analyze is specified on the command line
-    # this makes the program easy to run with gnu parallel
-    dirname = sys.argv[1]
 
-    # check to see if additional scale factor for continuum is provided
-    if len(sys.argv) > 2:
-        contscale = float(sys.argv[2])
-    else:
-        contscale = 1.0
+    parser = argparse.ArgumentParser(description="Make CS-gr continuum-subtracted image for one HAPY cutout directory.")
+
+    parser.add_argument("cutdir", help="HAPY cutout directory, e.g. cutouts/VFID2550-UGC05020-INT-20190208-p031")
+    parser.add_argument("--contscale", type=float, default=1.0, help="Manual extra continuum scale factor applied to the r-continuum image.")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing CS-gr products.")
+
+
+    parser.add_argument("--auto-contscale", action="store_true", help="Estimate an extra continuum scale factor using the galaxy segmentation region.")
+    parser.add_argument("--auto-contscale-min", type=int, default=100, help="Minimum number of valid segmentation pixels required for auto continuum scale.")
+    parser.add_argument("--auto-contscale-min-scale", type=float, default=0.75, help="Minimum allowed auto continuum scale.")
+    parser.add_argument("--auto-contscale-max-scale", type=float, default=1.15, help="Maximum allowed auto continuum scale.")
+    parser.add_argument("--auto-contscale-ratio-min", type=float, default=0.7, help="Minimum Ha/Rcont ratio used for auto continuum scale.")
+    parser.add_argument("--auto-contscale-ratio-max", type=float, default=1.3, help="Maximum Ha/Rcont ratio used for auto continuum scale.")
+    parser.add_argument("--auto-contscale-percentile", type=float, default=35.0, help="Percentile of clipped Ha/Rcont ratio used for auto continuum scale.")
+    args = parser.parse_args()
+
+    dirname = args.cutdir
+    contscale = args.contscale
+    overwrite = args.overwrite
 
     # get current directory
     topdir = os.getcwd()
@@ -340,15 +435,19 @@ if __name__ == '__main__':
     # move to subdirectory specified in the command line
     os.chdir(cutdir)
 
+
+    ############################################################
+    ## Define image names
+    ############################################################    
+
     # define the file names
     Rfile = f"{tag}-R.fits"       # r-band image taken with same telescope as halpha
     Hfile = f"{tag}-Ha.fits"      # halpha image
     outname = f"{tag}-CS-gr.fits"
 
 
-    ############################################################
-    ## Define image names
-    ############################################################
+    segfile = f"{tag}-R-phot-segmentation.fits"
+
     
     # get legacy images that are reprojected to the halpha image
     # these are in the legacy subdirectory
@@ -430,7 +529,7 @@ if __name__ == '__main__':
         gr_col = hdu[0].data
         hdu.close()
     else:
-        gr_col = get_gr(leg_gfile, leg_rfile, mask=mask, smooth_kernel=0)
+        gr_col = get_gr(leg_gfile, leg_rfile, mask=mask, smooth_kernel=5)
 
     # usemask should be all the values in the color image that are not equal to np.nan
     usemask = ~np.isnan(gr_col)  # these are the good values in the g-r color
@@ -455,6 +554,19 @@ if __name__ == '__main__':
     wcs_NB = wcs.WCS(Hfile)
     pscale_NB = wcs.utils.proj_plane_pixel_scales(wcs_NB) * 3600.0
 
+    rscale_zp = zp_scale_r_to_ha(hZP, rZP)
+    #print(f"scaling r-band continuum by {rscale:.6f}, ratio of ZP={zp_fratio}")
+
+    rscale_meta = float(meta.get("filter_ratio", np.nan))
+    rscale_zp = zp_scale_r_to_ha(hZP, rZP)
+
+    print(f"{tag}: metadata filter_ratio = {rscale_meta:.6f}")
+    print(f"{tag}: ZP r-to-Halpha scale = {rscale_zp:.6f}")
+    print(f"{tag}: metadata / ZP scale = {rscale_meta / rscale_zp:.3f}")
+
+    rscale = rscale_zp
+
+    
     ##
     # The following is from Matteo Fossati
     ##
@@ -473,9 +585,7 @@ if __name__ == '__main__':
     data_NB = hhdu[0].data.astype(float)
 
     data_r_to_Ha = data_r * rscale
-    zp_fratio = 10.**(-0.4*(hZP-rZP))
-    print(f"scaling r-band continuum by {rscale:.6f}, ratio of ZP={zp_fratio}")
-
+    
     # Optional diagnostic only; do not subtract
     stat_r = stats.sigma_clipped_stats(data_r, mask=mask)
     stat_h = stats.sigma_clipped_stats(data_NB, mask=mask)
@@ -543,6 +653,7 @@ if __name__ == '__main__':
     # this is the fit to
     # delta_mag = (halpha - r) = f(g-r)
     delta_mag = halpha_minus_r_color_from_metadata(meta, gr_col)
+    #delta_mag = np.zeros_like(gr_col, dtype=float)
 
     delta_mag_name = f"{tag}-CS-gr-delta-mag.fits"
     hdu = fits.PrimaryHDU(delta_mag, header=hhdu[0].header)
@@ -558,8 +669,30 @@ if __name__ == '__main__':
     delta_flux = 10.0 ** (-0.4 * delta_mag)
 
     # use the color correction for pixels with sufficient SNR
-    data_r_to_Ha[usemask] = data_r_to_Ha[usemask] #* delta_flux[usemask]
+    data_r_to_Ha[usemask] = data_r_to_Ha[usemask] * delta_flux[usemask]
 
+
+    # get additional scale factor to make 
+    galaxy_region = get_galaxy_region_from_segmap(segfile, mask=mask)
+
+    if args.auto_contscale:
+        extra_scale = estimate_extra_continuum_scale(
+            ha_data=data_NB,
+            rcont_data=data_r_to_Ha,
+            galaxy_mask=galaxy_region,
+            bad_mask=mask,
+            min_pixels=args.auto_contscale_min,
+            clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
+            ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
+            scale_percentile=args.auto_contscale_percentile,
+            )
+
+
+    else:
+        extra_scale = 1.0
+    print(f"\nauto CS extra_scale = {extra_scale:.2f}\n")
+    csgr_data = data_NB - extra_scale * data_r_to_Ha
+    
     ##
     # Matteo Comment: Go to cgs units
     ##
@@ -593,7 +726,7 @@ if __name__ == '__main__':
 
     # why are we using contscale again here when data_r_to_Ha is already scaled already
     # here, contscale is an extra factor the user can input to tweak the continuum subtraction
-    csgr_data = data_NB - contscale * data_r_to_Ha
+
 
     # correct for filter transmission variations and for halpha emission in the continuum filter
 
@@ -620,6 +753,9 @@ if __name__ == '__main__':
     hhdu[0].header.set("HAWID_A", float(f"{hfilter_width_A:.2f}"), "Halpha filter width Angstrom")
     hhdu[0].header.set("SRCMETA", "metadata.json", "Source of correction metadata")
 
+    hhdu[0].header.set("AUTOCONT", bool(args.auto_contscale), "Auto continuum scale used")
+    hhdu[0].header.set("CONTSCL", float(extra_scale), "Extra continuum scale")
+    #hhdu[0].header.set("CONTQ", float(args.auto_contscale_q), "Percentile used for auto continuum scale")
     hdu = fits.PrimaryHDU(csgr_data, header=hhdu[0].header)
     hdu.writeto(outname, overwrite=True)
 

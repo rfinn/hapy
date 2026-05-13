@@ -793,6 +793,14 @@ parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
 ~/github/hapy/hapy/scripts/make_cs_gr.py "{}"  :::: reproject_cutout_list.txt
 ```
 
+```
+parallel --bar -j 16 --joblog cs_gr_auto.joblog --results
+cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {}
+--auto-contscale --auto-contscale-percentile 30 --overwrite ::::
+reproject_cutout_list.txt
+```
+
+
 Needed to rerun on the INT images (filter lookup issue)
 
 ```
@@ -834,4 +842,3 @@ cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py plot-one
 cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
 cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 ```
-
