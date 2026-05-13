@@ -792,6 +792,16 @@ python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-201
 --auto-contscale-percentile 30 --overwrite
 ```
 
+To solve by fitting the low end of the tail
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method negtail --overwrite
+```
+
+To solve using percentile of ratio of R/Halpha flux:
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method ratio --auto-contscale-percentile 30 --overwrite
+```
+
 ```bash
 parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
 ~/github/hapy/hapy/scripts/make_cs_gr.py "{}"  :::: reproject_cutout_list.txt
@@ -839,8 +849,7 @@ python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspectio
 ```
 To test one:
 ```
-python ~/github/hapy/scripts/inspect_cs_images.py plot-one
-cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
+python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
 cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 ```
 

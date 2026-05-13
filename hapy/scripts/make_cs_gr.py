@@ -51,6 +51,7 @@ from reproject import reproject_interp
 from hapy.hatools.filter_transformations import halpha_minus_r_color_from_metadata
 from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_metadata
 
+
 #import warnings
 #warnings.filterwarnings('ignore')
 
@@ -128,7 +129,107 @@ def estimate_extra_continuum_scale(
 
 
 
+def estimate_scale_from_negative_tail(
+    ha_data,
+    rcont_data,
+    galaxy_mask,
+    sky_sigma,
+    bad_mask=None,
+    target=-1.5,
+    percentile=5,
+    scale_range=(0.75, 1.15),
+    ngrid=81,
+    min_pixels=100,
+):
+    good = (
+        galaxy_mask
+        & np.isfinite(ha_data)
+        & np.isfinite(rcont_data)
+        & np.isfinite(galaxy_mask)
+    )
 
+    if bad_mask is not None:
+        good &= ~bad_mask
+
+    if np.count_nonzero(good) < min_pixels:
+        return 1.0
+
+    ha = ha_data[good]
+    rc = rcont_data[good]
+
+    scales = np.linspace(scale_range[0], scale_range[1], ngrid)
+    scores = []
+
+    for s in scales:
+        cs = ha - s * rc
+        p = np.nanpercentile(cs, percentile)
+        scores.append(abs((p / sky_sigma) - target))
+
+    best = np.nanargmin(scores)
+    return float(scales[best])
+
+def estimate_scale_from_negative_tail_bisect(
+    ha_data,
+    rcont_data,
+    galaxy_mask,
+    sky_sigma,
+    bad_mask=None,
+    target=-1.5,
+    percentile=5,
+    scale_range=(0.75, 1.15),
+    min_pixels=100,
+    tol=0.002,
+    max_iter=25,
+):
+    good = (
+        galaxy_mask
+        & np.isfinite(ha_data)
+        & np.isfinite(rcont_data)
+        & (rcont_data > 0)
+    )
+
+    if bad_mask is not None:
+        good &= ~bad_mask
+
+    if np.count_nonzero(good) < min_pixels:
+        print("WARNING: not enough valid pixels for negative-tail scaling")
+        return 1.0
+
+    ha = ha_data[good]
+    rc = rcont_data[good]
+
+    def tail_value(scale):
+        cs = ha - scale * rc
+        return np.nanpercentile(cs, percentile) / sky_sigma
+
+    lo, hi = scale_range
+    tail_lo = tail_value(lo)
+    tail_hi = tail_value(hi)
+
+    # If even the minimum scale is too negative, use minimum scale.
+    if tail_lo <= target:
+        print(f"negtail: minimum scale already too negative: tail={tail_lo:.2f}")
+        return float(lo)
+
+    # If even the maximum scale is not negative enough, use maximum scale.
+    if tail_hi >= target:
+        print(f"negtail: maximum scale not negative enough: tail={tail_hi:.2f}")
+        return float(hi)
+
+    for _ in range(max_iter):
+        mid = 0.5 * (lo + hi)
+        tail_mid = tail_value(mid)
+
+        if abs(tail_mid - target) < tol:
+            return float(mid)
+
+        # larger scale makes tail more negative
+        if tail_mid > target:
+            lo = mid
+        else:
+            hi = mid
+
+    return float(0.5 * (lo + hi))
 
 def get_galaxy_region_from_segmap(segfile, mask=None, label=None):
     seg = fits.getdata(segfile)
@@ -364,12 +465,20 @@ if __name__ == '__main__':
 
 
     parser.add_argument("--auto-contscale", action="store_true", help="Estimate an extra continuum scale factor using the galaxy segmentation region.")
+    parser.add_argument("--auto-contscale-method", choices=["ratio", "negtail"], default="ratio", help="Method for estimating the extra continuum scale.")
     parser.add_argument("--auto-contscale-min", type=int, default=100, help="Minimum number of valid segmentation pixels required for auto continuum scale.")
     parser.add_argument("--auto-contscale-min-scale", type=float, default=0.75, help="Minimum allowed auto continuum scale.")
     parser.add_argument("--auto-contscale-max-scale", type=float, default=1.15, help="Maximum allowed auto continuum scale.")
-    parser.add_argument("--auto-contscale-ratio-min", type=float, default=0.7, help="Minimum Ha/Rcont ratio used for auto continuum scale.")
-    parser.add_argument("--auto-contscale-ratio-max", type=float, default=1.3, help="Maximum Ha/Rcont ratio used for auto continuum scale.")
-    parser.add_argument("--auto-contscale-percentile", type=float, default=35.0, help="Percentile of clipped Ha/Rcont ratio used for auto continuum scale.")
+
+    parser.add_argument("--auto-contscale-percentile", type=float, default=30.0, help="For method='ratio': percentile of clipped Ha/Rcont ratio used for auto continuum scale.")
+    parser.add_argument("--auto-contscale-ratio-min", type=float, default=0.7, help="For method='ratio': minimum Ha/Rcont ratio included.")
+    parser.add_argument("--auto-contscale-ratio-max", type=float, default=1.3, help="For method='ratio': maximum Ha/Rcont ratio included.")
+
+    parser.add_argument("--auto-contscale-negtail-percentile", type=float, default=5.0, help="For method='negtail': lower percentile of CS pixels to compare against sky noise.")
+    parser.add_argument("--auto-contscale-negtail-target", type=float, default=-1.5, help="For method='negtail': target lower-tail value in units of sky sigma.")
+    parser.add_argument("--auto-contscale-negtail-ngrid", type=int, default=81, help="For method='negtail': number of trial continuum scales.")
+
+
     args = parser.parse_args()
 
     dirname = args.cutdir
@@ -675,7 +784,7 @@ if __name__ == '__main__':
     # get additional scale factor to make 
     galaxy_region = get_galaxy_region_from_segmap(segfile, mask=mask)
 
-    if args.auto_contscale:
+    if args.auto_contscale_method == "ratio":
         extra_scale = estimate_extra_continuum_scale(
             ha_data=data_NB,
             rcont_data=data_r_to_Ha,
@@ -685,12 +794,47 @@ if __name__ == '__main__':
             clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
             ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
             scale_percentile=args.auto_contscale_percentile,
-            )
+        )
+
+    elif args.auto_contscale_method == "negtail":
+
+        cs0 = data_NB - data_r_to_Ha
+
+        stat_cs = stats.sigma_clipped_stats(cs0, mask=mask)
+        sky_sigma = stat_cs[2]
+
+        header_cskystd = hhdu[0].header.get("CSKYSTD", np.nan)
+        print(f"Header CSKYSTD = {header_cskystd}")
+        print(f"Measured CS sigma = {sky_sigma:.3f}")
 
 
-    else:
-        extra_scale = 1.0
-    print(f"\nauto CS extra_scale = {extra_scale:.2f}\n")
+        extra_scale = estimate_scale_from_negative_tail_bisect(
+            ha_data=data_NB,
+            rcont_data=data_r_to_Ha,
+            galaxy_mask=galaxy_region,
+            sky_sigma=sky_sigma,
+            bad_mask=mask,
+            target=args.auto_contscale_negtail_target,
+            percentile=args.auto_contscale_negtail_percentile,
+            scale_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
+            min_pixels=args.auto_contscale_min,
+        )
+    
+    # if args.auto_contscale:
+    #     extra_scale = estimate_extra_continuum_scale(
+    #         ha_data=data_NB,
+    #         rcont_data=data_r_to_Ha,
+    #         galaxy_mask=galaxy_region,
+    #         bad_mask=mask,
+    #         min_pixels=args.auto_contscale_min,
+    #         clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
+    #         ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
+    #         scale_percentile=args.auto_contscale_percentile,
+    #         )
+
+    # else:
+    #     extra_scale = 1.0
+    print(f"\nauto CS extra_scale = {extra_scale:.4f}\n")
     csgr_data = data_NB - extra_scale * data_r_to_Ha
     
     ##
