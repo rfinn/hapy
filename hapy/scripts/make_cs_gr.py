@@ -129,6 +129,7 @@ def estimate_extra_continuum_scale(
 
 
 
+
 def estimate_scale_from_negative_tail(
     ha_data,
     rcont_data,
@@ -178,7 +179,7 @@ def estimate_scale_from_negative_tail_bisect(
     percentile=5,
     scale_range=(0.75, 1.15),
     min_pixels=100,
-    tol=0.002,
+    tol=0.02,
     max_iter=25,
 ):
     good = (
@@ -198,6 +199,10 @@ def estimate_scale_from_negative_tail_bisect(
     ha = ha_data[good]
     rc = rcont_data[good]
 
+    if not np.isfinite(sky_sigma) or sky_sigma <= 0:
+        print("WARNING: invalid sky_sigma for negative-tail scaling")
+        return 1.0
+
     def tail_value(scale):
         cs = ha - scale * rc
         return np.nanpercentile(cs, percentile) / sky_sigma
@@ -206,14 +211,17 @@ def estimate_scale_from_negative_tail_bisect(
     tail_lo = tail_value(lo)
     tail_hi = tail_value(hi)
 
-    # If even the minimum scale is too negative, use minimum scale.
-    if tail_lo <= target:
-        print(f"negtail: minimum scale already too negative: tail={tail_lo:.2f}")
+    print(f"negtail: scale_lo={lo:.4f}, tail_lo={tail_lo:.3f}")
+    print(f"negtail: scale_hi={hi:.4f}, tail_hi={tail_hi:.3f}")
+    print(f"negtail: target={target:.3f}")
+
+    # larger scale should make tail more negative
+    if tail_lo < target and tail_hi < target:
+        print("negtail: entire range is too negative; using minimum scale")
         return float(lo)
 
-    # If even the maximum scale is not negative enough, use maximum scale.
-    if tail_hi >= target:
-        print(f"negtail: maximum scale not negative enough: tail={tail_hi:.2f}")
+    if tail_lo > target and tail_hi > target:
+        print("negtail: entire range is not negative enough; using maximum scale")
         return float(hi)
 
     for _ in range(max_iter):
@@ -221,15 +229,85 @@ def estimate_scale_from_negative_tail_bisect(
         tail_mid = tail_value(mid)
 
         if abs(tail_mid - target) < tol:
+            print(f"negtail: converged scale={mid:.4f}, tail={tail_mid:.3f}")
             return float(mid)
 
-        # larger scale makes tail more negative
-        if tail_mid > target:
-            lo = mid
-        else:
+        # larger scale -> more negative tail
+        if tail_mid < target:
+            # too negative / oversubtracted
             hi = mid
+        else:
+            # not negative enough / undersubtracted
+            lo = mid
 
-    return float(0.5 * (lo + hi))
+    scale = 0.5 * (lo + hi)
+    tail = tail_value(scale)
+    print(f"negtail: final scale={scale:.4f}, tail={tail:.3f}")
+
+    return float(scale)
+
+# def estimate_scale_from_negative_tail_bisect(
+#     ha_data,
+#     rcont_data,
+#     galaxy_mask,
+#     sky_sigma,
+#     bad_mask=None,
+#     target=-1.5,
+#     percentile=5,
+#     scale_range=(0.75, 1.15),
+#     min_pixels=100,
+#     tol=0.002,
+#     max_iter=25,
+# ):
+#     good = (
+#         galaxy_mask
+#         & np.isfinite(ha_data)
+#         & np.isfinite(rcont_data)
+#         & (rcont_data > 0)
+#     )
+
+#     if bad_mask is not None:
+#         good &= ~bad_mask
+
+#     if np.count_nonzero(good) < min_pixels:
+#         print("WARNING: not enough valid pixels for negative-tail scaling")
+#         return 1.0
+
+#     ha = ha_data[good]
+#     rc = rcont_data[good]
+
+#     def tail_value(scale):
+#         cs = ha - scale * rc
+#         return np.nanpercentile(cs, percentile) / sky_sigma
+
+#     lo, hi = scale_range
+#     tail_lo = tail_value(lo)
+#     tail_hi = tail_value(hi)
+
+#     # If even the minimum scale is too negative, use minimum scale.
+#     if tail_lo <= target:
+#         print(f"negtail: minimum scale already too negative: tail={tail_lo:.2f}")
+#         return float(lo)
+
+#     # If even the maximum scale is not negative enough, use maximum scale.
+#     if tail_hi >= target:
+#         print(f"negtail: maximum scale not negative enough: tail={tail_hi:.2f}")
+#         return float(hi)
+
+#     for _ in range(max_iter):
+#         mid = 0.5 * (lo + hi)
+#         tail_mid = tail_value(mid)
+
+#         if abs(tail_mid - target) < tol:
+#             return float(mid)
+
+#         # larger scale makes tail more negative
+#         if tail_mid > target:
+#             lo = mid
+#         else:
+#             hi = mid
+
+#     return float(0.5 * (lo + hi))
 
 def get_galaxy_region_from_segmap(segfile, mask=None, label=None):
     seg = fits.getdata(segfile)
