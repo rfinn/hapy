@@ -702,7 +702,8 @@ if __name__ == '__main__':
     print("r-band clipped median = {0:3.2e}".format(stat_r[1]))
     print("Halpha clipped median = {0:3.2e}".format(stat_h[1]))
 
-    
+    stat_r -= stat_r[1]
+    stat_NB -= stat_h[1]    
     # ############################################################
     # ## Subtract local sky from cutouts
     # ############################################################
@@ -721,7 +722,7 @@ if __name__ == '__main__':
     # stat_r = stats.sigma_clipped_stats(rhdu[0].data, mask=mask)
     # print("Subtracting {0:3.2e} from r-band image".format(stat_r[1]))
 
-    # data_r = rhdu[0].data - stat_r[1]
+    #data_r = rhdu[0].data - stat_r[1]
     # data_r_to_Ha = data_r * rscale
 
     # # sky subtracted r-band image
