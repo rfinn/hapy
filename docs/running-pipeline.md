@@ -214,31 +214,22 @@ sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.jobl
 
 ### Run in Parallel
 
-```bash
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog
---results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
---convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --force-mask :::: cutout_with_dir.txt
+
+Create an input list that removes objects that have `CATALOG_USE==EXCLUDE`:
 ```
+python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir
+cutouts --review review_sample_20260514.csv --outfile
+cutout_run_analysis_list.txt
+```
+
 
 If manual masking has been done, don't force rebuilding of masks:
-
 ```bash
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog
+parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog
 --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
---convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_with_dir.txt
+--convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_run_analysis_list.txt
 ```
 
-
-```bash
-parallel --eta -j 4 \
-  --joblog run_analysis.joblog \
-  --results parallel-logs \
-  run_analysis --cutout-dir "{}" --make-mask \
-  --psf-dir /data-pool/Halpha/psf-images/ \
-  --statmorph --galfit --convflag \
-  --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ \
-  :::: cutout_list.txt
-```
 
 You can monitor memory usage with 
 ```

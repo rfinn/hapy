@@ -6,7 +6,7 @@ GOAL:
 
 USAGE:
 
-python make_run_analysis_list.py --cutout-dir cutouts --review review_sample_20260514.csv --outfile cutout_run_analysis_list.txt
+python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir cutouts --review review_sample_20260514.csv --outfile cutout_run_analysis_list.txt
 
 """
 import argparse
