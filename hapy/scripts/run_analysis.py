@@ -1203,6 +1203,17 @@ def main():
     # why are we looking for a mask when we are suppose to make one?
     #mask_fits = args.mask_fits or _pick_one(str(cutdir / f"{tag}*-mask.fits"))
 
+    
+    sigma_image = args.sigma_image or _pick_one(str(cutdir / f"{tag}*-sigma.fits")) or _pick_one(str(cutdir / f"{tag}*-rms.fits"))
+    psf_image = args.psf_image or _pick_one(str(cutdir / f"{tag}*-psf.fits"))
+
+
+            
+    row = initialize_result_row()
+
+    init_csgr_row_defaults(row)
+
+
     # look for CS-gr image and log it if found
     csgr_fits = (
         str(cutdir / params.get("csgr_fits")) if params.get("csgr_fits") else None
@@ -1217,14 +1228,6 @@ def main():
     else:
         logger.info("No CS-gr image found")
     
-    sigma_image = args.sigma_image or _pick_one(str(cutdir / f"{tag}*-sigma.fits")) or _pick_one(str(cutdir / f"{tag}*-rms.fits"))
-    psf_image = args.psf_image or _pick_one(str(cutdir / f"{tag}*-psf.fits"))
-
-
-            
-    row = initialize_result_row()
-
-    init_csgr_row_defaults(row)
     
     from datetime import datetime
     row["RUN_DATE"] = datetime.utcnow().strftime("%Y-%m-%d")

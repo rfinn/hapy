@@ -220,6 +220,15 @@ parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog
 --convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --force-mask :::: cutout_with_dir.txt
 ```
 
+If manual masking has been done, don't force rebuilding of masks:
+
+```bash
+parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
+--convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_with_dir.txt
+```
+
+
 ```bash
 parallel --eta -j 4 \
   --joblog run_analysis.joblog \
@@ -240,7 +249,7 @@ htop
 ## Merge Results From `run_analysis`
 
 ```bash
-merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260502.csv
+merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260514.csv
 ```
 
 Example output as of 2026-04-17:
@@ -257,6 +266,21 @@ Final table rows: 823
 Final table columns: 344
 ```
 
+Example output as of 2026-05-14:
+```
+Searching for files  *results.ecsv
+Found 821 result files.
+Skipping 39 files with CATALOG_USE == EXCLUDE
+Merging 782 result files.
+Reading tables...
+Validating schema...
+	validated 782/782 tables
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260514.fits
+Done.
+Final table rows: 782
+Final table columns: 358
+```
 
 After removing bad HDI p012-p013 coadd:
 ```
