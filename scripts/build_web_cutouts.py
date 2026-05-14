@@ -485,7 +485,7 @@ class cutout_dir():
             self.galex_flag = False
         self.make_png_plots()
         self.make_cs_png()
-        #self.make_cs_png(gr=True)
+        self.make_cs_png(gr=True)
         #self.make_cs_png(grauto=True)                
         #self.get_galfit_model()
         self.copy_hapy_gini_pdf()
@@ -534,14 +534,18 @@ class cutout_dir():
         else:
             self.haimage = self.csimage
         
-        #self.csgrimage = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr.fits'))[0]
-        #self.csgrimageauto = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr-auto.fits'))[0]
-        self.csgrimage = None
+        csgrlist = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr.fits'))
+        if len(csgrlist) > 0
+            self.csgrimage = csgrlist[0]
+        else:
+            self.csgrimage = None
         self.csgrimageauto = None
+
+        #self.csgrimageauto = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr-auto.fits'))[0]
         self.maskimage = self.rimage.replace('-R.fits','-mask.fits').replace('-r.fits','-mask.fits')
 
         try:
-            self.conscale_auto = fits.getheader(self.csgrimageauto)['CONSCALE']
+            self.conscale_auto = fits.getheader(self.csgrimage)['CONTSCL']
         except:
             self.conscale_auto = -99
 
@@ -899,8 +903,8 @@ class cutout_dir():
         self.mag = getval("GAL_MAG")
         self.mag_err = getval("GAL_MAG_ERR")
 
-        self.re = getval("GAL_RE")
-        self.re_err = getval("GAL_RE_ERR")
+        self.re = getval("GAL_RE_ARCSEC")
+        self.re_err = getval("GAL_RE_ERR_ARCSEC")
 
         self.nsersic = getval("GAL_N")
         self.nsersic_err = getval("GAL_N_ERR")
@@ -941,8 +945,8 @@ class cutout_dir():
         self.cyc_err = getval("GAL_CYC_ERR")
         self.cmag = getval("GAL_CMAG")
         self.cmag_err = getval("GAL_CMAG_ERR")
-        self.cre = getval("GAL_CRE")
-        self.cre_err = getval("GAL_CRE_ERR")
+        self.cre = getval("GAL_CRE_ARCSEC")
+        self.cre_err = getval("GAL_CRE_ERR_ARCSEC")
         self.cnsersic = getval("GAL_CN")
         self.cnsersic_err = getval("GAL_CN_ERR")
         self.cBA = getval("GAL_CBA")
@@ -1647,11 +1651,12 @@ class build_html_cutout():
         '''  r, halpha, cs, and mask images '''
         self.html.write('<h2>Halpha Images</h2>\n')
         if self.cutout.legacy_jpg is not None:
-            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
-            labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
+            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2],self.cutout.csgr_png2]
+            #labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr']#,'CS, stretch 2']
+            labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
         else:
-            images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png1]#,self.cutout.cs_png2]
-            labels = ['R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
+            images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2,self.cutout.csgr_png2]#,self.cutout.cs_png2]
+            labels = ['R-band Image','H&alpha;+Cont','CS from ZP','CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
         images = [os.path.basename(i) for i in images]
         #labels = ['R-band Image','H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']
         #labels = ['H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']        
@@ -1915,7 +1920,19 @@ class build_html_cutout():
             status_cell(bool(get_result(self.cutout.results,'H_PROFILE_OK', False))),
         ]
 
-        write_text_table(self.html, labels, data, data2=data2)
+        data3 = [
+            'Halpha',
+            fmt_result(self.cutout.results,'CSGR_ELLIP_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_HAPY_GINI', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_HAPY_M20', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_ASYM', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_C30_R24', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_PETRO_CON', '{:.2f}'),
+            status_cell(bool(get_result(self.cutout.results,'H_PROFILE_OK', False))),
+        ]
+            
+        write_text_table(self.html, labels, data, data2=data2, data3=data3)
 
     def write_hapy_gini_table(self):
                 # add statmorph figures

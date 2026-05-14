@@ -146,7 +146,7 @@ def write_table(html,images=None,labels=None,images2=None,width="100%"):
     
     html.write('</table>\n')
 
-def write_text_table(html,labels,data,data2=None):    
+def write_text_table(html,labels,data,data2=None, data3=None):    
     html.write('<table width="90%"; table-layout: fixed>\n')
     html.write('<tr>')
     for l in labels:
@@ -162,6 +162,13 @@ def write_text_table(html,labels,data,data2=None):
             html.write('<td>{}</td>'.format(d))
         html.write('</tr>\n')            
 
+    if data3 is not None:
+        html.write('<tr>')
+        for d in data3:
+            html.write('<td>{}</td>'.format(d))
+        html.write('</tr>\n')            
+        
+        
     html.write('</table>\n')
 
 def get_galaxies_fov(imagename,RA,DEC):
