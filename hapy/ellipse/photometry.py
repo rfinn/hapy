@@ -455,7 +455,7 @@ class EllipsePhotometry():
 
 
     '''
-    def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=20,apertures=None, image2_filter=None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False,logger=None):
+    def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=20,apertures=None, image2_filter=None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False,logger=None,fileid=None):
         '''  inputs described above '''
 
         self.tag = image.replace('.fits','')
@@ -517,6 +517,7 @@ class EllipsePhotometry():
         self.image2_filter = image2_filter
         self.filter_ratio = filter_ratio
 
+        self.fileid = None
         # will use the gain to calculate the noise in the image
         try:
             self.gain = self.header['GAIN']
@@ -1610,7 +1611,10 @@ class EllipsePhotometry():
             # -------------------------------------------------
             if save_diag:
                 try:
-                    morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.png"
+                    if self.fileid is None:
+                        morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.png"
+                    else:
+                        morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-{self.fileid}-hapy-morphology-diag.png"
                     morph.diag_fig = plot_hapy_morphology_diagnostic(
                         r_image=self.image,
                         ha_image=self.image2,

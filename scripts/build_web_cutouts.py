@@ -828,7 +828,7 @@ class cutout_dir():
 
 
         # --- R-band PDF ---
-        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-hapy-morphology-diag.png"))
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*R-hapy-morphology-diag.png"))
 
         if len(r_matches) > 0:
             hapy_gini_pdf = r_matches[0]
@@ -839,10 +839,25 @@ class cutout_dir():
             except Exception as e:
                 print(f"Error copying hapy gini PDF: {hapy_gini_pdf}")
                 print(e)
-                self.sm_r_pdf = None
+                self.hapy_gini_pdf = None
         else:
             print(f"No hapy gini PDF found in {self.cutoutdir}")
 
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*R-csgr-hapy-morphology-diag.png"))
+
+        if len(r_matches) > 0:
+            hapy_gini_pdf = r_matches[0]
+            self.hapy_csgr_gini_pdf = os.path.join(self.outdir, os.path.basename(hapy_gini_pdf))
+
+            try:
+                shutil.copy2(hapy_gini_pdf, self.hapy_csgr_gini_pdf)
+            except Exception as e:
+                print(f"Error copying hapy gini PDF: {hapy_gini_pdf}")
+                print(e)
+                self.hapy_csgr_gini_pdf = None
+        else:
+            print(f"No hapy gini PDF found in {self.cutoutdir}")
+            
     def copy_mask_diagnostic(self):
         """Copy hapy gini PDF from cutoutdir to outdir."""
 
@@ -1662,7 +1677,7 @@ class build_html_cutout():
         if self.cutout.legacy_jpg is not None:
             images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2,self.cutout.csgr_png2]
             #labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr']#,'CS, stretch 2']
-            labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
+            labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP',f'CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
         else:
             images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2,self.cutout.csgr_png2]#,self.cutout.cs_png2]
             labels = ['R-band Image','H&alpha;+Cont','CS from ZP','CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
@@ -1930,14 +1945,14 @@ class build_html_cutout():
         ]
 
         data3 = [
-            'Halpha',
+            'CS-gr',
             fmt_result(self.cutout.results,'CSGR_ELLIP_GINI', '{:.2f}'),
             fmt_result(self.cutout.results,'CSGR_M20', '{:.2f}'),
             fmt_result(self.cutout.results,'CSGR_HAPY_GINI', '{:.2f}'),
             fmt_result(self.cutout.results,'CSGR_HAPY_M20', '{:.2f}'),
             fmt_result(self.cutout.results,'CSGR_ASYM', '{:.2f}'),
-            fmt_result(self.cutout.results,'CSGR_C30_R24', '{:.2f}'),
-            fmt_result(self.cutout.results,'CSGR_PETRO_CON', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_H_C30_R24', '{:.2f}'),
+            fmt_result(self.cutout.results,'CSGR_H_PETRO_CON', '{:.2f}'),
             status_cell(bool(get_result(self.cutout.results,'H_PROFILE_OK', False))),
         ]
             
@@ -1945,14 +1960,20 @@ class build_html_cutout():
 
     def write_hapy_gini_table(self):
                 # add statmorph figures
-        self.html.write('<h2>HAPY Gini Diagnostic Plot</h3>\n')
+        self.html.write('<h2>HAPY Morphology Diagnostic Plot</h3>\n')
 
         if self.cutout.hapy_gini_pdf is not None:
             pdf_name = os.path.basename(self.cutout.hapy_gini_pdf)
-            self.html.write(f'<p><b>HAPY Gini</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
+            self.html.write(f'<p><b>HAPY Morphology</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             #self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
             self.html.write(f'<embed src="{pdf_name}" width="90%" height="600px"></embed>\n')
 
+        if self.cutout.hapy_csgr_gini_pdf is not None:
+            pdf_name = os.path.basename(self.cutout.hapy_csgr_gini_pdf)
+            self.html.write(f'<p><b>HAPY Morphology</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
+            #self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
+            self.html.write(f'<embed src="{pdf_name}" width="90%" height="600px"></embed>\n')
+            
 
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')

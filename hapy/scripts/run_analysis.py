@@ -1920,6 +1920,7 @@ def main():
             objdec=dec,
             fixcenter=args.fixcenter,
             logger=logger,
+            fileid="csgr"
         )
 
         copy_image2_fields_to_row(e_gr, row, "CSGR")

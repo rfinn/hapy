@@ -613,7 +613,12 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot
 
 ```
 
+## Rsync files
 
+from html directory:
+```
+rsync -avz cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
+```
 
 # Commands for Testing a Virgo Subsample
 Testing directories

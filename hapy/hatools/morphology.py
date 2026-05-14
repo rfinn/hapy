@@ -1311,6 +1311,46 @@ def _get_bbox_from_mask(mask, pad=25, min_size=75):
 
     return (xmin, xmax), (ymin, ymax)
 
+def _make_limits_square(xlim, ylim, image_shape):
+    """
+    Expand x/y limits to make a square cutout, clipped to image bounds.
+    """
+    ny, nx = image_shape
+
+    xmin, xmax = xlim
+    ymin, ymax = ylim
+
+    xcen = 0.5 * (xmin + xmax)
+    ycen = 0.5 * (ymin + ymax)
+
+    size = max(xmax - xmin, ymax - ymin)
+
+    xmin = xcen - 0.5 * size
+    xmax = xcen + 0.5 * size
+    ymin = ycen - 0.5 * size
+    ymax = ycen + 0.5 * size
+
+    # Shift box back inside image if needed
+    if xmin < 0:
+        xmax -= xmin
+        xmin = 0
+    if xmax > nx:
+        xmin -= xmax - nx
+        xmax = nx
+    if ymin < 0:
+        ymax -= ymin
+        ymin = 0
+    if ymax > ny:
+        ymin -= ymax - ny
+        ymax = ny
+
+    # Final clipping
+    xmin = max(0, xmin)
+    xmax = min(nx, xmax)
+    ymin = max(0, ymin)
+    ymax = min(ny, ymax)
+
+    return (xmin, xmax), (ymin, ymax)
 
 def plot_hapy_morphology_diagnostic(
     r_image,
@@ -1409,8 +1449,9 @@ def plot_hapy_morphology_diagnostic(
     else:
         hagi_vmin, hagi_vmax = 0.0, 1.0
 
-    xlim, ylim = _get_bbox_from_mask(r_gini_mask, pad=25, min_size=75)
-        
+    xlim, ylim = _get_bbox_from_mask(r_gini_mask, pad=50, min_size=75)
+    xlim, ylim = _make_limits_square(xlim, ylim, image_shape=r_gini_mask.shape)
+
     fig, axes = plt.subplots(2, 4, figsize=(18, 9), constrained_layout=True)
     ax = axes.ravel()
 
