@@ -1057,10 +1057,15 @@ class cutout_dir():
         self.r_phot_file = self.rimage.replace('.fits', '_phot.fits')
         self.cs_phot_file = self.csimage.replace('.fits', '_phot.fits')
 
-        print("phot files = ", self.cs_phot_file)
+        if self.csgrimage is not None:
+            self.csgr_phot_file = self.csgrimage.replace('.fits', '_phot.fits')
+        #print("phot files = ", self.cs_phot_file)
+        else:
+            self.csgr_phot_file = None
 
         self.r_phot = None
         self.cs_phot = None
+        self.csgr_phot = None        
         self.phot_tables_ok = False
 
         missing = []
@@ -1081,6 +1086,15 @@ class cutout_dir():
         else:
             missing.append(self.cs_phot_file)
 
+        if (self.csgrimage is not None) and os.path.exists(self.csgr_phot_file):
+            try:
+                self.csgr_phot = Table.read(self.csgr_phot_file)
+            except Exception as e:
+                print(f"WARNING: could not read {self.csgr_phot_file}: {e}")
+        else:
+            missing.append(self.csgr_phot_file)
+
+            
         if missing:
             print("WARNING: missing phot tables:")
             for m in missing:
@@ -1089,162 +1103,157 @@ class cutout_dir():
         if (self.r_phot is not None) and (self.cs_phot is not None):
             self.phot_tables_ok = True
 
-
-
+ 
     def plot_phot_tables(self):
-        """Plot flux, magnitude, and surface-brightness profiles from photutils tables."""
+        """Plot flux, magnitude, and surface-brightness profiles from photutils tables.
+
+        Overplots CS-gr profiles when self.csgr_phot exists.
+        """
 
         if (self.r_phot is None) or (self.cs_phot is None):
             print("WARNING: phot tables not available; skipping profile plots")
             return
-        
+
         tabs = [self.r_phot, self.cs_phot]
-        labels = ['photutils r', 'photutils Halpha x100']
+        labels_flux = ["photutils r", "photutils CS-ZP x100"]
+        labels_mag = ["photutils r", "photutils CS-ZP"]
+        linestyles = ["-", "-"]
         alphas = [1.0, 0.4]
-        mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+        if getattr(self, "csgr_phot", None) is not None:
+            tabs.append(self.csgr_phot)
+            labels_flux.append("photutils CS-gr x100")
+            labels_mag.append("photutils CS-gr")
+            linestyles.append("--")
+            alphas.append(0.4)
+
+        mycolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
         def get_plotflag(tab):
-            if 'snr_per_pixel' in tab.colnames:
-                return np.isfinite(tab['snr_per_pixel']) & (tab['snr_per_pixel'] > 2)
-            elif 'sb_avg_snr' in tab.colnames:
-                return np.isfinite(tab['sb_avg_snr']) & (tab['sb_avg_snr'] > 2)
+            if "snr_per_pixel" in tab.colnames:
+                return np.isfinite(tab["snr_per_pixel"]) & (tab["snr_per_pixel"] > 2)
+            elif "sb_avg_snr" in tab.colnames:
+                return np.isfinite(tab["sb_avg_snr"]) & (tab["sb_avg_snr"] > 2)
             else:
                 return np.ones(len(tab), dtype=bool)
 
-        # --------------------------------------------------
+        def plot_profile(
+            ycol,
+            yerrcol,
+            ylabel,
+            outfile_attr,
+            outfile_suffix,
+            labels,
+            scale_cs=False,
+            logy=False,
+            invert_y=False,
+        ):
+            fig = plt.figure(figsize=(6, 6))
+            plt.subplots_adjust(left=0.15, bottom=0.1, right=0.95, top=0.95)
+
+            for i, t in enumerate(tabs):
+                if ycol not in t.colnames or yerrcol not in t.colnames:
+                    continue
+
+                plotflag = get_plotflag(t)
+
+                x = np.asarray(t["sma_arcsec"])[plotflag]
+                y0 = np.asarray(t[ycol])[plotflag]
+                yerr = np.asarray(t[yerrcol])[plotflag]
+
+                y1 = y0 + yerr
+                y2 = y0 - yerr
+
+                # scale CS-ZP and CS-gr by 100 for flux/SB plots
+                if scale_cs and i > 0:
+                    y0 = y0 * 100
+                    y1 = y1 * 100
+                    y2 = y2 * 100
+
+                good = np.isfinite(x) & np.isfinite(y0) & np.isfinite(y1) & np.isfinite(y2)
+                if logy:
+                    good &= y0 > 0
+
+                if np.any(good):
+                    color = mycolors[i % len(mycolors)]
+                    plt.fill_between(
+                        x[good],
+                        y1[good],
+                        y2[good],
+                        label=labels[i],
+                        alpha=alphas[i],
+                        color=color,
+                    )
+                    plt.plot(
+                        x[good],
+                        y0[good],
+                        linestyles[i],
+                        lw=2,
+                        color=color,
+                    )
+
+            plt.xlabel("SMA (arcsec)", fontsize=16)
+            plt.ylabel(ylabel, fontsize=16)
+
+            if logy:
+                plt.gca().set_yscale("log")
+            if invert_y:
+                plt.gca().invert_yaxis()
+
+            plt.legend()
+            outfile = os.path.join(self.outdir, self.gname + outfile_suffix)
+            setattr(self, outfile_attr, outfile)
+            plt.savefig(outfile)
+            plt.close(fig)
+
         # enclosed flux
-        # --------------------------------------------------
-        fig = plt.figure(figsize=(6, 6))
-        plt.subplots_adjust(left=.15, bottom=.1, right=.95, top=.95)
+        plot_profile(
+            ycol="flux_cgs",
+            yerrcol="flux_cgs_err",
+            ylabel="Flux (erg/s/cm$^2$)",
+            outfile_attr="efluxsma_png",
+            outfile_suffix="-enclosed-flux.png",
+            labels=labels_flux,
+            scale_cs=True,
+            logy=True,
+        )
 
-        plotflag = tabs[0]['snr_per_pixel'] > 2
-        for i, t in enumerate(tabs):
-            
-
-            x = np.asarray(t['sma_arcsec'])[plotflag]
-            y0 = np.asarray(t['flux_cgs'])[plotflag]
-            yerr = np.asarray(t['flux_cgs_err'])[plotflag]
-
-            y1 = y0 + yerr
-            y2 = y0 - yerr
-
-            if i == 1:
-                y0 = y0 * 100
-                y1 = y1 * 100
-                y2 = y2 * 100
-
-            good = np.isfinite(x) & np.isfinite(y0) & np.isfinite(y1) & np.isfinite(y2) & (y0 > 0)
-            if np.any(good):
-                plt.fill_between(x[good], y1[good], y2[good],
-                                 label=labels[i], alpha=alphas[i], color=mycolors[i])
-                plt.plot(x[good], y0[good], '-', lw=2, color=mycolors[i])
-
-        plt.xlabel('SMA (arcsec)', fontsize=16)
-        plt.ylabel('Flux (erg/s/cm$^2$)', fontsize=16)
-        plt.gca().set_yscale('log')
-        plt.legend(loc='lower right')
-        self.efluxsma_png = os.path.join(self.outdir, self.gname + '-enclosed-flux.png')
-        plt.savefig(self.efluxsma_png)
-        plt.close(fig)
-
-        # --------------------------------------------------
         # enclosed magnitude
-        # --------------------------------------------------
-        fig = plt.figure(figsize=(6, 6))
-        plt.subplots_adjust(left=.15, bottom=.1, right=.95, top=.95)
+        plot_profile(
+            ycol="mag_cum",
+            yerrcol="mag_cum_err",
+            ylabel="Magnitude (AB)",
+            outfile_attr="emagsma_png",
+            outfile_suffix="-mag-sma.png",
+            labels=labels_mag,
+            scale_cs=False,
+            invert_y=True,
+        )
 
-        labels_mag = ['photutils r', 'photutils Halpha']
-
-        for i, t in enumerate(tabs):
-            #plotflag = get_plotflag(t)
-
-            x = np.asarray(t['sma_arcsec'])[plotflag]
-            y0 = np.asarray(t['mag_cum'])[plotflag]
-            yerr = np.asarray(t['mag_cum_err'])[plotflag]
-
-            y1 = y0 + yerr
-            y2 = y0 - yerr
-
-            good = np.isfinite(x) & np.isfinite(y0) & np.isfinite(y1) & np.isfinite(y2)
-            if np.any(good):
-                plt.fill_between(x[good], y1[good], y2[good],
-                                 label=labels_mag[i], alpha=alphas[i], color=mycolors[i])
-                plt.plot(x[good], y0[good], '-', lw=2, color=mycolors[i])
-
-        plt.xlabel('SMA (arcsec)', fontsize=16)
-        plt.ylabel('Magnitude (AB)', fontsize=16)
-        plt.gca().invert_yaxis()
-        plt.legend(loc='lower right')
-        self.emagsma_png = os.path.join(self.outdir, self.gname + '-mag-sma.png')
-        plt.savefig(self.emagsma_png)
-        plt.close(fig)
-
-        # --------------------------------------------------
         # surface brightness in cgs
-        # --------------------------------------------------
-        fig = plt.figure(figsize=(6, 6))
-        plt.subplots_adjust(left=.15, bottom=.1, right=.95, top=.95)
+        plot_profile(
+            ycol="sb_cgs_arcsec2",
+            yerrcol="sb_cgs_arcsec2_err",
+            ylabel="SB (erg/s/cm$^2$/arcsec$^2$)",
+            outfile_attr="sbfluxsma_png",
+            outfile_suffix="-sb-sma.png",
+            labels=labels_flux,
+            scale_cs=True,
+            logy=True,
+        )
 
-        for i, t in enumerate(tabs):
-            #plotflag = get_plotflag(t)
-
-            x = np.asarray(t['sma_arcsec'])[plotflag]
-            y0 = np.asarray(t['sb_cgs_arcsec2'])[plotflag]
-            yerr = np.asarray(t['sb_cgs_arcsec2_err'])[plotflag]
-
-            y1 = y0 + yerr
-            y2 = y0 - yerr
-
-            if i == 1:
-                y0 = y0 * 100
-                y1 = y1 * 100
-                y2 = y2 * 100
-
-            good = np.isfinite(x) & np.isfinite(y0) & np.isfinite(y1) & np.isfinite(y2) & (y0 > 0)
-            if np.any(good):
-                plt.fill_between(x[good], y1[good], y2[good],
-                                 label=labels[i], alpha=alphas[i], color=mycolors[i])
-                plt.plot(x[good], y0[good], '-', lw=2, color=mycolors[i])
-
-        plt.xlabel('SMA (arcsec)', fontsize=16)
-        plt.ylabel('SB (erg/s/cm$^2$/arcsec$^2$)', fontsize=16)
-        plt.gca().set_yscale('log')
-        plt.legend()
-        self.sbfluxsma_png = os.path.join(self.outdir, self.gname + '-sb-sma.png')
-        plt.savefig(self.sbfluxsma_png)
-        plt.close(fig)
-
-        # --------------------------------------------------
         # surface brightness in mag / arcsec^2
-        # --------------------------------------------------
-        fig = plt.figure(figsize=(6, 6))
-        plt.subplots_adjust(left=.15, bottom=.1, right=.95, top=.95)
-
-        labels_sbmag = ['photutils r', 'photutils Halpha']
-
-        for i, t in enumerate(tabs):
-            #plotflag = get_plotflag(t)
-
-            x = np.asarray(t['sma_arcsec'])[plotflag]
-            y0 = np.asarray(t['sb_mag_arcsec2'])[plotflag]
-            yerr = np.asarray(t['sb_mag_arcsec2_err'])[plotflag]
-
-            y1 = y0 + yerr
-            y2 = y0 - yerr
-
-            good = np.isfinite(x) & np.isfinite(y0) & np.isfinite(y1) & np.isfinite(y2)
-            if np.any(good):
-                plt.fill_between(x[good], y1[good], y2[good],
-                                 label=labels_sbmag[i], alpha=alphas[i], color=mycolors[i])
-                plt.plot(x[good], y0[good], '-', lw=2, color=mycolors[i])
-
-        plt.xlabel('SMA (arcsec)', fontsize=16)
-        plt.ylabel('Surface Brightness (mag/arcsec$^2$)', fontsize=16)
-        plt.gca().invert_yaxis()
-        plt.legend()
-        self.sbmagsma_png = os.path.join(self.outdir, self.gname + '-sbmag-sma.png')
-        plt.savefig(self.sbmagsma_png)
-        plt.close(fig)
+        plot_profile(
+            ycol="sb_mag_arcsec2",
+            yerrcol="sb_mag_arcsec2_err",
+            ylabel="Surface Brightness (mag/arcsec$^2$)",
+            outfile_attr="sbmagsma_png",
+            outfile_suffix="-sbmag-sma.png",
+            labels=labels_mag,
+            scale_cs=False,
+            invert_y=True,
+        )
+ 
     
     def get_phot_tables(self):
         ''' read in phot tables and make plot of flux and sb vs sma '''
