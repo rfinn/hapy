@@ -231,6 +231,20 @@ parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog
 ```
 
 
+For rerunning individual  galaxies:
+
+```
+parallel-logs run_analysis --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
+--convflag --gaia-dir
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir cutouts/VFID6463-WISEAJ150809.13+012516.6-INT-20190601-p033
+```
+
+and for :
+```
+cutouts/VFID2766-WISEAJ133704.60+315337.9-HDI-20170522-p006
+cutouts/VFID2745-UGC08602-HDI-20170522-p006
+```
+
 You can monitor memory usage with 
 ```
 htop

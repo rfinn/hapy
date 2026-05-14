@@ -367,6 +367,17 @@ def plot_segmentation_diagnostic(
     cmap = plt.cm.viridis.copy()
     cmap.set_bad(color="black")
 
+    finite = np.isfinite(se_plot) & (se_plot > 0)
+
+    if np.any(finite):
+        vmax = np.nanmax(se_plot[finite])
+        if vmax > 1:
+            seg_norm = LogNorm(vmin=1, vmax=vmax)
+        else:
+            seg_norm = None
+    else:
+        seg_norm = None
+    
     if se_seg is not None:
     # Panel 3: SE segmentation
         se_plot = np.array(se_seg, dtype=float)
@@ -375,7 +386,7 @@ def plot_segmentation_diagnostic(
             se_plot,
             origin="lower",
             interpolation="nearest",
-            norm=LogNorm(vmin=1, vmax=np.nanmax(se_plot)),
+            norm=seg_norm,
             cmap=cmap,
             )
         add_overlays(ax[2])
