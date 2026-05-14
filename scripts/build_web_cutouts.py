@@ -535,7 +535,7 @@ class cutout_dir():
             self.haimage = self.csimage
         
         csgrlist = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr.fits'))
-        if len(csgrlist) > 0
+        if len(csgrlist) > 0:
             self.csgrimage = csgrlist[0]
         else:
             self.csgrimage = None
