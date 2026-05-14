@@ -102,20 +102,55 @@ def find_result_files(indir, pattern="*-results.ecsv"):
     return files
 
 
-def validate_schema(tables, filenames):
-    """Ensure all tables share identical column names."""
+
+
+def validate_schema(tables, filenames, reorder=True):
+    """
+    Ensure all tables share the same column names, ignoring column order.
+
+    Parameters
+    ----------
+    tables : list
+        List of astropy Tables.
+    filenames : list
+        Corresponding filenames.
+    reorder : bool
+        If True, reorder columns in-place to match the first table.
+
+    Returns
+    -------
+    keepflag : np.ndarray
+        Boolean array marking tables with compatible schemas.
+    """
+
     keepflag = np.ones(len(tables), dtype=bool)
-    reference = tables[0].colnames
+    reference = list(tables[0].colnames)
+    reference_set = set(reference)
 
     for i, t in enumerate(tables[1:], start=1):
-        if t.colnames != reference:
+        this_cols = list(t.colnames)
+        this_set = set(this_cols)
+
+        missing = sorted(reference_set - this_set)
+        extra = sorted(this_set - reference_set)
+
+        if missing or extra:
             print(f"WAIT!!! Problem with table {filenames[i]}!!!")
             print("Schema mismatch detected.\n")
-            print(f"Expected columns:\n{reference}\n")
-            print(f"Found columns:\n{t.colnames}\n")
+            if missing:
+                print(f"Missing columns:\n{missing}\n")
+            if extra:
+                print(f"Extra columns:\n{extra}\n")
             keepflag[i] = False
+            continue
+
+        if this_cols != reference:
+            print(f"Column order differs for {filenames[i]}; reordering to match reference table.")
+            if reorder:
+                tables[i] = t[reference]
 
     return keepflag
+
 
 def _coerce_bool_col(tab, name, default=False):
     if name not in tab.colnames:
