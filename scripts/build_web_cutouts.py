@@ -1660,7 +1660,7 @@ class build_html_cutout():
         '''  r, halpha, cs, and mask images '''
         self.html.write('<h2>Halpha Images</h2>\n')
         if self.cutout.legacy_jpg is not None:
-            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2],self.cutout.csgr_png2]
+            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2,self.cutout.csgr_png2]
             #labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr']#,'CS, stretch 2']
             labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
         else:
