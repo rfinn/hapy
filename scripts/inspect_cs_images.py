@@ -7,7 +7,7 @@ For duplicates, computes a quality score and writes best_duplicates.csv/ecsv.
 
 
 To just write the duplicates table:
-python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
+python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results_virgo_20260514.fits --outdir cs_image_inspection --min-dups 1
 
 
 
@@ -1398,7 +1398,9 @@ def main():
         group_ecsv = outdir / "cs_image_inspection_groups.ecsv"
         group_csv = outdir / "cs_image_inspection_groups.csv"
 
-        merged_outfile = outdir / "merged_results_with_best_duplicate.fits"
+        infile = Path(args.merged_results)
+        merged_outfile = outdir / f"{infile.stem}_with_best_duplicate{infile.suffix}"
+        #merged_outfile = outdir / "merged_results_with_best_duplicate.fits"
 
         # ------------------------------------------------------------
         # Write outputs
