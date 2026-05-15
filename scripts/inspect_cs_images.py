@@ -8,7 +8,7 @@ For duplicates, computes a quality score and writes best_duplicates.csv/ecsv.
 
 To just write the duplicates table:
 python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
-python cs_image_inspection.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
+
 
 
 To create an input list for running in parallel:
@@ -1229,7 +1229,7 @@ def main():
         nrows_total = len(tab)
 
         tab["BEST_DUPLICATE"] = np.zeros(nrows_total, dtype=bool)
-        tab["USE_FOR_DUPLICATE_SAMPLE"] = np.zeros(nrows_total, dtype=bool)
+        tab["USE_FOR_SCIENCE"] = np.zeros(nrows_total, dtype=bool)
         tab["DUP_SCORE"] = np.full(nrows_total, np.nan)
         tab["N_DUP"] = np.zeros(nrows_total, dtype=int)
 
