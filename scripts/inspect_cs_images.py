@@ -7,15 +7,16 @@ For duplicates, computes a quality score and writes best_duplicates.csv/ecsv.
 
 
 To just write the duplicates table:
+python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
 python cs_image_inspection.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
 
 
 To create an input list for running in parallel:
-python cs_image_inspection.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
+python  ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
 
 
 To build the plots in parallel:
-parallel --bar -j 16 --joblog cs_image_plot.joblog --results cs_image_plot_logs python cs_image_inspection.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
+parallel --bar -j 16 --joblog cs_image_plot.joblog --results cs_image_plot_logs python  ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 
 
 """
