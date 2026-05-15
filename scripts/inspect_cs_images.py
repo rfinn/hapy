@@ -1399,7 +1399,7 @@ def main():
         group_csv = outdir / "cs_image_inspection_groups.csv"
 
         infile = Path(args.merged_results)
-        merged_outfile = outdir / f"{infile.stem}_with_best_duplicate{infile.suffix}"
+        merged_outfile = f"{infile.stem}_with_best_duplicate{infile.suffix}"
         #merged_outfile = outdir / "merged_results_with_best_duplicate.fits"
 
         # ------------------------------------------------------------
