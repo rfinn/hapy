@@ -701,6 +701,8 @@ def plot_difference_hist(
     qclip=None,
     plotsingle=True,
     ax=None,
+    idx1=None,
+    idx2=None,
 ):
     """
     Plot histogram of differences between two matched columns.
@@ -738,6 +740,12 @@ def plot_difference_hist(
         Optional quantile clipping range, e.g. (0.01, 0.99)
         to suppress extreme outliers from setting the x-range.
 
+    idx1 : array
+        Optional array of indices; used for plotting duplicates
+
+    idx2 : array
+        Optional array of indices; used for plotting duplicates
+
     Notes
     -----
     Annotates the panel with:
@@ -748,6 +756,7 @@ def plot_difference_hist(
     import numpy as np
     import matplotlib.pyplot as plt
 
+        
     if not plotsingle and ax is None:
         print("WARNING: must provide an axis if plotsingle=True")
         return
@@ -772,6 +781,10 @@ def plot_difference_hist(
 
     x1 = _safe_float_array(tab, col1)
     x2 = _safe_float_array(tab, col2)
+
+    if idx1 is not None and idx2 is not None:
+        x1 = x1[idx1]
+        x2 = x2[idx2]        
 
     # remove sentinel values
     for bad in bad_sentinels:
@@ -838,7 +851,330 @@ def plot_difference_hist(
     plt.tight_layout()
     if plotsingle:
         fig.savefig(outpath, dpi=150)
-        plt.close(fig)
+        #plt.close(fig)
 
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def plot_with_residuals(
+    x1, y1,
+    x2=None, y2=None,
+    xlabel1="x",
+    ylabel1="y",
+    xlabel2=None,
+    ylabel2=None,
+    title1=None,
+    title2=None,
+    label1="data",
+    label2=None,
+    residual="diff",   # "diff", "frac", or "logratio"
+    one_to_one=True,
+    figsize=None,
+    s=20,
+    alpha=0.7,
+    outfile=None,
+):
+    """
+    Plot y vs x in a top panel and residuals in a smaller bottom panel.
+
+    If x2/y2 are supplied, make a 2-column version.
+
+    Parameters
+    ----------
+    residual : {"diff", "frac", "logratio"}
+        diff     : y - x
+        frac     : (y - x) / x
+        logratio : log10(y / x)
+    """
+
+    def clean_arrays(x, y):
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        good = np.isfinite(x) & np.isfinite(y)
+        if residual in ["frac", "logratio"]:
+            good &= x != 0
+        if residual == "logratio":
+            good &= (x > 0) & (y > 0)
+        return x[good], y[good]
+
+    def calc_resid(x, y):
+        if residual == "diff":
+            return y - x, r"$y-x$"
+        if residual == "frac":
+            return (y - x) / x, r"$(y-x)/x$"
+        if residual == "logratio":
+            return np.log10(y / x), r"$\log_{10}(y/x)$"
+        raise ValueError("residual must be 'diff', 'frac', or 'logratio'")
+
+    def draw_column(ax_top, ax_res, x, y, xlabel, ylabel, title=None, label=None):
+        x, y = clean_arrays(x, y)
+        res, res_label = calc_resid(x, y)
+
+        ax_top.scatter(x, y, s=s, alpha=alpha, label=label)
+
+        if one_to_one and len(x) > 0:
+            lo = np.nanmin([np.nanmin(x), np.nanmin(y)])
+            hi = np.nanmax([np.nanmax(x), np.nanmax(y)])
+            ax_top.plot([lo, hi], [lo, hi], "k--", lw=1)
+            ax_top.set_xlim(lo, hi)
+            ax_top.set_ylim(lo, hi)
+
+        ax_res.axhline(0, color="k", lw=1, ls="--")
+        ax_res.scatter(x, res, s=s, alpha=alpha)
+
+        ax_top.set_ylabel(ylabel)
+        ax_res.set_xlabel(xlabel)
+        ax_res.set_ylabel(res_label)
+
+        if title is not None:
+            ax_top.set_title(title)
+
+        if label is not None:
+            ax_top.legend()
+
+        if len(res) > 0:
+            med = np.nanmedian(res)
+            mad = np.nanmedian(np.abs(res - med))
+            std = np.nanstd(res)
+
+            ax_res.text(
+                0.04, 0.96,
+                (
+                    f"$\\mathrm{{med}}={med:.3g}$\n"
+                    f"$\\mathrm{{MAD}}={mad:.3g}$\n"
+                    f"$\\sigma={std:.3g}$\n"
+                    f"$N={len(res)}$"
+                ),
+                transform=ax_res.transAxes,
+                ha="left",
+                va="top",
+                fontsize=9,
+            )
+
+    ncols = 2 if (x2 is not None and y2 is not None) else 1
+
+    if figsize is None:
+        figsize = (12, 6) if ncols == 2 else (6, 6)
+
+    fig = plt.figure(figsize=figsize)
+    gs = fig.add_gridspec(
+        2, ncols,
+        height_ratios=[3, 1],
+        hspace=0.05,
+        wspace=0.3,
+    )
+
+    ax1_top = fig.add_subplot(gs[0, 0])
+    ax1_res = fig.add_subplot(gs[1, 0], sharex=ax1_top)
+
+    draw_column(
+        ax1_top, ax1_res,
+        x1, y1,
+        xlabel=xlabel1,
+        ylabel=ylabel1,
+        title=title1,
+        label=label1,
+    )
+
+    plt.setp(ax1_top.get_xticklabels(), visible=False)
+
+    if ncols == 2:
+        ax2_top = fig.add_subplot(gs[0, 1])
+        ax2_res = fig.add_subplot(gs[1, 1], sharex=ax2_top)
+
+        draw_column(
+            ax2_top, ax2_res,
+            x2, y2,
+            xlabel=xlabel2 or xlabel1,
+            ylabel=ylabel2 or ylabel1,
+            title=title2,
+            label=label2,
+        )
+
+        plt.setp(ax2_top.get_xticklabels(), visible=False)
+
+    if outfile is not None:
+        fig.savefig(outfile, dpi=150, bbox_inches="tight")
+
+    return fig
+
+def maybe_log(arr, do_log=False):
+    arr = np.asarray(arr, dtype=float)
+    if not do_log:
+        return arr, np.isfinite(arr)
+
+    out = np.full(len(arr), np.nan)
+    good = np.isfinite(arr) & (arr > 0)
+    out[good] = np.log10(arr[good])
+    return out, good
+
+def plot_with_residuals(
+    x1, y1,
+    x2=None, y2=None,
+    xlabel1="x",
+    ylabel1="y",
+    xlabel2=None,
+    ylabel2=None,
+    title1=None,
+    title2=None,
+    residual="diff",      # "diff", "frac", "logratio"
+    logx=False,
+    logy=False,
+    one_to_one=True,
+    figsize=None,
+    s=20,
+    alpha=0.7,
+    outfile=None,
+    pids=None,
+):
+    """
+    Plot y vs x in a top panel and residuals in a smaller bottom panel.
+
+    If x2/y2 are supplied, make a 2-column version.
+
+    Notes
+    -----
+    If logx=True and logy=True with residual="diff", the residual is:
+        log10(y_original) - log10(x_original) = log10(y_original / x_original)
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    def clean_xy(x, y):
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+
+        good = np.isfinite(x) & np.isfinite(y)
+
+        if logx:
+            good &= x > 0
+        if logy:
+            good &= y > 0
+
+        x = x[good]
+        y = y[good]
+
+        if logx:
+            x = np.log10(x)
+        if logy:
+            y = np.log10(y)
+
+        return x, y
+
+    def get_residual(x, y):
+        if residual == "diff":
+            return y - x, r"$y - x$"
+        elif residual == "frac":
+            good = x != 0
+            out = np.full(len(x), np.nan)
+            out[good] = (y[good] - x[good]) / x[good]
+            return out, r"$(y - x)/x$"
+        elif residual == "logratio":
+            good = (x > 0) & (y > 0)
+            out = np.full(len(x), np.nan)
+            out[good] = np.log10(y[good] / x[good])
+            return out, r"$\log_{10}(y/x)$"
+        else:
+            raise ValueError("residual must be 'diff', 'frac', or 'logratio'")
+
+    def draw_panel(ax_top, ax_res, x, y, xlabel, ylabel, title=None):
+        x, y = clean_xy(x, y)
+        res, res_label = get_residual(x, y)
+
+        good_res = np.isfinite(res)
+
+        ax_top.scatter(x, y, s=s, alpha=alpha)
+
+        if one_to_one and len(x) > 0:
+            lo = np.nanmin([np.nanmin(x), np.nanmin(y)])
+            hi = np.nanmax([np.nanmax(x), np.nanmax(y)])
+            if np.isfinite(lo) and np.isfinite(hi):
+                pad = 0.03 * (hi - lo) if hi > lo else 0.1
+                ax_top.plot([lo, hi], [lo, hi], "k--", lw=1)
+                ax_top.set_xlim(lo - pad, hi + pad)
+                ax_top.set_ylim(lo - pad, hi + pad)
+
+        ax_top.set_ylabel(ylabel)
+        if title is not None:
+            ax_top.set_title(title)
+
+        ax_res.axhline(0, color="k", lw=1, ls="--")
+        ax_res.scatter(x[good_res], res[good_res], s=s, alpha=alpha)
+
+        ax_res.set_xlabel(xlabel)
+        ax_res.set_ylabel(res_label)
+
+        if np.any(good_res):
+            med = np.nanmedian(res[good_res])
+            mad = np.nanmedian(np.abs(res[good_res] - med))
+            std = np.nanstd(res[good_res])
+
+
+            nmad = 1.4826 * mad
+
+            ax_res.text(
+                0.04, 0.96,
+                (
+                    f"$\\mathrm{{med}}={med:.3g}$\n"
+                    f"$\\mathrm{{MAD}}={mad:.3g}$\n"
+                    f"$\\mathrm{{NMAD}}={nmad:.3g}$\n"
+                    f"$\\sigma={std:.3g}$\n"
+                    f"$N={np.sum(good_res)}$"
+                ),
+                transform=ax_res.transAxes,
+                ha="left",
+                va="top",
+                fontsize=9,
+            )
+
+            # print outliers
+            #outlier = np.abs(residual) > 5 * std
+            #print(np.arange(len(
+
+        plt.setp(ax_top.get_xticklabels(), visible=False)
+
+    two_panel = (x2 is not None) and (y2 is not None)
+    ncols = 2 if two_panel else 1
+
+    if figsize is None:
+        figsize = (12, 6) if two_panel else (6, 6)
+
+    fig, axes = plt.subplots(
+        2,
+        ncols,
+        figsize=figsize,
+        gridspec_kw={"height_ratios": [3, 1]},
+        sharex="col",
+        squeeze=False,
+    )
+
+    draw_panel(
+        axes[0, 0],
+        axes[1, 0],
+        x1,
+        y1,
+        xlabel=xlabel1,
+        ylabel=ylabel1,
+        title=title1,
+    )
+
+    if two_panel:
+        draw_panel(
+            axes[0, 1],
+            axes[1, 1],
+            x2,
+            y2,
+            xlabel=xlabel2 or xlabel1,
+            ylabel=ylabel2 or ylabel1,
+            title=title2,
+        )
+
+    fig.tight_layout()
+
+    if outfile is not None:
+        fig.savefig(outfile, dpi=150, bbox_inches="tight")
+
+    return fig, axes

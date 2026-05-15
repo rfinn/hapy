@@ -674,7 +674,7 @@ def build_row_qc_flags(tab, max_ha_filter_correction: float = 1.2) -> dict[str, 
 
     flags["HA_MORPH_GOOD"] = (
         flags["HAPY_MORPH_OK"] &
-        flags["H_SM_OK"] &
+        #flags["H_SM_OK"] &
         np.isfinite(flags["H_HAPY_NPIX"]) & (flags["H_HAPY_NPIX"] >= 100) &
         (
             ~np.isfinite(flags["H_HAPY_SNP_DET"]) |

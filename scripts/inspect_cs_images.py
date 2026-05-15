@@ -1202,6 +1202,7 @@ def main():
 
     args = parser.parse_args()
 
+
     # ============================================================
     # make-table
     # ============================================================
@@ -1220,6 +1221,21 @@ def main():
 
         galids = np.array([infer_galid(row) for row in tab])
         tab["DUP_GALID"] = galids
+
+        # ------------------------------------------------------------
+        # Initialize merged-results duplicate columns
+        # ------------------------------------------------------------
+        nrows_total = len(tab)
+
+        tab["BEST_DUPLICATE"] = np.zeros(nrows_total, dtype=bool)
+        tab["USE_FOR_DUPLICATE_SAMPLE"] = np.zeros(nrows_total, dtype=bool)
+        tab["DUP_SCORE"] = np.full(nrows_total, np.nan)
+        tab["N_DUP"] = np.zeros(nrows_total, dtype=int)
+
+        tab["BEST_TAG"] = np.array([""] * nrows_total, dtype="U120")
+        tab["USE_TAG"] = np.array([""] * nrows_total, dtype="U120")
+        tab["DUP_NOTES"] = np.array([""] * nrows_total, dtype="U200")
+        tab["MANUAL_OVERRIDE"] = np.zeros(nrows_total, dtype=bool)
 
         best_rows = []
         group_rows = []
@@ -1246,7 +1262,9 @@ def main():
             manual_tag = MANUAL_BEST_TAG.get(galid, None)
 
             if manual_tag is not None:
-                matches = np.where(np.array([str(tab[i]["TAG"]) for i in idx]) == manual_tag)[0]
+                matches = np.where(
+                    np.array([str(tab[i]["TAG"]) for i in idx]) == manual_tag
+                )[0]
 
                 if len(matches) == 1:
                     best_local = int(matches[0])
@@ -1262,6 +1280,22 @@ def main():
 
             best_tag = str(tab[best_global]["TAG"])
 
+            # ------------------------------------------------------------
+            # Update merged-results table
+            # ------------------------------------------------------------
+            for k, global_i in enumerate(idx):
+                tab["BEST_DUPLICATE"][global_i] = (k == best_local)
+                tab["USE_FOR_DUPLICATE_SAMPLE"][global_i] = (k == best_local)
+
+                tab["DUP_SCORE"][global_i] = scores[k]
+                tab["N_DUP"][global_i] = len(idx)
+
+                tab["BEST_TAG"][global_i] = best_tag
+                tab["USE_TAG"][global_i] = best_tag
+
+                tab["MANUAL_OVERRIDE"][global_i] = manual_override
+                tab["DUP_NOTES"][global_i] = override_note
+
             best_rows.append(
                 {
                     "DUP_GALID": galid,
@@ -1269,7 +1303,10 @@ def main():
                     "BEST_TAG": best_tag,
                     "BEST_SCORE": scores[best_local],
                     "ALL_TAGS": ",".join(str(tab[i]["TAG"]) for i in idx),
-                    "ALL_SCORES": ",".join(f"{s:.4f}" if np.isfinite(s) else "nan" for s in scores),
+                    "ALL_SCORES": ",".join(
+                        f"{s:.4f}" if np.isfinite(s) else "nan"
+                        for s in scores
+                    ),
                     "USE_TAG": best_tag,
                     "MANUAL_OVERRIDE": manual_override,
                     "NOTES": override_note,
@@ -1311,15 +1348,16 @@ def main():
                     "SMA_PIX",
                     "BA",
                     "PA",
+                    "PIXSCALE",
                 ]
 
                 for col in plot_cols:
                     if col in tab.colnames:
                         group_row[col] = tab[global_i][col]
 
-                group_rows.append(group_row)
-
-                # Store normalized values so plot-one does not need merged_results
+                # ------------------------------------------------------------
+                # Store normalized values for plotting
+                # ------------------------------------------------------------
                 norm_cols = [
                     ("R_FWHM_PSF", "R_FWHM_PSF_NORM"),
                     ("H_FWHM_PSF", "H_FWHM_PSF_NORM"),
@@ -1331,7 +1369,16 @@ def main():
                     if raw_col in tab.colnames:
                         val = safe_float(tab[global_i][raw_col])
                         med = safe_float(norms.get(raw_col, np.nan))
-                        group_row[norm_col] = val / med if np.isfinite(val) and np.isfinite(med) and med != 0 else np.nan
+
+                        group_row[norm_col] = (
+                            val / med
+                            if np.isfinite(val)
+                            and np.isfinite(med)
+                            and med != 0
+                            else np.nan
+                        )
+
+                group_rows.append(group_row)
 
             print(f"{galid}: best = {best_tag}")
 
@@ -1346,22 +1393,38 @@ def main():
 
         best_ecsv = outdir / "best_duplicates.ecsv"
         best_csv = outdir / "best_duplicates.csv"
+
         group_ecsv = outdir / "cs_image_inspection_groups.ecsv"
         group_csv = outdir / "cs_image_inspection_groups.csv"
 
+        merged_outfile = outdir / "merged_results_with_best_duplicate.fits"
+
+        # ------------------------------------------------------------
+        # Write outputs
+        # ------------------------------------------------------------
         best_tab.write(best_ecsv, format="ascii.ecsv", overwrite=True)
         best_tab.write(best_csv, format="ascii.csv", overwrite=True)
+
         group_tab.write(group_ecsv, format="ascii.ecsv", overwrite=True)
         group_tab.write(group_csv, format="ascii.csv", overwrite=True)
+
+        tab.write(merged_outfile, overwrite=True)
 
         print(f"\nWrote {len(best_tab)} best-duplicate rows:")
         print(f"  {best_ecsv}")
         print(f"  {best_csv}")
+
         print(f"\nWrote {len(group_tab)} group rows:")
         print(f"  {group_ecsv}")
         print(f"  {group_csv}")
 
+        print(f"\nWrote merged table with duplicate selection:")
+        print(f"  {merged_outfile}")
+
         return
+
+    
+ 
 
     # ============================================================
     # list-groups
