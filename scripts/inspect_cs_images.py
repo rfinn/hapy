@@ -1286,7 +1286,7 @@ def main():
             # ------------------------------------------------------------
             for k, global_i in enumerate(idx):
                 tab["BEST_DUPLICATE"][global_i] = (k == best_local)
-                tab["USE_FOR_DUPLICATE_SAMPLE"][global_i] = (k == best_local)
+                tab["USE_FOR_SCIENCE"][global_i] = (k == best_local)
 
                 tab["DUP_SCORE"][global_i] = scores[k]
                 tab["N_DUP"][global_i] = len(idx)
