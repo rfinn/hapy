@@ -245,6 +245,10 @@ def main(args=None):
 
         params_path.write_text(json.dumps(params, indent=2))
 
+
+        print("DEBUG before get_cutout_all_filters")
+        print("R:", image_set.rimage.image_file, np.nanmin(image_set.rimage.data), np.nanmax(image_set.rimage.data), np.count_nonzero(image_set.rimage.data))
+        print("HA:", image_set.haimage.image_file, np.nanmin(image_set.haimage.data), np.nanmax(image_set.haimage.data), np.count_nonzero(image_set.haimage.data))
         # --------------------------------------------------
         # Make cutouts
         # --------------------------------------------------
