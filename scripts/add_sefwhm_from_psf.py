@@ -93,7 +93,7 @@ def main():
     args = parser.parse_args()
 
     
-    rimage = Path(rimage)
+    rimage = Path(args.rimage)
 
     # update r-band image
     add_sefwhm_to_image(rimage, args.psf_dir)
