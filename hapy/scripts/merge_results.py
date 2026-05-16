@@ -26,6 +26,43 @@ import sys
 from collections import defaultdict
 
 from hapy.utils.results_table import get_excluded_tags, add_review_columns
+
+
+
+STRING_COLS = [
+    "TAG",
+    "OBJID",
+    "VFID",
+    "NEDNAME",
+    "R_FITS",
+    "HA_FITS",
+    "CS_FITS",
+    "MASK_FITS",
+    "PHOTFILE",
+    "PHOTFILE2",
+]
+
+
+def normalize_string_columns(tables, string_cols=STRING_COLS):
+    for tab in tables:
+        for col in string_cols:
+            if col not in tab.colnames:
+                continue
+
+            values = []
+            for val in tab[col]:
+                if val is None:
+                    values.append("")
+                elif isinstance(val, bytes):
+                    values.append(val.decode("utf-8", errors="ignore"))
+                else:
+                    values.append(str(val))
+
+            tab[col] = Column(values, name=col, dtype="U512")
+
+    return tables
+
+
 def coerce_bool_columns(tab, columns=None):
     """
     Force selected columns to boolean to avoid merge dtype conflicts.
@@ -223,7 +260,10 @@ def merge_tables(files, output, mode, review_csv=None):
 
     if not tables:
         raise RuntimeError("No valid tables remain after schema validation.")
-    
+
+    print("Normalizing string columns...")
+    tables = normalize_string_columns(tables)
+
     print("Stacking tables...")
     merged = vstack(tables, metadata_conflicts="silent")
 
