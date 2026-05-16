@@ -247,8 +247,8 @@ def main(args=None):
 
 
         print("DEBUG before get_cutout_all_filters")
-        print("R:", image_set.rimage.image_file, np.nanmin(image_set.rimage.data), np.nanmax(image_set.rimage.data), np.count_nonzero(image_set.rimage.data))
-        print("HA:", image_set.haimage.image_file, np.nanmin(image_set.haimage.data), np.nanmax(image_set.haimage.data), np.count_nonzero(image_set.haimage.data))
+        print("R:", image_set.r.image_file, np.nanmin(image_set.r.data), np.nanmax(image_set.r.data), np.count_nonzero(image_set.r.data))
+        print("HA:", image_set.h.image_file, np.nanmin(image_set.h.data), np.nanmax(image_set.h.data), np.count_nonzero(image_set.h.data))
         # --------------------------------------------------
         # Make cutouts
         # --------------------------------------------------
