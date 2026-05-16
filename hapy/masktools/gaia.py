@@ -26,7 +26,7 @@ def mask_radius_for_mag(mag):
 
 
 
-def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pmsnrcut=5):
+def gaia_stars_in_rectangle_old(ra, dec, height, width, minmag=None, maxmag=None, pmsnrcut=5):
     """
     Get Gaia stars within a circular aperture.
     started by ChatGPT, rewritten by Rose Finn :)
@@ -100,7 +100,65 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pm
     
     return stars[keepflag]
 
+def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pmsnrcut=5):
+    """
+    Get Gaia stars within a rectangular region.
+    """
 
+    Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source"
+    Gaia.ROW_LIMIT = -1
+
+    half_width = width / 2.0
+    half_height = height / 2.0
+
+    ramin = ra - half_width
+    ramax = ra + half_width
+    decmin = dec - half_height
+    decmax = dec + half_height
+
+    selected_columns = [
+        "source_id",
+        "ra",
+        "dec",
+        "phot_g_mean_mag",
+        "phot_bp_mean_mag",
+        "phot_rp_mean_mag",
+        "pmra",
+        "pmdec",
+        "pmra_error",
+        "pmdec_error",
+        "parallax",
+        "parallax_error",
+        "ruwe",
+    ]
+
+    magcuts = []
+    if maxmag is not None:
+        magcuts.append(f"phot_g_mean_mag < {maxmag}")
+    if minmag is not None:
+        magcuts.append(f"phot_g_mean_mag > {minmag}")
+
+    magcut_sql = ""
+    if magcuts:
+        magcut_sql = " AND " + " AND ".join(magcuts)
+
+    query = f"""
+        SELECT
+            {", ".join(selected_columns)}
+        FROM gaiadr3.gaia_source
+        WHERE
+            ra BETWEEN {ramin} AND {ramax}
+            AND dec BETWEEN {decmin} AND {decmax}
+            {magcut_sql}
+    """
+
+    print("Querying Gaia via synchronous ADQL box query...")
+    job = Gaia.launch_job(query)
+    stars = job.get_results()
+
+    keepflag = gaia_foreground_filter(stars)
+
+    return stars[keepflag]
 
 def gaia_foreground_filter(tab, pm_snr_min=5.0, plx_snr_min=5.0, ruwe_max=1.4, phot_g_max=20):
     """

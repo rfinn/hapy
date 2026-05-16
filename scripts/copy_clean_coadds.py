@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-python copy_clean_coadds.py /data-pool/Halpha/coadds-pre2025 /data-pool/Halpha/coadds-pre2025-hapy
+python ~/github/hapy/scripts/copy_clean_coadds.py /data-pool/Halpha/coadds-pre2025/all-virgo-coadds /data-pool/Halpha/coadds-pre2025-hapy
 
 
-python copy_clean_coadds.py /data-pool/Halpha/coadds-pre2025 /data-pool/Halpha/coadds-pre2025-hapy --clobber
+python ~/github/hapy/scripts/copy_clean_coadds.py /data-pool/Halpha/coadds-pre2025/all-virgo-coadds /data-pool/Halpha/coadds-pre2025-hapy --clobber
 """
 from pathlib import Path
 import shutil
