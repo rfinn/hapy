@@ -6,12 +6,20 @@ from hapy.masktools.gaia import get_gaia_stars
 def main(args):
     # get list of coadds
     patterns = []
-    if args.prefix is not None:
-        patterns.append(f"{args.prefix}*R.fits")
-        patterns.append(f"{args.prefix}*r.fits")
+    if args.pre2025:
+        patterns.append("*BOK*r-shifted.fits")
+        patterns.append("*INT*r-shifted.fits")
+        patterns.append("*HDI*R.fits")
+        patterns.append("*HDI*r.fits")
+        # skipping mosaic b/c nothing new, and hardly any duplicates...
     else:
-        patterns.append("*R.fits")
-        patterns.append("*r.fits")
+        if args.prefix is not None:
+            patterns.append(f"{args.prefix}*R.fits")
+            patterns.append(f"{args.prefix}*r.fits")
+        else:
+            patterns.append("*R.fits")
+            patterns.append("*r.fits")
+        
 
     flist = []
     for pat in patterns:
@@ -98,6 +106,11 @@ if __name__ == "__main__":
         "--testing",
         action="store_true",
         help="Run on one image only."
+    )
+    p.add_argument(
+        "--pre2025",
+        action="store_true",
+        help="Run on pre 2025 coadds (different naming convention)."
     )
     
 
