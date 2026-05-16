@@ -564,6 +564,12 @@ class CoaddImage:
             if newheader is not None:
                 outheader = newheader
 
+
+        print("DEBUG before write:",
+            output_name,
+            np.nanmin(cutout_data),
+            np.nanmax(cutout_data),
+            np.count_nonzero(cutout_data))
         # write science cutout
         fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
 
