@@ -252,6 +252,7 @@ def main(args=None):
         # --------------------------------------------------
         # Make cutouts
         # --------------------------------------------------
+        subtract_sky = False
         result = image_set.get_cutout_all_filters(
             gra[i],
             gdec[i],
