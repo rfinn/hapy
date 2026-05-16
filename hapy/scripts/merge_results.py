@@ -20,7 +20,7 @@ Author: Rose Finn
 import numpy as np
 import argparse
 from pathlib import Path
-from astropy.table import Table, vstack
+from astropy.table import Table, vstack, Column
 import sys
 
 from collections import defaultdict
