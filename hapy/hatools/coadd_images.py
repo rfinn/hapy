@@ -221,24 +221,36 @@ class CoaddImage:
 
         self.psf_image_name = None
 
+        self.weight_image = None
+        self.weight_flag = False
+
     def load_image(self):
         """
         Load FITS image and WCS.
         """
+        self.image_file = str(self.image_file)
+
         self.header = fits.getheader(self.image_file)
         self.data = fits.getdata(self.image_file)
         self.wcs = WCS(self.header)
         self.pixelscale = get_pixel_scale(self.header)
-        if self.verbose:
-            print(f"Loaded image {self.image_file} with shape {self.data.shape} and pixel scale {self.pixelscale:.3f} arcsec/pix")
 
-        weight_image = self.image_file.replace('.fits','.weight.fits')
+        if self.verbose:
+            print(
+                f"Loaded image {self.image_file} with shape {self.data.shape} "
+                f"and pixel scale {self.pixelscale:.3f} arcsec/pix"
+            )
+
+        weight_image = self.image_file.replace(".fits", ".weight.fits")
 
         if os.path.exists(weight_image):
             self.weight_image = weight_image
             self.weight_flag = True
         else:
+            self.weight_image = None
             self.weight_flag = False
+
+
             
     def check_for_psf(self, psfdir=None): # MVC - model
         """
@@ -532,8 +544,10 @@ class CoaddImage:
         if self.psf_image_name is not None:
             outheader.set('PSFIMAGE', self.psf_image_name)
 
-        if self.weight_image is not None:
-            outheader.set('WGTIMAGE', str(self.weight_image))
+
+        if getattr(self, "weight_image", None) is not None:
+            outheader.set("WGTIMAGE", str(self.weight_image))
+        
 
         # record weight diagnostics
         outheader["WGTCUTOK"] = (bool(weight_ok), "Central weight region valid")

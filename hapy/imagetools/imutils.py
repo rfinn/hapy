@@ -123,17 +123,6 @@ def calculate_background_photutils(
     return float(mean), float(median), float(std)
 
 
-# def calculate_background_photutils(data,grow_radius=10, npixels=10):
-#     """ from https://photutils.readthedocs.io/en/latest/user_guide/background.html """
-
-
-#     mask = get_object_mask_photutils(data, grow_radius=grow_radius, npixels=npixels)
-#     # calculate mean, median and std in unmasked pixels
-#     mean, median, std = sigma_clipped_stats(data, sigma=5.0, mask=mask)
-    
-#     return mean, median, std
-
-
 def estimate_and_subtract_sky(data, weightimage=None, subtract=True, **skycfg):
     """
     Estimate sky background using calculate_background_photutils and optionally subtract it.
@@ -161,14 +150,15 @@ def estimate_and_subtract_sky(data, weightimage=None, subtract=True, **skycfg):
     if not np.isfinite(med):
         return arr.copy(), float(med), float(std)
     if weightimage is not None:
-        goodmask = weightimage > 1
+        goodmask = np.isfinite(weightimage) & (weightimage > 0)
     else:
         goodmask = np.ones_like(arr,'bool')
     out = np.zeros_like(arr)
     if subtract:
         out[goodmask] = (arr[goodmask] - med)
     else:
-        out = arr.copy()
+        out[goodmask] = arr[goodmask]
+        #out = arr.copy()
     return out, float(med), float(std)
 
 
