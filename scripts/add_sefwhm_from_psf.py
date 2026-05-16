@@ -52,6 +52,7 @@ def get_sefwhm_from_psf(psf_path):
 
 
 def add_sefwhm_to_image(image_path, psf_dir, overwrite=True):
+
     image_path = Path(image_path)
     psf_path = find_psf(image_path, psf_dir)
     sefwhm = get_sefwhm_from_psf(psf_path)
@@ -90,7 +91,8 @@ def main():
 
     args = parser.parse_args()
 
-    rimage = Path(args.rimage)
+    rimage = args.rimage.replace("-shifted","")
+    rimage = Path(rimage)
 
     # update r-band image
     add_sefwhm_to_image(rimage, args.psf_dir)
