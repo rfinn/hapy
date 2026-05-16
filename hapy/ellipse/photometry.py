@@ -1,4 +1,4 @@
-
+#!/usr/bin python 
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
@@ -1614,7 +1614,7 @@ class EllipsePhotometry():
                     if self.fileid is None:
                         morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.png"
                     else:
-                        morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-{self.fileid}-hapy-morphology-diag.png"
+                        morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-{sfileid}-hapy-morphology-diag.png"
                     morph.diag_fig = plot_hapy_morphology_diagnostic(
                         r_image=self.image,
                         ha_image=self.image2,
@@ -2271,8 +2271,75 @@ class EllipsePhotometry():
             plt.close()
 
 
-
     def _build_aperture_grid(self):
+        """
+        Build elliptical aperture sequence up to image edge.
+        Returns:
+        apertures_a, apertures_b, area_total, allellipses
+        """
+        ct = max(1e-6, abs(np.cos(self.pa_fit)))
+        st = max(1e-6, abs(np.sin(self.pa_fit)))
+
+        rmax = np.min([
+            (self.ximage_max - self.xcenter_fit) / ct,
+            (self.yimage_max - self.ycenter_fit) / st,
+            self.xcenter_fit / ct,
+            self.ycenter_fit / st,
+        ])
+
+        index = np.arange(80)
+
+        # Becky's list of apertures
+        apertures = (index + 1) * 0.5 * self.fwhm * (1 + (index + 1) * 0.1)
+
+        apertures_a = apertures[apertures < rmax]
+
+        if len(apertures_a) == 0:
+            print("WARNING: aperture grid is empty")
+            print(f"  rmax = {rmax}")
+            print(f"  xcenter_fit = {self.xcenter_fit}")
+            print(f"  ycenter_fit = {self.ycenter_fit}")
+            print(f"  ximage_max = {self.ximage_max}")
+            print(f"  yimage_max = {self.yimage_max}")
+            print(f"  pa_fit = {self.pa_fit}")
+            print(f"  fwhm = {self.fwhm}")
+
+            # Fallback: use a circularized distance to the nearest image edge.
+            # This is conservative and avoids crashing on older/nonstandard cutouts.
+            edge_dist = np.min([
+                self.xcenter_fit,
+                self.ycenter_fit,
+                self.ximage_max - self.xcenter_fit,
+                self.yimage_max - self.ycenter_fit,
+            ])
+
+            rmax_fallback = 0.9 * edge_dist
+
+            print(f"  fallback edge_dist = {edge_dist}")
+            print(f"  fallback rmax = {rmax_fallback}")
+
+            apertures_a = apertures[apertures < rmax_fallback]
+
+        if len(apertures_a) == 0:
+            print("WARNING: fallback aperture grid is still empty; forcing one aperture")
+            apertures_a = np.array([max(2.0, 0.5 * self.fwhm)])
+
+        apertures_b = (1.0 - self.eps_fit) * apertures_a
+        area_total = np.pi * apertures_a * apertures_b
+
+        allellipses = [
+            EllipticalAperture(
+                (self.xcenter_fit, self.ycenter_fit),
+                apertures_a[i],
+                apertures_b[i],
+                self.theta,
+            )
+            for i in range(len(apertures_a))
+        ]
+
+        return apertures_a, apertures_b, area_total, allellipses
+
+    def _build_aperture_grid_old(self):
         """
         Build elliptical aperture sequence up to image edge.
         Returns:
