@@ -2289,9 +2289,25 @@ class EllipsePhotometry():
 
         index = np.arange(80)
 
-        # Becky's list of apertures
-        apertures = (index + 1) * 0.5 * self.fwhm * (1 + (index + 1) * 0.1)
 
+        # FWHM must be in pixels for aperture spacing
+        fwhm_pix = float(self.fwhm)
+
+        if not np.isfinite(fwhm_pix) or fwhm_pix <= 0:
+            pixscale = getattr(self, "pixel_scale", np.nan)
+
+            if np.isfinite(pixscale) and pixscale > 0:
+                # assume decent seeing if no measured FWHM is available
+                fwhm_pix = 1.0 / pixscale
+            else:
+                fwhm_pix = 5.0
+
+            print(f"WARNING: self.fwhm is invalid; using fallback fwhm_pix={fwhm_pix:.2f}")
+
+
+        # Becky's list of apertures
+        index = np.arange(80)        
+        apertures = (index + 1) * 0.5 * fwhm_pix * (1 + (index + 1) * 0.1)
         apertures_a = apertures[apertures < rmax]
 
         if len(apertures_a) == 0:

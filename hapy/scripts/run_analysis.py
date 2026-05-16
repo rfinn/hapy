@@ -1994,24 +1994,50 @@ def main():
         xminfit, xmaxfit = 1, nx
         yminfit, ymaxfit = 1, ny
 
-        
 
         convflag = bool(args.convflag)
 
         # set convolution box size
-        nconvolution_scale = 20 # galfit manual says use box size of 20 or more seeing diameters
-        if params['himage_fwhm_psf_arcsec'] is not None:
-            convolution_size = nconvolution_scale * float(params['himage_fwhm_psf_arcsec'])/pixscale
-        elif params['rimage_fwhm_psf_arcsec'] is not None:
-            convolution_size = nconvolution_scale * float(params['rimage_fwhm_psf_arcsec'])/pixscale
-        else:
-            # set to the number of pixels with
-            # assume seeing = 2 arcsec, and 0.4"/pixels
-            logger.info("no FWHM for in metadata.json - assuming 2 arcsec")
-            convolution_size = nconvolution_scale * 2/0.4
+        # GALFIT manual recommends a box size of >=20 seeing diameters
+        nconvolution_scale = 20
 
-        
+        h_fwhm = params.get("himage_fwhm_psf_arcsec", None)
+        r_fwhm = params.get("rimage_fwhm_psf_arcsec", None)
+
+        # fallbacks for metadata-light / archive / VESTIGE-style metadata
+        generic_fwhm = params.get("fwhm_psf_arcsec", None)
+        ha_finaliq = params.get("ha_finaliq", None)
+        r_finaliq = params.get("r_finaliq", None)
+
+        if h_fwhm is not None and np.isfinite(float(h_fwhm)):
+            seeing_arcsec = float(h_fwhm)
+        elif r_fwhm is not None and np.isfinite(float(r_fwhm)):
+            seeing_arcsec = float(r_fwhm)
+        elif generic_fwhm is not None and np.isfinite(float(generic_fwhm)):
+            seeing_arcsec = float(generic_fwhm)
+        elif ha_finaliq is not None and np.isfinite(float(ha_finaliq)):
+            seeing_arcsec = float(ha_finaliq)
+        elif r_finaliq is not None and np.isfinite(float(r_finaliq)):
+            seeing_arcsec = float(r_finaliq)
+        else:
+            seeing_arcsec = 2.0
+            logger.info("no FWHM in metadata.json - assuming seeing = 2 arcsec")
+
+        convolution_size = nconvolution_scale * seeing_arcsec / pixscale
+
+        # GALFIT wants an integer convolution box size
+        convolution_size = int(np.ceil(convolution_size))
+
+        # keep it within image bounds
         convolution_size = min(convolution_size, nx)
+
+        logger.info(
+            "GALFIT convolution box: seeing=%.3f arcsec, pixscale=%.4f arcsec/pix, size=%d pix",
+            seeing_arcsec,
+            pixscale,
+            convolution_size,
+        )
+
         # going back to original convolutionsize
         #convolution_size = min(nx, ny)
         if psf_path is not None:
