@@ -18,6 +18,7 @@ def find_psf(image_path, psf_dir):
     psf_dir = Path(psf_dir)
 
     stem = image_path.stem
+    stem = stem.replace("-shifted","")
 
     candidates = [
         psf_dir / f"{stem}-psf.fits",
@@ -91,7 +92,7 @@ def main():
 
     args = parser.parse_args()
 
-    rimage = args.rimage.replace("-shifted","")
+    
     rimage = Path(rimage)
 
     # update r-band image
