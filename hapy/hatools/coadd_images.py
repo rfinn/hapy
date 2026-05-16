@@ -469,6 +469,19 @@ class CoaddImage:
         cutout = Cutout2D(self.data, position=position, size=(size_pix, size_pix), wcs=self.wcs)
         cutout_data = cutout.data.copy()
 
+
+        print("DEBUG make_cutout input:",
+                  self.image_file,
+                  np.nanmin(self.data),
+                  np.nanmax(self.data),
+                  np.count_nonzero(self.data))
+
+        print("DEBUG make_cutout cutout:",
+                  output_name,
+                  np.nanmin(cutout_data),
+                  np.nanmax(cutout_data),
+                  np.count_nonzero(cutout_data))
+
         # --- optional weight cutout ---
         wcut = None
         weight_header = None
