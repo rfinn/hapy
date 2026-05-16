@@ -268,12 +268,12 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
 
     print("Querying Gaia via astroquery...")
 
-    brightstar = gaia_stars_in_rectangle(
-        racenter,
-        deccenter,
-        dydeg,
-        dxdeg,
-        )    
+    # brightstar = gaia_stars_in_rectangle(
+    #     racenter,
+    #     deccenter,
+    #     dydeg,
+    #     dxdeg,
+    #     )    
     brightstar = gaia_stars_in_rectangle(
         racenter,
         deccenter,
