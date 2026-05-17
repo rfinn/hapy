@@ -19,6 +19,10 @@ To build the plots in parallel:
 parallel --bar -j 16 --joblog cs_image_plot.joblog --results cs_image_plot_logs python  ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 
 
+
+To make VFS row-matched table
+python ~/github/hapy/scripts/inspect_cs_images.py make-vfs-rowmatched merged_results_virgo_20260514_with_best_duplicate.fits --out hapy_vfs_rowmatched.fits
+
 """
 
 

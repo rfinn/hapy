@@ -136,23 +136,15 @@ def zp_scale_r_to_ha(zp_ha, zp_r):
     return float(10 ** (-0.4 * (zp_r - zp_ha)))
 
 
-def _weight_ok(weight_cutout, central_frac=0.25, min_center_frac=0.8):
+
+
+def _weight_ok(weight_cutout, central_frac=0.25, min_center_frac=0.5):
     """
-    Decide whether the cutout is safely on valid data.
+    Decide whether the cutout is safely on valid data using the weight map.
 
-    Parameters
-    ----------
-    weight_cutout : 2D array
-        Weight map cutout.
-    central_frac : float
-        Fractional size of central box to test.
-    min_center_frac : float
-        Minimum fraction of pixels in the central box that must have weight > 0.
-
-    Returns
-    -------
-    ok : bool
-    stats : dict
+    This checks the central region rather than requiring the exact central
+    pixel to have positive weight, because isolated bad/zero weight pixels
+    should not reject otherwise valid galaxy cutouts.
     """
     if weight_cutout is None:
         return True, {"center_weight": np.nan, "central_good_frac": np.nan}
@@ -176,11 +168,14 @@ def _weight_ok(weight_cutout, central_frac=0.25, min_center_frac=0.8):
     central_good = good[y1:y2, x1:x2]
     central_good_frac = np.mean(central_good)
 
-    ok = (center_weight > 0) and (central_good_frac >= min_center_frac)
+    #ok = (center_weight > 0) and (central_good_frac >= min_center_frac)
+    # dropping some good galaxies, so trying this cut instead of one above
+    ok = central_good_frac >= min_center_frac
 
     stats = {
         "center_weight": float(center_weight) if np.isfinite(center_weight) else np.nan,
         "central_good_frac": float(central_good_frac),
+        "min_center_frac": float(min_center_frac),
     }
     return ok, stats
 
@@ -821,7 +816,9 @@ class HalphaImageSet:
                 raise FileNotFoundError(f"R cutout was skipped but does not exist: {r_name}")
 
         elif status == "invalid":
-            print(f"Skipping galaxy because R cutout is invalid: {rootname}")
+            print()
+            print(f"WARNING:  Skipping galaxy because R cutout is invalid: {rootname}")
+            print()
             return
 
         elif status == "ok":

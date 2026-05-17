@@ -220,7 +220,40 @@ def _coerce_bool_col(tab, name, default=False):
         tab[name] = np.array([asbool(v) for v in col], dtype=bool)
     else:
         tab[name] = np.array(col, dtype=bool)
-        
+
+
+def coerce_object_columns_for_fits(tab):
+    """
+    Convert object dtype columns into FITS-safe numeric or string columns.
+    """
+
+    numeric_like_cols = {
+        "REDSHIFT",
+        "vr",
+        "velocity",
+        "distance",
+    }
+
+    for col in tab.colnames:
+        if tab[col].dtype.kind != "O":
+            continue
+
+        if col in numeric_like_cols:
+            vals = []
+            for x in tab[col]:
+                if x is None or str(x).strip() in ["", "None", "nan", "--"]:
+                    vals.append(np.nan)
+                else:
+                    vals.append(float(x))
+            tab[col] = np.array(vals, dtype=float)
+        else:
+            tab[col] = np.array(
+                ["" if x is None else str(x) for x in tab[col]],
+                dtype=f"U{max(1, max(len(str(x)) for x in tab[col]))}",
+            )
+
+    return tab
+
 def merge_tables(files, output, mode, review_csv=None):
     """Read, validate, merge, and write output FITS table."""
     print(f"Merging {len(files)} result files.")
@@ -276,7 +309,15 @@ def merge_tables(files, output, mode, review_csv=None):
 
     if review_csv is not None:
         merged = add_review_columns(merged, review_csv)
-        
+
+
+
+    # FITS cannot write object dtype columns.
+    # Convert known numeric metadata columns that may contain None/string/NaN.
+
+
+    merged = coerce_object_columns_for_fits(merged)
+
     print(f"Writing merged table → {output}")
     merged.write(output, format="fits", overwrite=True)
 
