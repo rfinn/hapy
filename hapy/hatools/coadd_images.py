@@ -477,17 +477,17 @@ class CoaddImage:
         cutout_data = cutout.data.copy()
 
 
-        print("DEBUG make_cutout input:",
-                  self.image_file,
-                  np.nanmin(self.data),
-                  np.nanmax(self.data),
-                  np.count_nonzero(self.data))
+        # print("DEBUG make_cutout input:",
+        #           self.image_file,
+        #           np.nanmin(self.data),
+        #           np.nanmax(self.data),
+        #           np.count_nonzero(self.data))
 
-        print("DEBUG make_cutout cutout:",
-                  output_name,
-                  np.nanmin(cutout_data),
-                  np.nanmax(cutout_data),
-                  np.count_nonzero(cutout_data))
+        # print("DEBUG make_cutout cutout:",
+        #           output_name,
+        #           np.nanmin(cutout_data),
+        #           np.nanmax(cutout_data),
+        #           np.count_nonzero(cutout_data))
 
         # --- optional weight cutout ---
         wcut = None
@@ -574,11 +574,11 @@ class CoaddImage:
                 outheader = newheader
 
 
-        print("DEBUG before write:",
-            output_name,
-            np.nanmin(cutout_data),
-            np.nanmax(cutout_data),
-            np.count_nonzero(cutout_data))
+        # print("DEBUG before write:",
+        #     output_name,
+        #     np.nanmin(cutout_data),
+        #     np.nanmax(cutout_data),
+        #     np.count_nonzero(cutout_data))
         # write science cutout
         fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
 
@@ -779,13 +779,20 @@ class HalphaImageSet:
         if self.cs_flag:
             self.cs.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-CS-ZP.fits")            
 
+
+
+        
     def get_cutout_all_filters(self, ra, dec, size_arcsec, rootname, subtract_sky=False, overwrite=False):
         """
-        Write sky-subtracted (optional) R and Ha cutouts. Then always write CS-ZP cutout as:
-            CS = Ha - scale * R
+        Write R and Ha cutouts, optionally with local sky subtraction.
+
+        Then write CS-ZP from the cutouts as:
+
+            CS-ZP = Ha - scale * R
+
         where scale is derived from PHOTZP in the parent coadd headers.
 
-        If subtract_sky=True, CS is built from the sky-subtracted cutouts.
+        If subtract_sky=True, CS-ZP is built from the sky-subtracted cutouts.
 
         Existing outputs are skipped unless overwrite=True.
         """
@@ -801,41 +808,36 @@ class HalphaImageSet:
         # --------------------------------------------------
         # R cutout
         # --------------------------------------------------
-
-        status, r_data, r_hdr = self.r.make_cutout(
+        r_status, r_data, r_hdr = self.r.make_cutout(
             ra, dec, size_arcsec,
             output_name=r_name,
             subtract_sky=subtract_sky,
-            overwrite=overwrite
-            )
+            overwrite=overwrite,
+        )
 
-        if status == "skipped":
+        if r_status == "skipped":
             if r_path.is_file():
                 r_data, r_hdr = fits.getdata(r_name, header=True)
             else:
                 raise FileNotFoundError(f"R cutout was skipped but does not exist: {r_name}")
 
-        elif status == "invalid":
+        elif r_status == "invalid":
             print()
-            print(f"WARNING:  Skipping galaxy because R cutout is invalid: {rootname}")
+            print(f"WARNING: Skipping galaxy because R cutout is invalid: {rootname}")
             print()
-            return
+            return "invalid"
 
-        elif status == "ok":
-            pass
-
-        else:
+        elif r_status != "ok":
             raise RuntimeError(f"Unknown R make_cutout status: {r_status}")
 
         # --------------------------------------------------
         # Ha cutout
         # --------------------------------------------------
-
         h_status, h_data, h_hdr = self.h.make_cutout(
             ra, dec, size_arcsec,
             output_name=h_name,
             subtract_sky=subtract_sky,
-            overwrite=overwrite
+            overwrite=overwrite,
         )
 
         if h_status == "skipped":
@@ -845,51 +847,45 @@ class HalphaImageSet:
                 raise FileNotFoundError(f"Ha cutout was skipped but does not exist: {h_name}")
 
         elif h_status == "invalid":
-            print(f"Skipping galaxy because Ha cutout is invalid: {rootname}")
+            print()
+            print(f"WARNING: Skipping galaxy because Ha cutout is invalid: {rootname}")
+            print()
             return "invalid"
 
         elif h_status != "ok":
             raise RuntimeError(f"Unknown Ha make_cutout status: {h_status}")
 
-
         # --------------------------------------------------
-        # CS cutout
+        # CS-ZP cutout: always build from R and Ha cutouts
         # --------------------------------------------------
         if cs_path.is_file() and not overwrite:
             print(f"Skipping existing cutout: {cs_path}")
+            return "ok"
+
+        zp_r = self.r.header.get("PHOTZP", np.nan)
+        zp_h = self.h.header.get("PHOTZP", np.nan)
+        scale = zp_scale_r_to_ha(zp_h, zp_r)
+
+        cs_hdr = h_hdr.copy()
+        cs_hdr["CSMAKE"] = (True, "Continuum-subtracted cutout written")
+        cs_hdr["CSFROM"] = ("cutouts", "CS-ZP made from R/Ha cutouts")
+        cs_hdr["CSFORM"] = ("Ha - a*R", "Continuum subtraction form")
+        cs_hdr["CSSCALE"] = (float(scale) if np.isfinite(scale) else np.nan, "a: scale applied to R")
+        cs_hdr["CSPHZPR"] = (float(zp_r) if np.isfinite(zp_r) else np.nan, "Parent R PHOTZP")
+        cs_hdr["CSPHZPH"] = (float(zp_h) if np.isfinite(zp_h) else np.nan, "Parent Ha PHOTZP")
+        cs_hdr["CSLSKY"] = (bool(subtract_sky), "Local sky-sub applied before CS")
+
+        if np.isfinite(scale):
+            cs_data = h_data.astype(float) - scale * r_data.astype(float)
         else:
-            zp_r = self.r.header.get("PHOTZP", np.nan)
-            zp_h = self.h.header.get("PHOTZP", np.nan)
-            scale = zp_scale_r_to_ha(zp_h, zp_r)
+            cs_data = np.full_like(h_data, np.nan, dtype=float)
+            cs_hdr["CSMAKE"] = (False, "CS failed: missing/nonfinite PHOTZP")
 
-            cs_hdr = h_hdr.copy()
-            cs_hdr["CSMAKE"] = (True, "Continuum-subtracted cutout written")
-            cs_hdr["CSFORM"] = ("Ha - a*R", "Continuum subtraction form")
-            cs_hdr["CSSCALE"] = (float(scale), "a: scale applied to R")
-            cs_hdr["CSPHZPR"] = (float(zp_r) if np.isfinite(zp_r) else np.nan, "Parent R PHOTZP")
-            cs_hdr["CSPHZPH"] = (float(zp_h) if np.isfinite(zp_h) else np.nan, "Parent Ha PHOTZP")
-            cs_hdr["CSLSKY"] = (bool(subtract_sky), "Local sky-sub applied before CS")
+        fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(cs_name, overwrite=True)
+        print(f"CS-ZP cutout saved to {cs_name}")
 
-            if np.isfinite(scale):
-                cs_data = h_data - scale * r_data
-            else:
-                cs_data = np.full_like(h_data, np.nan, dtype=float)
-                cs_hdr["CSMAKE"] = (False, "Continuum subtraction failed (missing PHOTZP)")
+        return "ok"
 
-            fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(cs_name, overwrite=True)
-
-        # --------------------------------------------------
-        # Optional legacy CS coadd cutout
-        # --------------------------------------------------
-        if self.cs_flag and not subtract_sky:
-            self.cs.make_cutout(
-                ra, dec, size_arcsec,
-                output_name=cs_name,
-                overwrite=overwrite
-            )
-
-        
-  
 
 if __name__ == "__main__":
     pass
