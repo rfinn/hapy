@@ -88,7 +88,7 @@ cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog cutouts_parallel.lo
 
 ### Check output
 ```bash
-python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_hapy_ready.txt cutouts
+python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
 ```
 
 Example output:
