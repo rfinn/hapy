@@ -237,6 +237,8 @@ def main(args=None):
             hafilter_width_A = image_set.h.filter_width,
             redshift=meta_redshift,
             vr=vr,
+            cszp_local_sky=bool(subtract_sky),
+            cszp_source = "local_cutouts",
         )
 
         if params_path.exists() and args.overwrite_metadata:
@@ -252,7 +254,7 @@ def main(args=None):
         # --------------------------------------------------
         # Make cutouts
         # --------------------------------------------------
-        subtract_sky = False
+        #subtract_sky = False
         result = image_set.get_cutout_all_filters(
             gra[i],
             gdec[i],
@@ -270,6 +272,9 @@ def main(args=None):
         # --------------------------------------------------
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
 
+        params["x_parent"] = x
+        params["y_parent"] = y        
+        
         theta_deg = pa_ccw_north_to_photutils_theta(float(gPA[i]))
         # semi major and minor axes in arcsec
         a = float(gradius[i])

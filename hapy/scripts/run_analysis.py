@@ -427,7 +427,12 @@ def initialize_result_row():
     ]:
         row[k] = ""
 
-    row["PIXSCALE"] = np.nan    
+    row["X_PARENT"] = np.nan
+    row["Y_PARENT"] = np.nan    
+    row["PIXSCALE"] = np.nan
+
+    row["CSZP_SOURCE"] = ""
+    row["CSZP_LOCAL_SKY"] = ""
     # removing these
     not_needed = ["R_FITS", "CS_FITS"]
     # ---------- identity ----------
@@ -1390,6 +1395,10 @@ def main():
     row["SCHEME"]    = params.get("scheme", "")
     row["PARENT_RIMAGE"]  = params.get("parent_rimage", "")
     row["PARENT_HIMAGE"] = params.get("parent_haimage", "")
+    row["X_PARENT"]  = params.get("x_parent", np.nan)
+    row["Y_PARENT"] = params.get("y_parent", np.nan)
+    row["CSZP_SOURCE"] = metadata.get("cszp_source", "")
+    row["CSZP_LOCAL_SKY"] = bool(metadata.get("cszp_local_sky", False))
 
     # These are more survey/workflow-specific; leave archive rows at initialized defaults
     if scheme != "archive":
