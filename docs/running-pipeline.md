@@ -123,6 +123,21 @@ Bad cutout dir names:      0
 
 ```
 
+From 2025-05-17:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260517$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
+
+CUTOUT SUMMARY
+--------------
+Input coadds:              226
+Cutout directories:        853
+Coadds with no cutouts:    0
+Cutout dirs missing R:     0
+Cutout dirs missing CS:    0
+Bad coadd names:           0
+Bad cutout dir names:      0
+```
+
 ## Merge get_cutouts tables
 ```bash
 merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
