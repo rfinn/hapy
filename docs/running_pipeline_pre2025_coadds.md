@@ -205,6 +205,20 @@ head -5 cutout_list.txt | parallel --bar -j 2 --joblog run_analysis.joblog \
 ### Run in Parallel
 
 
+Copy results from manual inspection that will exclude bad targets:
+```bash
+cp ../hapy-output-20260417/review_sample_20260514.csv .
+```
+
+
+
+If manual masking has been done, don't force rebuilding of masks:
+```bash
+parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
+--convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_run_analysis_list.txt
+```
+
 Create an input list that removes objects that have `CATALOG_USE==EXCLUDE`:
 ```
 python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir
