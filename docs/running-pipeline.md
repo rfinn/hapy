@@ -198,7 +198,8 @@ Final table columns: 28
 ```bash
 run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
 --galfit --convflag --log-to-console --gaia-dir
-/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir
+cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
 
@@ -245,6 +246,10 @@ sed -n '21,40p' cutout_list.txt | parallel --bar -j 8 --joblog run_analysis.jobl
 
 ### Run in Parallel
 
+Copy results from manual inspection that will exclude bad targets:
+```bash
+cp ../hapy-output-20260417/review_sample_20260514.csv .
+```
 
 Create an input list that removes objects that have `CATALOG_USE==EXCLUDE`:
 ```
