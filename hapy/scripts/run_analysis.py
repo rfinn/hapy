@@ -1397,8 +1397,8 @@ def main():
     row["PARENT_HIMAGE"] = params.get("parent_haimage", "")
     row["X_PARENT"]  = params.get("x_parent", np.nan)
     row["Y_PARENT"] = params.get("y_parent", np.nan)
-    row["CSZP_SOURCE"] = metadata.get("cszp_source", "")
-    row["CSZP_LOCAL_SKY"] = bool(metadata.get("cszp_local_sky", False))
+    row["CSZP_SOURCE"] = params.get("cszp_source", "")
+    row["CSZP_LOCAL_SKY"] = bool(params.get("cszp_local_sky", False))
 
     # These are more survey/workflow-specific; leave archive rows at initialized defaults
     if scheme != "archive":

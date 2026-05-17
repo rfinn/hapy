@@ -171,7 +171,7 @@ Final table columns: 28
 
 
 ```bash
-run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images-pre2025/ --statmorph --galfit --convflag --log-to-console --gaia-dir /data-pool/Halpha/coadds-pre2025-hapy/gaia_catalogs/ --cutout-dir cutouts/VFID3084-NGC3512-HDI-20200226-p012
+run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images-pre2025/ --statmorph --galfit --convflag --log-to-console --gaia-dir /data-pool/Halpha/coadds-pre2025-hapy/gaia_catalogs/ --cutout-dir cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
 woo hoo!
