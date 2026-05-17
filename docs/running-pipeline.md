@@ -173,6 +173,22 @@ Final table rows: 831
 Final table columns: 28
 ```
 
+And 20260517:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260517$ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
+Searching for files  cutouts_summary*.ecsv
+Found 226 result files.
+Merging 226 result files.
+Reading tables...
+Validating schema...
+	validated 226/226 tables
+Normalizing string columns...
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260517/merged_cutouts_results.fits
+Done.
+Final table rows: 853
+Final table columns: 28
+```
 
 # Run Analysis 
 
