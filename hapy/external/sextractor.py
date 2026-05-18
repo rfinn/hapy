@@ -168,7 +168,7 @@ def run_sextractor_two_pass(
     fwhm = estimate_fwhm_arcsec(se1, pixelscale, ext=ext)
 
     if overwrite or not se2.exists():
-        run_sextractor_once(
+        _run_sextractor_once(
             image=image,
             config=config,
             catalog_name=se2,
