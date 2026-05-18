@@ -324,20 +324,26 @@ Final table rows: 782
 Final table columns: 358
 ```
 
-After removing bad HDI p012-p013 coadd:
+Example output as of 2026-05-16
 ```
-(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260417$ merge_results --indir cutouts --mode run_analysis
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260517$ merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260514.csv
 Searching for files  *results.ecsv
-Found 821 result files.
+Found 814 result files.
+Skipping 0 files with CATALOG_USE == EXCLUDE
+Merging 814 result files.
 Reading tables...
 Validating schema...
-	validated 821/821 tables
+	validated 814/814 tables
+Normalizing string columns...
 Stacking tables...
-Writing merged table → /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260421.fits
+Writing merged table → /data-pool/Halpha/hapy-output-20260517/merged_results_virgo_20260518.fits
 Done.
-Final table rows: 821
-Final table columns: 344
+Final table rows: 814
+Final table columns: 390
 ```
+
+
+
 
 ### Summarize statistics in  `merged_results.py`
 ```
