@@ -11,6 +11,102 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 
+def reproject_image(
+    infile,
+    reffile,
+    outname,
+    overwrite=False,
+    fill_value=np.nan,
+    add_provenance=True,
+):
+    """
+    Reproject infile onto the WCS/grid of reffile using flux-conserving
+    adaptive reprojection.
+
+    This is intended for calibrated science images where integrated flux
+    should be preserved.
+    """
+    import os
+    from pathlib import Path
+    import numpy as np
+    from astropy.io import fits
+    from reproject import reproject_adaptive
+
+    infile = Path(infile)
+    reffile = Path(reffile)
+    outname = Path(outname)
+
+    if not infile.exists():
+        raise FileNotFoundError(f"Input image not found: {infile}")
+    if not reffile.exists():
+        raise FileNotFoundError(f"Reference image not found: {reffile}")
+
+    if outname.exists() and not overwrite:
+        print(f"Reprojected image exists - not redoing it: {outname}")
+        return outname
+
+    outname.parent.mkdir(parents=True, exist_ok=True)
+
+    tmpname = outname.with_suffix(outname.suffix + ".tmp")
+    if tmpname.exists():
+        tmpname.unlink()
+
+    with fits.open(infile, memmap=False) as hin, fits.open(reffile, memmap=False) as href:
+        ref_header = href[0].header.copy()
+
+        outim, footprint = reproject_adaptive(
+            hin,
+            ref_header,
+            conserve_flux=True,
+        )
+
+        outim = np.asarray(outim, dtype=np.float32)
+        outim[footprint <= 0] = fill_value
+
+        out_header = ref_header.copy()
+
+        # Preserve useful calibration metadata from input image.
+        for key in [
+            "EXPTIME", "FILTER", "FILTER1", "FILTER2",
+            "PHOTZP", "MAGZP", "PAN_FZP", "SKYMED", "SKYSTD",
+            "BUNIT", "GAIN", "RDNOISE",
+        ]:
+            if key in hin[0].header:
+                out_header[key] = hin[0].header[key]
+
+        if add_provenance:
+            out_header["REPROJ"] = (True, "Image was reprojected")
+            out_header["REPRMETH"] = ("adaptive", "Reprojection method")
+            out_header["R_CONSFL"] = (True, "Flux-conserving reprojection")
+            out_header["REFFILE"] = (reffile.name, "Reference image for reprojection")
+            out_header["SRCFILE"] = (infile.name, "Source image before reprojection")
+
+        fits.writeto(
+            tmpname,
+            outim,
+            out_header,
+            overwrite=True,
+            output_verify="silentfix",
+        )
+
+    os.replace(tmpname, outname)
+    return outname
+# def reproject_image(infile, reffile, outname):
+#     """reproject infile to reffile image"""
+    
+#     if os.path.exists(outname):
+#         print("reprojected image exists - not redoing it")
+#         return
+    
+#     hinfile = fits.open(infile)
+#     href = fits.open(reffile)
+#     # reproject input to referece image
+#     #outim,footprint = reproject_interp(hinfile,href[0].header)
+#     outim,footprint = reproject_adaptive(hinfile,href[0].header, conserve_flux=True)
+
+#     fits.writeto(outname,outim,href[0].header,overwrite=True)
+#     hinfile.close()
+#     href.close()
 
 def estimate_sky_stats_photutils(
     data,
