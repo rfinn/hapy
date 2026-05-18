@@ -219,7 +219,13 @@ cutouts --review review_sample_20260514.csv --outfile
 cutout_run_analysis_list.txt
 ```
 
-
+Example output from 2026-05-17:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-pre2025coadds-20260517$ python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir cutouts --review review_sample_20260514.csv --outfile cutout_run_analysis_list.txt
+Found 735 cutout directories
+Excluded 31 directories
+Wrote 704 directories to cutout_run_analysis_list.txt
+```
 
 If manual masking has been done, do not force rebuilding of masks:
 ```bash
