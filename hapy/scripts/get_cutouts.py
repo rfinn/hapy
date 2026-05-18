@@ -241,11 +241,6 @@ def main(args=None):
             cszp_source = "local_cutouts",
         )
 
-        if params_path.exists() and args.overwrite_metadata:
-            backup = params_path.with_suffix(".json.bak")
-            params_path.replace(backup)
-
-        params_path.write_text(json.dumps(params, indent=2))
 
 
         #print("DEBUG before get_cutout_all_filters")
@@ -274,6 +269,13 @@ def main(args=None):
 
         params["x_parent"] = x
         params["y_parent"] = y        
+
+
+        if params_path.exists() and args.overwrite_metadata:
+            backup = params_path.with_suffix(".json.bak")
+            params_path.replace(backup)
+
+        params_path.write_text(json.dumps(params, indent=2))
         
         theta_deg = pa_ccw_north_to_photutils_theta(float(gPA[i]))
         # semi major and minor axes in arcsec
