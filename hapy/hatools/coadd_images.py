@@ -37,87 +37,6 @@ instruments = ['BOK','INT','HDI','MOS']
 # 
 
 
-def _weight_image_is_usable(wdata, sci_data=None):
-    """
-    Return False for obviously bogus weight maps.
-
-    Catches:
-    - weight image identical to science image
-    - all-zero / all-NaN / constant maps
-    - inverted-looking maps where most finite science pixels have zero weight
-    """
-    w = np.asarray(wdata, dtype=float)
-    good_w = np.isfinite(w)
-
-    if good_w.sum() == 0:
-        return False, "all_nonfinite"
-
-    finite_vals = w[good_w]
-
-    if np.nanstd(finite_vals) == 0:
-        return False, "constant_weight"
-
-    if np.nanmax(finite_vals) <= 0:
-        return False, "nonpositive_weight"
-
-    if sci_data is not None:
-        s = np.asarray(sci_data, dtype=float)
-
-        if s.shape == w.shape:
-            finite_s = np.isfinite(s)
-
-            # Halpha old INT bug: weight == science image
-            try:
-                if np.allclose(
-                    w[finite_s & good_w],
-                    s[finite_s & good_w],
-                    rtol=1e-6,
-                    atol=1e-6,
-                    equal_nan=True,
-                ):
-                    return False, "weight_identical_to_science"
-            except Exception:
-                pass
-
-            # possible inverted/broken weight: most valid science has zero weight
-            valid_sci = finite_s & (s != 0)
-            if valid_sci.sum() > 100:
-                frac_zero_on_sci = np.mean(w[valid_sci] <= 0)
-                if frac_zero_on_sci > 0.8:
-                    return False, f"mostly_zero_on_valid_science:{frac_zero_on_sci:.3f}"
-
-    return True, "ok"
-
-
-def _science_cutout_is_usable(data, min_finite_frac=0.5, min_nonzero_frac=0.05):
-    d = np.asarray(data, dtype=float)
-
-    finite = np.isfinite(d)
-    finite_frac = np.mean(finite)
-
-    if finite_frac < min_finite_frac:
-        return False, {
-            "reason": "too_few_finite_pixels",
-            "finite_frac": float(finite_frac),
-            "nonzero_frac": np.nan,
-        }
-
-    nonzero = finite & (d != 0)
-    nonzero_frac = np.mean(nonzero)
-
-    if nonzero_frac < min_nonzero_frac:
-        return False, {
-            "reason": "mostly_zero_science_cutout",
-            "finite_frac": float(finite_frac),
-            "nonzero_frac": float(nonzero_frac),
-        }
-
-    return True, {
-        "reason": "ok",
-        "finite_frac": float(finite_frac),
-        "nonzero_frac": float(nonzero_frac),
-    }
-
 
 def _safe_set_float_header(header, key, value, comment, ndec=6):
     if value is not None and np.isfinite(value):
@@ -282,51 +201,6 @@ def ellipse_missing_fraction(weight_data, xc, yc, a, b, theta):
     missing = np.sum(weight_data[inside] <= 0)
     return missing / npix, npix
 
-
-def make_cutout_from_slices(
-    self,
-    slices_original,
-    output_name,
-    subtract_sky=False,
-    overwrite=False,
-):
-    """
-    Make a cutout using an explicit pixel slice, usually defined from
-    another image on the same pixel grid.
-
-    This guarantees identical output dimensions between paired cutouts.
-    """
-    output_path = Path(output_name)
-
-    if output_path.is_file() and not overwrite:
-        print(f"Skipping existing cutout: {output_path}")
-        data, hdr = fits.getdata(output_path, header=True)
-        return "skipped", data, hdr
-
-    data = fits.getdata(self.image)
-
-    yslice, xslice = slices_original
-    cut_data = data[yslice, xslice]
-
-    hdr = self.header.copy()
-
-    # Update WCS/header for sliced image
-    wcs_cut = self.wcs.slice((yslice, xslice))
-    hdr.update(wcs_cut.to_header())
-
-    if subtract_sky:
-        cut_data, sky_med, sky_std = estimate_and_subtract_sky(cut_data)
-        hdr["SKYSUB"] = (True, "Local sky subtracted from cutout")
-        hdr["SKYMED"] = (float(sky_med), "Local sky median subtracted")
-        hdr["SKYSTD"] = (float(sky_std), "Local sky std")
-    else:
-        hdr["SKYSUB"] = (False, "Local sky not subtracted")
-
-    fits.PrimaryHDU(data=cut_data, header=hdr).writeto(output_path, overwrite=True)
-    print(f"Cutout saved to {output_path}")
-
-    return "ok", cut_data, hdr
-
 class CoaddImage:
     """
     Class to handle coadded images and create cutouts around galaxies.
@@ -431,90 +305,26 @@ class CoaddImage:
         # add FWHM_PSF
         fwhm = round(float(self.fwhm_psf_arcsec),2) if self.fwhm_psf_arcsec is not None else None
         self.header["FWHM_PSF"] = (fwhm, "PSF FWHM in arcsec")
-
-
-
-    def cutout_region_is_valid(self, ra, dec, size_arcsec,
-                               central_frac=0.25, min_center_frac=0.5):
+    def cutout_region_is_valid(self, ra, dec, size_arcsec, central_frac=0.25, min_center_frac=0.8):
         """
-        Quick validity check at proposed cutout location.
-
-        Prefer a usable weight image. If the weight image is suspicious, fall back
-        to the science image itself and reject only if the cutout is mostly blank
-        or non-finite.
+        Quick validity check using the weight image at a proposed cutout location.
+        Returns (ok, stats_dict).
         """
-
-        if self.data is None or self.wcs is None:
-            self.load_image()
+        if not getattr(self, "weight_flag", False) or not getattr(self, "weight_image", None):
+            return True, {"reason": "no_weight"}
 
         size_pix = int(size_arcsec / self.pixelscale)
         position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
 
-        # --------------------------------------------------
-        # Try weight-image validity first
-        # --------------------------------------------------
-        if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
-            try:
-                wdata = fits.getdata(self.weight_image)
-
-                weight_usable, weight_reason = _weight_image_is_usable(
-                    wdata,
-                    sci_data=self.data,
-                )
-
-                if weight_usable:
-                    wcut = Cutout2D(
-                        wdata,
-                        position=position,
-                        size=(size_pix, size_pix),
-                        wcs=self.wcs,
-                    ).data
-
-                    ok, stats = _weight_ok(
-                        wcut,
-                        central_frac=central_frac,
-                        min_center_frac=min_center_frac,
-                    )
-
-                    stats["source"] = "weight"
-                    stats["weight_reason"] = weight_reason
-                    return ok, stats
-
-            except Exception as err:
-                weight_usable = False
-                weight_reason = f"weight_cutout_failed:{err}"
-
-        else:
-            weight_usable = False
-            weight_reason = "no_weight"
-
-        # --------------------------------------------------
-        # Fallback: science cutout sanity check
-        # --------------------------------------------------
         try:
-            scut = Cutout2D(
-                self.data,
-                position=position,
-                size=(size_pix, size_pix),
-                wcs=self.wcs,
-            ).data
-        except Exception as err:
-            return False, {
-                "reason": f"science_cutout_failed:{err}",
-                "source": "science",
-                "weight_reason": weight_reason,
-            }
+            wdata = fits.getdata(self.weight_image)
+            wcut = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs).data
+        except Exception:
+            return False, {"reason": "weight_cutout_failed"}
 
-        sci_ok, sci_stats = _science_cutout_is_usable(
-            scut,
-            min_finite_frac=0.5,
-            min_nonzero_frac=0.01,
-        )
+        ok, stats = _weight_ok(wcut, central_frac=central_frac, min_center_frac=min_center_frac)
+        return ok, stats
 
-        sci_stats["source"] = "science"
-        sci_stats["weight_reason"] = weight_reason
-
-        return sci_ok, sci_stats
 
 
     def get_ellipse_missing_fraction(self, xc, yc, a_arcsec, b_arcsec, theta_deg):
@@ -636,206 +446,109 @@ class CoaddImage:
 
         self.frac_missing = 1.0 - (npix_good / npix_total)
 
-
-
-    def make_cutout(self, ra=None, dec=None, size_arcsec=None, output_name=None,
+        
+    def make_cutout(self, ra, dec, size_arcsec, output_name=None,
                     subtract_sky=False, skycfg=None, return_cutout=True,
-                    fix_gain=True, fix_exptime=True, overwrite=False,
-                    return_slices=False, slices_original=None):
-        """
-        Create a science cutout either from RA/Dec/size or from an explicit
-        parent-image slice.
+                    fix_gain=True, fix_exptime=True, overwrite=False):
 
-        If a weight image exists, write a matched weight cutout using the same
-        pixel slice and reject cutouts whose central weight region is invalid.
+        """
+        Create a cutout centered at (ra, dec) with size in arcsec.
+
+        If a weight image exists, reject cutouts whose central region falls in
+        a chip gap or off the valid image area.
+
+        If a weight image exists and the cutout is valid, also write a weight-image
+        cutout with filename output_name.replace(".fits", ".weight.fits").
         """
 
         if output_name is not None:
             outpath = Path(output_name)
             if outpath.is_file() and not overwrite:
                 print(f"Skipping existing cutout: {outpath}")
-                if return_slices:
-                    return ("skipped", None, None, None)
                 return ("skipped", None, None)
 
         if self.data is None or self.wcs is None:
             self.load_image()
 
-        # --------------------------------------------------
-        # Define science cutout and slice
-        # --------------------------------------------------
-        if slices_original is None:
-            if ra is None or dec is None or size_arcsec is None:
-                raise ValueError("ra, dec, and size_arcsec are required when slices_original is not provided")
+        size_pix = int(size_arcsec / self.pixelscale)
+        position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
 
-            size_pix = int(size_arcsec / self.pixelscale)
-            position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
-
-            cutout = Cutout2D(
-                self.data,
-                position=position,
-                size=(size_pix, size_pix),
-                wcs=self.wcs,
-            )
-
-            cutout_data = cutout.data.copy()
-            cutout_wcs = cutout.wcs
-            slices_original = cutout.slices_original
-        else:
-            yslice, xslice = slices_original
-            cutout_data = self.data[yslice, xslice].copy()
-            cutout_wcs = self.wcs.slice((yslice, xslice))
+        cutout = Cutout2D(self.data, position=position, size=(size_pix, size_pix), wcs=self.wcs)
+        cutout_data = cutout.data.copy()
 
 
+        # print("DEBUG make_cutout input:",
+        #           self.image_file,
+        #           np.nanmin(self.data),
+        #           np.nanmax(self.data),
+        #           np.count_nonzero(self.data))
 
-        # --------------------------------------------------
-        # Output name
-        # --------------------------------------------------
-        if output_name is None:
-            base = os.path.basename(self.image_file).replace(".fits", "")
-            output_name = f"{base}-cutout.fits"
+        # print("DEBUG make_cutout cutout:",
+        #           output_name,
+        #           np.nanmin(cutout_data),
+        #           np.nanmax(cutout_data),
+        #           np.count_nonzero(cutout_data))
 
-        if output_name.endswith(".fits"):
-            weight_output_name = output_name.replace(".fits", ".weight.fits")
-        else:
-            weight_output_name = output_name + ".weight.fits"
-
-
-        # --------------------------------------------------
-        # Matched weight cutout + validity checks
-        # --------------------------------------------------
+        # --- optional weight cutout ---
         wcut = None
-        wheader = None
-        weight_ok = True
-        weight_usable = False
-        weight_reason = "no_weight"
-        weight_stats = {
-            "center_weight": np.nan,
-            "central_good_frac": np.nan,
-        }
-
-        # First reject cutouts that are clearly off the science image/CCD.
-        # This catches INT galaxies that fall entirely off the valid detector area
-        # even when the weight map is missing or bogus.
-
-        sci_ok, sci_stats = _science_cutout_is_usable(
-            cutout_data,
-            min_finite_frac=0.5,
-            min_nonzero_frac=0.01,
-        )
-
-        if not sci_ok:
-            print(
-                f"Rejecting cutout due to invalid science region: {output_name}; "
-                f"stats={sci_stats}"
-            )
-            if return_slices:
-                return ("invalid", None, None, None)
-            return ("invalid", None, None)
-
+        weight_header = None
+        weight_output_name = None
 
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
             try:
                 wdata, wheader = fits.getdata(self.weight_image, header=True)
-                yslice, xslice = slices_original
-                wcut = wdata[yslice, xslice].copy()
-
-                # Basic weight-map sanity checks.
-                w = np.asarray(wdata, dtype=float)
-                wf = np.isfinite(w)
-
-                if wf.sum() == 0:
-                    weight_usable = False
-                    weight_reason = "all_nonfinite_weight"
-
-                elif np.nanmax(w[wf]) <= 0:
-                    weight_usable = False
-                    weight_reason = "nonpositive_weight"
-
-                elif np.nanstd(w[wf]) == 0:
-                    weight_usable = False
-                    weight_reason = "constant_weight"
-
-                elif wdata.shape == self.data.shape and np.allclose(
-                    w[wf],
-                    np.asarray(self.data, dtype=float)[wf],
-                    rtol=1e-6,
-                    atol=1e-6,
-                    equal_nan=True,
-                ):
-                    weight_usable = False
-                    weight_reason = "weight_identical_to_science"
-
-                else:
-                    weight_usable = True
-                    weight_reason = "ok"
-
-                if weight_usable:
-                    weight_ok, weight_stats = _weight_ok(
-                        wcut,
-                        central_frac=0.25,
-                        min_center_frac=0.5,
-                    )
-
-                    if not weight_ok:
-                        print(
-                            f"Rejecting cutout due to invalid central weight region: {output_name}; "
-                            f"stats={weight_stats}"
-                        )
-                        if return_slices:
-                            return ("invalid", None, None, None)
-                        return ("invalid", None, None)
-
-                else:
-                    print(
-                        f"WARNING: Ignoring suspicious weight map for validity checks: "
-                        f"{output_name}; reason={weight_reason}"
-                    )
-                    weight_ok = True
-
-            except Exception as err:
-                print(f"WARNING: Could not make weight cutout for {output_name}: {err}")
+                wcut_obj = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs)
+                wcut = wcut_obj.data.copy()
+                weight_header = wheader.copy()
+                weight_header.update(wcut_obj.wcs.to_header())
+            except Exception:
                 wcut = None
-                wheader = None
-                weight_ok = True
-                weight_usable = False
-                weight_reason = "weight_cutout_failed"
+                weight_header = None
 
-        
-        # --------------------------------------------------
-        # Optional sky subtraction
-        # --------------------------------------------------
+        # --- reject edge / chip-gap cases based on weight image ---
+        weight_ok, weight_stats = _weight_ok(wcut, central_frac=0.25, min_center_frac=0.8)
+        if not weight_ok:
+            print(f"Rejecting cutout due to invalid central weight region: {output_name}")
+            return ("invalid", None, None)
+
+        # --- optional sky subtraction ---
         skycfg = skycfg or {}
         med = None
         std = None
-
         if subtract_sky:
             cutout_data, med, std = estimate_and_subtract_sky(
-                cutout_data,
+                cutout.data,
                 weightimage=wcut,
-                subtract=subtract_sky,
-                **skycfg,
+                subtract=subtract_sky
             )
 
-        # --------------------------------------------------
-        # Science header
-        # --------------------------------------------------
+        if output_name is None:
+            base = os.path.basename(self.image_file).replace('.fits', '')
+            output_name = f"{base}-cutout.fits"
+
+        # weight cutout filename
+        if wcut is not None:
+            if output_name.endswith(".fits"):
+                weight_output_name = output_name.replace(".fits", ".weight.fits")
+            else:
+                weight_output_name = output_name + ".weight.fits"
+
         outheader = self.header.copy()
-        outheader.update(cutout_wcs.to_header())
+        outheader.update(cutout.wcs.to_header())
 
         if self.psf_image_name is not None:
-            outheader.set("PSFIMAGE", self.psf_image_name)
+            outheader.set('PSFIMAGE', self.psf_image_name)
+
 
         if getattr(self, "weight_image", None) is not None:
             outheader.set("WGTIMAGE", str(self.weight_image))
+        
 
+        # record weight diagnostics
         outheader["WGTCUTOK"] = (bool(weight_ok), "Central weight region valid")
         _safe_set_float_header(outheader, "WGTCNTR", weight_stats["center_weight"], "Central weight value")
         _safe_set_float_header(outheader, "WGTCFRAC", weight_stats["central_good_frac"], "Central good-weight fraction")
 
-        outheader["WGTUSED"] = (bool(weight_usable), "Weight used for cutout validity")
-        outheader["WGTREASN"] = (str(weight_reason)[:68], "Weight validity reason")
-        
         if subtract_sky:
             parent_hdr = self.header
             if "SKYMED" in parent_hdr:
@@ -845,8 +558,8 @@ class CoaddImage:
 
             outheader["CUTSKY"] = (True, "Sky median subtracted from cutout")
             outheader["CSKYSRC"] = ("CUTOUT", "Sky measured on cutout")
-            _safe_set_float_header(outheader, "CSKYMED", med, "Median sky ADU subtracted")
-            _safe_set_float_header(outheader, "CSKYSTD", std, "Std sky ADU")
+            _safe_set_float_header(outheader, "CSKYMED", med, "Median sky (ADU) subtracted")
+            _safe_set_float_header(outheader, "CSKYSTD", std, "Std sky (ADU)")
             outheader["CSKYMETH"] = ("PHOTUTILS", "Background estimation method")
             outheader["CSKYOK"] = (bool(np.isfinite(med) and np.isfinite(std)), "Sky estimate finite")
 
@@ -860,36 +573,123 @@ class CoaddImage:
             if newheader is not None:
                 outheader = newheader
 
-        # --------------------------------------------------
-        # Write science cutout
-        # --------------------------------------------------
+
+        # print("DEBUG before write:",
+        #     output_name,
+        #     np.nanmin(cutout_data),
+        #     np.nanmax(cutout_data),
+        #     np.count_nonzero(cutout_data))
+        # write science cutout
         fits.PrimaryHDU(data=cutout_data, header=outheader).writeto(output_name, overwrite=True)
 
-        # --------------------------------------------------
-        # Write matched weight cutout
-        # --------------------------------------------------
-        if wcut is not None:
-            whdr = wheader.copy()
-            whdr.update(cutout_wcs.to_header())
-            whdr["WGTCUT"] = (True, "This file is a weight-image cutout")
-            whdr["SCIIM"] = (os.path.basename(output_name), "science-image cutout")
-
-            fits.PrimaryHDU(data=wcut, header=whdr).writeto(weight_output_name, overwrite=True)
+        # write weight cutout if available
+        if wcut is not None and weight_header is not None and weight_output_name is not None:
+            weight_header["WGTCUT"] = (True, "This file is a weight-image cutout")
+            weight_header["SCIIM"] = (os.path.basename(output_name), "science-image cutout")
+            fits.PrimaryHDU(data=wcut, header=weight_header).writeto(weight_output_name, overwrite=True)
 
         if self.verbose:
             print(f"Cutout saved to {output_name}")
-            if wcut is not None:
+            if weight_output_name is not None:
                 print(f"Weight cutout saved to {weight_output_name}")
 
         if return_cutout:
-            if return_slices:
-                return ("ok", cutout_data, outheader, slices_original)
             return ("ok", cutout_data, outheader)
-
         return None
 
+    # #def make_cutout(self, ra, dec, size_arcsec, output_name=None):
+    # def make_cutout(self, ra, dec, size_arcsec, output_name=None,
+    #                 subtract_sky=False, skycfg=None, return_cutout=True, fix_gain=True, overwrite=False):
 
+    #     """
+    #     Create a cutout centered act (ra, dec) with size in arcsec.
+   #     """
+
+    #     # --- check if output_name exists, return if it does
+    #     if output_name is not None:
+    #         outpath = Path(output_name)
+    #         if outpath.is_file() and not overwrite:
+    #             print(f"Skipping existing cutout: {outpath}")
+    #             return None
+    
+    #     if self.data is None or self.wcs is None:
+    #         self.load_image()
+
+    #     # convert size from arcsec to pixels
+    #     size_pix = int(size_arcsec / self.pixelscale)
+    #     #position = (ra, dec)
+    #     position = SkyCoord(ra=ra*u.deg, dec=dec*u.deg, frame="icrs")
+    #     cutout = Cutout2D(self.data, position=position, size=(size_pix,size_pix), wcs=self.wcs)
+
+
+    #     # --- optional weight cutout (for background masking) ---
+    #     wcut = None
+    #     if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
+    #         try:
+    #             wdata = fits.getdata(self.weight_image)
+    #             wcut = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs).data
+    #         except Exception:
+    #             wcut = None
+
+    #     # --- optional sky subtraction on the cutout ---
+    #     skycfg = skycfg or {}
+    #     if subtract_sky:
  
+    #         cutout_data, med, std = estimate_and_subtract_sky(
+    #             cutout.data,
+    #             weightimage=wcut,
+    #             subtract=subtract_sky
+    #             )
+        
+    #     if output_name is None:
+    #         base = os.path.basename(self.image_file).replace('.fits', '')
+    #         output_name = f"{base}-cutout.fits"
+
+
+
+    #     outheader = self.header.copy()
+    #     outheader.update(cutout.wcs.to_header())
+    #     #outheader = cutout.wcs.to_header()
+        
+    #     if self.psf_image_name is not None:
+    #         outheader.set('PSFIMAGE',self.psf_image_name)
+
+    #     # TODO - propagate header keywords to the cutout
+
+        
+    #     # record sky stats
+
+    #     if subtract_sky:
+    #         parent_hdr = self.header
+    #         # check for previous values of SKYMED in header
+    #         if "SKYMED" in parent_hdr:
+    #             outheader["PSKYMED"] = (self.header["SKYMED"], "Parent coadd SKYMED")
+    #         if "SKYSTD" in parent_hdr:
+    #             outheader["PSKYSTD"] = (self.header["SKYSTD"], "Parent coadd SKYSTD")
+
+    #         outheader["CUTSKY"] = (True, "Sky median subtracted from cutout")
+    #         outheader["CSKYSRC"] = ("CUTOUT", "Sky measured on cutout")
+    #         _safe_set_float_header(outheader, "CSKYMED", med, "Median sky (ADU) subtracted")
+    #         _safe_set_float_header(outheader, "CSKYSTD", std, "Std sky (ADU)")
+    #         #_safe_set_float_header(outheader, "CSKYMEA", mean, "Mean sky (ADU)")
+    #         #outheader["CSKYMED"] = (float(med), "Median sky (ADU) subtracted")
+    #         #outheader["CSKYSTD"] = (float(std), "Sigma-clipped sky std (ADU/pix)")
+    #         outheader["CSKYMETH"] = ("PHOTUTILS", "Background estimation method")
+    #         outheader["CSKYOK"] = (bool(np.isfinite(med) and np.isfinite(std)), "Sky estimate finite")
+    #     # fix gain
+    #     if fix_gain:
+    #         newheader = fix_header_gain(outheader)
+    #         if newheader is not None:
+    #             outheader = newheader
+    #     hdu = fits.PrimaryHDU(data=cutout_data, header=outheader)                    
+    #     hdu.writeto(output_name, overwrite=True)
+
+    #     if self.verbose:
+    #         print(f"Cutout saved to {output_name}")
+
+    #     if return_cutout:
+    #         return cutout_data, outheader
+    #     return None
         
 class HalphaImageSet:
     def __init__(self, rcoadd_fname, hacoadd_fname, psfdir=None):
@@ -971,6 +771,15 @@ class HalphaImageSet:
         self.ellipse_npix_good_r = self.r.npix_good
         self.ellipse_npix_good_h = self.h.npix_good
     
+        
+    def get_cutout_all_filters_old(self, ra, dec, size_arcsec, rootname):
+        
+        self.r.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-R.fits")
+        self.h.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-Ha.fits")
+        if self.cs_flag:
+            self.cs.make_cutout(ra, dec, size_arcsec, output_name=f"{rootname}-CS-ZP.fits")            
+
+
 
         
     def get_cutout_all_filters(self, ra, dec, size_arcsec, rootname, subtract_sky=False, overwrite=False):
@@ -996,43 +805,15 @@ class HalphaImageSet:
         h_path = Path(h_name)
         cs_path = Path(cs_name)
 
-
-        # --------------------------------------------------
-        # Ha cutout
-        # --------------------------------------------------
-        h_status, h_data, h_hdr, h_slices = self.h.make_cutout(
-            ra, dec, size_arcsec,
-            output_name=h_name,
-            subtract_sky=subtract_sky,
-            overwrite=overwrite,
-            return_slices=True,
-        )
-
-        if h_status == "skipped":
-            if h_path.is_file():
-                h_data, h_hdr = fits.getdata(h_name, header=True)
-            else:
-                raise FileNotFoundError(f"Ha cutout was skipped but does not exist: {h_name}")
-
-        elif h_status == "invalid":
-            print()
-            print(f"WARNING: Skipping galaxy because Ha cutout is invalid: {rootname}")
-            print()
-            return "invalid"
-
-        elif h_status != "ok":
-            raise RuntimeError(f"Unknown Ha make_cutout status: {h_status}")
-        
         # --------------------------------------------------
         # R cutout
         # --------------------------------------------------
-        #print("DEBUG: creating r-band cutout with halpha slices ",h_slices)
         r_status, r_data, r_hdr = self.r.make_cutout(
+            ra, dec, size_arcsec,
             output_name=r_name,
             subtract_sky=subtract_sky,
             overwrite=overwrite,
-            slices_original=h_slices,
-            )
+        )
 
         if r_status == "skipped":
             if r_path.is_file():
@@ -1049,7 +830,30 @@ class HalphaImageSet:
         elif r_status != "ok":
             raise RuntimeError(f"Unknown R make_cutout status: {r_status}")
 
+        # --------------------------------------------------
+        # Ha cutout
+        # --------------------------------------------------
+        h_status, h_data, h_hdr = self.h.make_cutout(
+            ra, dec, size_arcsec,
+            output_name=h_name,
+            subtract_sky=subtract_sky,
+            overwrite=overwrite,
+        )
 
+        if h_status == "skipped":
+            if h_path.is_file():
+                h_data, h_hdr = fits.getdata(h_name, header=True)
+            else:
+                raise FileNotFoundError(f"Ha cutout was skipped but does not exist: {h_name}")
+
+        elif h_status == "invalid":
+            print()
+            print(f"WARNING: Skipping galaxy because Ha cutout is invalid: {rootname}")
+            print()
+            return "invalid"
+
+        elif h_status != "ok":
+            raise RuntimeError(f"Unknown Ha make_cutout status: {h_status}")
 
         # --------------------------------------------------
         # CS-ZP cutout: always build from R and Ha cutouts
@@ -1096,4 +900,3 @@ if __name__ == "__main__":
     # loop over galaxies
 
     # get_all_cutouts
-
