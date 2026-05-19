@@ -82,12 +82,12 @@ def main():
     parser.add_argument(
         "--newdir",
         required=True,
-        help="Directory containing rebuilt coadds (e.g. coadds-v20260330)",
+        help="Directory containing coadds (e.g. /data-pool/Halpha/coadds-v20260518/)",
     )
     parser.add_argument(
-        "--olddir",
+        "--psfdir",
         required=True,
-        help="Directory containing old reference coadds (e.g. coadds-2025DEC)",
+        help="Directory containing matching psf images (e.g. /data-pool/Halpha/psf-images-v20260518/)",
     )
     parser.add_argument(
         "--pattern",
@@ -107,7 +107,7 @@ def main():
     args = parser.parse_args()
 
     newdir = Path(args.newdir)
-    olddir = Path(args.olddir)
+    psfdir = Path(args.psfdir)
 
     if not newdir.is_dir():
         print(f"ERROR: newdir does not exist: {newdir}")
@@ -125,10 +125,10 @@ def main():
     n_missing = 0
 
     for new_file in files:
-        old_file = olddir / new_file.name
+        psf_file = psfdir / new_file.name.replace(".fits","-psf.fits")
         ok = copy_header_cards(
             new_file,
-            old_file,
+            psf_file,
             dry_run=args.dry_run,
             backup=args.backup,
         )

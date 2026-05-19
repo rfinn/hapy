@@ -216,6 +216,14 @@ cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
 
+```bash
+run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph \
+--galfit --convflag --log-to-console --gaia-dir \
+/data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
+cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
+```
+
+
 
 ## Running on a larger sample
 
@@ -266,8 +274,8 @@ cp ../hapy-output-20260417/review_sample_20260514.csv .
 
 Create an input list that removes objects that have `CATALOG_USE==EXCLUDE`:
 ```
-python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir
-cutouts --review review_sample_20260514.csv --outfile
+python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir \
+cutouts --review review_sample_20260514.csv --outfile \
 cutout_run_analysis_list.txt
 ```
 
@@ -355,12 +363,89 @@ Final table rows: 814
 Final table columns: 390
 ```
 
-
+Hybrid sample as of 2026-05-16
+```
+100% 767:0=0s cutouts/VFID6634-WISEAJ143246.75+000131.3-INT-20220503-VFID6620                                                                                                                          
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260518$ merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260514.csv
+Searching for files  *results.ecsv
+Found 764 result files.
+Skipping 0 files with CATALOG_USE == EXCLUDE
+Merging 764 result files.
+Reading tables...
+Validating schema...
+	validated 764/764 tables
+Normalizing string columns...
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260518/merged_results_virgo_20260519.fits
+Done.
+Final table rows: 764
+Final table columns: 390
+```
 
 
 ### Summarize statistics in  `merged_results.py`
 ```
-python ~/github/hapy/scripts/summarize_run.py --infile merged_results.fits --scheme virgo
+python ~/github/hapy/scripts/summarize_run.py --infile merged_results_virgo_20260519.fits --scheme virgo
+```
+
+
+Hybrid sample:
+```
+HAPY RUN SUMMARY
+----------------
+Total galaxies: 764
+Unique galaxies: 616
+
+Pipeline completion
+-------------------
+PSF_OK            :  481 OK  |  283 FAIL  ( 63.0%)
+MASK_OK           :  764 OK  |    0 FAIL  (100.0%)
+PHOT_OK           :  760 OK  |    4 FAIL  ( 99.5%)
+HAPY_MORPH_OK     :  760 OK  |    4 FAIL  ( 99.5%)
+R_PROFILE_OK      :  760 OK  |    4 FAIL  ( 99.5%)
+H_PROFILE_OK      :  418 OK  |  346 FAIL  ( 54.7%)
+R_SM_OK           :  671 OK  |   93 FAIL  ( 87.8%)
+H_SM_OK           :  671 OK  |   93 FAIL  ( 87.8%)
+GAL_NC_OK         :  585 OK  |  179 FAIL  ( 76.6%)
+GAL_CV_OK         :  384 OK  |  380 FAIL  ( 50.3%)
+R_PETRO_OK        :  733 OK  |   31 FAIL  ( 95.9%)
+R_EXPFIT_OK       :  760 OK  |    4 FAIL  ( 99.5%)
+R_LOGFIT_OK       :  760 OK  |    4 FAIL  ( 99.5%)
+H_PETRO_OK        :  380 OK  |  384 FAIL  ( 49.7%)
+H_EXPFIT_OK       :  362 OK  |  402 FAIL  ( 47.4%)
+H_LOGFIT_OK       :  362 OK  |  402 FAIL  ( 47.4%)
+BRIGHT_STAR_FLAG  :    6 OK  |  758 FAIL  (  0.8%)
+HAPY_MORPH_FLAG   :   35 OK  |  729 FAIL  (  4.6%)
+R_SM_FLAG         :  222 OK  |  542 FAIL  ( 70.9%)
+R_SM_SERSIC_FLAG  :   95 OK  |  669 FAIL  ( 87.6%)
+H_SM_FLAG         :  388 OK  |  376 FAIL  ( 49.2%)
+H_SM_SERSIC_FLAG  :  162 OK  |  602 FAIL  ( 78.8%)
+CSGR_PHOT_OK      :    0 OK  |  764 FAIL  (  0.0%)
+CSGR_HAPY_MORPH_OK:    0 OK  |  764 FAIL  (  0.0%)
+CSGR_HAPY_MORPH_FLAG:    0 OK  |  764 FAIL  (  0.0%)
+
+
+PROFILES_BOTH     :  418 ( 54.7%)
+
+STATMORPH_BOTH    :  100
+
+STATUS counts
+-------------
+ok          : 760
+running     : 4
+
+STAGE counts
+------------
+done        : 760
+mask        : 4
+
+Runtime medians (sec)
+---------------------
+MASK_SEC    : 0.50
+PHOT_SEC    : 9.53
+SM_SEC      : 4.83
+TOTAL_SEC   : 23.17
+
 ```
 
 Results from 2026-04-17:
