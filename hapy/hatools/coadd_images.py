@@ -617,7 +617,6 @@ class CoaddImage:
             cutout_data = cutout.data.copy()
             cutout_wcs = cutout.wcs
             slices_original = cutout.slices_original
-
         else:
             yslice, xslice = slices_original
             cutout_data = self.data[yslice, xslice].copy()
