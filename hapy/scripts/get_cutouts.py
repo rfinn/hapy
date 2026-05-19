@@ -266,10 +266,11 @@ def main(args=None):
         # Parent pixel position
         # --------------------------------------------------
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
+  
 
-        params["x_parent"] = x
-        params["y_parent"] = y        
 
+        params["x_parent"] = float(np.asarray(x).squeeze())
+        params["y_parent"] = float(np.asarray(y).squeeze())
 
         if params_path.exists() and args.overwrite_metadata:
             backup = params_path.with_suffix(".json.bak")

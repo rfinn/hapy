@@ -4,7 +4,7 @@
 Move to directory containing coadded images
 
 ```bash
-cd /data-pool/Halpha/coadds-v20260330
+cd /data-pool/Halpha/coadds-v20260518
 ```
 
 Then start the download.
@@ -21,11 +21,11 @@ cd /data-pool/Halpha/
 ```
 
 ```bash
-mkdir hapy-output-20260417
+mkdir hapy-output-20260518
 ```
 
 ```bash
-cd hapy-output-20260417
+cd hapy-output-20260518
 ```
 
 
@@ -33,6 +33,10 @@ cd hapy-output-20260417
 
 ```bash
 find /data-pool/Halpha/coadds-v20260330/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
+```
+
+```bash
+find /data-pool/Halpha/coadds-v20260518/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
 
 If you have coadds that are still under review, make a copy of the
