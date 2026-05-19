@@ -431,26 +431,90 @@ class CoaddImage:
         # add FWHM_PSF
         fwhm = round(float(self.fwhm_psf_arcsec),2) if self.fwhm_psf_arcsec is not None else None
         self.header["FWHM_PSF"] = (fwhm, "PSF FWHM in arcsec")
-    def cutout_region_is_valid(self, ra, dec, size_arcsec, central_frac=0.25, min_center_frac=0.8):
+
+
+
+    def cutout_region_is_valid(self, ra, dec, size_arcsec,
+                               central_frac=0.25, min_center_frac=0.5):
         """
-        Quick validity check using the weight image at a proposed cutout location.
-        Returns (ok, stats_dict).
+        Quick validity check at proposed cutout location.
+
+        Prefer a usable weight image. If the weight image is suspicious, fall back
+        to the science image itself and reject only if the cutout is mostly blank
+        or non-finite.
         """
-        if not getattr(self, "weight_flag", False) or not getattr(self, "weight_image", None):
-            return True, {"reason": "no_weight"}
+
+        if self.data is None or self.wcs is None:
+            self.load_image()
 
         size_pix = int(size_arcsec / self.pixelscale)
         position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
 
+        # --------------------------------------------------
+        # Try weight-image validity first
+        # --------------------------------------------------
+        if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
+            try:
+                wdata = fits.getdata(self.weight_image)
+
+                weight_usable, weight_reason = _weight_image_is_usable(
+                    wdata,
+                    sci_data=self.data,
+                )
+
+                if weight_usable:
+                    wcut = Cutout2D(
+                        wdata,
+                        position=position,
+                        size=(size_pix, size_pix),
+                        wcs=self.wcs,
+                    ).data
+
+                    ok, stats = _weight_ok(
+                        wcut,
+                        central_frac=central_frac,
+                        min_center_frac=min_center_frac,
+                    )
+
+                    stats["source"] = "weight"
+                    stats["weight_reason"] = weight_reason
+                    return ok, stats
+
+            except Exception as err:
+                weight_usable = False
+                weight_reason = f"weight_cutout_failed:{err}"
+
+        else:
+            weight_usable = False
+            weight_reason = "no_weight"
+
+        # --------------------------------------------------
+        # Fallback: science cutout sanity check
+        # --------------------------------------------------
         try:
-            wdata = fits.getdata(self.weight_image)
-            wcut = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs).data
-        except Exception:
-            return False, {"reason": "weight_cutout_failed"}
+            scut = Cutout2D(
+                self.data,
+                position=position,
+                size=(size_pix, size_pix),
+                wcs=self.wcs,
+            ).data
+        except Exception as err:
+            return False, {
+                "reason": f"science_cutout_failed:{err}",
+                "source": "science",
+                "weight_reason": weight_reason,
+            }
 
-        ok, stats = _weight_ok(wcut, central_frac=central_frac, min_center_frac=min_center_frac)
-        return ok, stats
+        sci_ok, sci_stats = _science_cutout_is_usable(
+            scut,
+            min_finite_frac=0.5,
+            min_nonzero_frac=0.01,
+        )
 
+        sci_stats["source"] = "science"
+        sci_stats["weight_reason"] = weight_reason
+
+        return sci_ok, sci_stats
 
 
     def get_ellipse_missing_fraction(self, xc, yc, a_arcsec, b_arcsec, theta_deg):
