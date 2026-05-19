@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Copy PSF-related header cards from old INT coadds to rebuilt INT coadds.
+Copy PSF-related header cards from psf images to rebuilt INT coadds.
 
 Use case:
-- new rebuilt INT images live in coadds-v20260330/
-- old reference INT images live in coadds-2025DEC/
+- new rebuilt INT images live in /data-pool/Halpha/coadds-v20260518/
+- psf images live in /data-pool/Halpha/psf-images-v20260518/
 - filenames are assumed to match exactly
 
 Cards copied:
@@ -112,8 +112,8 @@ def main():
     if not newdir.is_dir():
         print(f"ERROR: newdir does not exist: {newdir}")
         sys.exit(1)
-    if not olddir.is_dir():
-        print(f"ERROR: olddir does not exist: {olddir}")
+    if not psfdir.is_dir():
+        print(f"ERROR: olddir does not exist: {psfdir}")
         sys.exit(1)
 
     files = sorted(newdir.glob(args.pattern))
@@ -132,7 +132,7 @@ def main():
             dry_run=args.dry_run,
             backup=args.backup,
         )
-        if old_file.exists():
+        if psf_file.exists():
             n_ok += int(ok)
         else:
             n_missing += 1
