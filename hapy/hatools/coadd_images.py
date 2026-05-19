@@ -810,7 +810,7 @@ class HalphaImageSet:
         # --------------------------------------------------
         # R cutout
         # --------------------------------------------------
-
+        print("DEBUG: creating r-band cutout with halpha slices")
         r_status, r_data, r_hdr = self.r.make_cutout(
             ra, dec, size_arcsec,
             output_name=r_name,
