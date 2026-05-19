@@ -17,6 +17,7 @@ import json
 from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
 from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
 from hapy.utils.logging_utils import setup_logging
+
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta
 
 def resolve_sibling_path(base_image, sibling_name):
@@ -100,12 +101,14 @@ def main(args=None):
         himage = rheader['HAIMAGE']
     except KeyError:
         print(f"WARNING: could not get HAIMAGE in rimage header {args.rimage}")
+        log.warning(f"could not get HAIMAGE in rimage header {args.rimage}")
         himage = None
     try:
         rheader = fits.getheader(args.rimage)
         filter_ratio = float(rheader['FLTRATIO'])
     except KeyError:
         print(f"WARNING: could not get FLTRATIO in rimage header {args.rimage}.  Make sure you ran filter ratio program!")
+        log.warning(f"could not get FLTRATIO in rimage header {args.rimage}.  Make sure you ran filter ratio program!")        
         filter_ratio = None
 
     himage_full_path = resolve_sibling_path(args.rimage, himage)
@@ -148,6 +151,7 @@ def main(args=None):
         filter_corrections = corrections[filter_keepflag]
         redshift = redshift[filter_keepflag]
     print(f"number of galaxies in FOV = {np.sum(gcat.keepflag)}")
+    log.info(f"number of galaxies in FOV = {np.sum(gcat.keepflag)}")
     
     ###################################################
     # get galaxy cutouts
@@ -183,6 +187,10 @@ def main(args=None):
             #    print(f"Invalid regions in weight file for {args.rimage} - making cutout anyway")
             #else:
             print(f"Skipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}")
+            log.warning(
+                "SKIP_INVALID_REGION galid=%s ra=%.8f dec=%.8f size_arcsec=%.3f status=%s",
+                galid[i], gra[i], gdec[i], size_arcsec, status,
+                )
             continue
 
 
@@ -334,6 +342,7 @@ def main(args=None):
     #summary_path = Path(outdir) / f"cutouts_summary-{tag}-{user}-{ts}.ecsv"
     tab.write(summary_path, overwrite=True, format="ascii.ecsv")
     print(f"Wrote summary table: {summary_path}")
+    log.info(f"Wrote summary table: {summary_path}")
 if __name__ == '__main__':
 
 

@@ -446,51 +446,72 @@ class CoaddImage:
 
         self.frac_missing = 1.0 - (npix_good / npix_total)
 
-        
-    def make_cutout(self, ra, dec, size_arcsec, output_name=None,
-                    subtract_sky=False, skycfg=None, return_cutout=True,
-                    fix_gain=True, fix_exptime=True, overwrite=False):
 
+    def make_cutout(self, ra=None, dec=None, size_arcsec=None, output_name=None,
+                        subtract_sky=False, skycfg=None, return_cutout=True,
+                        fix_gain=True, fix_exptime=True, overwrite=False,
+                        return_slices=False, slices_original=None):
         """
-        Create a cutout centered at (ra, dec) with size in arcsec.
+        Create a science cutout either from RA/Dec/size or from an explicit
+        parent-image slice.
+  
 
         If a weight image exists, reject cutouts whose central region falls in
         a chip gap or off the valid image area.
 
-        If a weight image exists and the cutout is valid, also write a weight-image
-        cutout with filename output_name.replace(".fits", ".weight.fits").
+        If a weight image exists, write a matched weight cutout using the same
+        pixel slice and reject cutouts whose central weight region is invalid.
+
         """
 
         if output_name is not None:
             outpath = Path(output_name)
             if outpath.is_file() and not overwrite:
                 print(f"Skipping existing cutout: {outpath}")
+                if return_slices:
+                    return ("skipped", None, None, None)
                 return ("skipped", None, None)
 
         if self.data is None or self.wcs is None:
             self.load_image()
 
-        size_pix = int(size_arcsec / self.pixelscale)
-        position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
+        # --------------------------------------------------
+        # Define science cutout and slice
+        # --------------------------------------------------
+        if slices_original is None:
+            if ra is None or dec is None or size_arcsec is None:
+                raise ValueError("ra, dec, and size_arcsec are required when slices_original is not provided")
 
-        cutout = Cutout2D(self.data, position=position, size=(size_pix, size_pix), wcs=self.wcs)
-        cutout_data = cutout.data.copy()
+            size_pix = int(size_arcsec / self.pixelscale)
+            position = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
+
+            cutout = Cutout2D(
+                self.data,
+                position=position,
+                size=(size_pix, size_pix),
+                wcs=self.wcs,
+            )
+            cutout_data = cutout.data.copy()
+            cutout_wcs = cutout.wcs
+            slices_original = cutout.slices_original
+
+        else:
+            yslice, xslice = slices_original
+            cutout_data = self.data[yslice, xslice].copy()
+            cutout_wcs = self.wcs.slice((yslice, xslice))
+
+        # --------------------------------------------------
+        # Output name
+        # --------------------------------------------------
+        if output_name is None:
+            base = os.path.basename(self.image_file).replace(".fits", "")
+            output_name = f"{base}-cutout.fits"
 
 
-        # print("DEBUG make_cutout input:",
-        #           self.image_file,
-        #           np.nanmin(self.data),
-        #           np.nanmax(self.data),
-        #           np.count_nonzero(self.data))
-
-        # print("DEBUG make_cutout cutout:",
-        #           output_name,
-        #           np.nanmin(cutout_data),
-        #           np.nanmax(cutout_data),
-        #           np.count_nonzero(cutout_data))
-
-        # --- optional weight cutout ---
-        wcut = None
+        # --------------------------------------------------
+        # Matched weight cutout
+        # --------------------------------------------------
+        wcut = None 
         weight_header = None
         weight_output_name = None
 
@@ -511,15 +532,19 @@ class CoaddImage:
             print(f"Rejecting cutout due to invalid central weight region: {output_name}")
             return ("invalid", None, None)
 
-        # --- optional sky subtraction ---
+
+        # --------------------------------------------------
+        # Optional sky subtraction
+        # --------------------------------------------------
         skycfg = skycfg or {}
         med = None
         std = None
         if subtract_sky:
             cutout_data, med, std = estimate_and_subtract_sky(
-                cutout.data,
+                cutout_data,
                 weightimage=wcut,
                 subtract=subtract_sky
+                **skycfg,
             )
 
         if output_name is None:
@@ -594,6 +619,8 @@ class CoaddImage:
                 print(f"Weight cutout saved to {weight_output_name}")
 
         if return_cutout:
+            if return_slices:
+                return ("ok", cutout_data, outheader, slices_original)
             return ("ok", cutout_data, outheader)
         return None
 
@@ -805,6 +832,34 @@ class HalphaImageSet:
         h_path = Path(h_name)
         cs_path = Path(cs_name)
 
+
+        # --------------------------------------------------
+        # Ha cutout
+        # --------------------------------------------------
+        h_status, h_data, h_hdr, h_slices = self.h.make_cutout(
+            ra, dec, size_arcsec,
+            output_name=h_name,
+            subtract_sky=subtract_sky,
+            overwrite=overwrite,
+            return_slices=True
+        )
+
+        if h_status == "skipped":
+            if h_path.is_file():
+                h_data, h_hdr = fits.getdata(h_name, header=True)
+            else:
+                raise FileNotFoundError(f"Ha cutout was skipped but does not exist: {h_name}")
+
+        elif h_status == "invalid":
+            print()
+            print(f"WARNING: Skipping galaxy because Ha cutout is invalid: {rootname}")
+            print()
+            return "invalid"
+
+        elif h_status != "ok":
+            raise RuntimeError(f"Unknown Ha make_cutout status: {h_status}")
+        
+
         # --------------------------------------------------
         # R cutout
         # --------------------------------------------------
@@ -813,6 +868,7 @@ class HalphaImageSet:
             output_name=r_name,
             subtract_sky=subtract_sky,
             overwrite=overwrite,
+            slices_original=h_slices,
         )
 
         if r_status == "skipped":
@@ -830,30 +886,6 @@ class HalphaImageSet:
         elif r_status != "ok":
             raise RuntimeError(f"Unknown R make_cutout status: {r_status}")
 
-        # --------------------------------------------------
-        # Ha cutout
-        # --------------------------------------------------
-        h_status, h_data, h_hdr = self.h.make_cutout(
-            ra, dec, size_arcsec,
-            output_name=h_name,
-            subtract_sky=subtract_sky,
-            overwrite=overwrite,
-        )
-
-        if h_status == "skipped":
-            if h_path.is_file():
-                h_data, h_hdr = fits.getdata(h_name, header=True)
-            else:
-                raise FileNotFoundError(f"Ha cutout was skipped but does not exist: {h_name}")
-
-        elif h_status == "invalid":
-            print()
-            print(f"WARNING: Skipping galaxy because Ha cutout is invalid: {rootname}")
-            print()
-            return "invalid"
-
-        elif h_status != "ok":
-            raise RuntimeError(f"Unknown Ha make_cutout status: {h_status}")
 
         # --------------------------------------------------
         # CS-ZP cutout: always build from R and Ha cutouts

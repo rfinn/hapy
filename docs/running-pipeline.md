@@ -96,7 +96,10 @@ cat fullpath_rcoadds_hapy_ready.txt | parallel -j 16 --bar --joblog cutouts_para
 
 Or run on the full list of coadds.
 ```bash
-cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog \
+cutouts_parallel.log get_cutouts --rimage {} --catalog \
+~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo \
+--maxcorrection 5 --overwrite --overwrite_metadata
 ```
 
 ### First check for any failures
@@ -105,9 +108,17 @@ cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog cutouts_parallel.lo
 awk 'NR==1 || $7 != 0 {print}' cutouts_parallel.log
 ```
 
+Example output for hybrid coadd set:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260519$ awk 'NR==1 || $7 != 0 {print}' cutouts_parallel.log
+Seq	Host	Starttime	JobRuntime	Send	Receive	Exitval	Signal	Command
+69	:	1779219600.267	    12.449	0	1193	1	0	get_cutouts --rimage /data-pool/Halpha/coadds-v20260518/VF-162.760+32.934-INT-20190205-p065-r.fits --catalog /home/siena.edu/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+156	:	1779219651.982	    31.741	0	2833	1	0	get_cutouts --rimage /data-pool/Halpha/coadds-v20260518/VF-208.804+05.187-INT-20190206-p120-r.fits --catalog /home/siena.edu/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+179	:	1779219671.326	    45.526	0	1193	1	0	get_cutouts --rimage /data-pool/Halpha/coadds-v20260518/VF-221.102+01.782-INT-20190209-p149-r.fits --catalog /home/siena.edu/rfinn/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
+
+```
+
 ### Check output
-
-
 
 ```bash
 python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
@@ -159,6 +170,8 @@ Cutout dirs missing CS:    0
 Bad coadd names:           0
 Bad cutout dir names:      0
 ```
+
+
 
 ## Merge get_cutouts tables
 ```bash
