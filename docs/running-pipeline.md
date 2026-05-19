@@ -99,7 +99,16 @@ Or run on the full list of coadds.
 cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5
 ```
 
+### First check for any failures
+
+```
+awk 'NR==1 || $7 != 0 {print}' cutouts_parallel.log
+```
+
 ### Check output
+
+
+
 ```bash
 python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
 ```

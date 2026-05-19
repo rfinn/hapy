@@ -37,6 +37,87 @@ instruments = ['BOK','INT','HDI','MOS']
 # 
 
 
+def _weight_image_is_usable(wdata, sci_data=None):
+    """
+    Return False for obviously bogus weight maps.
+
+    Catches:
+    - weight image identical to science image
+    - all-zero / all-NaN / constant maps
+    - inverted-looking maps where most finite science pixels have zero weight
+    """
+    w = np.asarray(wdata, dtype=float)
+    good_w = np.isfinite(w)
+
+    if good_w.sum() == 0:
+        return False, "all_nonfinite"
+
+    finite_vals = w[good_w]
+
+    if np.nanstd(finite_vals) == 0:
+        return False, "constant_weight"
+
+    if np.nanmax(finite_vals) <= 0:
+        return False, "nonpositive_weight"
+
+    if sci_data is not None:
+        s = np.asarray(sci_data, dtype=float)
+
+        if s.shape == w.shape:
+            finite_s = np.isfinite(s)
+
+            # Halpha old INT bug: weight == science image
+            try:
+                if np.allclose(
+                    w[finite_s & good_w],
+                    s[finite_s & good_w],
+                    rtol=1e-6,
+                    atol=1e-6,
+                    equal_nan=True,
+                ):
+                    return False, "weight_identical_to_science"
+            except Exception:
+                pass
+
+            # possible inverted/broken weight: most valid science has zero weight
+            valid_sci = finite_s & (s != 0)
+            if valid_sci.sum() > 100:
+                frac_zero_on_sci = np.mean(w[valid_sci] <= 0)
+                if frac_zero_on_sci > 0.8:
+                    return False, f"mostly_zero_on_valid_science:{frac_zero_on_sci:.3f}"
+
+    return True, "ok"
+
+
+def _science_cutout_is_usable(data, min_finite_frac=0.5, min_nonzero_frac=0.05):
+    d = np.asarray(data, dtype=float)
+
+    finite = np.isfinite(d)
+    finite_frac = np.mean(finite)
+
+    if finite_frac < min_finite_frac:
+        return False, {
+            "reason": "too_few_finite_pixels",
+            "finite_frac": float(finite_frac),
+            "nonzero_frac": np.nan,
+        }
+
+    nonzero = finite & (d != 0)
+    nonzero_frac = np.mean(nonzero)
+
+    if nonzero_frac < min_nonzero_frac:
+        return False, {
+            "reason": "mostly_zero_science_cutout",
+            "finite_frac": float(finite_frac),
+            "nonzero_frac": float(nonzero_frac),
+        }
+
+    return True, {
+        "reason": "ok",
+        "finite_frac": float(finite_frac),
+        "nonzero_frac": float(nonzero_frac),
+    }
+
 
 def _safe_set_float_header(header, key, value, comment, ndec=6):
     if value is not None and np.isfinite(value):
@@ -542,6 +623,8 @@ class CoaddImage:
             cutout_data = self.data[yslice, xslice].copy()
             cutout_wcs = self.wcs.slice((yslice, xslice))
 
+
+
         # --------------------------------------------------
         # Output name
         # --------------------------------------------------
@@ -554,15 +637,39 @@ class CoaddImage:
         else:
             weight_output_name = output_name + ".weight.fits"
 
+
         # --------------------------------------------------
-        # Matched weight cutout
+        # Matched weight cutout + validity checks
         # --------------------------------------------------
         wcut = None
+        wheader = None
         weight_ok = True
+        weight_usable = False
+        weight_reason = "no_weight"
         weight_stats = {
             "center_weight": np.nan,
             "central_good_frac": np.nan,
         }
+
+        # First reject cutouts that are clearly off the science image/CCD.
+        # This catches INT galaxies that fall entirely off the valid detector area
+        # even when the weight map is missing or bogus.
+
+        sci_ok, sci_stats = _science_cutout_is_usable(
+            cutout_data,
+            min_finite_frac=0.5,
+            min_nonzero_frac=0.01,
+        )
+
+        if not sci_ok:
+            print(
+                f"Rejecting cutout due to invalid science region: {output_name}; "
+                f"stats={sci_stats}"
+            )
+            if return_slices:
+                return ("invalid", None, None, None)
+            return ("invalid", None, None)
+
 
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
             try:
@@ -570,25 +677,68 @@ class CoaddImage:
                 yslice, xslice = slices_original
                 wcut = wdata[yslice, xslice].copy()
 
-                weight_ok, weight_stats = _weight_ok(
-                    wcut,
-                    central_frac=0.25,
-                    min_center_frac=0.5,
-                )
+                # Basic weight-map sanity checks.
+                w = np.asarray(wdata, dtype=float)
+                wf = np.isfinite(w)
 
-                if not weight_ok:
-                    print(
-                        f"Rejecting cutout due to invalid central weight region: {output_name}; "
-                        f"stats={weight_stats}"
+                if wf.sum() == 0:
+                    weight_usable = False
+                    weight_reason = "all_nonfinite_weight"
+
+                elif np.nanmax(w[wf]) <= 0:
+                    weight_usable = False
+                    weight_reason = "nonpositive_weight"
+
+                elif np.nanstd(w[wf]) == 0:
+                    weight_usable = False
+                    weight_reason = "constant_weight"
+
+                elif wdata.shape == self.data.shape and np.allclose(
+                    w[wf],
+                    np.asarray(self.data, dtype=float)[wf],
+                    rtol=1e-6,
+                    atol=1e-6,
+                    equal_nan=True,
+                ):
+                    weight_usable = False
+                    weight_reason = "weight_identical_to_science"
+
+                else:
+                    weight_usable = True
+                    weight_reason = "ok"
+
+                if weight_usable:
+                    weight_ok, weight_stats = _weight_ok(
+                        wcut,
+                        central_frac=0.25,
+                        min_center_frac=0.5,
                     )
-                    if return_slices:
-                        return ("invalid", None, None, None)
-                    return ("invalid", None, None)
+
+                    if not weight_ok:
+                        print(
+                            f"Rejecting cutout due to invalid central weight region: {output_name}; "
+                            f"stats={weight_stats}"
+                        )
+                        if return_slices:
+                            return ("invalid", None, None, None)
+                        return ("invalid", None, None)
+
+                else:
+                    print(
+                        f"WARNING: Ignoring suspicious weight map for validity checks: "
+                        f"{output_name}; reason={weight_reason}"
+                    )
+                    weight_ok = True
 
             except Exception as err:
                 print(f"WARNING: Could not make weight cutout for {output_name}: {err}")
                 wcut = None
+                wheader = None
+                weight_ok = True
+                weight_usable = False
+                weight_reason = "weight_cutout_failed"
 
+        
         # --------------------------------------------------
         # Optional sky subtraction
         # --------------------------------------------------
@@ -620,6 +770,9 @@ class CoaddImage:
         _safe_set_float_header(outheader, "WGTCNTR", weight_stats["center_weight"], "Central weight value")
         _safe_set_float_header(outheader, "WGTCFRAC", weight_stats["central_good_frac"], "Central good-weight fraction")
 
+        outheader["WGTUSED"] = (bool(weight_usable), "Weight used for cutout validity")
+        outheader["WGTREASN"] = (str(weight_reason)[:68], "Weight validity reason")
+        
         if subtract_sky:
             parent_hdr = self.header
             if "SKYMED" in parent_hdr:
