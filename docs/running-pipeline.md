@@ -71,6 +71,15 @@ get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
 this should create two folders in the cutouts/ directory.
 
 ```bash
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
+--scheme virgo --maxcorrection 5 --psfdir \
+/data-pool/Halpha/psf-images-v20260518/ --rimage \
+/data-pool/Halpha/coadds-v20260518/VF-126.291+27.988-HDI-20180313-p004-R.fits
+```
+
+
+
+```bash
 get_cutouts --rimage
 /data-pool/Halpha/coadds-v20260330/VF-126.291+27.988-HDI-20180313-p004-R.fits
 --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits

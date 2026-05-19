@@ -356,7 +356,7 @@ if __name__ == '__main__':
     print()
     print("PSF image name = ",psf_image_name)
     print()
-    if os.path.exists(psf_image_name):
+    if os.path.exists(psf_image_name) and not args.overwrite:
         print("found psf image for ",args.image)
         sys.exit()
     
