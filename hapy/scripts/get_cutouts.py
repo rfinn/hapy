@@ -268,7 +268,6 @@ def main(args=None):
         x, y = image_set.h.wcs.world_to_pixel_values(gra[i], gdec[i])
   
 
-
         params["x_parent"] = float(np.asarray(x).squeeze())
         params["y_parent"] = float(np.asarray(y).squeeze())
 
