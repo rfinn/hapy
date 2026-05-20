@@ -556,7 +556,7 @@ class CoaddImage:
                 weight_output_name = output_name + ".weight.fits"
 
         outheader = self.header.copy()
-        outheader.update(cutout.wcs.to_header())
+        outheader.update(cutout_wcs.to_header())
 
         if self.psf_image_name is not None:
             outheader.set('PSFIMAGE', self.psf_image_name)
