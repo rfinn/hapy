@@ -473,6 +473,33 @@ rsync -av --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS
 
 - DONE rsync manual masks for BOK, HDI, MOS from /data-pool/Halpha/hapy-output-20260417/cutouts
 
+
+##### rsync or  REPROJECT existing manual masks
+
+
+  - look in source directories: /data-pool/Halpha/hapy-output-20260417/cutouts/<tag>/*-mask-manual.fits
+  - if INT in <tag>
+	- reproject mask-manual.fits onto /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/*Ha.fits and save it in /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/
+  - if BOK, MOS, HDI in <tag>:
+    - rsync the *mask-manual.fits to /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/.
+
+```
+python ~/github/hapy/scripts/transfer_manual_masks.py --dry-run > transfer_manual_mask_output.txt
+```
+
+Check output for any unmatched coadds (needed to allow for different dateobs).  Then:
+```
+python ~/github/hapy/scripts/transfer_manual_masks.py
+```
+
+The end of the output is:
+```
+Summary
+  copied: 60
+  no_manual_mask: 723
+  reprojected: 41
+```
+
 ### In Progress 
 #####  download legacy images for INT coadds 
 ```
@@ -497,28 +524,28 @@ and 35 failed.
 - should look instead for the g.fits, r.fits and z.fits
 - fixed 
 
+This is taking forever.  I've tried rerunning the parallel command, and I still  have 24 without a download. I am going to remove asking legacy to do the reprojection and just download the native pixel scale.  I'
+
 
 ### Still to do 
 
 
 
 
-- rsync or  REPROJECT existing manual masks
-
-
-  - look in source directories: /data-pool/Halpha/hapy-output-20260417/cutouts/<tag>/*-mask-manual.fits
-  - if INT in <tag>
-	- reproject mask-manual.fits onto /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/*Ha.fits and save it in /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/
-  - if BOK, MOS, HDI in <tag>:
-    - rsync the *mask-manual.fits to /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/.
   
 - make cs-gr images
   - reproject legacy g and r to halpha
   - construct the CS-gr image
 - then run `run_analysis`
 
+- check duplicates 
+  - create visualizations
+  - run validation notebook
+
 other issues:
-- the old INT halpha images used a different color transformation when solving for the ZP with `getzp`, and the same solution is used for Halpha and Ha6657 filters
+- the old INT halpha images used a different color transformation when solving for the ZP with `getzp`, and the same solution is used for Halpha and Ha6657 filters.  Do we want to rerun getzp for these?  Let's look at results first...
+
+- create a new set of coadd webpages
 
 what else am I missing?
 
