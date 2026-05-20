@@ -93,12 +93,61 @@ def get_legacy_images(
         if verbose:
             print('previously downloaded ',jpeg_name)
 
-    need_fits_download = False
+
+    # --------------------------------------------------
+    # Decide whether download is needed
+    # --------------------------------------------------
     if len(band) == 1:
-        need_fits_download = not os.path.exists(fits_name)
+        expected_files = [fits_name]
     else:
-        # download the combined MEF if it does not exist
-        need_fits_download = not os.path.exists(fits_name)
+        # For combined downloads like band="grz", the final useful products are
+        # the split single-band files. Do not trust the combined MEF alone,
+        # because a failed/interrupted run can leave a stale grz.fits behind.
+        expected_files = [
+            fits_name.replace(f"{band}.fits", f"{b}.fits")
+            for b in band
+        ]
+
+    need_fits_download = not all(os.path.exists(f) for f in expected_files)
+
+    if need_fits_download:
+        # Remove stale combined MEF before retrying.
+        if len(band) > 1 and os.path.exists(fits_name):
+            if verbose:
+                print(f"removing stale combined file {fits_name}")
+            os.remove(fits_name)
+
+        if verbose:
+            print("retrieving ", fits_name)
+
+        url = (
+            "https://www.legacysurvey.org/viewer/cutout.fits?"
+            + urlencode({
+                "ra": ra,
+                "dec": dec,
+                "layer": layer,
+                "size": imsize,
+                "pixscale": pixscale,
+                "bands": band,
+            })
+        )
+
+        if verbose:
+            print(url)
+
+        urlretrieve(url, fits_name)
+
+    else:
+        if verbose:
+            print("previously downloaded expected files: ", expected_files)
+
+        
+    # need_fits_download = False
+    # if len(band) == 1:
+    #     need_fits_download = not os.path.exists(fits_name)
+    # else:
+    #     # download the combined MEF if it does not exist
+    #     need_fits_download = not os.path.exists(fits_name)
 
     if need_fits_download:
     #if not(os.path.exists(fits_name)):

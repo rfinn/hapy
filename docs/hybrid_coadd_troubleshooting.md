@@ -452,12 +452,42 @@ slice-sharing between Hα and r ensures identical cutout dimensions
 skip logging lets you audit failures later
 
 
-# Next Steps
+# Next Steps to get the hybrid sample through run_analysis
 
-the next major tasks required to get the hybrid sample run through run_analysis
+### Already done
+- gaia catalogs are downloaded
+- psf were rebuilt for INT
+- cutouts are mad
+
+
+### In Progress 
+- download legacy images for INT coadds 
+```
+find /data-pool/Halpha/hapy-output-20260519/cutouts/ -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | grep INT |sort > INT_cutout_list.txt
+
+ROOTDIR=/data-pool/Halpha/hapy-output-20260519/
+
+parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir "$ROOTDIR/cutouts/{}"  :::: INT_cutout_list.txt
+```
+
+
+Checking results, 
+```
+awk 'NR==1 || $7 != 0 {print}' fetch_legacy.joblog  |wc -l
+```
+and 35 failed.
+
+
+- I retested one, and it looks like it was a problem downloading the grz image all at once.
+- I removed the *grz.fits, and then it worked ok.
+- Unfortunately, the script looks for the grz.fits image and won't redownload.
+- should look instead for the g.fits, r.fits and z.fits
+
+
+### Still to do 
 
 - rsync legacy images for BOK, HDI, MOS from /data-pool/Halpha/cutouts_v20260330
-- download legacy images for INT coadds
+
 - rsync manual masks for BOK, HDI, MOS from /data-pool/Halpha/cutouts_v20260330
 - recreate manual masks for INT cutouts
 - make cs-gr images
@@ -471,111 +501,3 @@ other issues:
 what else am I missing?
 
 
-
-# Hybrid Sample → `run_analysis` Task List
-
-## 1. Assemble cutout inputs
-
-- rsync legacy images for BOK, HDI, MOS from:
-
-  /data-pool/Halpha/cutouts_v20260330
-
-- download / restore legacy images for INT coadds
-
-- rsync manual masks for BOK, HDI, MOS
-
-- recreate manual masks for INT cutouts
-
-- verify all cutouts have matched dimensions:
-  - R
-  - Ha
-  - CS-ZP
-  - weights
-  - masks
-
-
-## 2. Finish CS image products
-
-### CS-ZP
-
-- confirm CS-ZP images are now built from:
-  
-  R cutout + Ha cutout
-
-  not the coadd CS image
-
-
-### CS-gr
-
-- reproject legacy g and r images to Hα grid
-
-- construct CS-gr images
-
-- write CONTSCL into CS-gr headers
-
-- confirm naming convention:
-
-  *-CS-gr.fits
-
-- verify run_analysis detects and processes CS-gr images
-
-
-## 3. Calibration consistency checks
-
-### Legacy INT Hα issue
-
-- document that old INT Hα images used:
-  - a different color transformation in getzp
-  - the same calibration solution for both:
-    - Halpha
-    - Ha6657
-
-- decide whether to:
-  - accept legacy INT ZPs with metadata/QC warning
-  - or rerun INT Hα zeropoint calibration consistently
-
-
-## 4. Pre-run_analysis validation
-
-- confirm skipped cutouts are only true off-FOV systems
-
-- confirm manual masks are found and used correctly
-
-- confirm PSF images exist for all parent coadds
-  - rebuilt for new INT coadds ✅
-
-- confirm metadata fields are correct:
-  - parent_rimage
-  - parent_haimage
-  - hafilter
-  - filter_ratio
-  - filter_correction
-  - FWHM values
-
-
-## 5. Run analysis
-
-- rerun run_analysis
-
-- confirm standard outputs populate normally:
-  - PHOT_OK
-  - HAPY_MORPH_OK
-
-- confirm CS-gr outputs populate:
-  - CSGR_PHOT_OK
-  - CSGR_HAPY_MORPH_OK
-  - CSGR_* profile columns
-  - CSGR_CONTSCL
-
-
-## 6. Merge + QC
-
-- merge results tables
-
-- regenerate QC pages / diagnostics
-
-- inspect CS-ZP vs CS-gr consistency
-
-- inspect duplicate-observation consistency
-
-- verify no schema/merge regressions from new CSGR_* columns
