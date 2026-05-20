@@ -972,7 +972,7 @@ test one:
 python ~/github/hapy/scripts/make_legacy_reprojections.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 ```bash
-parallel --bar -j 16 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
+parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
 ```
 
 ## Then make CS-gr images

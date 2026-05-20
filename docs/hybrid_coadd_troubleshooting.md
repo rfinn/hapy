@@ -500,6 +500,20 @@ Summary
   reprojected: 41
 ```
 
+##### make cs-gr images
+  - reproject legacy g and r to halpha
+  - construct the CS-gr image
+  
+
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method ratio --auto-contscale-percentile 30 --overwrite
+```
+```
+parallel --bar -j 16 --joblog cs_gr_auto.joblog --results \
+cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} \
+--auto-contscale --auto-contscale-percentile 30 --overwrite :::: \
+reproject_cutout_list.txt
+```
 ### In Progress 
 #####  download legacy images for INT coadds 
 ```
@@ -526,16 +540,12 @@ and 35 failed.
 
 This is taking forever.  I've tried rerunning the parallel command, and I still  have 24 without a download. I am going to remove asking legacy to do the reprojection and just download the native pixel scale.  I'
 
+**Legacy website is down :(**
+
 
 ### Still to do 
 
 
-
-
-  
-##### make cs-gr images
-  - reproject legacy g and r to halpha
-  - construct the CS-gr image
 - then run `run_analysis`
 
 - check duplicates 
@@ -547,6 +557,6 @@ other issues:
 
 - create a new set of coadd webpages
 
-what else am I missing?
+what else am I missing? oh yeah, write the paper!
 
 

@@ -517,7 +517,7 @@ class EllipsePhotometry():
         self.image2_filter = image2_filter
         self.filter_ratio = filter_ratio
 
-        self.fileid = None
+        self.fileid = fileid #None
         # will use the gain to calculate the noise in the image
         try:
             self.gain = self.header['GAIN']
@@ -1614,7 +1614,7 @@ class EllipsePhotometry():
                     if self.fileid is None:
                         morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-hapy-morphology-diag.png"
                     else:
-                        morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-{sfileid}-hapy-morphology-diag.png"
+                        morph.diag_outfile = f"{self.image_name.split('.fits')[0]}-{self.fileid}-hapy-morphology-diag.png"
                     morph.diag_fig = plot_hapy_morphology_diagnostic(
                         r_image=self.image,
                         ha_image=self.image2,
@@ -3439,6 +3439,7 @@ def run_ellipse_photometry(
     run_statmorph: bool = False,
     write_prefix: str | None = None,
     logger=None,
+    fileid=None,
 ):
     """
     Headless elliptical photometry runner.
@@ -3458,6 +3459,7 @@ def run_ellipse_photometry(
         objdec=objdec,
         fixcenter=fixcenter,
         logger=logger,
+        fileid=fileid,
         
     )
 
