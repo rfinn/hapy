@@ -540,7 +540,7 @@ class CoaddImage:
             cutout_data, med, std = estimate_and_subtract_sky(
                 cutout_data,
                 weightimage=wcut,
-                subtract=subtract_sky
+                subtract=subtract_sky,
                 **skycfg,
             )
 
