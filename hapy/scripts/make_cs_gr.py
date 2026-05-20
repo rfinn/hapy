@@ -50,6 +50,7 @@ from reproject import reproject_interp
 
 from hapy.hatools.filter_transformations import halpha_minus_r_color_from_metadata
 from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_metadata
+from hapy.hatools.segmentation import make_simple_photutils_segmentation
 
 
 #import warnings
@@ -516,6 +517,7 @@ def plot_image(data):
     #plt.show()
     #plt.draw()
 
+
 def zp_scale_r_to_ha(zp_ha, zp_r):
     """Scale factor alpha so that CS = Ha - alpha * R."""
     if zp_ha is None or zp_r is None:
@@ -859,6 +861,15 @@ if __name__ == '__main__':
     # use the color correction for pixels with sufficient SNR
     data_r_to_Ha[usemask] = data_r_to_Ha[usemask] * delta_flux[usemask]
 
+
+    # check for existing segmentation map
+    if not os.path.exists(segfile):
+        print(f"WARNING: missing photutils segmentation; creating {segfile}")
+        segfile = make_simple_photutils_segmentation(
+            rfile,
+            segfile,
+            maskfile=maskfile,
+        )
 
     # get additional scale factor to make 
     galaxy_region = get_galaxy_region_from_segmap(segfile, mask=mask)
