@@ -110,7 +110,7 @@ def get_legacy_images(
         ]
 
     need_fits_download = not all(os.path.exists(f) for f in expected_files)
-
+    print("DEBUD: need_fits_download = ",need_fits_download)
     if need_fits_download:
         # Remove stale combined MEF before retrying.
         if len(band) > 1 and os.path.exists(fits_name):

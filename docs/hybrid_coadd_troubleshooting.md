@@ -461,7 +461,7 @@ skip logging lets you audit failures later
 
 
 ### In Progress 
-- download legacy images for INT coadds 
+#####  download legacy images for INT coadds 
 ```
 find /data-pool/Halpha/hapy-output-20260519/cutouts/ -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | grep INT |sort > INT_cutout_list.txt
 
@@ -482,11 +482,24 @@ and 35 failed.
 - I removed the *grz.fits, and then it worked ok.
 - Unfortunately, the script looks for the grz.fits image and won't redownload.
 - should look instead for the g.fits, r.fits and z.fits
+- fixed 
 
+
+##### rsync existing legacy images
+- rsync legacy images for BOK, HDI, MOS from /data-pool/Halpha/hapy-output-v20260330/cutouts/ to /data-pool/Halpha/hapy-output-v20260519/cutouts/
+
+Dry run:
+```
+rsync -avn --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS*" --exclude="*INT*"  --relative /data-pool/Halpha/hapy-output-20260417/cutouts/./*/legacy/* /data-pool/Halpha/hapy-output-20260519/cutouts/
+```
+
+```
+rsync -av --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS*" --exclude="*INT*"  --relative /data-pool/Halpha/hapy-output-20260417/cutouts/./*/legacy/* /data-pool/Halpha/hapy-output-20260519/cutouts/
+```
 
 ### Still to do 
 
-- rsync legacy images for BOK, HDI, MOS from /data-pool/Halpha/cutouts_v20260330
+
 
 - rsync manual masks for BOK, HDI, MOS from /data-pool/Halpha/cutouts_v20260330
 - recreate manual masks for INT cutouts
