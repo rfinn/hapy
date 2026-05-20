@@ -42,31 +42,41 @@ STRING_COLS = [
     "PHOTFILE2",
 ]
 
-def default_for_missing_column(col):
-    if col.endswith("_OK") or col.endswith("_EXISTS") or col.endswith("_LONGRUN"):
-        return False
 
-    if col.endswith("_FLAG"):
-        return 0
+def default_for_dtype(dtype):
+    kind = np.dtype(dtype).kind
 
-    if col.endswith("_NGOOD") or col.endswith("_NDET_RUNS"):
-        return -1
-
-    if col.endswith("_FITS") or col.endswith("_FILE"):
+    if kind in ("U", "S", "O"):
         return ""
 
-    return np.nan
+    if kind == "b":
+        return False
 
-def fill_missing_columns(tab, reference_colnames):
-    """
-    Add columns missing from tab so it can be stacked with the reference schema.
-    """
+    if kind in ("i", "u"):
+        return -1
 
-    for col in reference_colnames:
-        if col not in tab.colnames:
-            default = default_for_missing_column(col)
-            tab[col] = [default] * len(tab)
+    if kind == "f":
+        return np.nan
+
+    return None
+
+
+def fill_missing_columns(tab, reference_table):
+    """
+    Add columns missing from tab using dtype-compatible defaults from reference_table.
+    """
+    for col in reference_table.colnames:
+        if col in tab.colnames:
+            continue
+
+        ref_dtype = reference_table[col].dtype
+        default = default_for_dtype(ref_dtype)
+
+        tab[col] = np.full(len(tab), default, dtype=ref_dtype)
+
     return tab
+
+
 
 
 
@@ -165,6 +175,48 @@ def find_result_files(indir, pattern="*-results.ecsv"):
         raise RuntimeError(f"No files matching '{pattern}' found in {indir}")
     return files
 
+def coerce_columns_to_reference_dtype(tab, reference_table):
+    """
+    Coerce columns in tab to reference dtype when possible.
+    Useful for columns like CSGR_FITS that were initialized as NaN floats
+    in some older tables but are strings in the reference table.
+    """
+    for col in reference_table.colnames:
+        if col not in tab.colnames:
+            continue
+
+        ref_dtype = reference_table[col].dtype
+        this_dtype = tab[col].dtype
+
+        if this_dtype == ref_dtype:
+            continue
+
+        ref_kind = np.dtype(ref_dtype).kind
+        this_kind = np.dtype(this_dtype).kind
+
+        # Convert numeric/object to string only when reference is string
+        if ref_kind in ("U", "S"):
+            vals = []
+            for v in tab[col]:
+                s = "" if v is None else str(v)
+                if s.lower() in ("nan", "none", "--"):
+                    s = ""
+                vals.append(s)
+            tab[col] = np.array(vals, dtype=ref_dtype)
+
+        # Convert bool-like columns
+        elif ref_kind == "b":
+            tab[col] = np.array(tab[col], dtype=bool)
+
+        # Convert integer-like columns
+        elif ref_kind in ("i", "u"):
+            tab[col] = np.array(tab[col], dtype=ref_dtype)
+
+        # Convert float-like columns
+        elif ref_kind == "f":
+            tab[col] = np.array(tab[col], dtype=ref_dtype)
+
+    return tab
 
 def validate_schema(tables, filenames, reorder=True, fill_missing=True):
     """
@@ -198,7 +250,8 @@ def validate_schema(tables, filenames, reorder=True, fill_missing=True):
         if missing:
             if fill_missing:
                 print(f"WARNING: adding {len(missing)} missing columns to {filenames[i]}")
-                tables[i] = fill_missing_columns(t, reference)
+                tables[i] = fill_missing_columns(t, tables[0])
+                tables[i] = coerce_columns_to_reference_dtype(tables[i], tables[0])
                 t = tables[i]
             else:
                 print(f"WAIT!!! Problem with table {filenames[i]}!!!")
