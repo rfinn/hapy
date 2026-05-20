@@ -447,10 +447,7 @@ class CoaddImage:
         self.frac_missing = 1.0 - (npix_good / npix_total)
 
 
-    def make_cutout(self, ra=None, dec=None, size_arcsec=None, output_name=None,
-                        subtract_sky=False, skycfg=None, return_cutout=True,
-                        fix_gain=True, fix_exptime=True, overwrite=False,
-                        return_slices=False, slices_original=None):
+    def make_cutout(self, ra=None, dec=None, size_arcsec=None, output_name=None,subtract_sky=False, skycfg=None, return_cutout=True,fix_gain=True, fix_exptime=True, overwrite=False,return_slices=False, slices_original=None):
         """
         Create a science cutout either from RA/Dec/size or from an explicit
         parent-image slice.
