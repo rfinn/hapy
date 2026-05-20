@@ -31,7 +31,32 @@ vmax = 50.
 
 UNWISE_PIXSCALE = 2.75
 LEGACY_PIXSCALE = 1
+def urlretrieve_with_retries(url, filename, retries=5, sleep0=10, verbose=False):
+    """
+    Retrieve URL with simple exponential backoff for transient server errors.
+    """
+    last_err = None
 
+    for attempt in range(1, retries + 1):
+        try:
+            if verbose:
+                print(f"download attempt {attempt}/{retries}: {filename}")
+            return urlretrieve(url, filename)
+
+        except HTTPError as err:
+            last_err = err
+            if err.code not in [429, 500, 502, 503, 504]:
+                raise
+
+        except URLError as err:
+            last_err = err
+
+        wait = sleep0 * attempt
+        if verbose:
+            print(f"WARNING: download failed: {last_err}; sleeping {wait}s")
+        time.sleep(wait)
+
+    raise last_err
 #def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
 def get_legacy_images(
     ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='grz',
@@ -136,7 +161,14 @@ def get_legacy_images(
         if verbose:
             print(url)
 
-        urlretrieve(url, fits_name)
+        urlretrieve_with_retries(
+            url,
+            fits_name,
+            retries=8,
+            sleep0=15,
+            verbose=verbose,
+            )
+        #urlretrieve(url, fits_name)
 
     else:
         if verbose:
