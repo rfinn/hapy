@@ -459,6 +459,19 @@ skip logging lets you audit failures later
 - psf were rebuilt for INT
 - cutouts are mad
 
+##### rsync existing legacy images
+- rsync legacy images for BOK, HDI, MOS from /data-pool/Halpha/hapy-output-v20260330/cutouts/ to /data-pool/Halpha/hapy-output-v20260519/cutouts/
+
+Dry run:
+```
+rsync -avn --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS*" --exclude="*INT*"  --relative /data-pool/Halpha/hapy-output-20260417/cutouts/./*/legacy/* /data-pool/Halpha/hapy-output-20260519/cutouts/
+```
+
+```
+rsync -av --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS*" --exclude="*INT*"  --relative /data-pool/Halpha/hapy-output-20260417/cutouts/./*/legacy/* /data-pool/Halpha/hapy-output-20260519/cutouts/
+```
+
+- DONE rsync manual masks for BOK, HDI, MOS from /data-pool/Halpha/hapy-output-20260417/cutouts
 
 ### In Progress 
 #####  download legacy images for INT coadds 
@@ -485,24 +498,20 @@ and 35 failed.
 - fixed 
 
 
-##### rsync existing legacy images
-- rsync legacy images for BOK, HDI, MOS from /data-pool/Halpha/hapy-output-v20260330/cutouts/ to /data-pool/Halpha/hapy-output-v20260519/cutouts/
-
-Dry run:
-```
-rsync -avn --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS*" --exclude="*INT*"  --relative /data-pool/Halpha/hapy-output-20260417/cutouts/./*/legacy/* /data-pool/Halpha/hapy-output-20260519/cutouts/
-```
-
-```
-rsync -av --ignore-existing  --include="*BOK*" --include="*HDI*" --include="*MOS*" --exclude="*INT*"  --relative /data-pool/Halpha/hapy-output-20260417/cutouts/./*/legacy/* /data-pool/Halpha/hapy-output-20260519/cutouts/
-```
-
 ### Still to do 
 
 
 
-- rsync manual masks for BOK, HDI, MOS from /data-pool/Halpha/cutouts_v20260330
-- recreate manual masks for INT cutouts
+
+- rsync or  REPROJECT existing manual masks
+
+
+  - look in source directories: /data-pool/Halpha/hapy-output-20260417/cutouts/<tag>/*-mask-manual.fits
+  - if INT in <tag>
+	- reproject mask-manual.fits onto /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/*Ha.fits and save it in /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/
+  - if BOK, MOS, HDI in <tag>:
+    - rsync the *mask-manual.fits to /data-pool/Halpha/hapy-output-20260519/cutouts/<tag>/.
+  
 - make cs-gr images
   - reproject legacy g and r to halpha
   - construct the CS-gr image
