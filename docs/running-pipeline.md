@@ -225,9 +225,88 @@ Final table rows: 853
 Final table columns: 28
 ```
 
+# Create cs-gr images
+
+
+## Reproject Legacy images
+
+```bash
+find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*' | sort > reproject_cutout_list.txt
+```
+
+test one:
+```
+python ~/github/hapy/scripts/make_legacy_reprojections.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
+```
+```bash
+parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
+```
+
+## Then make CS-gr images
+
+Test one image:
+```bash
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
+```
+
+
+```bash
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010
+```
+
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010 --auto-contscale
+--auto-contscale-percentile 30 --overwrite
+```
+
+To solve by fitting the low end of the tail
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method negtail --overwrite
+```
+
+To solve using percentile of ratio of R/Halpha flux:
+```
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method ratio --auto-contscale-percentile 30 --overwrite
+```
+
+```bash
+parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
+~/github/hapy/hapy/scripts/make_cs_gr.py "{}"  :::: reproject_cutout_list.txt
+```
+
+```
+parallel --bar -j 16 --joblog cs_gr_auto.joblog --results
+cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {}
+--auto-contscale --auto-contscale-percentile 30 --overwrite ::::
+reproject_cutout_list.txt
+```
+
+
+Needed to rerun on the INT images (filter lookup issue)
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*INT*' | sort > int_cutout_list.txt
+```
+
+```
+parallel --bar -j 16 --joblog cs_gr_int.joblog --results cs_gr_int_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} :::: int_cutout_list.txt
+```
+
+## Check failures
+
+```bash
+grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_reproject logs_cs_gr
+```
+
+
+```bash
+parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/github/hapy/hapy/scripts/make_cs_gr.fits "{}" :::: cutout_with_dir.txt
+```
+
+
 # Run Analysis 
 
-## Run on One Cutout
+### Run on One Cutout
 
 
 ```bash
@@ -245,7 +324,13 @@ run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph \
 cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
-
+### Hybrid Coadd sample
+```
+run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images-v20260518/ --statmorph \
+--galfit --convflag --log-to-console --gaia-dir \
+/data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
+cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
+```
 
 ## Running on a larger sample
 
@@ -957,84 +1042,6 @@ Rebuild cutout index:
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260501.fits
 ```
 
-
-# Create cs-gr images
-
-
-## Reproject Legacy images
-
-```bash
-find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*' | sort > reproject_cutout_list.txt
-```
-
-test one:
-```
-python ~/github/hapy/scripts/make_legacy_reprojections.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
-```
-```bash
-parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
-```
-
-## Then make CS-gr images
-
-Test one image:
-```bash
-python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
-```
-
-
-```bash
-python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010
-```
-
-```
-python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010 --auto-contscale
---auto-contscale-percentile 30 --overwrite
-```
-
-To solve by fitting the low end of the tail
-```
-python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method negtail --overwrite
-```
-
-To solve using percentile of ratio of R/Halpha flux:
-```
-python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID1934-NGC2799-INT-20190205-p026 --auto-contscale --auto-contscale-method ratio --auto-contscale-percentile 30 --overwrite
-```
-
-```bash
-parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
-~/github/hapy/hapy/scripts/make_cs_gr.py "{}"  :::: reproject_cutout_list.txt
-```
-
-```
-parallel --bar -j 16 --joblog cs_gr_auto.joblog --results
-cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {}
---auto-contscale --auto-contscale-percentile 30 --overwrite ::::
-reproject_cutout_list.txt
-```
-
-
-Needed to rerun on the INT images (filter lookup issue)
-
-```
-find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*INT*' | sort > int_cutout_list.txt
-```
-
-```
-parallel --bar -j 16 --joblog cs_gr_int.joblog --results cs_gr_int_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} :::: int_cutout_list.txt
-```
-
-## Check failures
-
-```bash
-grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_reproject logs_cs_gr
-```
-
-
-```bash
-parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/github/hapy/hapy/scripts/make_cs_gr.fits "{}" :::: cutout_with_dir.txt
-```
 
 ## Visualize CS Images and Select Best Duplicate
 

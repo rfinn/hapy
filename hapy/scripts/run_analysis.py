@@ -767,19 +767,23 @@ def initialize_result_row():
     
     return row
 
+
 def init_csgr_row_defaults(row):
     """
     Initialize optional CS-gr output columns.
 
     These stay NaN/False/empty when no *-CS-gr.fits image exists.
     """
+
     defaults = {
         # file/status
         "CSGR_EXISTS": False,
         "CSGR_FITS": "",
+        "CSGR_SEC": np.nan,
         "CSGR_PHOT_OK": False,
         "CSGR_HAPY_MORPH_OK": False,
         "CSGR_HAPY_MORPH_FLAG": 0,
+        "CSGR_CONTSCL": np.nan,
 
         # image2 / ellipse photometry scalars
         "CSGR_SKYSTD_ADU": np.nan,
@@ -805,16 +809,12 @@ def init_csgr_row_defaults(row):
         "CSGR_HAPY_FLUX_SEG": np.nan,
         "CSGR_HAPY_MTOT2": np.nan,
         "CSGR_HAPY_RMOM_ARCSEC": np.nan,
-        "CSGR_CONTSCL": np.nan,
-        "CSGR_EXISTS": False,
-        "CSGR_FITS": np.nan,
     }
 
     for key, val in defaults.items():
         row.setdefault(key, val)
 
-
-    CSGR_COLUMNS = [
+    csgr_profile_columns = [
         'CSGR_H25_ARCSEC', 'CSGR_H25_PIX', 'CSGR_H30R24_FLUX_CGS', 'CSGR_H30R24_FLUX_CGS_ERR',
         'CSGR_H50_ARCSEC', 'CSGR_H50_PIX', 'CSGR_H75_ARCSEC', 'CSGR_H75_PIX',
         'CSGR_H_C30_R24', 'CSGR_H_C30_R24_ERR', 'CSGR_H_EXPFIT_I0', 'CSGR_H_EXPFIT_K',
@@ -850,17 +850,18 @@ def init_csgr_row_defaults(row):
         'CSGR_R_SNR_TRUNC_ARCSEC', 'CSGR_R_TOT_FLUX_CGS_SNR',
         'CSGR_R_TOT_FLUX_CGS_SNR_ERR', 'CSGR_R_TOT_MAG_SNR',
     ]
-    def initialize_csgr_columns(row):
-        for col in CSGR_COLUMNS:
-            if col.endswith("_OK") or col.endswith("_LONGRUN"):
-                row[col] = False
-            elif col.endswith("_NGOOD") or col.endswith("_NDET_RUNS"):
-                row[col] = -1
-            else:
-                row[col] = np.nan
 
-        row["PHOT_GR_OK"] = False
-        return row
+    for col in csgr_profile_columns:
+        if col.endswith("_OK") or col.endswith("_LONGRUN"):
+            row.setdefault(col, False)
+        elif col.endswith("_NGOOD") or col.endswith("_NDET_RUNS"):
+            row.setdefault(col, -1)
+        else:
+            row.setdefault(col, np.nan)
+
+    return row
+
+
 def _print_psf_image(p,logger):
     if logger is not None:
         logger.info(f"PSF image = {str(p)}")
@@ -1265,7 +1266,7 @@ def main():
             
     row = initialize_result_row()
 
-    init_csgr_row_defaults(row)
+    row = init_csgr_row_defaults(row)
 
 
     # look for CS-gr image and log it if found

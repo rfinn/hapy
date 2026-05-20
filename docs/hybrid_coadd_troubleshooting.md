@@ -543,10 +543,51 @@ This is taking forever.  I've tried rerunning the parallel command, and I still 
 **Legacy website is down :(**
 
 
+##### then run `run_analysis`
+
+```
+run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images-v20260518/ --statmorph \
+--galfit --convflag --log-to-console --gaia-dir \
+/data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
+cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
+```
+
+
+```
+parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog \
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask \
+--psf-dir /data-pool/Halpha/psf-images-v20260518/ --statmorph --galfit \
+--convflag --gaia-dir /data-pool/Halpha/coadds-v20260518/gaia_catalogs/ :::: cutout_with_dir.txt
+```
+
+Started at 2:54 PM, 2026-05-20
+
+5:02 PM, @99% 853:3
+
+5:16 PM @99% 854:2
+
+##### Merge Results
+ran this while `run_analysis` was still at 99%
+```
+merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260514.csv
+```
+
+```
+	validated 603/818 tables
+Normalizing string columns...
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260519/merged_results_virgo_20260520.fits
+Done.
+Final table rows: 603
+Final table columns: 494
+```
+
 ### Still to do 
 
 
-- then run `run_analysis`
+
+
+
 
 - check duplicates 
   - create visualizations

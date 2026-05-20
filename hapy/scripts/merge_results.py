@@ -42,6 +42,33 @@ STRING_COLS = [
     "PHOTFILE2",
 ]
 
+def default_for_missing_column(col):
+    if col.endswith("_OK") or col.endswith("_EXISTS") or col.endswith("_LONGRUN"):
+        return False
+
+    if col.endswith("_FLAG"):
+        return 0
+
+    if col.endswith("_NGOOD") or col.endswith("_NDET_RUNS"):
+        return -1
+
+    if col.endswith("_FITS") or col.endswith("_FILE"):
+        return ""
+
+    return np.nan
+
+def fill_missing_columns(tab, reference_colnames):
+    """
+    Add columns missing from tab so it can be stacked with the reference schema.
+    """
+
+    for col in reference_colnames:
+        if col not in tab.colnames:
+            default = default_for_missing_column(col)
+            tab[col] = [default] * len(tab)
+    return tab
+
+
 
 def normalize_string_columns(tables, string_cols=STRING_COLS):
     for tab in tables:
@@ -139,54 +166,54 @@ def find_result_files(indir, pattern="*-results.ecsv"):
     return files
 
 
-
-
-def validate_schema(tables, filenames, reorder=True):
+def validate_schema(tables, filenames, reorder=True, fill_missing=True):
     """
-    Ensure all tables share the same column names, ignoring column order.
+    Ensure all tables share compatible column names.
 
-    Parameters
-    ----------
-    tables : list
-        List of astropy Tables.
-    filenames : list
-        Corresponding filenames.
-    reorder : bool
-        If True, reorder columns in-place to match the first table.
-
-    Returns
-    -------
-    keepflag : np.ndarray
-        Boolean array marking tables with compatible schemas.
+    Missing columns are optionally added using safe defaults. Extra columns
+    still cause the table to be rejected, because they are not in the reference
+    schema and may indicate a real version mismatch.
     """
 
     keepflag = np.ones(len(tables), dtype=bool)
+
     reference = list(tables[0].colnames)
     reference_set = set(reference)
 
     for i, t in enumerate(tables[1:], start=1):
+
         this_cols = list(t.colnames)
         this_set = set(this_cols)
 
         missing = sorted(reference_set - this_set)
         extra = sorted(this_set - reference_set)
 
-        if missing or extra:
+        if extra:
             print(f"WAIT!!! Problem with table {filenames[i]}!!!")
             print("Schema mismatch detected.\n")
-            if missing:
-                print(f"Missing columns:\n{missing}\n")
-            if extra:
-                print(f"Extra columns:\n{extra}\n")
+            print(f"Extra columns:\n{extra}\n")
             keepflag[i] = False
             continue
 
-        if this_cols != reference:
+        if missing:
+            if fill_missing:
+                print(f"WARNING: adding {len(missing)} missing columns to {filenames[i]}")
+                tables[i] = fill_missing_columns(t, reference)
+                t = tables[i]
+            else:
+                print(f"WAIT!!! Problem with table {filenames[i]}!!!")
+                print("Schema mismatch detected.\n")
+                print(f"Missing columns:\n{missing}\n")
+                keepflag[i] = False
+                continue
+
+        if reorder and list(t.colnames) != reference:
             print(f"Column order differs for {filenames[i]}; reordering to match reference table.")
-            if reorder:
-                tables[i] = t[reference]
+            tables[i] = t[reference]
 
     return keepflag
+
+
 
 
 def _coerce_bool_col(tab, name, default=False):
