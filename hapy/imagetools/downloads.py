@@ -103,6 +103,7 @@ def get_legacy_images(
         # For combined downloads like band="grz", the final useful products are
         # the split single-band files. Do not trust the combined MEF alone,
         # because a failed/interrupted run can leave a stale grz.fits behind.
+        print("DEBUG: checking for individual fits files")
         expected_files = [
             fits_name.replace(f"{band}.fits", f"{b}.fits")
             for b in band
@@ -149,28 +150,28 @@ def get_legacy_images(
     #     # download the combined MEF if it does not exist
     #     need_fits_download = not os.path.exists(fits_name)
 
-    if need_fits_download:
-    #if not(os.path.exists(fits_name)):
-        if verbose:
-            print('retrieving ',fits_name)
-        url = (
-            'https://www.legacysurvey.org/viewer/cutout.fits?'
-            + urlencode({
-                'ra': ra,
-                'dec': dec,
-                'layer': layer,
-                'size': imsize,
-                'pixscale': pixscale,
-                'bands': band,
-                })
-            )
-        #url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr8&size='+str(imsize)+'&pixscale='+str(pixscale)+'&bands='+band
-        if verbose:
-            print(url)
-        urlretrieve(url, fits_name)
-    else:
-        if verbose:
-            print('previously downloaded ',fits_name)
+    # if need_fits_download:
+    # #if not(os.path.exists(fits_name)):
+    #     if verbose:
+    #         print('retrieving ',fits_name)
+    #     url = (
+    #         'https://www.legacysurvey.org/viewer/cutout.fits?'
+    #         + urlencode({
+    #             'ra': ra,
+    #             'dec': dec,
+    #             'layer': layer,
+    #             'size': imsize,
+    #             'pixscale': pixscale,
+    #             'bands': band,
+    #             })
+    #         )
+    #     #url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr8&size='+str(imsize)+'&pixscale='+str(pixscale)+'&bands='+band
+    #     if verbose:
+    #         print(url)
+    #     urlretrieve(url, fits_name)
+    # else:
+    #     if verbose:
+    #         print('previously downloaded ',fits_name)
 
     # try to read the data in
     try:
