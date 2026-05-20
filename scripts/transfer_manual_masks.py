@@ -52,7 +52,7 @@ def date_diff_days(d1, d2):
         return None
 
 
-def find_strict_date_shift_match(src_tag, dst_root, max_date_diff=1):
+def find_strict_date_shift_match(src_tag, dst_root, max_date_diff=3):
     """
     Find destination tag with same VFID, name, instrument, pointing,
     and date differing by <= max_date_diff days.
