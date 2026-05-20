@@ -19,6 +19,90 @@ from reproject import reproject_interp
 INSTRUMENTS_COPY = ("BOK", "HDI", "MOS")
 
 
+from datetime import datetime
+
+
+def parse_hapy_tag(tag):
+    """
+    Parse tags like:
+      VFID0473-WISEAJ170712.75+605514.5-INT-20190602-p010
+      VFID3020-VV279b-INT-20220505-VFID3025
+
+    Returns dict or None.
+    """
+    parts = tag.split("-")
+    if len(parts) < 5:
+        return None
+
+    return {
+        "vfid": parts[0],
+        "name": "-".join(parts[1:-3]),
+        "instrument": parts[-3],
+        "date": parts[-2],
+        "pointing": parts[-1],
+    }
+
+
+def date_diff_days(d1, d2):
+    try:
+        t1 = datetime.strptime(d1, "%Y%m%d")
+        t2 = datetime.strptime(d2, "%Y%m%d")
+        return abs((t2 - t1).days)
+    except Exception:
+        return None
+
+
+def find_strict_date_shift_match(src_tag, dst_root, max_date_diff=1):
+    """
+    Find destination tag with same VFID, name, instrument, pointing,
+    and date differing by <= max_date_diff days.
+    """
+    src = parse_hapy_tag(src_tag)
+    if src is None:
+        return None, "src_parse_failed"
+
+    candidates = sorted(dst_root.glob(f"{src['vfid']}-*"))
+
+    good = []
+    rejected = []
+
+    for c in candidates:
+        dst = parse_hapy_tag(c.name)
+        if dst is None:
+            rejected.append((c.name, "dst_parse_failed"))
+            continue
+
+        checks = [
+            dst["vfid"] == src["vfid"],
+            dst["name"] == src["name"],
+            dst["instrument"] == src["instrument"],
+            dst["pointing"] == src["pointing"],
+        ]
+
+        if not all(checks):
+            rejected.append((c.name, "non_date_fields_differ"))
+            continue
+
+        ddays = date_diff_days(src["date"], dst["date"])
+        if ddays is None:
+            rejected.append((c.name, "date_parse_failed"))
+            continue
+
+        if ddays <= max_date_diff:
+            good.append((c, ddays))
+        else:
+            rejected.append((c.name, f"date_diff_{ddays}"))
+
+    if len(good) == 1:
+        return good[0][0], f"strict_date_shift_match:date_diff={good[0][1]}"
+
+    if len(good) > 1:
+        good = sorted(good, key=lambda x: x[1])
+        return good[0][0], f"multiple_strict_matches_using_nearest:date_diff={good[0][1]}"
+
+    return None, f"no_strict_date_shift_match; rejected={rejected}"
+    
+
 def find_one(pattern, directory):
     matches = sorted(directory.glob(pattern))
     if len(matches) == 0:
@@ -94,10 +178,21 @@ def process_tag(src_tag_dir, dst_root, overwrite=False, dry_run=False):
     if old_mask is None:
         return tag, "no_manual_mask"
 
-    if not dst_tag_dir.exists():
-        return tag, "missing_dst_tag_dir"
 
-    outmask = dst_tag_dir / old_mask.name
+    if not dst_tag_dir.exists():
+        dst_tag_dir, match_reason = find_strict_date_shift_match(
+            tag,
+            dst_root=dst_root,
+            max_date_diff=1,
+        )
+
+        if dst_tag_dir is None:
+            return tag, f"missing_dst_tag_dir:{match_reason}"
+
+        print(f"INFO: matched date-shifted tag: {tag} -> {dst_tag_dir.name}; {match_reason}")
+
+    dst_tag = dst_tag_dir.name
+    outmask = dst_tag_dir / f"{dst_tag}-mask-manual.fits"
 
     if "INT" in tag:
         new_ha = (
