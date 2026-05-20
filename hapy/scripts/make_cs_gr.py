@@ -866,7 +866,7 @@ if __name__ == '__main__':
     if not os.path.exists(segfile):
         print(f"WARNING: missing photutils segmentation; creating {segfile}")
         segfile = make_simple_photutils_segmentation(
-            rfile,
+            Rfile,
             segfile,
             maskfile=maskfile,
         )

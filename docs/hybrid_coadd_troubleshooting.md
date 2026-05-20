@@ -533,7 +533,7 @@ This is taking forever.  I've tried rerunning the parallel command, and I still 
 
 
   
-- make cs-gr images
+##### make cs-gr images
   - reproject legacy g and r to halpha
   - construct the CS-gr image
 - then run `run_analysis`
