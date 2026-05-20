@@ -183,7 +183,7 @@ def process_tag(src_tag_dir, dst_root, overwrite=False, dry_run=False):
         dst_tag_dir, match_reason = find_strict_date_shift_match(
             tag,
             dst_root=dst_root,
-            max_date_diff=1,
+            max_date_diff=3,
         )
 
         if dst_tag_dir is None:
