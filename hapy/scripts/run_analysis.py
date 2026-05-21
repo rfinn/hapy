@@ -1414,7 +1414,7 @@ def main():
         # Prefer FILTER_RATIO calculated from PHOTZP values.
         # Fall back to metadata only if PHOTZP values are unavailable/non-finite.
         rheader = fits.getheader(r_fits)
-        csheader = fits.getheader(cs_fites)
+        csheader = fits.getheader(cs_fits)
         zp_r = rheader.get("PHOTZP", np.nan)
         zp_h = csheader.get("PHOTZP", np.nan)
 
