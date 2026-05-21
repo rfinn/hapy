@@ -637,3 +637,27 @@ run_analysis --make-mask --psf-dir /data-pool/Halpha/psf-images-v20260518/ --log
 /data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
 cutouts/VFID2313-NGC3294-INT-20190211-p059
 ```
+
+### Found problem
+- photometry.py was using one function to get the noise in the
+  aperture for both image1 and image2.  so it was using the wrong gain
+  AND the wrong sky noise. 
+-  I updated the class function, but also made a regular function not attached to the class that explicitly takes in the sky noise and gain.  I am using this for calculating the noise in image2 apertures.
+- I tested on VFID2313, and we now get values for the Halpha profiles.
+- also, to speed up testing, I added a --csgr flag to run_analysis so we can skip running on the CS-gr images if so desired.
+- I also made run_analysis get filter_ratio from the PHOTZP keywords in the r_fits and cs_fits images
+
+
+This probably warrants a HAPY version update
+
+
+### Fixing INT Data
+- [ ] in 2019 INT Halpha coadds, set GAIN = 1800
+- [ ] in 2019 Halpha cutouts, set GAIN = 1800
+  - [ ] cutouts/*INT*2019*/*Ha.fits
+  - [ ] cutouts/*INT*2019*/*CS-gr.fits
+  - [ ] cutouts/*INT*2019*/*CS-ZP.fits
+- [ ] rerun run_analysis on 2019 INT cutouts
+- [ ] then rerun on full sample b/c error in photometry.py will affect
+  the noise estimates in all of the halpha phot profiles
+

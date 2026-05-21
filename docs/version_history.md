@@ -129,3 +129,74 @@
   - Updated masktools.engine to grow mask BEFORE removing central
     object to avoid neighboring objects bleeding into galaxy
 - updated the `HAPY_MORPH_OK` flag so that this can still be true if the halpha flux is zero.  No halpha is still a valid measurement and not a failure of the morphology code.
+
+
+
+## HAPY v0.2.4 notes
+
+### Major fixes
+
+- Fixed aperture-noise calculation for image2 / Hα profiles.
+  - `photometry.py` had been using image1 sky noise and gain for both images.
+  - Added an explicit standalone aperture-noise function that takes `sky_noise` and `gain`.
+  - Image2/Hα aperture errors now use the correct Hα sky noise and gain.
+  - Verified on `VFID2313`; Hα profiles now produce valid values.
+  - this bug was identified b/c most of 2019 INT Halpha phot profiles
+    were not fit - calculated snr was much lower than correct value.
+
+- Updated `run_analysis` to derive `FILTER_RATIO` from `PHOTZP` keywords.
+  - Preferred source is now the `PHOTZP` ratio from `r_fits` and `cs_fits`.
+  - Metadata `filter_ratio` is now fallback behavior.
+
+### CS-gr support
+
+- Added optional `CS-gr` processing in `run_analysis`.
+  - Detects `*-CS-gr.fits` when present.
+  - Runs ellipse photometry and HAPY morphology on CS-gr.
+  - Writes `CSGR_*` output columns.
+  - Stores `CSGR_CONTSCL` from the CS-gr FITS header.
+  - Added `--csgr` flag to allow skipping CS-gr processing for faster testing/reruns.
+
+- Added `fileid` support to avoid overwriting diagnostics/products from the primary CS-ZP run.
+  - CS-gr HAPY morphology diagnostics use a separate namespace.
+
+### Cutout / coadd handling
+
+- Updated `get_cutouts` / `coadd_images.py` so CS-ZP cutouts are generated from matched R and Hα cutouts, not from parent CS-ZP coadds.
+- Added Hα-defined slice sharing for hybrid coadds.
+  - Hα cutout defines the pixel slice.
+  - R cutout uses the same parent-image slice.
+  - Prevents one-pixel shape mismatches when R and Hα WCS/pixel scales differ slightly.
+- Added or improved skip logging for invalid cutout regions.
+- Built simple footprint-style weight images for problematic INT hybrid coadds.
+  - `weight=1` for finite nonzero science pixels.
+  - `weight=0` for zero/invalid/off-CCD pixels.
+
+### Manual masks
+
+- Added/used `transfer_manual_masks.py`.
+  - Copies BOK/HDI/MOS manual masks directly.
+  - Reprojects INT manual masks onto the new Hα cutout grid.
+  - Preserves mask labels/object IDs rather than collapsing all masked regions to 1.
+  - Handles strict ±1 day tag/date shifts for INT cutouts.
+
+### Segmentation / CS-gr prerequisites
+
+- Added `hapy/hatools/segmentation.py`.
+  - Includes `make_simple_photutils_segmentation`.
+  - Used by `make_cs_gr.py` when `*-R-phot-segmentation.fits` is missing.
+
+### Legacy image download robustness
+
+- Updated `get_legacy_images` logic.
+  - For combined `grz` requests, checks for final `g/r/z` products rather than trusting stale `grz.fits`.
+  - Removes stale combined files before retrying.
+- Added/considered retry/backoff handling for transient Legacy Survey HTTP errors.
+
+### Merge/results schema
+
+- Updated `run_analysis` initialization for optional CS-gr columns.
+  - Ensures rows without CS-gr still include expected `CSGR_*` columns.
+- Updated `merge_results` schema handling.
+  - Can fill missing columns using safe/default values.
+  - Better support for partial result tables from before CS-gr schema was finalized.
