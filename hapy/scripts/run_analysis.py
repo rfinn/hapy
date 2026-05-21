@@ -1066,6 +1066,8 @@ def main():
 
     g_main.add_argument("--make-mask", action="store_true",
                         help="Build/write mask before photometry/galfit")
+    g_main.add_argument("--csgr", action="store_true",
+                        help="Compute photometry on csgr images")
     g_main.add_argument("--statmorph", action="store_true",
                         help="Compute statmorph structural parameters")
     g_main.add_argument("--galfit", action="store_true",
@@ -1956,7 +1958,7 @@ def main():
     # block for cs-gr if the image exists
     ################################################################
 
-    if csgr_fits:
+    if csgr_fits and args.csgr:
         t0 = time.perf_counter()
         logger.info("Running optional CS-gr ellipse photometry")
 
