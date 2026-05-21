@@ -270,14 +270,14 @@ def validate_schema(tables, filenames, reorder=True, fill_missing=True):
             if fill_missing:
                 print(f"WARNING: adding {len(missing)} missing columns to {filenames[i]}")
                 tables[i] = fill_missing_columns(t, tables[0])
-                tables[i] = coerce_columns_to_reference_dtype(tables[i], tables[0])
-                t = tables[i]
             else:
                 print(f"WAIT!!! Problem with table {filenames[i]}!!!")
                 print("Schema mismatch detected.\n")
                 print(f"Missing columns:\n{missing}\n")
                 keepflag[i] = False
                 continue
+        tables[i] = coerce_columns_to_reference_dtype(tables[i], tables[0])
+        t = tables[i]
 
         if reorder and list(t.colnames) != reference:
             print(f"Column order differs for {filenames[i]}; reordering to match reference table.")
