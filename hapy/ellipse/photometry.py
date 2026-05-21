@@ -448,7 +448,7 @@ def get_noise_in_aper(flux, area, gain, sky_noise=None):
     return noise_adu
 
 
-def compute_annulus_snr(flux, prev_flux, area_unmasked, prev_area_unmasked, sky_noise):
+def compute_annulus_snr(flux, prev_flux, area_unmasked, prev_area_unmasked, sky_noise, gain=1):
     """
     Compute annulus-based SNR metrics.
 
