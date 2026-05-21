@@ -428,6 +428,53 @@ def get_M20(catalog,objectIndex):
 
     return M20
 
+def get_noise_in_aper(flux, area, gain, sky_noise=None):
+    ''' calculate the noise in an area '''
+    if sky_noise is not None:
+        # if flux/pixel > n * sky_noise
+
+
+        noise_source_e = np.sqrt(np.abs(flux)*gain)
+
+        #noise_sky_e = self.sky_noise* np.sqrt(area) *self.gain
+        # variance in sky = SUM_1^npix (sky_noise_per_pixel * gain)**2 = area * (skynoise * gain)**2
+        # noise in sky = sqrt(area) * skynoise * gain
+        noise_sky_e = sky_noise * np.sqrt(area) * gain
+
+        noise_total_e = np.sqrt(noise_source_e**2 + noise_sky_e**2)
+        noise_adu = noise_total_e/gain
+    else:
+        noise_adu = np.nan
+    return noise_adu
+
+
+def compute_annulus_snr(flux, prev_flux, area_unmasked, prev_area_unmasked, sky_noise):
+    """
+    Compute annulus-based SNR metrics.
+
+    Returns:
+        dF, dA, snr_total, snr_per_pixel, snr_image_units
+    """
+    if prev_flux is None:
+        dF = flux
+        dA = area_unmasked
+    else:
+        dF = flux - prev_flux
+        dA = area_unmasked - prev_area_unmasked
+
+    if dA <= 0 or not np.isfinite(dA):
+        return dF, dA, -np.inf, -np.inf, -np.inf
+
+    ave_sb_adu = dF / dA
+    noise_per_pixel_adu = np.sqrt((sky_noise * gain) ** 2 + gain * np.abs(ave_sb_adu)) / gain
+    snr_per_pixel = ave_sb_adu / noise_per_pixel_adu if noise_per_pixel_adu > 0 else -np.inf
+
+    sigma_ann = get_noise_in_aper(dF, dA, gain, sky_noise=sky_noise)
+    snr_total = dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
+
+    snr_image_units = ave_sb_adu / sky_noise if np.isfinite(sky_noise) and sky_noise > 0 else -np.inf
+
+    return dF, dA, snr_total, snr_per_pixel, snr_image_units
 
 class EllipsePhotometry():
     '''
@@ -508,12 +555,14 @@ class EllipsePhotometry():
             except KeyError:
                 warnings.warn(f"No PHOTZP keyword in image {image2} header. \nAssuming ZP=22.5")
                 self.magzp2 = 22.5
-
+            self.gain2 = float(self.header2.get("GAIN",1))
         else:
             self.image2_flag = False
             self.image2 = None
             self.image2_name = None
             self.header2 = None
+            self.magzp2 = np.nan
+            self.gain2 = 1
         self.image2_filter = image2_filter
         self.filter_ratio = filter_ratio
 
@@ -584,24 +633,6 @@ class EllipsePhotometry():
             except KeyError:
                 self.fwhm = np.nan
         
-    def get_noise_in_aper(self, flux, area):
-        ''' calculate the noise in an area '''
-        if self.sky_noise is not None:
-            # if flux/pixel > n * sky_noise
-
-            
-            noise_source_e = np.sqrt(np.abs(flux)*self.gain)
-            
-            #noise_sky_e = self.sky_noise* np.sqrt(area) *self.gain
-            # variance in sky = SUM_1^npix (sky_noise_per_pixel * gain)**2 = area * (skynoise * gain)**2
-            # noise in sky = sqrt(area) * skynoise * gain
-            noise_sky_e = self.sky_noise * np.sqrt(area) * self.gain
-            
-            noise_total_e = np.sqrt(noise_source_e**2 + noise_sky_e**2)
-            noise_adu = noise_total_e/self.gain
-        else:
-            noise_adu = np.nan
-        return noise_adu
 
     def run_two_image_phot(self,write1=False):
         ''' 
@@ -807,6 +838,7 @@ class EllipsePhotometry():
             self.sky_mean2 = skymean
             self.sky2 = skymedian
             self.sky_noise2 = skystd
+            print(f"DEBUG: photutils sky_noise2 = {self.sky_noise2:.3f}")            
 
     def subtract_sky(self):
         print(f"DEBUG: subtracting {self.sky:.2e} from image1")
@@ -2409,6 +2441,29 @@ class EllipsePhotometry():
         flux = phot_table["aperture_sum"][0]
         return float(flux), float(area_total), float(area_unmasked)
 
+    def get_noise_in_aper(self, flux, area):
+        ''' 
+        calculate the noise in an area 
+
+        NOTE: this is using image 1 gain - should not be applied to image 2
+        '''
+        if self.sky_noise is not None:
+            # if flux/pixel > n * sky_noise
+
+            
+            noise_source_e = np.sqrt(np.abs(flux)*self.gain)
+            
+            #noise_sky_e = self.sky_noise* np.sqrt(area) *self.gain
+            # variance in sky = SUM_1^npix (sky_noise_per_pixel * gain)**2 = area * (skynoise * gain)**2
+            # noise in sky = sqrt(area) * skynoise * gain
+            noise_sky_e = self.sky_noise * np.sqrt(area) * self.gain
+            
+            noise_total_e = np.sqrt(noise_source_e**2 + noise_sky_e**2)
+            noise_adu = noise_total_e/self.gain
+        else:
+            noise_adu = np.nan
+        return noise_adu
+
     def _compute_annulus_snr(self, flux, prev_flux, area_unmasked, prev_area_unmasked, sky_noise):
         """
         Compute annulus-based SNR metrics.
@@ -2439,7 +2494,9 @@ class EllipsePhotometry():
 
     def _truncate_phot_arrays(self, n):
         """
-        Truncate all photometry arrays to length n.
+        Truncate all photometry arrays to length n
+
+        based on image1 snr?.
         """
         self.apertures_a = self.apertures_a[:n]
         self.apertures_b = self.apertures_b[:n]
@@ -2512,12 +2569,13 @@ class EllipsePhotometry():
 
             self.flux1_err[i] = self.get_noise_in_aper(self.flux1[i], self.area_unmasked[i])
 
-            dF, dA, snr_total, snr_per_pixel, snr_image_units = self._compute_annulus_snr(
+            dF, dA, snr_total, snr_per_pixel, snr_image_units = compute_annulus_snr(
                 self.flux1[i],
                 prev_flux1,
                 self.area_unmasked[i],
                 prev_area,
                 self.sky_noise,
+                gain=self.gain,
             )
 
             self.snr_total.append(snr_total)
@@ -2542,13 +2600,15 @@ class EllipsePhotometry():
                 )
                 self.flux2[i] = flux2
                 self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area_unmasked[i])
+                self.flux2_err[i] = get_noise_in_aper(self.flux2[i], self.area_unmasked[i],self.gain2,self.sky_noise2)
 
-                dF2, dA2, snr_total2, snr_per_pixel2, snr_image_units2 = self._compute_annulus_snr(
+                dF2, dA2, snr_total2, snr_per_pixel2, snr_image_units2 = compute_annulus_snr(
                     self.flux2[i],
                     prev_flux2,
                     self.area_unmasked[i],
                     prev_area,
                     self.sky_noise2 if np.isfinite(self.sky_noise2) else self.sky_noise,
+                    gain=self.gain2
                 )
 
                 self.snr_total2.append(snr_total2)
