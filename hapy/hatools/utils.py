@@ -13,6 +13,27 @@ from hapy import hatools
 
 from importlib import resources
 
+
+def zp_scale_r_to_ha(zp_ha, zp_r, logger=None):
+    """Scale factor alpha so that CS = Ha - alpha * R."""
+    if zp_ha is None or zp_r is None:
+        return np.nan
+
+    try:
+        zp_ha = float(zp_ha)
+        zp_r = float(zp_r)
+    except Exception:
+        if logger:
+            logger.warning("Could not calculate ZP scale: non-numeric ZPs")
+        return np.nan
+
+    if not (np.isfinite(zp_ha) and np.isfinite(zp_r)):
+        if logger:
+            logger.warning("Could not calculate ZP scale: non-finite ZPs")
+        return np.nan
+
+    return float(10 ** (-0.4 * (zp_r - zp_ha)))
+
 def get_filter_file(name: str) -> str:
     """
     Return the full path to a filter file in hatools/filter_traces.

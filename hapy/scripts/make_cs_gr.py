@@ -51,6 +51,7 @@ from reproject import reproject_interp
 from hapy.hatools.filter_transformations import halpha_minus_r_color_from_metadata
 from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_metadata
 from hapy.hatools.segmentation import make_simple_photutils_segmentation
+from hapy.hatools.utils import zp_scale_r_to_ha
 
 
 #import warnings
@@ -518,16 +519,16 @@ def plot_image(data):
     #plt.draw()
 
 
-def zp_scale_r_to_ha(zp_ha, zp_r):
-    """Scale factor alpha so that CS = Ha - alpha * R."""
-    if zp_ha is None or zp_r is None:
-        return np.nan
-    zp_ha = float(zp_ha)
-    zp_r = float(zp_r)
-    if not (np.isfinite(zp_ha) and np.isfinite(zp_r)):
-        print("WARNING: could not calculate the zp scale!")
-        return np.nan
-    return float(10 ** (-0.4 * (zp_r - zp_ha)))
+# def zp_scale_r_to_ha(zp_ha, zp_r):
+#     """Scale factor alpha so that CS = Ha - alpha * R."""
+#     if zp_ha is None or zp_r is None:
+#         return np.nan
+#     zp_ha = float(zp_ha)
+#     zp_r = float(zp_r)
+#     if not (np.isfinite(zp_ha) and np.isfinite(zp_r)):
+#         print("WARNING: could not calculate the zp scale!")
+#         return np.nan
+#     return float(10 ** (-0.4 * (zp_r - zp_ha)))
 
 
 if __name__ == '__main__':

@@ -34,7 +34,9 @@ from hapy.masktools.maskops import distance_to_nearest_mask, largest_mask_region
 #from hapy.masktools.types import build_ell0_from_metadata
 from hapy.hatools.results import write_result_row_ecsv
 from hapy.geometry.adapters import pa_ccw_north_to_photutils_theta, photutils_theta_to_pa_ccw_north
-from hapy.utils.paths import astromatic_dir 
+from hapy.utils.paths import astromatic_dir
+from hapy.hatools.utils import zp_scale_r_to_ha
+
 #from hapy.utils.logging_utils import setup_logging
 
 from hapy.ellipse.profile_summary import summarize_dual_profiles
@@ -1408,11 +1410,47 @@ def main():
         row["FILTER_CORRECTION"] = params.get("filter_correction")
 
         # TODO get this information from ZP ratio
-        filter_ratio = params.get("filter_ratio", None)
-        if filter_ratio is None:
-            filter_ratio = np.nan
-            logger.warning("FLTRATIO missing from metadata; physical flux calibration will be NaN.")
-        row["FILTER_RATIO"] = filter_ratio
+
+        # Prefer FILTER_RATIO calculated from PHOTZP values.
+        # Fall back to metadata only if PHOTZP values are unavailable/non-finite.
+        zp_r = row.get("R_PHOTZP", np.nan)
+        zp_h = row.get("H_PHOTZP", np.nan)
+
+        filter_ratio = zp_scale_r_to_ha(zp_h, zp_r, logger=logger)
+
+        if np.isfinite(filter_ratio):
+            logger.info(
+                "Calculated FILTER_RATIO from PHOTZP values: zp_h=%.4f zp_r=%.4f filter_ratio=%.6g",
+                zp_h, zp_r, filter_ratio,
+            )
+        else:
+            filter_ratio = params.get("filter_ratio", np.nan)
+
+            try:
+                filter_ratio = float(filter_ratio)
+            except Exception:
+                filter_ratio = np.nan
+
+            if np.isfinite(filter_ratio):
+                logger.warning(
+                    "Using FILTER_RATIO from metadata because PHOTZP ratio could not be calculated: %.6g",
+                    filter_ratio,
+                )
+            else:
+                logger.warning(
+                    "FILTER_RATIO could not be calculated from PHOTZP and is missing from metadata; "
+                    "physical flux calibration will be NaN."
+                )
+
+        # row["FILTER_RATIO"] = filter_ratio
+
+
+        # filter_ratio = params.get("filter_ratio", None)
+        
+        # if filter_ratio is None:
+        #     filter_ratio = np.nan
+        #     logger.warning("FLTRATIO missing from metadata; physical flux calibration will be NaN.")
+        # row["FILTER_RATIO"] = filter_ratio
 
         # --- Construct the name of the psf image
         psf_path, psf_source = pick_psf_path_and_source(args, params,logger=logger)
@@ -1662,6 +1700,9 @@ def main():
     if args.image2_filter is not None:
         hafilter = args.image2_filter
         row["HFILTER"] = hafilter
+
+    # filter ratio should come from photometric zps
+    
     filter_ratio = row["FILTER_RATIO"]
 
     print(f"DEBUG: xc={xc:.1f},yc={yc:.1f},\nra={ra:.6f},dec={dec:.6f}")

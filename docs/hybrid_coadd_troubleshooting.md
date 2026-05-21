@@ -565,7 +565,7 @@ Started at 2:54 PM, 2026-05-20
 5:02 PM, @99% 853:3
 
 5:16 PM @99% 854:2
-
+5:42 PM @99% 855:1=11s
 ##### Merge Results
 ran this while `run_analysis` was still at 99%
 ```
@@ -582,6 +582,12 @@ Final table rows: 603
 Final table columns: 494
 ```
 
+
+##### Select Best Duplicate
+
+```
+python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results_virgo_20260520.fits --outdir cs_image_inspection --min-dups 1
+```
 ### Still to do 
 
 
@@ -601,3 +607,33 @@ other issues:
 what else am I missing? oh yeah, write the paper!
 
 
+# Working on INT 2019 Halpha issue
+
+Made test directory:
+```
+/data-pool/Halpha/hapy-test-INT-2019-halpha-gain-adjustment
+```
+
+set the gain to 1800:
+```
+sethead GAIN=1800
+cutouts/VFID2313-NGC3294-INT-20190211-p059/VFID2313-NGC3294-INT-20190211-p059-Ha.fits
+```
+
+
+```
+sethead GAIN=1800
+cutouts/VFID2313-NGC3294-INT-20190211-p059/VFID2313-NGC3294-INT-20190211-p059-CS-ZP.fits
+```
+
+```
+sethead GAIN=1800
+cutouts/VFID2313-NGC3294-INT-20190211-p059/VFID2313-NGC3294-INT-20190211-p059-CS-gr.fits
+```
+
+Then run `run_analysis`
+```
+run_analysis --make-mask --psf-dir /data-pool/Halpha/psf-images-v20260518/ --log-to-console --gaia-dir \
+/data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
+cutouts/VFID2313-NGC3294-INT-20190211-p059
+```
