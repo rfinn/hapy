@@ -194,29 +194,48 @@ def coerce_columns_to_reference_dtype(tab, reference_table):
         ref_kind = np.dtype(ref_dtype).kind
         this_kind = np.dtype(this_dtype).kind
 
-        # Convert numeric/object to string only when reference is string
-        if ref_kind in ("U", "S"):
-            vals = []
-            for v in tab[col]:
-                s = "" if v is None else str(v)
-                if s.lower() in ("nan", "none", "--"):
-                    s = ""
-                vals.append(s)
-            tab[col] = np.array(vals, dtype=ref_dtype)
 
-        # Convert bool-like columns
-        elif ref_kind == "b":
-            tab[col] = np.array(tab[col], dtype=bool)
-
-        # Convert integer-like columns
-        elif ref_kind in ("i", "u"):
+        try:
             tab[col] = np.array(tab[col], dtype=ref_dtype)
-
-        # Convert float-like columns
-        elif ref_kind == "f":
-            tab[col] = np.array(tab[col], dtype=ref_dtype)
-
+        except Exception:
+            # fallback for string columns with nan/None
+            if np.dtype(ref_dtype).kind in ("U", "S", "O"):
+                vals = []
+                for v in tab[col]:
+                    s = "" if v is None else str(v)
+                    if s.lower() in ("nan", "none", "--"):
+                        s = ""
+                    vals.append(s)
+                tab[col] = np.array(vals, dtype=ref_dtype)
+            else:
+                raise
+            
     return tab
+
+
+    #     # Convert numeric/object to string only when reference is string
+    #     if ref_kind in ("U", "S"):
+    #         vals = []
+    #         for v in tab[col]:
+    #             s = "" if v is None else str(v)
+    #             if s.lower() in ("nan", "none", "--"):
+    #                 s = ""
+    #             vals.append(s)
+    #         tab[col] = np.array(vals, dtype=ref_dtype)
+
+    #     # Convert bool-like columns
+    #     elif ref_kind == "b":
+    #         tab[col] = np.array(tab[col], dtype=bool)
+
+    #     # Convert integer-like columns
+    #     elif ref_kind in ("i", "u"):
+    #         tab[col] = np.array(tab[col], dtype=ref_dtype)
+
+    #     # Convert float-like columns
+    #     elif ref_kind == "f":
+    #         tab[col] = np.array(tab[col], dtype=ref_dtype)
+
+    # return tab
 
 def validate_schema(tables, filenames, reorder=True, fill_missing=True):
     """
