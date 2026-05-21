@@ -1413,8 +1413,10 @@ def main():
 
         # Prefer FILTER_RATIO calculated from PHOTZP values.
         # Fall back to metadata only if PHOTZP values are unavailable/non-finite.
-        zp_r = row.get("R_PHOTZP", np.nan)
-        zp_h = row.get("H_PHOTZP", np.nan)
+        rheader = fits.getheader(r_fits)
+        csheader = fits.getheader(cs_fites)
+        zp_r = rheader.get("PHOTZP", np.nan)
+        zp_h = csheader.get("PHOTZP", np.nan)
 
         filter_ratio = zp_scale_r_to_ha(zp_h, zp_r, logger=logger)
 
