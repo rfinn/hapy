@@ -2878,10 +2878,10 @@ class EllipsePhotometry():
             self.sb2_err = np.zeros(len(self.apertures_a),'f')
             self.sb2[0] = self.flux2[0]/self.area[0]
             # (flux, area, gain, sky_noise=None):
-            self.sb2_err[0] = get_noise_in_aper(self.flux2[0], self.area[0],self.gain2,sky_noise=self.skynoise2)/self.area[0]
+            self.sb2_err[0] = get_noise_in_aper(self.flux2[0], self.area[0],self.gain2,sky_noise=self.sky_noise2)/self.area[0]
             for i in range(1,len(self.area)):
                 self.sb2[i] = (self.flux2[i] - self.flux2[i-1])/(self.area[i]-self.area[i-1])
-                self.sb2_err[i] = get_noise_in_aper((self.flux2[i] - self.flux2[i-1]),(self.area[i]-self.area[i-1]),self.gain2,sky_noise=self.skynoise2)/(self.area[i]-self.area[i-1])
+                self.sb2_err[i] = get_noise_in_aper((self.flux2[i] - self.flux2[i-1]),(self.area[i]-self.area[i-1]),self.gain2,sky_noise=self.sky_noise2)/(self.area[i]-self.area[i-1])
             self.sb2_snr = np.abs(self.sb2/self.sb2_err)
 
         # check if the profile peaks at the center
