@@ -500,7 +500,7 @@ def main():
 
     parser.add_argument(
         "--mode",
-        choices=["run_analysis", "get_cutouts"],
+        choices=["run_analysis", "get_cutouts", "ha_continuum"],
         required=True,
         help="Pipeline stage whose results should be merged."
     )
@@ -522,6 +522,8 @@ def main():
         pattern = args.pattern
     elif args.mode == "get_cutouts":
         pattern = "cutouts_summary*.ecsv"
+    elif args.mode == "ha_continuum":
+        pattern = "*results-ha-with-continuum.ecsv"
     else:
         pattern = "*results.ecsv"
     
@@ -557,7 +559,10 @@ def main():
     if args.out is None:
         scheme = infer_scheme_from_result_files(files, max_files=1)
         if scheme is not None:
-            args.out = f"merged_results_{scheme}_{today}.fits"
+            if args.mode = "ha_continuum":
+                args.out = f"merged_ha_continuum_results_{scheme}_{today}.fits"
+            else:
+                args.out = f"merged_results_{scheme}_{today}.fits"
         else:
             args.out = f"merged_results_{today}.fits"
 

@@ -1068,4 +1068,18 @@ cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
 cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 ```
 
+# Run photometry on Halpha image with continuum for qc/validation
 
+To run on one galaxy:
+```
+python measure_ha_with_continuum_profiles.py --cutout-dir cutouts/VFID1934-NGC2799-INT-20190205-p026 --overwrite
+```
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d | sort > cutout_with_dir.txt
+```
+
+
+```
+parallel --bar -j 16 --joblog measure_ha_continuum.joblog --results measure_ha_continuum_logs python ~/github/hapy/scripts/measure_ha_with_continuum_profiles.py --cutout-dir {} --overwrite :::: cutout_with_dir.txt
+```
