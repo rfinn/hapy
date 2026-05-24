@@ -559,7 +559,7 @@ def main():
     if args.out is None:
         scheme = infer_scheme_from_result_files(files, max_files=1)
         if scheme is not None:
-            if args.mode = "ha_continuum":
+            if args.mode == "ha_continuum":
                 args.out = f"merged_ha_continuum_results_{scheme}_{today}.fits"
             else:
                 args.out = f"merged_results_{scheme}_{today}.fits"
