@@ -674,13 +674,13 @@ run_analysis --make-mask --psf-dir /data-pool/Halpha/psf-images-v20260518/ --log
 /data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
 cutouts/VFID2313-NGC3294-INT-20190211-p059
 ```
-- [ ] rerun run_analysis on 2019 INT cutouts
-  - [ ] create input list
+- [x] rerun run_analysis on 2019 INT cutouts
+  - [x] create input list
   ```
   cat cutout_with_dir.txt | grep INT |grep 2019 >
   INT_2019_cutouts_with_dir.txt
   ```
-  - [ ] run parallel just on this list, and with `--csgr` flag
+  - [x] run parallel just on this list, and with `--csgr` flag
 ```
 parallel --bar  -j 16  --memfree 30G --joblog run_analysis_INT_2019.joblog \
 --results parallel-logs run_analysis --cutout-dir "{}" --make-mask \
@@ -691,9 +691,15 @@ parallel --bar  -j 16  --memfree 30G --joblog run_analysis_INT_2019.joblog \
 - [ ] then rerun on full sample b/c error in photometry.py will affect
   the noise estimates in all of the halpha phot profiles
 - [ ] Should consider rerunning on the pre2025 data as well
-  - [ ] in hapy-output-20260517-pre2025coadds, for 2019 Halpha cutouts, set GAIN = 1800
-  - [ ] cutouts/*INT*2019*/*Ha.fits
-  - [ ] cutouts/*INT*2019*/*CS-gr.fits
-  - [ ] cutouts/*INT*2019*/*CS-ZP.fits
+  - [x] in hapy-output-20260517-pre2025coadds, for 2019 Halpha cutouts, set GAIN = 1800
+	  - [x] cutouts/*INT*2019*/*Ha.fits
+	  - [ ] cutouts/*INT*2019*/*CS-gr.fits (N/A)
+	  - [x] cutouts/*INT*2019*/*CS-ZP.fits
 
-
+```
+parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog \
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask \
+--psf-dir /data-pool/Halpha/psf-images-v20260518/ --statmorph --galfit \
+--convflag --gaia-dir \
+/data-pool/Halpha/coadds-pre2025-hapy/gaia_catalogs/  :::: cutout_run_analysis_list.txt
+```

@@ -184,6 +184,8 @@ def coerce_columns_to_reference_dtype(tab, reference_table):
     for col in reference_table.colnames:
         if col not in tab.colnames:
             continue
+        if "TAG" in col:
+            continue
 
         ref_dtype = reference_table[col].dtype
         this_dtype = tab[col].dtype
