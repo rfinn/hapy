@@ -13,9 +13,35 @@ from astropy.table import Table
 from hapy.ellipse.photometry import run_ellipse_photometry
 from hapy.ellipse.profile_summary import summarize_dual_profiles
 from hapy.hatools.utils import zp_scale_r_to_ha
-from hapy.utils.results_table import _scalar
+#from hapy.utils.results_table import _scalar
 
 
+def _scalar(v):
+    """Best-effort conversion to JSON/ECSV-friendly scalar."""
+    if v is None:
+        return None
+    # astropy Quantity
+    try:
+        v = v.value
+    except Exception:
+        pass
+    # numpy scalar
+    try:
+        import numpy as np
+        if isinstance(v, (np.generic,)):
+            return v.item()
+        if isinstance(v, (np.ndarray, list, tuple)):
+            return None  # skip arrays here on purpose
+    except Exception:
+        pass
+    # python numeric / bool / str
+    if isinstance(v, (int, float, bool, str)):
+        return v
+    # last resort
+    try:
+        return float(v)
+    except Exception:
+        return str(v)
 def valid_file(path):
     return path is not None and Path(path).is_file()
 
