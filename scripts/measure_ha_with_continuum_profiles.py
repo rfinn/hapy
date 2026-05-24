@@ -10,7 +10,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-from hapy.ellipse.photometry import run_ellipse_photometr
+from hapy.ellipse.photometry import run_ellipse_photometry
 from hapy.ellipse.profile_summary import summarize_dual_profiles
 from hapy.hatools.utils import zp_scale_r_to_ha
 from hapy.utils.results_table import _scalar
