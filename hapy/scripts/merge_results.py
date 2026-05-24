@@ -564,7 +564,10 @@ def main():
             else:
                 args.out = f"merged_results_{scheme}_{today}.fits"
         else:
-            args.out = f"merged_results_{today}.fits"
+            if args.mode == "ha_continuum":
+                args.out = f"merged_ha_continuum_results_{scheme}_{today}.fits"
+            else:
+                args.out = f"merged_results_{today}.fits"
 
     if args.outdir:
         outpath = Path(args.outdir).resolve() / args.out
