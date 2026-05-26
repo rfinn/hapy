@@ -834,7 +834,7 @@ class cutout_dir():
         self.hapy_gini_pdf = None
 
 
-        # --- R-band PDF ---
+        # --- R-band and CS-ZP results PDF ---
         r_matches = glob.glob(os.path.join(self.cutoutdir, "*R-hapy-morphology-diag.png"))
 
         if len(r_matches) > 0:
@@ -864,21 +864,9 @@ class cutout_dir():
                 self.hapy_csgr_gini_pdf = None
         else:
             print(f"No hapy CSgr gini PDF found in {self.cutoutdir}")
-
-        r_matches = glob.glob(os.path.join(self.cutoutdir, "*R-cszp-hapy-morphology-diag.png"))
-
-        if len(r_matches) > 0:
-            hapy_gini_pdf = r_matches[0]
-            self.hapy_csgr_gini_pdf = os.path.join(self.outdir, os.path.basename(hapy_gini_pdf))
-
-            try:
-                shutil.copy2(hapy_gini_pdf, self.hapy_csgr_gini_pdf)
-            except Exception as e:
-                print(f"Error copying hapy gini PDF: {hapy_gini_pdf}")
-                print(e)
-                self.hapy_csgr_gini_pdf = None
-        else:
-            print(f"No hapy CSgr gini PDF found in {self.cutoutdir}")            
+            self.hapy_csgr_gini_pdf = None
+            
+     
             
     def copy_mask_diagnostic(self):
         """Copy hapy gini PDF from cutoutdir to outdir."""
