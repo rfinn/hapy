@@ -834,13 +834,13 @@ Test on one directory:
 ROOTDIR=/data-pool/Halpha/hapy-output-20260417
 ```
 ```bash
-python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir
+python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir \
 $ROOTDIR/cutouts --outdir $ROOTDIR/html/cutouts --oneimage VFID2891-UGC04559-HDI-20200225-p004
 ```
 
 
 ```bash 
-parallel --bar -j 20 --memfree 60G --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage "{}" --outdir $ROOTDIR/html/cutouts :::: cutout_list_buildwebpages.txt
+parallel --bar -j 20 --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir $ROOTDIR/cutouts --oneimage {} --outdir $ROOTDIR/html/cutouts :::: cutout_list_buildwebpages.txt
 ```
 
 ## Build cutout index
@@ -852,49 +852,19 @@ python ~/github/hapy/scripts/build_cutout_index.py --help
 ```bash
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260421.fits
 ```
+
+
 ```
-python ~/github/hapy/scripts/build_cutout_index.py --runroot
-/data-pool/Halpha/hapy-output-20260417/ --results-table
-/data-pool/Halpha/hapy-output-20260417/merged_results.fits
-
-
+python ~/github/hapy/scripts/build_cutout_index.py --runroot \
+/data-pool/Halpha/hapy-output-20260519-hybrid/ --results-table \
+/data-pool/Halpha/hapy-output-20260519-hybrid/merged_results_virgo_20260521_with_best_duplicate.fits
 ```
 
 ## Rsync files
 
-from html directory:
+from ROOTDIR:
 ```
-rsync -avz cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
-```
-
-# Commands for Testing a Virgo Subsample
-Testing directories
-```
-find /data-pool/Halpha/hapy-test1/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
-```
-```bash
-cat fullpath_rcoadds_all.txt | parallel -j 32 --bar --joblog
-cutouts_parallel.log get_cutouts --rimage {} --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
---scheme virgo --psfdir /data-pool/Halpha/psf-images/
-```
-
-```
-python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
-```
-
-```
-find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_list.txt
-```
-
-```
-parallel --bar  -j 16  --memfree 60G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit --convflag --gaia-dir /data-pool/Halpha/coadds-2025DEC/gaia_catalogs/ :::: cutout_list.txt
-```
-```
-merge_results --indir cutouts --mode run_analysis
-```
-
-```
-python ~/github/hapy/scripts/summarize_run.py merged_results.fits --scheme virgo
+rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
 ```
 
 
@@ -1062,10 +1032,10 @@ cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 
 To build the plots in parallel:
 ```
-parallel --bar -j 16 --joblog cs_image_plot.joblog --results
-cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py plot-one
-cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
-cutouts --outdir cs_image_inspection :::: cs_group_list.txt
+parallel --bar -j 16 --joblog cs_image_plot.joblog --results \
+cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py \
+plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} \
+--cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 ```
 
 # Run photometry on Halpha image with continuum for qc/validation

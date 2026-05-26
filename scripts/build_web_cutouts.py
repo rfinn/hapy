@@ -717,6 +717,13 @@ class cutout_dir():
 
     def make_cs_png(self,gr=False,grauto=False,zoom=None):
         if gr:
+            if self.csgrimage is None:
+                self.csgr_png1 = None
+                self.csgr_png2 = None
+                self.csgrauto_png1 = None
+                self.csgrauto_png2 = None
+                return
+                
             csdata,csheader = fits.getdata(self.csgrimage,header=True)
             #imx,imy,keepflag = get_galaxies_fov(self.csimage,vfmain['RA'],vfmain['DEC'])
         elif grauto:
@@ -842,7 +849,7 @@ class cutout_dir():
                 self.hapy_gini_pdf = None
         else:
             print(f"No hapy gini PDF found in {self.cutoutdir}")
-
+        # --- CS-gr PDF ---
         r_matches = glob.glob(os.path.join(self.cutoutdir, "*R-csgr-hapy-morphology-diag.png"))
 
         if len(r_matches) > 0:
@@ -856,7 +863,22 @@ class cutout_dir():
                 print(e)
                 self.hapy_csgr_gini_pdf = None
         else:
-            print(f"No hapy gini PDF found in {self.cutoutdir}")
+            print(f"No hapy CSgr gini PDF found in {self.cutoutdir}")
+
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*R-cszp-hapy-morphology-diag.png"))
+
+        if len(r_matches) > 0:
+            hapy_gini_pdf = r_matches[0]
+            self.hapy_csgr_gini_pdf = os.path.join(self.outdir, os.path.basename(hapy_gini_pdf))
+
+            try:
+                shutil.copy2(hapy_gini_pdf, self.hapy_csgr_gini_pdf)
+            except Exception as e:
+                print(f"Error copying hapy gini PDF: {hapy_gini_pdf}")
+                print(e)
+                self.hapy_csgr_gini_pdf = None
+        else:
+            print(f"No hapy CSgr gini PDF found in {self.cutoutdir}")            
             
     def copy_mask_diagnostic(self):
         """Copy hapy gini PDF from cutoutdir to outdir."""
