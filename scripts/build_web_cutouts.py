@@ -1697,12 +1697,15 @@ class build_html_cutout():
         '''  r, halpha, cs, and mask images '''
         self.html.write('<h2>Halpha Images</h2>\n')
         if self.cutout.legacy_jpg is not None:
-            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2,self.cutout.csgr_png2]
+            images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2]
             #labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr']#,'CS, stretch 2']
             labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP',f'CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
         else:
-            images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2,self.cutout.csgr_png2]#,self.cutout.cs_png2]
-            labels = ['R-band Image','H&alpha;+Cont','CS from ZP','CS-gr  scale={self.cutout.conscale_auto:.2f}']#,'CS, stretch 2']
+            images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2]#,self.cutout.cs_png2]
+            labels = ['R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
+        if self.cutout.csgr_image is not None:
+            images.append(self.cutout.csgr_png2)
+            labels.append('CS-gr  scale={self.cutout.conscale_auto:.2f}')
         images = [os.path.basename(i) for i in images]
         #labels = ['R-band Image','H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']
         #labels = ['H&alpha;+Cont','CS from ZP ratio','CS from ZP and g-r cor',f'CS g-r auto scale={self.cutout.conscale_auto:.2f}']        
