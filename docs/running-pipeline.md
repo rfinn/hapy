@@ -1086,5 +1086,6 @@ parallel --bar -j 16 --joblog measure_ha_continuum.joblog --results measure_ha_c
 
 
 ```bash
-merged_results --mode  --scheme virgo
+merge_results --mode ha_continuum --indir cutouts --review-csv
+review_sample_20260514.csv 
 ```

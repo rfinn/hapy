@@ -446,8 +446,12 @@ def add_center_offset_columns(tab):
         dy[bad] = np.nan
         return dx, dy, dr_pix, dr_arcsec
 
-    xin = _get("ELL0_XC")
-    yin = _get("ELL0_YC")
+    try:
+        xin = _get("ELL0_XC")
+        yin = _get("ELL0_YC")
+    except KeyError:
+        print("WARNING: did not add center offset columns")
+        return tab
 
     xph = _get("ELLIP_XCENTROID")
     yph = _get("ELLIP_YCENTROID")
