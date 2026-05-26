@@ -1703,7 +1703,7 @@ class build_html_cutout():
         else:
             images = [self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2]#,self.cutout.cs_png2]
             labels = ['R-band Image','H&alpha;+Cont','CS from ZP']#,'CS, stretch 2']
-        if self.cutout.csgr_image is not None:
+        if self.cutout.csgrimage is not None:
             images.append(self.cutout.csgr_png2)
             labels.append('CS-gr  scale={self.cutout.conscale_auto:.2f}')
         images = [os.path.basename(i) for i in images]
