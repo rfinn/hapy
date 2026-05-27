@@ -72,7 +72,8 @@ def collect_entries(runroot):
         galname = tag.split('-')[0]
         html_file = subdir / f"{tag}.html"
         if not html_file.exists():
-            continue
+            print("WARNING: no html page for ",html_file)
+            #continue
 
         cutout_dir = cutout_root / tag
         results_file = find_results_file(cutout_dir)
