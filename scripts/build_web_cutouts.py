@@ -542,8 +542,11 @@ class cutout_dir():
         self.csgrimageauto = None
 
         #self.csgrimageauto = glob.glob(os.path.join(self.cutoutdir,self.gname+'*-CS-gr-auto.fits'))[0]
+        
         self.maskimage = self.rimage.replace('-R.fits','-mask.fits').replace('-r.fits','-mask.fits')
-
+        manual_mask = self.maskimage.replace("-mask.fits","-mask-manual.fits")
+        if os.path.exists(manual_mask):
+            self.maskimage = manual_mask
         try:
             self.conscale_auto = fits.getheader(self.csgrimage)['CONTSCL']
         except:
