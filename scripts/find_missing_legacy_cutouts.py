@@ -21,20 +21,23 @@ for cutdir in sorted(CUTOUT_ROOT.iterdir()):
         missing.append(cutdir)
         continue
 
-    gfile = legacy_dir / "legacy-g.fits"
-    rfile = legacy_dir / "legacy-r.fits"
-    zfile = legacy_dir / "legacy-z.fits"
+    gfiles = sorted(legacy_dir.glob("*-legacy-*-g.fits"))
+    rfiles = sorted(legacy_dir.glob("*-legacy-*-r.fits"))
+    zfiles = sorted(legacy_dir.glob("*-legacy-*-z.fits"))
 
-    have_g = gfile.exists()
-    have_r = rfile.exists()
-    have_z = zfile.exists()
+    have_g = len(gfiles) > 0
+    have_r = len(rfiles) > 0
+    have_z = len(zfiles) > 0
 
     if not (have_g and have_r and have_z):
         print(
             f"MISSING legacy files: {cutdir.name} "
             f"(g={have_g}, r={have_r}, z={have_z})"
-        )
+            )
         missing.append(cutdir)
+
+    
+
 
 print()
 print(f"Missing legacy images: {len(missing)}")
