@@ -684,7 +684,7 @@ if __name__ == '__main__':
         mask = fits.getdata(maskfile)
         mask = mask > 0
 
-    overwrite = True
+    #overwrite = True
 
     """
     reproject infile to reffile image
