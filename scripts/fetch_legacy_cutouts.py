@@ -115,7 +115,9 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
         print(f"  outdir  = {legacy_dir}")
         print(f"  outdir  = {pixscale:.2f}")
 
-        
+    # checking to see if it's faster to download at the native pixel scale
+    pixscale=0.262
+    
     result = get_legacy_images(
         ra=ra,
         dec=dec,

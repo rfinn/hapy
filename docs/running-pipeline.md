@@ -822,6 +822,19 @@ parallel --resume-failed --joblog fetch_legacy.joblog \
 ```
 
 
+### Find cutouts with missing
+
+```
+python ~/github/hapy/scripts/find_missing_legacy_cutouts.py
+```
+
+```
+parallel --bar -j 2 \
+  --joblog fetch_legacy_retry.joblog \
+  python ~/github/hapy/scripts/fetch_legacy_cutouts.py \
+  --cutout-dir {} \
+  :::: missing_legacy_cutouts.txt
+```
 
 ## Build Cutout Webpages
 Create a list of the cutout images:
