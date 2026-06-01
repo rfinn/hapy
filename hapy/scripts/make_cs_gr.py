@@ -81,16 +81,28 @@ from hapy.hatools.utils import zp_scale_r_to_ha
 #                             'MOS':(1 +filter_Rlambda["KPNO_Ha+4nm"]/filter_Rlambda["KPNO_R"]),\
 #                             'INT6657':(1 +filter_Rlambda["WFC_Ha6657"]/filter_Rlambda["WFC_r"])}
 
+
+
 def estimate_extra_continuum_scale(
     ha_data,
     rcont_data,
-    galaxy_mask,
+    galaxy_mask=None,
     bad_mask=None,
     min_pixels=100,
     clip_range=(0.75, 1.15),
     ratio_range=(0.7, 1.3),
     scale_percentile=30.0,
 ):
+    if galaxy_mask is None:
+        print("WARNING: galaxy_mask is None; using all valid pixels")
+        galaxy_mask = np.ones_like(ha_data, dtype=bool)
+    else:
+        galaxy_mask = np.asarray(galaxy_mask, dtype=bool)
+
+        if np.count_nonzero(galaxy_mask) == 0:
+            print("WARNING: galaxy_mask is empty; using all valid pixels")
+            galaxy_mask = np.ones_like(ha_data, dtype=bool)
+
     good = (
         galaxy_mask
         & np.isfinite(ha_data)
@@ -99,12 +111,13 @@ def estimate_extra_continuum_scale(
     )
 
     if bad_mask is not None:
+        bad_mask = np.asarray(bad_mask, dtype=bool)
         good &= ~bad_mask
 
     if np.count_nonzero(good) < min_pixels:
         print("WARNING: not enough valid pixels for auto continuum scaling")
         return 1.0
-
+    
     ratio = ha_data[good] / rcont_data[good]
     ratio = ratio[np.isfinite(ratio)]
 
@@ -683,6 +696,9 @@ if __name__ == '__main__':
     else:
         mask = fits.getdata(maskfile)
         mask = mask > 0
+
+    if mask is not None and np.sum(mask) == 0:
+        print(f"WARNING: mask file exists but has no masked pixels: {maskfile}")
 
     #overwrite = True
 
