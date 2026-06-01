@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-CUTOUT_ROOT = Path("/data-pool/Halpha/hapy-output-20260519/cutouts")
+CUTOUT_ROOT = Path("/data-pool/Halpha/hapy-output-20260519-hybrid/cutouts")
 
 missing_csgr = []
 missing_csgr_phot = []
@@ -19,7 +19,7 @@ for cutdir in sorted(CUTOUT_ROOT.iterdir()):
     tag = cutdir.name
 
     csgr = cutdir / f"{tag}-CS-gr.fits"
-    csgr_phot = cutdir / f"{tag}-CS-gr-phot.fits"
+    csgr_phot = cutdir / f"{tag}-CS-gr_phot.fits"
 
     have_csgr = csgr.exists()
     #have_phot = csgr_phot.exists()
