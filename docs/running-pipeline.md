@@ -282,6 +282,15 @@ reproject_cutout_list.txt
 ```
 
 
+
+without overwrite
+```
+parallel --bar -j 16 --joblog cs_gr_auto.joblog --results \
+cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} \
+--auto-contscale --auto-contscale-percentile 30 :::: \
+reproject_cutout_list.txt
+```
+
 Needed to rerun on the INT images (filter lookup issue)
 
 ```

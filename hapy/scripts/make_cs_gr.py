@@ -647,7 +647,7 @@ if __name__ == '__main__':
     if len(rfiles) < 1:
         print("problem getting r-ha.fits legacy image", len(rfiles))
         os.chdir(topdir)
-        sys.exit()
+        sys.exit(1)
     else:
         leg_rfile = rfiles[0]  # legacy r-band image
 
@@ -657,7 +657,7 @@ if __name__ == '__main__':
     if len(gfiles) < 1:
         print("problem getting g-ha.fits legacy image")
         os.chdir(topdir)
-        sys.exit()
+        sys.exit(2)
     else:
         leg_gfile = gfiles[0]  # legacy g-band image
 
