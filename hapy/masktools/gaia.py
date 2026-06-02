@@ -292,8 +292,8 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     mask_radius = mask_radius_for_mag(
         brightstar["phot_g_mean_mag"]
     )
-    for i in range(len(mask_radius)):
-        print(f"DEBUG get_gaia_stars: mask_radius[i]={mask_radius[i]:.2e}, arcsec={mask_radius[i]*3600:.2f}")
+    #for i in range(len(mask_radius)):
+    #    print(f"DEBUG get_gaia_stars: mask_radius[i]={mask_radius[i]:.2e}, arcsec={mask_radius[i]*3600:.2f}")
 
 
 
@@ -386,7 +386,7 @@ def make_gaia_mask(
         x = float(x_pixels[i])
         y = float(y_pixels[i])
         gmag = float(mag[i])
-        print(f"DEBUG make_gaia_mask: star {i}: mag={gmag:.2f}, radius_pix={radius_pix:.1f}, rad_deg[i]={rad_deg[i]:.2e},rad_pixels[i]={rad_pixels[i]:.2f},radius_scale_factor={radius_scale_factor}")
+        #print(f"DEBUG make_gaia_mask: star {i}: mag={gmag:.2f}, radius_pix={radius_pix:.1f}, rad_deg[i]={rad_deg[i]:.2e},rad_pixels[i]={rad_pixels[i]:.2f},radius_scale_factor={radius_scale_factor}")
         # increment the mask value so that each star gets a different value
         mask_value = base_mask_value + i  
         
