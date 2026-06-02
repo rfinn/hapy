@@ -292,6 +292,8 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
     mask_radius = mask_radius_for_mag(
         brightstar["phot_g_mean_mag"]
     )
+    for i in range(len(mask_radius)):
+        print("DEBUG get_gaia_stars: mask_radius[i]={mask_radius[i]:.2e}, arcsec={mask_radius[i]*3600:.2f}")
 
 
 
