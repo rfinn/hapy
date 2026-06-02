@@ -296,7 +296,7 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
 
 
     #radius in deg
-    brightstar["radius_deg"] = mask_radius
+    brightstar["radius"] = mask_radius
 
     # Convert to pixel coords
     starcoord = SkyCoord(
@@ -368,7 +368,7 @@ def make_gaia_mask(
     gaia_mask = np.zeros_like(mask_array)
 
     mag = gaia_table["phot_g_mean_mag"]
-    rad_deg = gaia_table["radius_deg"]
+    rad_deg = gaia_table["radius"]
     rad_pixels = rad_deg / pixel_scale_deg
 
     base_mask_value = int(np.max(mask_array)) + 100
