@@ -381,7 +381,7 @@ def make_gaia_mask(
         x = float(x_pixels[i])
         y = float(y_pixels[i])
         gmag = float(mag[i])
-
+        print(f"star {i}: mag={gmag:.2f} radius_pix={radius_pix:.1f}, radius_scale_factor={radius_scale_factor}")
         # increment the mask value so that each star gets a different value
         mask_value = base_mask_value + i  
         

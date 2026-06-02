@@ -303,6 +303,16 @@ parallel --bar -j 16 --joblog cs_gr_int.joblog --results cs_gr_int_logs python ~
 
 ## Check failures
 
+```
+python ~/github/hapy/scripts/check_for_missing_csgr.py
+```
+
+then rerun `run_analysis`
+```
+parallel --bar -j 16 --joblog rerun_csgr.joblog --results rerun_csgr_logs run_analysis --cutout-dir {} --csgr :::: missing_csgr_or_phot.txt
+```
+
+Or 
 ```bash
 grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_reproject logs_cs_gr
 ```
@@ -340,6 +350,8 @@ run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images-v20260518/ --st
 /data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
 cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
+
+
 
 ## Running on a larger sample
 
@@ -404,11 +416,20 @@ parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog
 ```
 
 
+```bash
+parallel --bar  -j 16  --memfree 30G --joblog \
+run_analysis.missing_csgr.joblog \
+--results parallel-logs-csgr-missing run_analysis --cutout-dir "{}" \
+--make-mask --csgr --psf-dir /data-pool/Halpha/psf-images/ --statmorph \
+--galfit --convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_run_analysis_list.txt
+```
+
 For rerunning individual  galaxies:
 
 ```
-run_analysis --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
---convflag --gaia-dir
+run_analysis --make-mask --csgr --psf-dir \
+/data-pool/Halpha/psf-images/ --statmorph --galfit \
+--convflag --gaia-dir \
 /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir cutouts/VFID6463-WISEAJ150809.13+012516.6-INT-20190601-p033
 ```
 
