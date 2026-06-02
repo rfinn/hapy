@@ -984,7 +984,15 @@ def build_mask_for_cutout(
         add_gaia_stars=use_gaia,
     )
 
-    max_fwhm = max(row["R_FWHM_SE"], row["H_FWHM_SE"])
+    max_fwhm = max(row["R_FWHM_PSF"], row["H_FWHM_PSF"])
+    if max_fwhm > 2.5:
+        #try using se fwhm
+        try:
+            logger.info(f" PSF FWHM is big ({max_fwhm} arcsec), checking SE value instead")
+            max_fwhm = max(row["R_FWHM_SE"], row["H_FWHM_SE"])
+        except:
+            logger.info(f" PSF FWHM is big ({max_fwhm} arcsec), no SE value. setting max to 1.5 arcsec")
+            max_fwhm = 1.5
     gaia_min_radius_arcsec = 4 * max_fwhm
     logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
 
