@@ -285,17 +285,18 @@ def get_gaia_stars(image_name, gaiapath=None, use_cache=True,):
         print("No Gaia stars found in FOV.")
         return None, None, None
 
-    print("Found Gaia stars in FOV.")
+    print(f"Found {len(brightstar)} Gaia stars in FOV.")
 
     # Compute mask radii from legacy survey magnitude-radius relation
+    # returns radius in deg
     mask_radius = mask_radius_for_mag(
         brightstar["phot_g_mean_mag"]
     )
 
 
 
-    
-    brightstar["radius"] = mask_radius
+    #radius in deg
+    brightstar["radius_deg"] = mask_radius
 
     # Convert to pixel coords
     starcoord = SkyCoord(
@@ -357,6 +358,8 @@ def make_gaia_mask(
         Gaia-only mask.
     """
 
+    print(f"DEBUG: in make_gaia_mask, pixel_scale_deg = {pixel_scale_deg:.3e}, in arcsec={pixel_scale_deg*3600:.3f}")
+
     if gaia_table is None or len(gaia_table) == 0:
         print("No bright stars on image - woo hoo!")
         return mask_array, np.zeros_like(mask_array)
@@ -365,7 +368,7 @@ def make_gaia_mask(
     gaia_mask = np.zeros_like(mask_array)
 
     mag = gaia_table["phot_g_mean_mag"]
-    rad_deg = gaia_table["radius"]
+    rad_deg = gaia_table["radius_deg"]
     rad_pixels = rad_deg / pixel_scale_deg
 
     base_mask_value = int(np.max(mask_array)) + 100
