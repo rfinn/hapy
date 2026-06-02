@@ -984,7 +984,7 @@ def build_mask_for_cutout(
         add_gaia_stars=use_gaia,
     )
 
-    max_fwhm = max(row["R_FWHM_PSF"], row["H_FWHM_PSF"])
+    max_fwhm = max(row["R_FWHM_SE"], row["H_FWHM_SE])
     gaia_min_radius_arcsec = 4 * max_fwhm
     logger.info(f"Gaia min radius (arcsec) = {gaia_min_radius_arcsec}")
 
