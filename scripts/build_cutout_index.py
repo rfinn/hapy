@@ -280,8 +280,9 @@ def main():
     print("Checking columns after prepare_analysis_table:")
     check_cols = ["REVIEW_PRIORITY", "QC_TIER"]
     for c in tab.columns:
-        if rc in check_cols:
-            print("\tGood news!  I found ",rc)
+        for rc in check_cols:
+            if rc in c:
+                print("\tGood news!  I found ",rc)
             
     outfile = runroot / "html" / "cutouts" / "index.html"
     write_index(entries, outfile, tab)
