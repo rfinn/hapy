@@ -1,10 +1,15 @@
- #md
+# Overview
+
+The duplicate validation and old/new reduction comparisons indicate that the new INT r-band reductions are robust and significantly improved relative to the older reductions, with very small spatially uniform residuals ((< 0.02) dex) and improved duplicate reproducibility. In contrast, the new INT H-alpha reductions exhibit substantially larger duplicate scatter and clear spatially coherent residual structure across the detector. Rebuilding the CS-ZP images locally from the cutouts reduced some of the spatial systematics, but did not fully recover the duplicate consistency seen in the older H-alpha reductions. Additional tests using polynomial flattening with two rounds of illumination correction also failed to reproduce the quality of the older reductions, suggesting that the issue is more fundamental to the newer INT H-alpha processing. Based on these results, the current plan is to adopt a hybrid INT reduction for the catalog paper: use the older INT H-alpha coadds together with the newer INT r-band coadds, reprojecting the r-band images onto the native H-alpha grid to preserve the H-alpha image quality and PSF.
+
+To improve the reliability of the INT continuum-subtracted H-alpha measurements, we constructed a hybrid INT dataset that combines the original pre-2025 H-alpha reductions with the newer 2026 r-band reductions. The newer INT H-alpha reductions showed large spatially dependent residuals and increased scatter in duplicate measurements, likely associated with the illumination-correction and continuum-subtraction processing. We therefore retained the older INT H-alpha coadds, while reprojecting the newer INT r-band coadds and corresponding weight images onto the astrometric grid of the older H-alpha images using SWarp. New PSF models were generated for the reprojected r-band images, while the original H-alpha PSFs were preserved. Continuum-subtracted images (CS-ZP) were then rebuilt directly from the matched r and H-alpha cutouts after local sky subtraction. This hybrid approach substantially improved the repeatability of duplicate measurements while preserving the superior quality of the newer INT r-band reductions.
+
+
+# Alignment Issues
  
- test
  
- 
- 
- # Coadd with no cutouts b/c of bad weight image
+
+# Coadd with no cutouts b/c of bad weight image
  
  
  

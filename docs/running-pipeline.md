@@ -1069,8 +1069,8 @@ python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspectio
 ```
 To test one:
 ```
-python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir
-cutouts --outdir cs_image_inspection :::: cs_group_list.txt
+python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv VFID0481 --cutout-dir
+cutouts --outdir cs_image_inspection 
 ```
 
 To build the plots in parallel:
