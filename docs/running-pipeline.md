@@ -4,10 +4,10 @@
 Move to directory containing coadded images
 
 ```bash
-cd /data-pool/Halpha/coadds-v20260518
+cd /data-pool/Halpha/coadds-v20260609
 ```
 
-Then start the download.
+Then start the download, if catalogs are needed.
 
 ```bash
 python ~/github/hapy/scripts/download_gaia_coadd_catalogs.py 
@@ -21,11 +21,11 @@ cd /data-pool/Halpha/
 ```
 
 ```bash
-mkdir hapy-output-20260518
+mkdir hapy-output-20260609
 ```
 
 ```bash
-cd hapy-output-20260518
+cd hapy-output-20260609
 ```
 
 
@@ -36,8 +36,11 @@ find /data-pool/Halpha/coadds-v20260330/ -maxdepth 1 -type f \( -name "VF*r.fits
 ```
 
 ```bash
-find /data-pool/Halpha/coadds-v20260518/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
+find /data-pool/Halpha/coadds-v20260609/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
+This contains 223 coadds as of 2026-06-09.
+
+
 
 If you have coadds that are still under review, make a copy of the
 full list and remove any coadds that are not ready.
@@ -74,18 +77,15 @@ this should create two folders in the cutouts/ directory.
 get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
 --scheme virgo --maxcorrection 5 --psfdir \
 /data-pool/Halpha/psf-images-v20260518/ --rimage \
-/data-pool/Halpha/coadds-v20260518/VF-126.291+27.988-HDI-20180313-p004-R.fits
+/data-pool/Halpha/coadds-v20260609/VF-126.291+27.988-HDI-20180313-p004-R.fits
 ```
 
-
-
-```bash
-get_cutouts --rimage
-/data-pool/Halpha/coadds-v20260330/VF-126.291+27.988-HDI-20180313-p004-R.fits
---catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
---scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images/
 ```
-
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
+--scheme virgo --maxcorrection 5 --psfdir \
+/data-pool/Halpha/psf-images-v20260518/ --rimage \
+/data-pool/Halpha/coadds-v20260609/VF-177.200+56.055-INT-20220502-VFID0957-r.fits
+```
 
 ### Run on full Virgo sample
 
@@ -171,7 +171,27 @@ Bad coadd names:           0
 Bad cutout dir names:      0
 ```
 
+From 2026-06-09, first pass:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260609-hybrid$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
 
+CUTOUT SUMMARY
+--------------
+Input coadds:              223
+Cutout directories:        856
+Coadds with no cutouts:    0
+Cutout dirs missing R:     0
+Cutout dirs missing CS:    0
+Bad coadd names:           0
+Bad cutout dir names:      0
+```
+I love how the numbers don't match the previous run...
+
+To test one:
+
+```
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images/ --rimage /data-pool/Halpha/coadds-v20260609/VF-178.160+52.290-INT-20220503-VFID1213-r.fits
+```
 
 ## Merge get_cutouts tables
 ```bash
@@ -225,8 +245,100 @@ Final table rows: 853
 Final table columns: 28
 ```
 
+And after 20260609:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260609-hybrid$ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
+Searching for files  cutouts_summary*.ecsv
+Found 223 result files.
+Merging 223 result files.
+Reading tables...
+Validating schema...
+	validated 223/223 tables
+Normalizing string columns...
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260609-hybrid/merged_cutouts_results.fits
+Done.
+Final table rows: 860
+Final table columns: 28
+```
+
 # Create cs-gr images
 
+## Download Legacy Images
+### To copy legacy images from a prior run
+
+Run this command from the directory that contains the hapy output
+directories (this is most likely `/data-pool/Halpha`).
+```
+cd /data-pool/Halpha/
+```
+
+Then do a test run with rsync:
+```
+rsync -av hapy-output-20260519-hybrid/cutouts/ \
+hapy-output-20260609-hybrid/cutouts/ --include '*/' --include 'legacy/***' \
+--exclude '*' --exclude '*logs*' --ignore-existing --prune-empty-dirs --dry-run
+```
+
+If all looks good, remove the `--dry-run` flag and run again.
+
+#### Older versions
+
+```
+rsync -av hapy-output-20260330/cutouts/ hapy-output-20260417/cutouts/
+--include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
+--ignore-existing --prune-empty-dirs
+```
+
+```
+rsync -av hapy-output-20260330/cutouts/ hapy-output-20260417/cutouts/
+--include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
+--ignore-existing --prune-empty-dirs
+```
+
+### To download images...
+To test on one cutout:
+```bash
+python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
+```
+
+### To run on full sample
+
+```bash
+find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
+```
+
+```bash
+ROOTDIR=/data-pool/Halpha/hapy-output-20260310
+```
+then
+```bash
+parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir "$ROOTDIR/cutouts/{}"  :::: cutout_list.txt
+```
+  
+### to resume any failed jobs
+```
+parallel --resume-failed --joblog fetch_legacy.joblog \
+  python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py \
+    --cutout-dir "$ROOTDIR/cutouts/{}" \
+    --layer ls-dr9 \
+  :::: cutout_list.txt
+```
+
+
+### Find cutouts with missing
+
+```
+python ~/github/hapy/scripts/find_missing_legacy_cutouts.py
+```
+
+```
+parallel --bar -j 2 \
+  --joblog fetch_legacy_retry.joblog \
+  python ~/github/hapy/scripts/fetch_legacy_cutouts.py \
+  --cutout-dir {} \
+  :::: missing_legacy_cutouts.txt
+```
 
 ## Reproject Legacy images
 
@@ -240,6 +352,12 @@ python ~/github/hapy/scripts/make_legacy_reprojections.py cutouts/VFID0377-IC121
 ```
 ```bash
 parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
+```
+
+Or just to run on INT images
+```bash
+parallel --bar -j 20 --results legacy_reproject_logs python \
+~/github/hapy/scripts/make_legacy_reprojections.py "{}" --overwrite :::: reproject_cutout_list_INT.txt
 ```
 
 ## Then make CS-gr images
@@ -805,66 +923,7 @@ python ~/github/hapy/scripts/validate_dashboards.py merged_results.fits --sample
 
 # Build Webpages to Review Cutouts
 
-## Download Legacy Images
-### To copy legacy images from a prior run
 
-Run this command from the directory that contains
-e.g. `hapy-output-20260313` and `hapy-output-20260319`.
-```
-rsync -av hapy-output-20260330/cutouts/ hapy-output-20260417/cutouts/
---include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
---ignore-existing --prune-empty-dirs
-```
-
-```
-rsync -av hapy-output-20260330/cutouts/ hapy-output-20260417/cutouts/
---include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*'
---ignore-existing --prune-empty-dirs
-```
-
-### To download images...
-To test on one cutout:
-```bash
-python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir cutouts/VFID2891-UGC04559-HDI-20200225-p004/
-```
-
-### To run on full sample
-
-```bash
-find /data-pool/Halpha/hapy-output-20260310/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list.txt
-```
-
-```bash
-ROOTDIR=/data-pool/Halpha/hapy-output-20260310
-```
-then
-```bash
-parallel --bar -j 2 --joblog fetch_legacy.joblog --results fetch_legacy_logs python ~/github/hapy/scripts/fetch_legacy_cutouts.py --cutout-dir "$ROOTDIR/cutouts/{}"  :::: cutout_list.txt
-```
-  
-### to resume any failed jobs
-```
-parallel --resume-failed --joblog fetch_legacy.joblog \
-  python ~/github/hapy/hapy/imagetools/fetch_legacy_cutouts.py \
-    --cutout-dir "$ROOTDIR/cutouts/{}" \
-    --layer ls-dr9 \
-  :::: cutout_list.txt
-```
-
-
-### Find cutouts with missing
-
-```
-python ~/github/hapy/scripts/find_missing_legacy_cutouts.py
-```
-
-```
-parallel --bar -j 2 \
-  --joblog fetch_legacy_retry.joblog \
-  python ~/github/hapy/scripts/fetch_legacy_cutouts.py \
-  --cutout-dir {} \
-  :::: missing_legacy_cutouts.txt
-```
 
 ## Build Cutout Webpages
 Create a list of the cutout images:

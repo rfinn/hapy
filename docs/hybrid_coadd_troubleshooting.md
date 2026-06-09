@@ -296,7 +296,9 @@ Bad cutout dir names:      0
 
 # Summary
 
-I was able to extra cutouts from 3 problematic coadd pairs by removing the original weight images and making a simple weight image.  the simple weight image has a value of 1 inside the ccds, and 0 outside.   It identifies bad regions as where image values are zero.
+I was able to extra cutouts from 3 problematic coadd pairs by removing
+the original weight images and making a simple weight image.  
+the simple weight image has a value of 1 inside the ccds, and 0 outside.   It identifies bad regions as where image values are zero.
 
 
 Now this doesn't mean that all of the cutouts were created ok.  there could others that were skipped and we just don't know it. 
