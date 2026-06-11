@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+"""
+NOTES:
+
+- built this to measure the photometry on the *Ha.fits files
+- this allows us to look for any calibration systematics without introducing the extra complexity of subtracting the continuum
+
+
+"""
 import argparse
 import json
 import os
@@ -99,6 +107,12 @@ def main():
     if ra is None or dec is None:
         raise ValueError(f"Missing ra/dec in metadata.json for {tag}")
 
+
+
+    # other parameters that we should track
+    redshift = params.get("redshift")
+
+    # get info from image headers
     rheader = fits.getheader(r_fits)
     hheader = fits.getheader(h_fits)
 
@@ -113,6 +127,8 @@ def main():
     zp_h = hheader.get("PHOTZP", np.nan)
     filter_ratio = zp_scale_r_to_ha(zp_h, zp_r)
 
+    
+
     row = {
         "TAG": tag,
         "R_FITS": r_fits.name,
@@ -125,6 +141,46 @@ def main():
         "PHOT_OK": False,
         "PHOT_SEC": np.nan,
     }
+
+
+    row["OBJID"] = params.get("objid", "")
+    row["REDSHIFT"] = params.get("redshift", np.nan)
+    row["VR"] = params.get("vr", np.nan)
+
+    # Filter correction / parent image coordinates
+    row["FILTER_CORRECTION"] = float(params.get("filter_correction", np.nan))
+
+    row["X_PARENT"] = float(
+        params.get("x_parent", params.get("ximage", np.nan))
+    )
+    row["Y_PARENT"] = float(
+        params.get("y_parent", params.get("yimage", np.nan))
+    )
+
+    # Optional floats
+    optional_float_params = {
+        "R_FWHM_SE": "rimage_fwhm_se_arcsec",
+        "R_FWHM_PSF": "rimage_fwhm_psf_arcsec",
+        "H_FWHM_SE": "himage_fwhm_se_arcsec",
+        "H_FWHM_PSF": "himage_fwhm_psf_arcsec",
+        "RFILTER_CENTER": "rfilter_center_A",
+        "RFILTER_WIDTH": "rfilter_width_A",
+        "HFILTER_CENTER": "hafilter_center_A",
+        "HFILTER_WIDTH": "hafilter_width_A",
+    }
+
+    for outcol, key in optional_float_params.items():
+        val = params.get(key)
+        row[outcol] = np.nan if val is None else float(val)
+
+    # Optional strings
+    row["RFILTER_FILENAME"] = params.get("rfilter_name", "")
+    row["HFILTER_FILENAME"] = params.get("hafilter_name", "")
+
+    
+
+    # --- END OF METADATA TRANSFER  
+        
 
     t0 = time.perf_counter()
 
