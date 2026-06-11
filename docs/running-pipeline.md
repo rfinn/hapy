@@ -1158,6 +1158,10 @@ parallel --bar -j 16 --joblog measure_ha_continuum.joblog --results measure_ha_c
 
 
 ```bash
-merge_results --mode ha_continuum --indir cutouts --review-csv
-review_sample_20260514.csv 
+merge_results --mode ha_continuum --indir cutouts --review-csv review_sample_20260514.csv 
 ```
+
+Running this on the following directories:
+- /data-pool/Halpha/hapy-output-20260517-pre2025coadds
+- /data-pool/Halpha/hapy-output-20260517
+- /data-pool/Halpha/hapy-output-20260609-hybrid

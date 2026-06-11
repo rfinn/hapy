@@ -677,7 +677,7 @@ class MaskWindow(Ui_maskWindow, QtCore.QObject):
               '\n \t o = if target is off center (and program is removing the wrong object);'
               '\n \t v = print pixel values at cursor position;'
               '\n\n DISPLAY TOOLS'
-              '\n \t d = if target is off center (and program is removing the wrong object);'
+              '\n \t d = toggle the display between zscale and ;'
               '\n \t m = toggle mask view on current image (outline, filled, none);'
               "\n \t z = sync pan/zoom from active panel to the other panels\n"
               #'\n \t s to change the size of the mask box;'
