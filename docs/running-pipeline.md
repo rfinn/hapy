@@ -493,9 +493,10 @@ parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/
 
 
 ```bash
-run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph
---galfit --convflag --log-to-console --gaia-dir
-/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir
+run_analysis --make-mask  --psf-dir \
+/data-pool/Halpha/psf-images-v20260518/ --statmorph \
+--galfit --convflag --log-to-console --gaia-dir \
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir \
 cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 

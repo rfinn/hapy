@@ -65,7 +65,8 @@ def copy_hapy_cs_fields_to_row(e, row, prefix, pixscale):
         ("HAPY_FILLFRAC", "H_HAPY_FILLFRAC"),
         ("HAPY_SNP_ALL", "H_HAPY_SNP_ALL"),
         ("HAPY_SNP_DET", "H_HAPY_SNP_DET"),
-        ("GINI_THRESHOLD", "ha_gini_threshold"),
+        ("HAPY_H_GINI_THRESHOLD", "ha_gini_threshold"),
+        ("HAPY_R_GINI_THRESHOLD", "r_gini_threshold"),        
         ("HAPY_GINI", "H_HAPY_GINI"),
         ("HAPY_M20", "H_HAPY_M20"),
         ("HAPY_ASYM", "H_HAPY_ASYM"),
@@ -454,7 +455,7 @@ def initialize_result_row():
     for k in ["STAGE", "STATUS"]:
         row[k] = ""
 
-    for k in ["MASK_SEC", "PHOT_SEC","CSGR_SEC", "SM_SEC", "GAL_NC_SEC","GAL_CV_SEC", "TOTAL_SEC"]:
+    for k in ["MASK_SEC", "PHOT_SEC","HAPY_MORPH_SEC","PROFILES_SEC","CSGR_SEC", "SM_SEC", "GAL_NC_SEC","GAL_CV_SEC", "TOTAL_SEC"]:
         row[k] = np.nan    
    
     # ---------- pipeline status ----------
@@ -568,7 +569,8 @@ def initialize_result_row():
     row["R_HAPY_SNP_ALL"] = np.nan    
     row["H_HAPY_SNP_ALL"] = np.nan
     row["H_HAPY_SNP_DET"] = np.nan
-    row["H_GINI_THRESHOLD"] = np.nan
+    row["H_HAPY_GINI_THRESHOLD"] = np.nan
+    row["R_HAPY_GINI_THRESHOLD"] = np.nan    
 
     # morphology
     row["R_HAPY_XC"] = np.nan # R and H have the same center
@@ -801,7 +803,8 @@ def init_csgr_row_defaults(row):
         "CSGR_HAPY_FILLFRAC": np.nan,
         "CSGR_HAPY_SNP_ALL": np.nan,
         "CSGR_HAPY_SNP_DET": np.nan,
-        "CSGR_GINI_THRESHOLD": np.nan,
+        "CSGR_H_HAPY_GINI_THRESHOLD": np.nan,
+        "CSGR_R_HAPY_GINI_THRESHOLD": np.nan,        
         "CSGR_HAPY_GINI": np.nan,
         "CSGR_HAPY_M20": np.nan,
         "CSGR_HAPY_ASYM": np.nan,
@@ -1308,6 +1311,8 @@ def main():
     row["STATUS"] = "running"
     row["MASK_SEC"] = 0.0
     row["PHOT_SEC"] = 0.0
+    row["HAPY_MORPH_SEC"] = 0.0
+    row["PROFILES_SEC"] = 0.0     
     row["CSGR_SEC"] = 0.0
     row["GAL_NC_SEC"] = 0.0
     row["GAL_CV_SEC"] = 0.0    
@@ -1898,7 +1903,11 @@ def main():
         )
 
     # calculate hapy gini
-    e.run_hapy_morphology()
+    t0 = time.perf_counter()
+
+    # could pass in conversions from ADU to cgs
+    e.run_hapy_morphology(nsigma=3, RSKY_SIGMA_FLOOR_SB=4e-16, HSKY_SIGMA_FLOOR_SB=5e-17)
+
 
     print(f"DEBUG: ASYM {e.R_HAPY_ASYM}, center={e.R_HAPY_ASYM_CENTER}")
     row["R_HAPY_NPIX"] = e.R_HAPY_NPIX     
@@ -1907,7 +1916,8 @@ def main():
     row["R_HAPY_SNP_ALL"] = e.R_HAPY_SNP_ALL
     row["H_HAPY_SNP_ALL"] = e.H_HAPY_SNP_ALL
     row["H_HAPY_SNP_DET"] = e.H_HAPY_SNP_DET    
-    row["H_GINI_THRESHOLD"] = e.ha_gini_threshold    
+    row["H_HAPY_GINI_THRESHOLD"] = e.ha_gini_threshold
+    row["R_HAPY_GINI_THRESHOLD"] = e.r_gini_threshold        
     row["R_HAPY_XC"] = e.R_HAPY_XC
     row["R_HAPY_YC"] = e.R_HAPY_YC
     row["R_HAPY_GINI"] = e.R_HAPY_GINI
@@ -1936,12 +1946,14 @@ def main():
     row["HAPY_MORPH_OK"] = e.HAPY_MORPH_OK       
     row["HAPY_MORPH_FLAG"] = e.HAPY_MORPH_FLAG   
     # TODONE add HAPY SNP for H and R
+
+    row["HAPY_MORPH_SEC"] = _scalar(time.perf_counter() - t0)        
     
     # ---- FIT PROFILES!  ----------- #
 
     if valid_file(e.photfile) and valid_file(e.photfile2):
         row["PHOT_OK"] = True
-
+        t0 = time.perf_counter()    
         rtab = Table.read(e.photfile)
         hatab = Table.read(e.photfile2)
 
@@ -1952,7 +1964,7 @@ def main():
         )
 
         row.update(profile_results)
-
+        row["PROFILES_SEC"] = _scalar(time.perf_counter() - t0)        
 
     # Write/update per-galaxy results row
     write_result_row_ecsv(results_path, row)

@@ -1281,15 +1281,17 @@ class EllipsePhotometry():
         self.gini2 = gini(vals)
     
 
-    def build_rband_gini_mask(self, snrcut=2.5, npixels=10):
+    def build_rband_gini_mask(self, snrcut=2.5, npixels=10,threshold=None):
         obj_label = int(self.cat.label[self.objectIndex])
         base_mask = self.segmentation.data == obj_label
 
         if self.mask_flag:
-            threshold = detect_threshold(self.image, nsigma=snrcut, mask=self.boolmask)
+            if threshold is None:
+                threshold = detect_threshold(self.image, nsigma=snrcut, mask=self.boolmask)
             seg = detect_sources(self.image, threshold, npixels=npixels, mask=self.boolmask)
         else:
-            threshold = detect_threshold(self.image, nsigma=snrcut)
+            if threshold is None:
+                threshold = detect_threshold(self.image, nsigma=snrcut)
             seg = detect_sources(self.image, threshold, npixels=npixels)
 
         if seg is None:
@@ -1308,7 +1310,7 @@ class EllipsePhotometry():
         return gini_mask, seg, threshold
 
 
-    def run_hapy_morphology(self, nsigma=3.0, npixels=10, save_diag=True):
+    def run_hapy_morphology(self, nsigma=3.0, npixels=10, save_diag=True, RSKY_SIGMA_FLOOR_SB=None, HSKY_SIGMA_FLOOR_SB=None):
         """
         Compute custom HAPY morphology metrics.
 
@@ -1387,9 +1389,23 @@ class EllipsePhotometry():
             # -------------------------------------------------
             # Build the r-band morphology mask / segmentation
             # -------------------------------------------------
-            self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(
-                snrcut=2.5, npixels=npixels
-            )
+
+            r_sigma_sky_cgs = getattr(self, "im1_skynoise", None)
+        
+            if (RSKY_SIGMA_FLOOR_SB is not None) and (r_sigma_sky_cgs is not None):
+                #r_sky_noise_sb = r_sigma_sky_cgs * self.uconversion1 / self.pixel_scale**2
+                r_sigma_used_sb = max(r_sigma_sky_cgs, R_SIGMA_FLOOR_SB)
+                r_sigma_used_adu = r_sigma_used_sb * self.pixel_scale**2 / self.uconversion1
+                self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(
+                    snrcut=nsigma, npixels=npixels, threshold=nsigma*r_sigma_used_adu
+                    )
+            
+            else:
+            
+
+                self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(
+                    snrcut=nsigma, npixels=npixels
+                )
 
             morph.r_mask = self.r_gini_mask
             morph.r_seg = self.r_gini_seg
@@ -1472,9 +1488,16 @@ class EllipsePhotometry():
             # -------------------------------------------------
             # Halpha threshold / sky noise
             # -------------------------------------------------
-            sigma_sky = getattr(self, "sky_noise2", None)
-            if sigma_sky is None:
-                sigma_sky = getattr(self, "sky2", None)
+            h_sigma_sky_cgs = getattr(self, "im2_skynoise", None)
+        
+            if (HSKY_SIGMA_FLOOR_SB is not None) and (h_sigma_sky_cgs is not None):
+                #r_sky_noise_sb = r_sigma_sky_cgs * self.uconversion1 / self.pixel_scale**2
+                h_sigma_used_sb = max(h_sigma_sky_cgs, H_SIGMA_FLOOR_SB)
+                sigma_sky = h_sigma_used_sb * self.pixel_scale**2 / self.uconversion1
+            else:
+                sigma_sky = getattr(self, "sky_noise2", None)
+                if sigma_sky is None:
+                    sigma_sky = getattr(self, "sky2", None)
 
             morph.h_sigma_sky = sigma_sky if sigma_sky is not None else np.nan
 
@@ -1486,6 +1509,7 @@ class EllipsePhotometry():
                 morph.ok = False
                 return
 
+            # TODO change this to a fixed, physical threshold, or something less sensitive to SNR
             threshold = nsigma * sigma_sky
             self.ha_gini_threshold = threshold
             morph.h_threshold = threshold
