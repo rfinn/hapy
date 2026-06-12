@@ -1394,7 +1394,7 @@ class EllipsePhotometry():
         
             if (RSKY_SIGMA_FLOOR_SB is not None) and (r_sigma_sky_cgs is not None):
                 #r_sky_noise_sb = r_sigma_sky_cgs * self.uconversion1 / self.pixel_scale**2
-                r_sigma_used_sb = max(r_sigma_sky_cgs, R_SIGMA_FLOOR_SB)
+                r_sigma_used_sb = max(r_sigma_sky_cgs, RSKY_SIGMA_FLOOR_SB)
                 r_sigma_used_adu = r_sigma_used_sb * self.pixel_scale**2 / self.uconversion1
                 self.r_gini_mask, self.r_gini_seg, self.r_gini_threshold = self.build_rband_gini_mask(
                     snrcut=nsigma, npixels=npixels, threshold=nsigma*r_sigma_used_adu
@@ -1492,7 +1492,7 @@ class EllipsePhotometry():
         
             if (HSKY_SIGMA_FLOOR_SB is not None) and (h_sigma_sky_cgs is not None):
                 #r_sky_noise_sb = r_sigma_sky_cgs * self.uconversion1 / self.pixel_scale**2
-                h_sigma_used_sb = max(h_sigma_sky_cgs, H_SIGMA_FLOOR_SB)
+                h_sigma_used_sb = max(h_sigma_sky_cgs, HSKY_SIGMA_FLOOR_SB)
                 sigma_sky = h_sigma_used_sb * self.pixel_scale**2 / self.uconversion1
             else:
                 sigma_sky = getattr(self, "sky_noise2", None)
