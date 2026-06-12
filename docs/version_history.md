@@ -200,3 +200,51 @@
 - Updated `merge_results` schema handling.
   - Can fill missing columns using safe/default values.
   - Better support for partial result tables from before CS-gr schema was finalized.
+
+
+
+
+
+
+
+# HAPY v0.3.0 (2026-06-12)
+
+### Major changes:
+- Morphology segmentation now uses a physical SB noise floor.
+- Fixed image2 aperture-noise calculations.
+- FILTER_RATIO derived from PHOTZP.
+- Improved CS-gr support and schema handling.
+- Added robust fallback photutils segmentation generation.
+
+### Impact:
+- Morphology measurements (Gini, M20, asymmetry, fill fraction)
+  may differ from earlier releases.
+- Hα profile uncertainties are more accurate.
+
+### HAPY Morphology Updates 
+
+- Morphology segmentation thresholds are now based on a minimum physical
+  surface-brightness noise floor rather than purely the measured image noise.
+
+- For each image, the effective noise used to build the morphology
+  segmentation is:
+
+      `sigma_eff = max(measured_sigma_SB, sigma_floor_SB)`
+
+  where sigma_SB is the sky noise in physical surface-brightness units.
+
+- Initial floor values:
+      `Hα: 5e-17 erg s^-1 cm^-2 arcsec^-2`
+      `R : 4e-16 erg s^-1 cm^-2 arcsec^-2`
+
+- The adopted physical threshold is converted back to ADU before creating
+  the segmentation image, preserving compatibility with the existing
+  HAPY morphology code.
+
+- This prevents very deep images (especially BOK) from using excessively
+  low segmentation thresholds while still allowing noisier images (e.g.
+  some HDI observations) to use their measured sky noise.
+
+- Goal: reduce instrument-dependent systematics in Gini, M20, asymmetry,
+  fill fraction, and segmentation area by measuring morphology at a more
+  consistent physical surface-brightness limit across the survey.

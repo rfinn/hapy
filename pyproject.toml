@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hapy"
-version = "0.2.4"
+version = "0.3.0"
 description = "H-alpha image analysis and tools"
 authors = [
   { name = "Rose Finn", email = "you@example.com" }

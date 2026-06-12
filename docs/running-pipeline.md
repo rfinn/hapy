@@ -485,6 +485,27 @@ grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_repr
 ```bash
 parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/github/hapy/hapy/scripts/make_cs_gr.fits "{}" :::: cutout_with_dir.txt
 ```
+# Copy manual masks
+
+```
+rsync -avzn \
+  --include='*/' \
+  --include='*-mask-manual.fits' \
+  --exclude='*' \
+  /data-pool/Halpha/hapy-output-20260417/cutouts/ \
+  /data-pool/Halpha/hapy-output-20260612/cutouts/
+```
+
+If that looks good, then remove `n` to exit `DRY_RUN` mode:
+
+```
+rsync -avz \
+  --include='*/' \
+  --include='*-mask-manual.fits' \
+  --exclude='*' \
+  /data-pool/Halpha/hapy-output-20260417/cutouts/ \
+  /data-pool/Halpha/hapy-output-20260612/cutouts/
+```
 
 
 # Run Analysis 
@@ -575,9 +596,10 @@ cutout_run_analysis_list.txt
 
 If manual masking has been done, don't force rebuilding of masks:
 ```bash
-parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog
---results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir /data-pool/Halpha/psf-images/ --statmorph --galfit
---convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_run_analysis_list.txt
+parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog \
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask \
+--psf-dir /data-pool/Halpha/psf-images-v20260518/ --statmorph --galfit \
+--convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_with_dir.txt
 ```
 
 
