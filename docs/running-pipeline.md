@@ -203,6 +203,22 @@ Bad cutout dir names:      0
 ```
 I love how the numbers don't match the previous run...
 
+
+Lastest run on new coadds 2026-06-12:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260612$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
+
+CUTOUT SUMMARY
+--------------
+Input coadds:              226
+Cutout directories:        853
+Coadds with no cutouts:    0
+Cutout dirs missing R:     0
+Cutout dirs missing CS:    0
+Bad coadd names:           0
+Bad cutout dir names:      0
+```
+
 To test one:
 
 ```
@@ -244,7 +260,7 @@ Final table rows: 831
 Final table columns: 28
 ```
 
-And 20260517:
+And 20260517 (same for 2026-06-12):
 ```
 (hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260517$ merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
 Searching for files  cutouts_summary*.ecsv
@@ -290,6 +306,14 @@ cd /data-pool/Halpha/
 ```
 
 Then do a test run with rsync:
+```
+rsync -av hapy-output-20260417/cutouts/ \
+hapy-output-20260612/cutouts/ --include '*/' --include 'legacy/***' \
+--exclude '*' --exclude '*logs*' --ignore-existing --prune-empty-dirs --dry-run
+```
+
+
+#### Hybrid coadds
 ```
 rsync -av hapy-output-20260519-hybrid/cutouts/ \
 hapy-output-20260609-hybrid/cutouts/ --include '*/' --include 'legacy/***' \
@@ -383,7 +407,6 @@ Test one image:
 python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
-
 ```bash
 python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010
 ```
@@ -392,6 +415,11 @@ python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-201
 python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0481-NGC6307-INT-20190602-p010 --auto-contscale
 --auto-contscale-percentile 30 --overwrite
 ```
+
+```bash
+python ~/github/hapy/hapy/scripts/make_cs_gr.py cutouts/VFID0569-NGC5989-BOK-20220424-VFID0607/ --auto-contscale --auto-contscale-method ratio --auto-contscale-percentile 30 --overwrite
+```
+
 
 To solve by fitting the low end of the tail
 ```
@@ -409,15 +437,13 @@ parallel --bar -j 16 --joblog csgr.joblog --results csgr_logs python
 ```
 
 ```
-parallel --bar -j 16 --joblog cs_gr_auto.joblog --results
-cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {}
---auto-contscale --auto-contscale-percentile 30 --overwrite ::::
+parallel --bar -j 16 --joblog cs_gr_auto.joblog --results \
+cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} \
+--auto-contscale --auto-contscale-percentile 30 --overwrite :::: \
 reproject_cutout_list.txt
 ```
 
-
-
-without overwrite
+To run without overwriting an existing cs-gr images:
 ```
 parallel --bar -j 16 --joblog cs_gr_auto.joblog --results \
 cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} \
@@ -425,6 +451,7 @@ cs_gr_auto_logs python ~/github/hapy/hapy/scripts/make_cs_gr.py {} \
 reproject_cutout_list.txt
 ```
 
+#### Hybrid coadds
 Needed to rerun on the INT images (filter lookup issue)
 
 ```
