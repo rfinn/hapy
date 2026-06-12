@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
-CUTOUT_ROOT = Path("/data-pool/Halpha/hapy-output-20260609-hybrid/cutouts")
+#CUTOUT_ROOT = Path("/data-pool/Halpha/hapy-output-20260609-hybrid/cutouts")
+
+# updating to run from current directory
+CUTOUT_ROOT = Path.cwd() / "cutouts/"
 
 missing = []
 
