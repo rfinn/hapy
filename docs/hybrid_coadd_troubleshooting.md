@@ -421,6 +421,7 @@ cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog cutouts_parallel.lo
 grep -R "SKIP_INVALID_REGION" logs/*.cutouts.log
 ```
 
+
 - found 33 skipped galaxies with a mix of INT (16), BOK (13), HDI (1), MOS (3)
 
 

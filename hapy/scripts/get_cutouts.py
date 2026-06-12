@@ -186,7 +186,8 @@ def main(args=None):
             #if "MOS" in args.rimage:
             #    print(f"Invalid regions in weight file for {args.rimage} - making cutout anyway")
             #else:
-            print(f"Skipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}")
+            
+            print(f"\nSkipping {galid[i]}: invalid cutout region ({status}); ra={gra[i]:.6f},dec={gdec[i]:.6f}\n")
             log.warning(
                 "SKIP_INVALID_REGION galid=%s ra=%.8f dec=%.8f size_arcsec=%.3f status=%s",
                 galid[i], gra[i], gdec[i], size_arcsec, status,

@@ -4,7 +4,7 @@
 Move to directory containing coadded images
 
 ```bash
-cd /data-pool/Halpha/coadds-v20260609
+cd /data-pool/Halpha/coadds-v20260330
 ```
 
 Then start the download, if catalogs are needed.
@@ -21,11 +21,11 @@ cd /data-pool/Halpha/
 ```
 
 ```bash
-mkdir hapy-output-20260609
+mkdir hapy-output-20260612
 ```
 
 ```bash
-cd hapy-output-20260609
+cd hapy-output-20260612
 ```
 
 
@@ -34,7 +34,10 @@ cd hapy-output-20260609
 ```bash
 find /data-pool/Halpha/coadds-v20260330/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
+This contains 226 coadds as of 2026-06-12.
 
+
+For hybrid coadds:
 ```bash
 find /data-pool/Halpha/coadds-v20260609/ -maxdepth 1 -type f \( -name "VF*r.fits" -o -name "VF*R.fits" \) | sort > fullpath_rcoadds_all.txt
 ```
@@ -63,16 +66,29 @@ As of 2026-Mar-30:
 
 ### Test on One Image
 
-### 
-
+#### New Coadds (post Dec 2025)
 ```bash
-get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits
---scheme virgo --maxcorrection 5 --psfdir
-/data-pool/Halpha/psf-images/ --rimage
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
+--scheme virgo --maxcorrection 5 --psfdir \
+/data-pool/Halpha/psf-images-v20260518/ --rimage \
 /data-pool/Halpha/coadds-v20260330/VF-126.291+27.988-HDI-20180313-p004-R.fits
 ```
-this should create two folders in the cutouts/ directory.
+This should create two folders in the cutouts/ directory.
 
+```
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
+--scheme virgo --maxcorrection 5 --psfdir \
+/data-pool/Halpha/psf-images-v20260518/ --rimage \
+/data-pool/Halpha/coadds-v20260330/VF-177.143+56.083-INT-20220502-VFID0957-r.fits
+```
+This says there are 6 galaxies in FOV, but one is skipped b/c it is
+outside usable area:
+```
+Skipping VFID0974-PGC12807144NED001: invalid cutout region (r_invalid); ra=177.526207,dec=55.782624
+```
+
+#### Hybrid coadds
+For hybrid coadds (I think):
 ```bash
 get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
 --scheme virgo --maxcorrection 5 --psfdir \
@@ -1165,3 +1181,19 @@ Running this on the following directories:
 - /data-pool/Halpha/hapy-output-20260517-pre2025coadds
 - /data-pool/Halpha/hapy-output-20260517
 - /data-pool/Halpha/hapy-output-20260609-hybrid
+
+
+```
+rsync -avz
+draco:/data-pool/Halpha/hapy-output-20260517-pre2025coadds/merged"*".fits
+hapy-output-20260517-pre2025coadds/.
+```
+
+```
+rsync -avz
+draco:/data-pool/Halpha/hapy-output-20260609-hybrid/merged"*".fits
+hapy-output-20260609-hybrid/.
+```
+
+
+rsync -avz draco:/data-pool/Halpha/hapy-output-20260517/merged"*".fits hapy-output-20260517/.
