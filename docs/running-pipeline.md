@@ -390,6 +390,9 @@ test one:
 ```
 python ~/github/hapy/scripts/make_legacy_reprojections.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
+
+
+To run all:
 ```bash
 parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
 ```
