@@ -1581,14 +1581,14 @@ class build_html_cutout():
             'Stage',
         ]
 
-        pointing = get_result("POINTING", "")
-        if isinstance(pointing, str) and len(pointing) > 0:
-            pointing_str = f'<a href="../../coadds/{pointing}/{pointing}.html">{pointing}</a>'
-        else:
-            pointing_str = "--"
+        # pointing = get_result("POINTING", "")
+        # if isinstance(pointing, str) and len(pointing) > 0:
+        #     pointing_str = f'<a href="../../coadds/{pointing}/{pointing}.html">{pointing}</a>'
+        # else:
+        #     pointing_str = "--"
 
         if self.cutout.parent_url:
-            pointing_str = f"<a href={self.cutout.parent_url}>{self.run}</a>",
+            pointing_str = f"<a href='{self.cutout.parent_url}'>{self.run}</a>"
         else:
             pointing_str = "NA"
             

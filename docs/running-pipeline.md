@@ -598,10 +598,40 @@ If manual masking has been done, don't force rebuilding of masks:
 ```bash
 parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog \
 --results parallel-logs run_analysis --cutout-dir "{}" --make-mask \
---psf-dir /data-pool/Halpha/psf-images-v20260518/ --statmorph --galfit \
+--psf-dir /data-pool/Halpha/psf-images-v20260330/ --statmorph --galfit \
 --convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_with_dir.txt
 ```
 
+
+#### Run with cs-gr enabled and manual masking
+```bash
+parallel --bar  -j 16  --memfree 30G --joblog run_analysis.joblog \
+--results parallel-logs run_analysis --cutout-dir "{}" --make-mask \
+--psf-dir /data-pool/Halpha/psf-images-v20260330/ --statmorph --galfit \
+--csgr \
+--convflag --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: cutout_with_dir.txt
+```
+
+
+#### Rerunning INT cutouts
+
+To rerun INT cutouts only (because I gave the wrong psf dir :( )
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d -name "*INT*" | sort > INT_cutouts.txt
+```
+
+```
+parallel --bar -j 16 --joblog run_analysis_INT_rerun.joblog \
+--memfree 30G --results run_analysis_INT_logs \
+run_analysis --cutout-dir "{}" --make-mask \
+--psf-dir /data-pool/Halpha/psf-images-v20260330/ --statmorph --galfit \
+--convflag --gaia-dir \
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ :::: INT_cutouts.txt
+```
+
+
+#### Other special cases
 
 ```bash
 parallel --bar  -j 16  --memfree 30G --joblog \
@@ -627,6 +657,7 @@ cutouts/VFID2766-WISEAJ133704.60+315337.9-HDI-20170522-p006
 cutouts/VFID2745-UGC08602-HDI-20170522-p006
 ```
 
+#### Tracking progress
 You can monitor memory usage with 
 ```
 htop
@@ -706,6 +737,26 @@ Final table rows: 764
 Final table columns: 390
 ```
 
+New sample as of 2026-06-12:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260612$ merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260514.csv
+Searching for files  *results.ecsv
+Found 853 result files.
+Skipping 39 files with CATALOG_USE == EXCLUDE
+Merging 814 result files.
+Reading tables...
+Validating schema...
+/data-pool/github/hapy/hapy/scripts/merge_results.py:201: RuntimeWarning: invalid value encountered in cast
+  tab[col] = np.array(tab[col], dtype=ref_dtype)
+	validated 814/814 tables
+Normalizing string columns...
+Stacking tables...
+Writing merged table → /data-pool/Halpha/hapy-output-20260612/merged_results_virgo_20260612.fits
+Done.
+Final table rows: 814
+Final table columns: 498
+
+```
 
 ### Summarize statistics in  `merged_results.py`
 ```
