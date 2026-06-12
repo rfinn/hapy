@@ -54,7 +54,7 @@ def main():
         sys.exit(1)
 
     for outfile in outputs:
-        print(f"Wrote {outfile}")
+        print(f"Wrote {outfile} (unless they already existed :)")
 
 
 if __name__ == "__main__":
