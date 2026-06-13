@@ -739,24 +739,32 @@ Final table columns: 390
 
 New sample as of 2026-06-12:
 ```
-(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260612$ merge_results --indir cutouts --mode run_analysis --review-csv review_sample_20260514.csv
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260612$ merge_results --indir cutouts --mode run_analysis
 Searching for files  *results.ecsv
 Found 853 result files.
-Skipping 39 files with CATALOG_USE == EXCLUDE
-Merging 814 result files.
+Merging 853 result files.
 Reading tables...
 Validating schema...
 /data-pool/github/hapy/hapy/scripts/merge_results.py:201: RuntimeWarning: invalid value encountered in cast
   tab[col] = np.array(tab[col], dtype=ref_dtype)
-	validated 814/814 tables
+WARNING: adding 1 missing columns to cutouts/VFID3714-GALEXASCJ163239.29+194733.3-BOK-20220425-VFID3714/VFID3714-GALEXASCJ163239.29+194733.3-BOK-20220425-VFID3714-results.ecsv
+WARNING: adding 1 missing columns to cutouts/VFID3719-GALEXASCJ163419.44+194311.5-BOK-20220425-VFID3714/VFID3719-GALEXASCJ163419.44+194311.5-BOK-20220425-VFID3714-results.ecsv
+WARNING: adding 1 missing columns to cutouts/VFID4063-SDSSJ153524.36+161944.7-INT-20220502-VFID4037/VFID4063-SDSSJ153524.36+161944.7-INT-20220502-VFID4037-results.ecsv
+WARNING: adding 1 missing columns to cutouts/VFID5868-SDSSJ135615.94+050954.0-HDI-20180313-p056/VFID5868-SDSSJ135615.94+050954.0-HDI-20180313-p056-results.ecsv
+WARNING: adding 1 missing columns to cutouts/VFID6454-LEDA4609875-BOK-20210418-VFID6406/VFID6454-LEDA4609875-BOK-20210418-VFID6406-results.ecsv
+WARNING: adding 1 missing columns to cutouts/VFID6454-LEDA4609875-MOS-20110404-NGC5846_02/VFID6454-LEDA4609875-MOS-20110404-NGC5846_02-results.ecsv
+	validated 853/853 tables
 Normalizing string columns...
 Stacking tables...
-Writing merged table → /data-pool/Halpha/hapy-output-20260612/merged_results_virgo_20260612.fits
+Writing merged table → /data-pool/Halpha/hapy-output-20260612/merged_results_virgo_20260613.fits
 Done.
-Final table rows: 814
-Final table columns: 498
+Final table rows: 853
+Final table columns: 491
 
 ```
+
+Not sure what the missing column is....
+
 
 ### Summarize statistics in  `merged_results.py`
 ```
@@ -939,11 +947,85 @@ TOTAL_SEC   : 22.71
 Number with bad phot = 12
 
 ```
+
+#### 2026-06-12 Run:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260612$ python ~/github/hapy/scripts/summarize_run.py --infile merged_results_virgo_20260613.fits --scheme virgo
+
+HAPY RUN SUMMARY
+----------------
+Total galaxies: 853
+Unique galaxies: 675
+
+Pipeline completion
+-------------------
+PSF_OK            :  853 OK  |    0 FAIL  (100.0%)
+MASK_OK           :  853 OK  |    0 FAIL  (100.0%)
+PHOT_OK           :  847 OK  |    6 FAIL  ( 99.3%)
+HAPY_MORPH_OK     :  844 OK  |    9 FAIL  ( 98.9%)
+R_PROFILE_OK      :  847 OK  |    6 FAIL  ( 99.3%)
+H_PROFILE_OK      :  780 OK  |   73 FAIL  ( 91.4%)
+R_SM_OK           :  757 OK  |   96 FAIL  ( 88.7%)
+H_SM_OK           :  757 OK  |   96 FAIL  ( 88.7%)
+GAL_NC_OK         :  264 OK  |  589 FAIL  ( 30.9%)
+GAL_CV_OK         :  261 OK  |  592 FAIL  ( 30.6%)
+R_PETRO_OK        :  799 OK  |   54 FAIL  ( 93.7%)
+R_EXPFIT_OK       :  847 OK  |    6 FAIL  ( 99.3%)
+R_LOGFIT_OK       :  847 OK  |    6 FAIL  ( 99.3%)
+H_PETRO_OK        :  577 OK  |  276 FAIL  ( 67.6%)
+H_EXPFIT_OK       :  572 OK  |  281 FAIL  ( 67.1%)
+H_LOGFIT_OK       :  572 OK  |  281 FAIL  ( 67.1%)
+BRIGHT_STAR_FLAG  :    0 OK  |  853 FAIL  (  0.0%)
+HAPY_MORPH_FLAG   :   89 OK  |  764 FAIL  ( 10.4%)
+R_SM_FLAG         :  299 OK  |  554 FAIL  ( 64.9%)
+R_SM_SERSIC_FLAG  :  107 OK  |  746 FAIL  ( 87.5%)
+H_SM_FLAG         :  371 OK  |  482 FAIL  ( 56.5%)
+H_SM_SERSIC_FLAG  :  188 OK  |  665 FAIL  ( 78.0%)
+CSGR_PHOT_OK      :  847 OK  |    6 FAIL  ( 99.3%)
+CSGR_HAPY_MORPH_OK:  846 OK  |    7 FAIL  ( 99.2%)
+CSGR_HAPY_MORPH_FLAG:   27 OK  |  826 FAIL  (  3.2%)
+CSGR_H_EXPFIT_OK  :  525 OK  |  328 FAIL  ( 61.5%)
+CSGR_H_LOGFIT_OK  :  525 OK  |  328 FAIL  ( 61.5%)
+CSGR_H_PETRO_OK   :  535 OK  |  318 FAIL  ( 62.7%)
+CSGR_H_PROFILE_OK :  810 OK  |   43 FAIL  ( 95.0%)
+CSGR_R_EXPFIT_OK  :  847 OK  |    6 FAIL  ( 99.3%)
+CSGR_R_LOGFIT_OK  :  847 OK  |    6 FAIL  ( 99.3%)
+CSGR_R_PETRO_OK   :  799 OK  |   54 FAIL  ( 93.7%)
+CSGR_R_PROFILE_OK :  847 OK  |    6 FAIL  ( 99.3%)
+
+
+PROFILES_BOTH     :  780 ( 91.4%)
+
+STATMORPH_BOTH    :  224
+
+STATUS counts
+-------------
+running     : 513
+ok          : 340
+
+STAGE counts
+------------
+phot        : 507
+done        : 340
+init        : 6
+
+Runtime medians (sec)
+---------------------
+MASK_SEC    : 0.00
+PHOT_SEC    : 9.04
+SM_SEC      : 4.16
+TOTAL_SEC   : 0.00
+
+Number with bad phot = 6
+```
+
+A lot of galfit failures.  Need to revisit this.
+
 ## Make qc plots
 
 Create some basic qc plots:
 ```
-python ~/github/hapy/scripts/qc_results.py merged_results.fits --scheme virgo
+python ~/github/hapy/scripts/qc_results.py --scheme virgo merged_results.fits 
 ```
 
 Output from 2026-04-17:
@@ -1012,7 +1094,54 @@ WARN_MASK                    & SEVERE_CEN_ANY              :    9
 
 ```
 
+#### 2026-06-12 Run
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260612$ python ~/github/hapy/scripts/qc_results.py --scheme virgo merged_results_virgo_20260613.fits 
+Read 853 rows from merged_results_virgo_20260613.fits
+UPDATE: adding VFINDEX
+REVIEW_PRIORITY SUMMARY
+{np.str_('high'): np.int64(101), np.str_('low'): np.int64(345), np.str_('medium'): np.int64(407)}
+ELL_MISMATCH 280
+FILTER_WARNING 81
+WARN_MASK 31
+BRIGHT_STAR_FLAG 0
+WARN_WEAK_HA 236
+/home/siena.edu/rfinn/github/hapy/scripts/qc_results.py:564: UserWarning: Warning: converting a masked element to nan.
+  out[i] = float(v)
+Wrote QC products to qc
+Number of high priority in qc/tables/review = 101
+writing  qc/tables/review/review_sample.csv
 
+
+REVIEW PRIORITY SUMMARY
+{np.str_('high'): np.int64(101), np.str_('low'): np.int64(345), np.str_('medium'): np.int64(407)}
+
+HIGH PRIORITY DRIVERS
+NOT_PHOT_OK                 : total=   6  in_high=   6
+NOT_HAPY_MORPH_OK           : total=   9  in_high=   9
+BRIGHT_STAR_FLAG            : total=   0  in_high=   0
+WARN_MASK                   : total=  31  in_high=  31
+SEVERE_CEN_ANY              : total=  78  in_high=  78
+WARN_CUTOUT_MISSING_SHAPE   : total=   0  in_high=   0
+
+MEDIUM PRIORITY DRIVERS
+ELL_MISMATCH                : total= 280  in_medium= 190
+WARN_WEAK_HA                : total= 236  in_medium= 208
+WARN_CEN_ANY                : total= 206  in_medium= 119
+WARN_R_PROFILE_PEAK         : total= 137  in_medium=  90
+WARN_CUTOUT_MISSING         : total=   0  in_medium=   0
+
+OVERLAP AMONG HIGH DRIVERS
+NOT_PHOT_OK                  & NOT_HAPY_MORPH_OK           :    6
+NOT_PHOT_OK                  & WARN_MASK                   :    1
+NOT_HAPY_MORPH_OK            & WARN_MASK                   :    3
+NOT_HAPY_MORPH_OK            & SEVERE_CEN_ANY              :    2
+WARN_MASK                    & SEVERE_CEN_ANY              :   14
+
+```
+
+
+### Duplicates
 
 Inspecting duplicate observations:
 ```
@@ -1050,7 +1179,11 @@ Create a list of the cutout images:
 ```bash
 find /data-pool/Halpha/hapy-output-20260417/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 ```
-
+```
+find /data-pool/Halpha/hapy-output-20260612/cutouts -mindepth 1 \
+-maxdepth 1 -type d -printf "%f\n" | sort > \
+cutout_list_buildwebpages.txt
+```
 Test on one directory:
 ```bash
 ROOTDIR=/data-pool/Halpha/hapy-output-20260417
@@ -1090,24 +1223,12 @@ rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
 ```
 
 
-# Testing on laptop
-
-```
-run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3. --statmorph
---galfit --convflag --log-to-console --gaia-dir
-/Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3/ --cutout-dir cutouts/VFID1588-NGC5169-HDI-20170523-p023
-```
-
-```
-run_analysis --make-mask  --psf-dir /Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3 --gaia-dir
-/Users/rfinn/research/Virgo/hatools_test/coadds-virgo-test3/ --cutout-dir cutouts/VFID1588-NGC5169-HDI-20170523-p023
-```
 
 
 # After completing manual masking
 
 - I identified galaxies that needed manual masking and then created
-  the masks.
+  the masks using `run_maskgui`
 - I have to rerun `run_analysis` on these galaxies
 
 ## Identify the galaxies that have a manual mask:
@@ -1235,7 +1356,7 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/h
 ```
 
 
-## Visualize CS Images and Select Best Duplicate
+# Visualize CS Images and Select Best Duplicate
 
 To just write the duplicates table:
 ```

@@ -6,7 +6,7 @@
 |	  `CATALOG_USE` | Meaning |
 |---|---|
 |  `CLEAN` | Science ready |
-| `CAUTION` | significant contamination from neighbor or star |
+| `CAUTION` | significant contamination from neighbor or star, or partial coverage |
 | `EXCLUDE` | swamped by neighbor or star |
 
 `VIS_CLASS` should indicate reason (e.g. star or neighbor)
