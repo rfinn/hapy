@@ -514,6 +514,7 @@ class CoaddImage:
         weight_header = None
         weight_output_name = None
 
+        print(f"DEBUG: self.weight_flag={self.weight_flag}, self.weight_image={self.weight_image}")
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
             try:
                 wdata, wheader = fits.getdata(self.weight_image, header=True)
@@ -522,6 +523,7 @@ class CoaddImage:
                 weight_header = wheader.copy()
                 weight_header.update(wcut_obj.wcs.to_header())
             except Exception:
+                print("WARNING: could not get info from ",self.weight_image,", setting wcut=None")
                 wcut = None
                 weight_header = None
 
