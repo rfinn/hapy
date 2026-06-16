@@ -90,7 +90,7 @@ As of 2026-Mar-30:
 ```bash
 get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits \
 --scheme virgo --maxcorrection 5 --psfdir \
-/data-pool/Halpha/psf-images-v20260518/ --rimage \
+/data-pool/Halpha/psf-images-v20260330/ --rimage \
 /data-pool/Halpha/coadds-v20260330/VF-126.291+27.988-HDI-20180313-p004-R.fits
 ```
 This should create two folders in the cutouts/ directory.

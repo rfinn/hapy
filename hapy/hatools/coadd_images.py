@@ -246,7 +246,7 @@ class CoaddImage:
             self.weight_flag = False
 
 
-        print("DEBUG", self.image, "weight_flag=", self.weight_flag, "weight_image=", self.weight_image)
+        print("DEBUG", self.image_file, "weight_flag=", self.weight_flag, "weight_image=", self.weight_image)
 
         
     def check_for_psf(self, psfdir=None): # MVC - model
