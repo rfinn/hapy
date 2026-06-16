@@ -941,6 +941,34 @@ class HalphaImageSet:
         fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(cs_name, overwrite=True)
         print(f"CS-ZP cutout saved to {cs_name}")
 
+
+        # --------------------------------------------------
+        # CS-ZP weight image: make if and r weights are avail
+        # --------------------------------------------------
+        
+        ha_wfile = h_name.replace(".fits", ".weight.fits")
+        r_wfile  = r_name.replace(".fits", ".weight.fits")
+
+        if os.path.exists(ha_wfile) and os.path.exists(r_wfile):
+
+            ha_w, whdr = fits.getdata(ha_wfile, header=True)
+            r_w = fits.getdata(r_wfile)
+
+            cs_w = np.minimum(ha_w, r_w)
+
+            cs_w_hdr = whdr.copy()
+            cs_w_hdr["CSWGT"] = (True, "CS-ZP weight image")
+            cs_w_hdr["CSWGTMOD"] = ("MIN", "Weight combination method")
+
+            cs_w_name = cs_name.replace(".fits", ".weight.fits")
+
+            fits.PrimaryHDU(
+                data=cs_w.astype(ha_w.dtype),
+                header=cs_w_hdr,
+                ).writeto(cs_w_name, overwrite=True)
+
+            print(f"CS-ZP weight cutout saved to {cs_w_name}")
+    
         return "ok"
 
 
