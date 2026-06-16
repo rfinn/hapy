@@ -1,4 +1,24 @@
 
+# Creating Simple Weights for all INT coadds
+you only need to do this once for the coadd directory
+```
+mkdir ORIGINAL_INT_WEIGHTS
+```
+
+```
+mv *INT*weight.fits ORIGINAL_INT_WEIGHTS/.
+```
+
+create a list of all INT coadds:
+```
+ls VF*INT*r.fits VF*INT*Halpha.fits VF*INT*Ha6657.fits > INT_all_coadds.txt
+```
+
+
+```
+parallel --bar -j 16 --joblog make_simple_weight_INT.joblog --results make_simple_weight_logs python ~/github/hapy/scripts/make_simple_weight_from_coadd.py {} :::: INT_all_coadds.txt
+```
+
 
 # Download the gaia files
 Move to directory containing coadded images
@@ -1431,3 +1451,29 @@ Rebuild cutout index:
 ```bash
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260501.fits
 ```
+
+
+# Create output table that is row-matched to Virgo Filament Tables
+
+```
+(virgo) rfinn@s64247 hapy-output-20260612 % python ~/github/hapy/scripts/make_vfs_hapy_rowmatched.py --help
+usage: make_vfs_hapy_rowmatched.py [-h] [--outfile OUTFILE] [--n-vfs N_VFS] hapy_table
+
+Create a VFS-row-matched HAPY table ordered by VFID.
+
+positional arguments:
+  hapy_table         HAPY merged_results table, preferably *_with_best_duplicate.fits
+
+options:
+  -h, --help         show this help message and exit
+  --outfile OUTFILE  Output FITS file. Default: <input_stem>_vfs_rowmatched.fits
+  --n-vfs N_VFS      Number of VFS rows/VFIDs. Default: 6780.
+```
+
+
+To run:
+```
+python ~/github/hapy/scripts/make_vfs_hapy_rowmatched.py merged_results_virgo_20260615_with_best_duplicate.fits
+```
+
+The copy to table directory, and update `hapypost/scripts/
