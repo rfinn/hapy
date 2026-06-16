@@ -516,6 +516,13 @@ class CoaddImage:
 
         print(f"DEBUG: self.weight_flag={self.weight_flag}, self.weight_image={self.weight_image}")
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
+            # moving block before try to see what is failing for r-band iamges
+            wdata, wheader = fits.getdata(self.weight_image, header=True)
+            wcut_obj = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs)
+            wcut = wcut_obj.data.copy()
+            weight_header = wheader.copy()
+            weight_header.update(wcut_obj.wcs.to_header())
+            
             try:
                 wdata, wheader = fits.getdata(self.weight_image, header=True)
                 wcut_obj = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs)
@@ -615,6 +622,7 @@ class CoaddImage:
             fits.PrimaryHDU(data=wcut, header=weight_header).writeto(weight_output_name, overwrite=True)
 
         if self.verbose:
+            print()
             print(f"Cutout saved to {output_name}")
             if weight_output_name is not None:
                 print(f"Weight cutout saved to {weight_output_name}")
