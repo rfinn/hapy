@@ -506,33 +506,49 @@ class CoaddImage:
             base = os.path.basename(self.image_file).replace(".fits", "")
             output_name = f"{base}-cutout.fits"
 
-
         # --------------------------------------------------
         # Matched weight cutout
         # --------------------------------------------------
-        wcut = None 
+        wcut = None
         weight_header = None
         weight_output_name = None
 
+        if output_name is not None:
+            weight_output_name = str(output_name).replace(".fits", ".weight.fits")
+
         print(f"DEBUG: self.weight_flag={self.weight_flag}, self.weight_image={self.weight_image}")
+
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
-            # moving block before try to see what is failing for r-band iamges
-            wdata, wheader = fits.getdata(self.weight_image, header=True)
-            wcut_obj = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs)
-            wcut = wcut_obj.data.copy()
-            weight_header = wheader.copy()
-            weight_header.update(wcut_obj.wcs.to_header())
-            
             try:
                 wdata, wheader = fits.getdata(self.weight_image, header=True)
-                wcut_obj = Cutout2D(wdata, position=position, size=(size_pix, size_pix), wcs=self.wcs)
-                wcut = wcut_obj.data.copy()
-                weight_header = wheader.copy()
-                weight_header.update(wcut_obj.wcs.to_header())
-            except Exception:
-                print("WARNING: could not get info from ",self.weight_image,", setting wcut=None")
+
+                if slices_original is not None:
+                    # Use the exact same parent-image slice as the science cutout.
+                    yslice, xslice = slices_original
+                    wcut = wdata[yslice, xslice].copy()
+                    weight_wcs = self.wcs.slice((yslice, xslice))
+                    weight_header = wheader.copy()
+                    weight_header.update(weight_wcs.to_header())
+
+                else:
+                    # This should normally only happen for the first/Halpha cutout.
+                    wcut_obj = Cutout2D(
+                        wdata,
+                        position=position,
+                        size=(size_pix, size_pix),
+                        wcs=self.wcs,
+                    )
+                    wcut = wcut_obj.data.copy()
+                    weight_header = wheader.copy()
+                    weight_header.update(wcut_obj.wcs.to_header())
+
+            except Exception as err:
+                print(f"WARNING: could not make weight cutout from {self.weight_image}: {err}")
                 wcut = None
                 weight_header = None
+                weight_output_name = None
+                
+
 
         # --- reject edge / chip-gap cases based on weight image ---
         weight_ok, weight_stats = _weight_ok(wcut, central_frac=0.25, min_center_frac=0.8)
