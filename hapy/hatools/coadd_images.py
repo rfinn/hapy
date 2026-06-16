@@ -932,6 +932,12 @@ class HalphaImageSet:
         cs_hdr["CSPHZPH"] = (float(zp_h) if np.isfinite(zp_h) else np.nan, "Parent Ha PHOTZP")
         cs_hdr["CSLSKY"] = (bool(subtract_sky), "Local sky-sub applied before CS")
 
+        ha_wfile = h_name.replace(".fits", ".weight.fits")
+        r_wfile  = r_name.replace(".fits", ".weight.fits")
+        
+        cs_hdr["HAWGT"] = os.path.basename(ha_wfile)
+        cs_hdr["RWGT"]  = os.path.basename(r_wfile)
+
         if np.isfinite(scale):
             cs_data = h_data.astype(float) - scale * r_data.astype(float)
         else:
@@ -946,8 +952,6 @@ class HalphaImageSet:
         # CS-ZP weight image: make if and r weights are avail
         # --------------------------------------------------
         
-        ha_wfile = h_name.replace(".fits", ".weight.fits")
-        r_wfile  = r_name.replace(".fits", ".weight.fits")
 
         if os.path.exists(ha_wfile) and os.path.exists(r_wfile):
 
@@ -959,7 +963,6 @@ class HalphaImageSet:
             cs_w_hdr = whdr.copy()
             cs_w_hdr["CSWGT"] = (True, "CS-ZP weight image")
             cs_w_hdr["CSWGTMOD"] = ("MIN", "Weight combination method")
-
             cs_w_name = cs_name.replace(".fits", ".weight.fits")
 
             fits.PrimaryHDU(
