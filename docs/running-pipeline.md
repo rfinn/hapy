@@ -523,9 +523,9 @@ cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 
 
 ```bash
-run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images/ --statmorph \
---galfit --convflag --log-to-console --gaia-dir \
-/data-pool/Halpha/coadds-v20260518/gaia_catalogs/ --cutout-dir \
+run_analysis --make-mask  --psf-dir /data-pool/Halpha/psf-images-v20260330/ --statmorph \
+--galfit --convflag --csgr --log-to-console --gaia-dir \
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir \
 cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
@@ -1215,6 +1215,13 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot \
 /data-pool/Halpha/hapy-output-20260519-hybrid/merged_results_virgo_20260521_with_best_duplicate.fits
 ```
 
+
+```
+python ~/github/hapy/scripts/build_cutout_index.py --runroot \
+/data-pool/Halpha/hapy-output-20260612/ --results-table \
+/data-pool/Halpha/hapy-output-20260612/merged_results_virgo_20260613.fits
+```
+
 ## Rsync files
 
 from ROOTDIR:
@@ -1223,6 +1230,76 @@ rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
 ```
 
 
+# Visualize CS Images and Select Best Duplicate
+
+To just write the duplicates table:
+```
+python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
+```
+
+To create an input list for running in parallel:
+```
+python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
+```
+To test one:
+```
+python ~/github/hapy/scripts/inspect_cs_images.py plot-one \
+cs_image_inspection/cs_image_inspection_groups.ecsv VFID0481 \
+--cutout-dir cutouts --outdir cs_image_inspection 
+```
+
+To build the plots in parallel:
+```
+parallel --bar -j 16 --joblog cs_image_plot.joblog --results \
+cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py \
+plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} \
+--cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
+```
+
+# Run photometry on Halpha image with continuum for qc/validation
+
+To run on one galaxy:
+```
+python ~/github/hapy/scripts/measure_ha_with_continuum_profiles.py --cutout-dir cutouts/VFID1934-NGC2799-INT-20190205-p026 --overwrite
+```
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d | sort > cutout_with_dir.txt
+```
+
+
+```
+parallel --bar -j 16 --joblog measure_ha_continuum.joblog --results measure_ha_continuum_logs python ~/github/hapy/scripts/measure_ha_with_continuum_profiles.py --cutout-dir {} --overwrite :::: cutout_with_dir.txt
+```
+
+
+```bash
+merge_results --mode ha_continuum --indir cutouts --review-csv review_sample_20260514.csv 
+```
+
+Running this on the following directories:
+- /data-pool/Halpha/hapy-output-20260517-pre2025coadds
+- /data-pool/Halpha/hapy-output-20260517
+- /data-pool/Halpha/hapy-output-20260609-hybrid
+
+
+### To transfer data tables to my laptop:
+```
+rsync -avz
+draco:/data-pool/Halpha/hapy-output-20260517-pre2025coadds/merged"*".fits
+hapy-output-20260517-pre2025coadds/.
+```
+
+```
+rsync -avz
+draco:/data-pool/Halpha/hapy-output-20260609-hybrid/merged"*".fits
+hapy-output-20260609-hybrid/.
+```
+
+
+```
+rsync -avz draco:/data-pool/Halpha/hapy-output-20260517/merged"*".fits hapy-output-20260517/.
+```
 
 
 # After completing manual masking
@@ -1231,7 +1308,7 @@ rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
   the masks using `run_maskgui`
 - I have to rerun `run_analysis` on these galaxies
 
-## Identify the galaxies that have a manual mask:
+## 1. Identify the galaxies that have a manual mask:
 ```bash
 find cutouts -mindepth 2 -maxdepth 2 -name "*-mask-manual.fits" \
   | xargs -n1 dirname \
@@ -1354,71 +1431,3 @@ Rebuild cutout index:
 ```bash
 python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260417/ --results-table /data-pool/Halpha/hapy-output-20260417/merged_results_virgo_20260501.fits
 ```
-
-
-# Visualize CS Images and Select Best Duplicate
-
-To just write the duplicates table:
-```
-python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results.fits --outdir cs_image_inspection --min-dups 1
-```
-
-To create an input list for running in parallel:
-```
-python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
-```
-To test one:
-```
-python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv VFID0481 --cutout-dir
-cutouts --outdir cs_image_inspection 
-```
-
-To build the plots in parallel:
-```
-parallel --bar -j 16 --joblog cs_image_plot.joblog --results \
-cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py \
-plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} \
---cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
-```
-
-# Run photometry on Halpha image with continuum for qc/validation
-
-To run on one galaxy:
-```
-python ~/github/hapy/scripts/measure_ha_with_continuum_profiles.py --cutout-dir cutouts/VFID1934-NGC2799-INT-20190205-p026 --overwrite
-```
-
-```
-find cutouts -mindepth 1 -maxdepth 1 -type d | sort > cutout_with_dir.txt
-```
-
-
-```
-parallel --bar -j 16 --joblog measure_ha_continuum.joblog --results measure_ha_continuum_logs python ~/github/hapy/scripts/measure_ha_with_continuum_profiles.py --cutout-dir {} --overwrite :::: cutout_with_dir.txt
-```
-
-
-```bash
-merge_results --mode ha_continuum --indir cutouts --review-csv review_sample_20260514.csv 
-```
-
-Running this on the following directories:
-- /data-pool/Halpha/hapy-output-20260517-pre2025coadds
-- /data-pool/Halpha/hapy-output-20260517
-- /data-pool/Halpha/hapy-output-20260609-hybrid
-
-
-```
-rsync -avz
-draco:/data-pool/Halpha/hapy-output-20260517-pre2025coadds/merged"*".fits
-hapy-output-20260517-pre2025coadds/.
-```
-
-```
-rsync -avz
-draco:/data-pool/Halpha/hapy-output-20260609-hybrid/merged"*".fits
-hapy-output-20260609-hybrid/.
-```
-
-
-rsync -avz draco:/data-pool/Halpha/hapy-output-20260517/merged"*".fits hapy-output-20260517/.
