@@ -699,6 +699,7 @@ class EllipsePhotometry():
         # presumably b/c sky in r-band cutout is not zero.
         # going to put this back in to see if it helps
         print("subtract sky")
+        
         self.subtract_sky()
         
         print("detect objects")
