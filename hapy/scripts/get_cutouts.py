@@ -131,6 +131,13 @@ def main(args=None):
     )
 
     parser.add_argument(
+        "--max-cutout-size",
+        type=float,
+        default=None,
+        help="Maximum cutout size in arcsec.  Default is None."
+    )
+    
+    parser.add_argument(
         "--cutout-buffer",
         type=float,
         default=60.,
