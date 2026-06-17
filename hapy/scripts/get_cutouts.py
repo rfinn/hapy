@@ -199,7 +199,7 @@ def main(args=None):
 
         size_arcsec = max(
             args.min_cutout_size,
-            diameter + args.cutout_buffer
+            diameter + args.cutout_buffer*(1 + np.sqrt(gBA[i]))
             )        
 
         #size_arcsec = args.cutout_scale * 2 * gradius[i]
