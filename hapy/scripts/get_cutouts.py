@@ -126,7 +126,7 @@ def main(args=None):
     parser.add_argument(
         "--min-cutout-size",
         type=float,
-        default=75.0,
+        default=90.0,
         help="Minimum cutout size in arcsec"
     )
 

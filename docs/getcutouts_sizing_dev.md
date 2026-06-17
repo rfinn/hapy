@@ -13,16 +13,22 @@ Testing directory:
 
 ### Test Images
 
+
 ```bash
-get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-215.042+03.959-INT-20190208-p131-r.fits 
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-185.450+04.633-INT-20220505-VFID5966-r.fits --overwrite
 ```
 
+
+
+```bash
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-204.232+31.956-HDI-20170522-p006-R.fits
+```
 ```bash
 get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-208.876+05.130-HDI-20180313-p056-R.fits  --overwrite
 ```
 
 ```bash
-get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-185.450+04.633-INT-20220505-VFID5966-r.fits --overwrite
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-215.042+03.959-INT-20190208-p131-r.fits 
 ```
 
 ```bash
