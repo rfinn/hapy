@@ -201,7 +201,7 @@ def main(args=None):
             args.min_cutout_size,
             diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i]))
             )        
-        print(f"DEBUG {galid[i]}: min_cutout_size={args.min_cutout_size:.1f}, diam={diameter:.1f}, diam+buffer={diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i])):.1f}")
+        print(f"DEBUG {galid[i]}: min_cutout_size={args.min_cutout_size:.1f}, diam={diameter:.1f}, diam+buffer={diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i])):.1f}, BA={gBA[i]:.2f}")
         #size_arcsec = args.cutout_scale * 2 * gradius[i]
 
         # --------------------------------------------------
