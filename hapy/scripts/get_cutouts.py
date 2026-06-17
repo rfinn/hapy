@@ -141,7 +141,14 @@ def main(args=None):
         "--min-cutout-ba",
         type=float,
         default=.2,
-        help="Floor to use with galaxy BA when calculating area"
+        help="Floor to use with galaxy BA when calculating area.  Default is 0.2."
+    )
+
+    parser.add_argument(
+        "--sky-to-gal-area",
+        type=float,
+        default=5,
+        help="Desired ratio of sky to galaxy area.  Default is 5."
     )
     
     args = parser.parse_args()
