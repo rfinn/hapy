@@ -246,7 +246,7 @@ class CoaddImage:
             self.weight_flag = False
 
 
-        print("DEBUG", self.image_file, "weight_flag=", self.weight_flag, "weight_image=", self.weight_image)
+        #print("DEBUG", self.image_file, "weight_flag=", self.weight_flag, "weight_image=", self.weight_image)
 
         
     def check_for_psf(self, psfdir=None): # MVC - model
@@ -945,7 +945,7 @@ class HalphaImageSet:
             cs_hdr["CSMAKE"] = (False, "CS failed: missing/nonfinite PHOTZP")
 
         fits.PrimaryHDU(data=cs_data, header=cs_hdr).writeto(cs_name, overwrite=True)
-        print(f"CS-ZP cutout saved to {cs_name}")
+        print(f"\nCS-ZP cutout saved to {cs_name}")
 
 
         # --------------------------------------------------
