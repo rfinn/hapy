@@ -77,7 +77,7 @@ def main(args=None):
     parser.add_argument(
         "--cutout-buffer",
         type=float,
-        default=75.,
+        default=60.,
         help="Extra border added around galaxy diameter (arcsec)"
     )
 
@@ -201,7 +201,7 @@ def main(args=None):
             args.min_cutout_size,
             diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i]))
             )        
-
+        print(f"DEBUG: min_cutout_size={args.min_cutout_size:.1f}, diam={diameter:.1f}, diam+buffer={diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i]))}")
         #size_arcsec = args.cutout_scale * 2 * gradius[i]
 
         # --------------------------------------------------
