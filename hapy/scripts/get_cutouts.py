@@ -70,14 +70,14 @@ def main(args=None):
     parser.add_argument(
         "--min-cutout-size",
         type=float,
-        default=60.0,
+        default=75.0,
         help="Minimum cutout size in arcsec"
     )
 
     parser.add_argument(
         "--cutout-buffer",
         type=float,
-        default=60.0,
+        default=75.0,
         help="Extra border added around galaxy diameter (arcsec)"
     )
 
@@ -194,7 +194,6 @@ def main(args=None):
         # implementing a min cutout size for small galaxies
         # and a buffer size for bigger galaxies
 
-        diameter = 2 * gradius[i]
 
         diameter = 2 * gradius[i]
 

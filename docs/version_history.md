@@ -248,3 +248,11 @@
 - Goal: reduce instrument-dependent systematics in Gini, M20, asymmetry,
   fill fraction, and segmentation area by measuring morphology at a more
   consistent physical surface-brightness limit across the survey.
+
+
+
+# HAPY v0.3.1 (2026-06-16) 
+- Added minimum cutout size and fixed buffer-based cutout sizing.
+- Defaults: min_cutout_size = 75 arcsec, cutout_buffer = 75 arcsec.
+- Fixed R-band weight cutout creation when using Hα-defined slices.
+- Added CS-ZP weight cutouts from min(Ha weight, R weight).
