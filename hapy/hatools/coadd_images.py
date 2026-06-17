@@ -516,7 +516,7 @@ class CoaddImage:
         if output_name is not None:
             weight_output_name = str(output_name).replace(".fits", ".weight.fits")
 
-        print(f"DEBUG: self.weight_flag={self.weight_flag}, self.weight_image={self.weight_image}")
+        #print(f"DEBUG: self.weight_flag={self.weight_flag}, self.weight_image={self.weight_image}")
 
         if getattr(self, "weight_flag", False) and getattr(self, "weight_image", None):
             try:
