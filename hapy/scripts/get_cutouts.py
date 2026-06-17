@@ -77,7 +77,7 @@ def main(args=None):
     parser.add_argument(
         "--cutout-buffer",
         type=float,
-        default=75.0,
+        default=120,
         help="Extra border added around galaxy diameter (arcsec)"
     )
 
