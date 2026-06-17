@@ -137,26 +137,26 @@ def main(args=None):
         help="Maximum cutout size in arcsec.  Default is None."
     )
     
-    parser.add_argument(
-        "--cutout-buffer",
-        type=float,
-        default=60.,
-        help="Extra border added around galaxy diameter (arcsec)"
-    )
+    # parser.add_argument(
+    #     "--cutout-buffer",
+    #     type=float,
+    #     default=60.,
+    #     help="Extra border added around galaxy diameter (arcsec)"
+    # )
 
-    parser.add_argument(
-        "--min-cutout-ba",
-        type=float,
-        default=.2,
-        help="Floor to use with galaxy BA when calculating area.  Default is 0.2."
-    )
+    # parser.add_argument(
+    #     "--min-cutout-ba",
+    #     type=float,
+    #     default=.2,
+    #     help="Floor to use with galaxy BA when calculating area.  Default is 0.2."
+    # )
 
-    parser.add_argument(
-        "--sky-to-gal-area",
-        type=float,
-        default=5,
-        help="Desired ratio of sky to galaxy area.  Default is 5."
-    )
+    # parser.add_argument(
+    #     "--sky-to-gal-area",
+    #     type=float,
+    #     default=5,
+    #     help="Desired ratio of sky to galaxy area.  Default is 5."
+    # )
     
     args = parser.parse_args()
 
@@ -285,15 +285,28 @@ def main(args=None):
         #     )        
         # print(f"DEBUG {galid[i]}: min_cutout_size={args.min_cutout_size:.1f}, diam={diameter:.1f}, diam+buffer={diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i])):.1f}, BA={gBA[i]:.2f}")
 
-        size_arcsec = get_cutout_size_arcsec(
-            radius_arcsec=gradius[i],
-            ba=gBA[i],
-            min_cutout_size=args.min_cutout_size,
-            min_ba=args.min_cutout_ba,
-            sky_to_gal_area=args.sky_to_gal_area,
-            max_cutout_size=args.max_cutout_size,
-        )
+        # size_arcsec = get_cutout_size_arcsec(
+        #     radius_arcsec=gradius[i],
+        #     ba=gBA[i],
+        #     min_cutout_size=args.min_cutout_size,
+        #     min_ba=args.min_cutout_ba,
+        #     sky_to_gal_area=args.sky_to_gal_area,
+        #     max_cutout_size=args.max_cutout_size,
+        # )
 
+
+        # decided to keep size for larger galaxies the same
+        # and just add a min size
+
+        scaled_size_arcsec = args.cutout_scale * 2.0 * gradius[i]
+
+        size_arcsec = max(
+            args.min_cutout_size,
+            scaled_size_arcsec,
+        )      
+
+        cutout_size_mode = "min" if size_arcsec == args.min_cutout_size else "scaled"
+        
         # --------------------------------------------------
         # Pre-check validity on R and Ha weight images
         # --------------------------------------------------
@@ -370,6 +383,7 @@ def main(args=None):
             vr=vr,
             cszp_local_sky=bool(subtract_sky),
             cszp_source = "local_cutouts",
+            cutout_size_mode=cutout_size_mode,
         )
 
 

@@ -21,18 +21,18 @@ get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme 
 
 
 ```bash
-get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-204.232+31.956-HDI-20170522-p006-R.fits
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-204.232+31.956-HDI-20170522-p006-R.fits --overwrite
 ```
 ```bash
 get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-208.876+05.130-HDI-20180313-p056-R.fits  --overwrite
 ```
 
 ```bash
-get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-215.042+03.959-INT-20190208-p131-r.fits 
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-215.042+03.959-INT-20190208-p131-r.fits --overwrite
 ```
 
 ```bash
-get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-217.936+03.183-INT-20190210-p140-r.fits 
+get_cutouts --catalog ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo --maxcorrection 5 --psfdir /data-pool/Halpha/psf-images-v20260330/ --rimage /data-pool/Halpha/coadds-v20260330/VF-217.936+03.183-INT-20190210-p140-r.fits --overwrite
 ```
 
 
@@ -122,3 +122,28 @@ def get_cutout_size_arcsec(radius_arcsec, ba,
 
     return float(size_arcsec)
 ```
+
+
+# Conclusions
+
+I've done some more testing, and I like the results from using a min cutout size = 90". however, I don't see as much advantage at the large end of the galaxy sizes, and making a more widespread change at this point means redownloading the legacy images and remaking more masks. So I'm thinking that we should just implement a min cutout size and use the scaling otherwise. In effect, the original implementation
+
+```python
+size_arcsec = args.cutout_scale * 2 * gradius[i]
+```
+
+does attempt to keep sky-to-galaxy area somewhat constant - it just doesn't have the correction for B/A.
+
+Will implement:
+
+```python
+size_arcsec = max(
+    args.min_cutout_size,
+    args.cutout_scale * 2.0 * gradius[i],
+)
+```
+
+Added a minimum cutout size of 90 arcsec. For galaxies whose scaled cutout
+would be smaller than this, the cutout is enlarged to ensure enough sky area
+for background estimation, segmentation, morphology, and visual review.
+Larger galaxies retain the historical cutout_scale × diameter sizing.

@@ -252,7 +252,11 @@
 
 
 # HAPY v0.3.1 (2026-06-16) 
-- Added minimum cutout size and fixed buffer-based cutout sizing.
+- Added a minimum cutout size of 90 arcsec. For galaxies whose scaled cutout
+would be smaller than this, the cutout is enlarged to ensure enough sky area
+for background estimation, segmentation, morphology, and visual review.
+Larger galaxies retain the historical cutout_scale × diameter sizing.
 - Defaults: min_cutout_size = 75 arcsec, cutout_buffer = 75 arcsec.
 - Fixed R-band weight cutout creation when using Hα-defined slices.
 - Added CS-ZP weight cutouts from min(Ha weight, R weight).
+
