@@ -32,6 +32,62 @@ def resolve_sibling_path(base_image, sibling_name):
         return str(sibling)
     return str(Path(base_image).resolve().parent / sibling)
 
+
+def get_cutout_size_arcsec(radius_arcsec, ba,
+                           min_cutout_size=75.0,
+                           min_ba=0.25,
+                           sky_to_gal_area=5.0,
+                           max_cutout_size=None):
+    """
+    Compute square cutout size from desired sky/galaxy area ratio.
+
+    Parameters
+    ----------
+    radius_arcsec : float
+        Galaxy semi-major axis radius in arcsec.
+    ba : float
+        Axis ratio b/a.
+    min_cutout_size : float
+        Minimum cutout side length in arcsec.
+    min_ba : float
+        Floor on b/a to avoid bogus tiny BA values.
+    sky_to_gal_area : float
+        Desired sky area divided by galaxy ellipse area.
+        Example: 5 means sky area is 5 times galaxy area.
+    max_cutout_size : float or None
+        Optional maximum cutout size in arcsec.
+
+    Returns
+    -------
+    size_arcsec : float
+        Square cutout side length in arcsec.
+    """
+
+    radius_arcsec = float(radius_arcsec)
+
+    try:
+        ba = float(ba)
+    except Exception:
+        ba = np.nan
+
+    if not np.isfinite(ba):
+        ba = 1.0
+
+    ba_eff = np.clip(ba, min_ba, 1.0)
+
+    gal_area = np.pi * radius_arcsec**2 * ba_eff
+
+    required_total_area = (1.0 + sky_to_gal_area) * gal_area
+    area_based_size = np.sqrt(required_total_area)
+
+    size_arcsec = max(min_cutout_size, area_based_size)
+
+    if max_cutout_size is not None:
+        size_arcsec = min(size_arcsec, max_cutout_size)
+
+    return float(size_arcsec)
+
+
 def main(args=None):
     import argparse
 
@@ -195,14 +251,27 @@ def main(args=None):
         # and a buffer size for bigger galaxies
 
 
-        diameter = 2 * gradius[i]
+        # Original method, v0.3.0 and below
+        #size_arcsec = args.cutout_scale * 2 * gradius[i]        
 
-        size_arcsec = max(
-            args.min_cutout_size,
-            diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i]))
-            )        
-        print(f"DEBUG {galid[i]}: min_cutout_size={args.min_cutout_size:.1f}, diam={diameter:.1f}, diam+buffer={diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i])):.1f}, BA={gBA[i]:.2f}")
-        #size_arcsec = args.cutout_scale * 2 * gradius[i]
+
+        # using a buffer and min cutout size
+        # diameter = 2 * gradius[i]
+
+        # size_arcsec = max(
+        #     args.min_cutout_size,
+        #     diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i]))
+        #     )        
+        # print(f"DEBUG {galid[i]}: min_cutout_size={args.min_cutout_size:.1f}, diam={diameter:.1f}, diam+buffer={diameter + 2.*args.cutout_buffer*(1 + np.sqrt(gBA[i])):.1f}, BA={gBA[i]:.2f}")
+
+        size_arcsec = get_cutout_size_arcsec(
+            radius_arcsec=gradius[i],
+            ba=gBA[i],
+            min_cutout_size=args.min_cutout_size,
+            min_ba=args.min_cutout_ba,
+            sky_to_gal_area=args.sky_to_gal_area,
+            max_cutout_size=args.max_cutout_size,
+        )
 
         # --------------------------------------------------
         # Pre-check validity on R and Ha weight images
