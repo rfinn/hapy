@@ -137,6 +137,13 @@ def main(args=None):
         help="Extra border added around galaxy diameter (arcsec)"
     )
 
+    parser.add_argument(
+        "--min-cutout-ba",
+        type=float,
+        default=.2,
+        help="Floor to use with galaxy BA when calculating area"
+    )
+    
     args = parser.parse_args()
 
 
