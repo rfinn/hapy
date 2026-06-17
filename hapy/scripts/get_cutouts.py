@@ -14,7 +14,10 @@ import getpass
 from datetime import datetime
 import json
 
-from hapy.hatools import GalaxyCatalog, CoaddImage, HalphaImageSet, FilterTrace
+
+from hapy.hatools.coadd_images import CoaddImage, HalphaImageSet
+from hapy.cattools.catalog import GalaxyCatalog
+from hapy.hatools.filter_transmission import FilterTrace
 from hapy.hatools.utils import parse_coadd_name, build_cutout_name, get_survey_vectors
 from hapy.utils.logging_utils import setup_logging
 
@@ -44,6 +47,7 @@ def main(args=None):
     parser.add_argument("--no-skysub", action="store_true",help="Disable local sky subtraction in cutouts (default: sky is subtracted).")
     parser.add_argument('--catalog',
                             help='full path to galaxy catalog to use for cutouts.  ')
+    
     #parser.add_argument('--outdir',  default='cutouts',
     #                        help='base output directory for cutouts (default: cutouts)')
     parser.add_argument(
@@ -61,7 +65,22 @@ def main(args=None):
    
     parser.add_argument('--maxcorrection', dest='maxcorrection', default=5., help='maximum filter correction for galaxies in FOV.  default is 5, so galaxies whose redshift falls where filter transmission < 20 percent will be skipped.')        
     #parser.add_argument('--oneimage',dest = 'oneimage',default=None, help='give full path to the r-band image name to run on just one image')
-    
+
+
+    parser.add_argument(
+        "--min-cutout-size",
+        type=float,
+        default=60.0,
+        help="Minimum cutout size in arcsec"
+    )
+
+    parser.add_argument(
+        "--cutout-buffer",
+        type=float,
+        default=60.0,
+        help="Extra border added around galaxy diameter (arcsec)"
+    )
+
     args = parser.parse_args()
 
 
@@ -171,7 +190,20 @@ def main(args=None):
 
     for i in range(len(gra)):
 
-        size_arcsec = args.cutout_scale * 2 * gradius[i]
+        # 2026-06-16
+        # implementing a min cutout size for small galaxies
+        # and a buffer size for bigger galaxies
+
+        diameter = 2 * gradius[i]
+
+        diameter = 2 * gradius[i]
+
+        size_arcsec = max(
+            args.min_cutout_size,
+            diameter + args.cutout_buffer
+            )        
+
+        #size_arcsec = args.cutout_scale * 2 * gradius[i]
 
         # --------------------------------------------------
         # Pre-check validity on R and Ha weight images
