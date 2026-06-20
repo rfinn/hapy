@@ -26,7 +26,7 @@ def mask_radius_for_mag(mag):
 
 
 
-def gaia_stars_in_rectangle_old(ra, dec, height, width, minmag=None, maxmag=None, pmsnrcut=5):
+def gaia_stars_in_rectangle_old(ra, dec, height, width, minmag=None, maxmag=None, pmsnrcut=4):
     """
     Get Gaia stars within a circular aperture.
     started by ChatGPT, rewritten by Rose Finn :)
@@ -94,7 +94,7 @@ def gaia_stars_in_rectangle_old(ra, dec, height, width, minmag=None, maxmag=None
 
     # Cut by min/max magnitude, if they are provided
     if maxmag is not None:
-        keepflag = keepflag & (stars['phot_g_mean_mag'] < maxmag)
+        keepflag = keepflag & ((stars['phot_g_mean_mag'] < maxmag) | (gaia["phot_rp_mean_mag"] < maxmag))
     if minmag is not None:
         keepflag = keepflag & (stars['phot_g_mean_mag'] > minmag)
     
@@ -133,6 +133,7 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pm
     ]
 
     magcuts = []
+    # download full catalog, and cut based on mag later
     if maxmag is not None:
         magcuts.append(f"phot_g_mean_mag < {maxmag}")
     if minmag is not None:
@@ -160,7 +161,7 @@ def gaia_stars_in_rectangle(ra, dec, height, width, minmag=None, maxmag=None, pm
 
     return stars[keepflag]
 
-def gaia_foreground_filter(tab, pm_snr_min=5.0, plx_snr_min=5.0, ruwe_max=1.4, phot_g_max=20):
+def gaia_foreground_filter(tab, pm_snr_min=4., plx_snr_min=4.0, ruwe_max=1.4, phot_g_max=20):
     """
     Return boolean mask selecting likely MW foreground stars.
     Keeps sources with significant proper motion OR significant parallax,

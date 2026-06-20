@@ -132,6 +132,14 @@ def main():
     infile = Path(args.hapy_table)
     tab = Table.read(infile)
 
+    # get best duplicate
+    if getattr(tab,'BEST_DUPLICATE'):
+        tab = tab['BEST_DUPLICATE']
+    else:
+        print("WARNING: BEST_DUPLICATE column was not found in ",args.hapy_table)
+        print("PLEASE SELECT BEST DUPLICATE")
+
+    
     outtab = make_vfs_hapy_rowmatched(tab, n_vfs=args.n_vfs)
 
     from datetime import datetime

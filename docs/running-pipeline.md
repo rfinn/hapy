@@ -132,10 +132,10 @@ cat fullpath_rcoadds_hapy_ready.txt | parallel -j 16 --bar --joblog cutouts_para
 
 Or run on the full list of coadds.
 ```bash
-cat fullpath_rcoadds_all.txt | parallel -j 16 --bar --joblog \
+parallel -j 16 --bar --joblog \
 cutouts_parallel.log get_cutouts --rimage {} --catalog \
 ~/research/Virgo/tables-north/v2/vf_v2_main.fits --scheme virgo \
---maxcorrection 5 --overwrite --overwrite_metadata
+--maxcorrection 5 --overwrite --overwrite_metadata :::: fullpath_rcoadds_all.txt
 ```
 
 ### First check for any failures
@@ -239,6 +239,21 @@ Bad coadd names:           0
 Bad cutout dir names:      0
 ```
 
+2026-06020 after implementing min size in `get_cutouts`:
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260620$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
+
+CUTOUT SUMMARY
+--------------
+Input coadds:              226
+Cutout directories:        849
+Coadds with no cutouts:    0
+Cutout dirs missing R:     0
+Cutout dirs missing CS:    0
+Bad coadd names:           0
+Bad cutout dir names:      0
+
+```
 To test one:
 
 ```
@@ -332,6 +347,11 @@ hapy-output-20260612/cutouts/ --include '*/' --include 'legacy/***' \
 --exclude '*' --exclude '*logs*' --ignore-existing --prune-empty-dirs --dry-run
 ```
 
+```
+rsync -av hapy-output-20260612/cutouts/ \
+hapy-output-20260620/cutouts/ --include '*/' --include 'legacy/***' \
+--exclude '*' --exclude '*logs*' --ignore-existing --prune-empty-dirs --dry-run
+```
 
 #### Hybrid coadds
 ```
