@@ -52,6 +52,7 @@ from hapy.hatools.filter_transformations import halpha_minus_r_color_from_metada
 from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_metadata
 from hapy.hatools.segmentation import make_simple_photutils_segmentation
 from hapy.imagetools.imutils import calculate_background_photutils
+from hapy.hatools.utils import zp_scale_r_to_ha
 #from hapy.hatools.segmentation import make_simple_photutils_segmentation
 
 #import warnings
