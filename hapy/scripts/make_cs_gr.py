@@ -695,7 +695,7 @@ if __name__ == '__main__':
         print("WARNING: no HAPY mask found; creating photutils segmentation mask")
         maskfile = make_simple_photutils_segmentation(
             Rfile,
-            seg_mask,
+            segfile,
             maskfile=None,
             nsigma=2.0,
             npixels=20,
