@@ -830,9 +830,9 @@ if __name__ == '__main__':
     mean_sky_h, median_sky_h, std_sky_h = calculate_background_photutils(
         data_NB,
         grow_radius=10,
-        npixels=10,
+        npixels=5,
         weightimage=h_weight,
-        nsigma=2.0,
+        nsigma=2,
         clip_sigma=3.0,
     )
     #data_NB = data_NB - median_sky_h
