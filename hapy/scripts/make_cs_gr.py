@@ -824,7 +824,8 @@ if __name__ == '__main__':
         clip_sigma=3.0,
     )
     print(f"r sky: mean={mean_sky_r:.2e}, med={median_sky_r:.2e}, std={std_sky_r:.2e}")
-    data_r = data_r - median_sky_r
+    #data_r = data_r - median_sky_r
+    data_r = data_r - mean_sky_r
 
     mean_sky_h, median_sky_h, std_sky_h = calculate_background_photutils(
         data_NB,
@@ -834,7 +835,8 @@ if __name__ == '__main__':
         nsigma=2.0,
         clip_sigma=3.0,
     )
-    data_NB = data_NB - median_sky_h
+    #data_NB = data_NB - median_sky_h
+    data_NB = data_NB - mean_sky_h    
     print(f"h sky: mean={mean_sky_h:.2e}, med={median_sky_h:.2e}, std={std_sky_h:.2e}")    
 
     print("Using HAPY cutout images with additional local sky subtraction")
