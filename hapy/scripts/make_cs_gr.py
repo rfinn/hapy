@@ -807,6 +807,7 @@ if __name__ == '__main__':
         data_r_to_Ha,
         grow_radius=10,
         npixels=10,
+        #weightimage=r_weight,
         nsigma=2.0,
         clip_sigma=3.0,
     )
@@ -816,6 +817,7 @@ if __name__ == '__main__':
         data_NB,
         grow_radius=10,
         npixels=10,
+        #weightimage=h_weight,
         nsigma=2.0,
         clip_sigma=3.0,
     )
