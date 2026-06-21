@@ -51,8 +51,8 @@ from reproject import reproject_interp
 from hapy.hatools.filter_transformations import halpha_minus_r_color_from_metadata
 from hapy.hatools.filter_properties import get_continuum_oversubtraction_from_metadata
 from hapy.hatools.segmentation import make_simple_photutils_segmentation
-from hapy.hatools.utils import zp_scale_r_to_ha
-
+from hapy.hatools.imagetools.imutils import calculate_background_photutils
+#from hapy.hatools.segmentation import make_simple_photutils_segmentation
 
 #import warnings
 #warnings.filterwarnings('ignore')
@@ -678,27 +678,38 @@ if __name__ == '__main__':
     # HAPY convention:
     #   manual mask: <tag>-mask-manual.fits
     #   auto mask:   <tag>-mask.fits
+    #   csgr sky mask fallback: <tag>-R-phot-segmentation.fits
     manual_mask = f"{tag}-mask-manual.fits"
     auto_mask = f"{tag}-mask.fits"
+    segfile = f"{tag}-R-phot-segmentation.fits"
 
     if os.path.exists(manual_mask):
         maskfile = manual_mask
         print(f"Using manual mask: {maskfile}")
+
     elif os.path.exists(auto_mask):
         maskfile = auto_mask
         print(f"Using auto mask: {maskfile}")
-    else:
-        maskfile = None
 
-    if maskfile is None:
-        print("WARNING: no mask found")
-        mask = None
     else:
-        mask = fits.getdata(maskfile)
-        mask = mask > 0
+        print("WARNING: no HAPY mask found; creating photutils segmentation mask")
+        maskfile = make_simple_photutils_segmentation(
+            rfile,
+            seg_mask,
+            maskfile=None,
+            nsigma=2.0,
+            npixels=20,
+        )
+        print(f"Using photutils segmentation mask: {maskfile}")
 
-    if mask is not None and np.sum(mask) == 0:
+    mask = fits.getdata(maskfile)
+    mask = mask > 0
+
+    if np.sum(mask) == 0:
         print(f"WARNING: mask file exists but has no masked pixels: {maskfile}")
+        mask = None
+        
+
 
     #overwrite = True
 
@@ -779,11 +790,9 @@ if __name__ == '__main__':
 
     print("\nGenerate NET image\n")
 
-    ############################################################
-    ## Use already sky-subtracted HAPY cutouts
-    ############################################################
-
-
+    # ############################################################
+    # ## Subtract local sky from cutouts
+    # ############################################################
 
     # HAPY cutouts should already be sky-subtracted when
     # metadata["cutout_sky_subtracted"] == True.
@@ -792,22 +801,31 @@ if __name__ == '__main__':
 
     data_r_to_Ha = data_r * rscale
     
-    # Optional diagnostic only; do not subtract
-    stat_r = stats.sigma_clipped_stats(data_r, mask=mask)
-    stat_h = stats.sigma_clipped_stats(data_NB, mask=mask)
+    # subtract local sky
+    mean_sky_r, median_sky_r, std_sky_r = calculate_background_photutils(
+        data_r_to_Ha,
+        grow_radius=10,
+        npixels=10,
+        weightimage=r_weight,
+        nsigma=2.0,
+        clip_sigma=3.0,
+    )
+    data_r = data_r - median_sky_r
 
-    print("r-band clipped median = {0:3.2e}".format(stat_r[1]))
-    print("Halpha clipped median = {0:3.2e}".format(stat_h[1]))
-
-    data_r = data_r - stat_r[1]
-    data_NB = data_NB - stat_h[1]
+    mean_sky_h, median_sky_h, std_sky_h = calculate_background_photutils(
+        data_NB,
+        grow_radius=10,
+        npixels=10,
+        weightimage=r_weight,
+        nsigma=2.0,
+        clip_sigma=3.0,
+    )
+    data_NB = data_NB - median_sky_h
+    
 
     print("Using HAPY cutout images with additional local sky subtraction")
-    print(f"\tr-band sky subtracted = {stat_r[1]:.2f}")
-    print(f"\thalpha sky subtracted = {stat_h[1]:.2f}")    
-    # ############################################################
-    # ## Subtract local sky from cutouts
-    # ############################################################
+    print(f"\tr-band sky subtracted = {median_sky_r:.2e}")
+    print(f"\thalpha sky subtracted = {median_sky_h:.2e}")    
 
     # # TODONE - revisit this and examine the masking. - skipping sky subtraction here b/c already done when making cutouts
     # # the mask we are currently using does not mask the central galaxy
