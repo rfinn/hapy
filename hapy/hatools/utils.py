@@ -14,6 +14,110 @@ from hapy import hatools
 from importlib import resources
 
 
+from astropy import units as u
+from astropy.cosmology import WMAP9 as cosmo
+from astropy.wcs.utils import proj_plane_pixel_scales
+
+
+def distance_from_velocity(vr):
+    """
+    Luminosity distance from recession velocity.
+
+    Parameters
+    ----------
+    vr : float
+        Recession velocity (km/s).
+
+    Returns
+    -------
+    d : astropy Quantity
+        Luminosity distance.
+    """
+    z = float(vr) / 3.0e5
+    return cosmo.luminosity_distance(z)
+
+
+def get_kpc_per_arcsec(distance_mpc=None, vr=None):
+    """
+    Physical scale corresponding to 1 arcsec.
+
+    Parameters
+    ----------
+    distance_mpc : float, optional
+        Distance in Mpc.
+    vr : float, optional
+        Recession velocity in km/s. Used only if distance_mpc is None.
+
+    Returns
+    -------
+    kpc_per_arcsec : float
+    """
+    if distance_mpc is None:
+        if vr is None:
+            raise ValueError("Must provide either distance_mpc or vr")
+        z = float(vr) / 3.0e5
+        dA = cosmo.angular_diameter_distance(z)
+    else:
+        dA = distance_mpc * u.Mpc
+
+    kpc_per_arcsec = (
+        dA.to(u.kpc).value
+        * np.pi
+        / (180.0 * 3600.0)
+    )
+
+    return float(kpc_per_arcsec)
+
+
+def get_kpc_per_pixel(imwcs, distance_mpc=None, vr=None):
+    """
+    Physical pixel scale.
+
+    Parameters
+    ----------
+    imwcs : astropy.wcs.WCS
+    distance_mpc : float, optional
+    vr : float, optional
+
+    Returns
+    -------
+    kpc_per_pixel : float
+    """
+    pscale = proj_plane_pixel_scales(imwcs)  # deg/pixel
+    arcsec_per_pixel = float(pscale[0]) * 3600.0
+
+    kpc_per_arcsec = get_kpc_per_arcsec(
+        distance_mpc=distance_mpc,
+        vr=vr,
+    )
+
+    return arcsec_per_pixel * kpc_per_arcsec
+
+
+def get_pixel_area_kpc2(imwcs, distance_mpc=None, vr=None):
+    """
+    Pixel area in kpc^2.
+    """
+    kpc_per_pixel = get_kpc_per_pixel(
+        imwcs,
+        distance_mpc=distance_mpc,
+        vr=vr,
+    )
+
+    return kpc_per_pixel**2
+
+
+def get_pixel_area_pc2(imwcs, distance_mpc=None, vr=None):
+    """
+    Pixel area in pc^2.
+    """
+    return get_pixel_area_kpc2(
+        imwcs,
+        distance_mpc=distance_mpc,
+        vr=vr,
+    ) * 1.0e6
+
+
 def zp_scale_r_to_ha(zp_ha, zp_r, logger=None):
     """Scale factor alpha so that CS = Ha - alpha * R."""
     if zp_ha is None or zp_r is None:

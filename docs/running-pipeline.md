@@ -239,7 +239,7 @@ Bad coadd names:           0
 Bad cutout dir names:      0
 ```
 
-2026-06020 after implementing min size in `get_cutouts`:
+2026-06-20 after implementing min size in `get_cutouts`:
 ```
 (hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260620$ python ~/github/hapy/scripts/check_cutouts.py fullpath_rcoadds_all.txt cutouts
 
@@ -412,6 +412,19 @@ parallel --resume-failed --joblog fetch_legacy.joblog \
 python ~/github/hapy/scripts/find_missing_legacy_cutouts.py
 ```
 
+
+For 2026-06-20, got this (same cutouts that are missing - this is an
+issue with the parent coadd)
+
+```
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260620$ python ~/github/hapy/scripts/find_missing_legacy_cutouts.py
+MISSING legacy files: VFID3297-SDSSJ091525.83+252511.1-INT-20190208-p024 (g=False, r=False, z=False)
+MISSING legacy files: VFID6386-WISEAJ150825.51+014224.3-INT-20190601-p033 (g=False, r=False, z=False)
+MISSING legacy files: VFID6392-WISEAJ150819.90+014123.6-INT-20190601-p033 (g=False, r=False, z=False)
+MISSING legacy files: VFID6447-SDSSJ150812.35+012959.7-INT-20190601-p033 (g=False, r=False, z=False)
+MISSING legacy files: VFID6463-WISEAJ150809.13+012516.6-INT-20190601-p033 (g=False, r=False, z=False)
+```
+
 ```
 parallel --bar -j 2 \
   --joblog fetch_legacy_retry.joblog \
@@ -525,6 +538,37 @@ grep -R "FAILED\|Traceback\|ERROR\|can't find\|problem getting" logs_legacy_repr
 ```bash
 parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/github/hapy/hapy/scripts/make_cs_gr.fits "{}" :::: cutout_with_dir.txt
 ```
+
+# Make Mstar Images
+
+```
+python ~/github/hapy/hapy/scripts/make_mstar_map.py cutouts/VFIDxxxx-... --scheme virgo --overwrite
+```
+
+To run all:
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d | sort > cutout_list.txt
+```
+
+
+```
+parallel --bar -j 16 python ~/github/hapy/hapy/scripts/make_mstar_map.py {} --overwrite :::: cutout_list.txt
+```
+
+# Make SFR Images
+```
+python ~/github/hapy/hapy/scripts/make_sfr_map.py cutouts/VFIDxxxx-... --scheme virgo --overwrite
+```
+
+```
+find cutouts -mindepth 1 -maxdepth 1 -type d | sort > cutout_list.txt
+```
+
+```
+parallel --bar -j 16 --joblog make_sfr_map.joblog python ~/github/hapy/hapy/scripts/make_sfr_map.py {} --scheme virgo --overwrite :::: cutout_list.txt
+```
+
 # Copy manual masks
 
 ```

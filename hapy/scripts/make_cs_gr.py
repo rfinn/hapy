@@ -783,7 +783,7 @@ if __name__ == '__main__':
     ## Use already sky-subtracted HAPY cutouts
     ############################################################
 
-    print("Using HAPY cutout images without additional local sky subtraction")
+
 
     # HAPY cutouts should already be sky-subtracted when
     # metadata["cutout_sky_subtracted"] == True.
@@ -800,7 +800,11 @@ if __name__ == '__main__':
     print("Halpha clipped median = {0:3.2e}".format(stat_h[1]))
 
     data_r = data_r - stat_r[1]
-    data_NB = data_NB - stat_h[1]    
+    data_NB = data_NB - stat_h[1]
+
+    print("Using HAPY cutout images with additional local sky subtraction")
+    print(f"\tr-band sky subtracted = {stat_r[1]:.2f}")
+    print(f"\thalpha sky subtracted = {stat_h[1]:.2f}")    
     # ############################################################
     # ## Subtract local sky from cutouts
     # ############################################################
