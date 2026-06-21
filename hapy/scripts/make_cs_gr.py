@@ -803,11 +803,23 @@ if __name__ == '__main__':
     data_r_to_Ha = data_r * rscale
     
     # subtract local sky
+    r_weight_file = Rfile.replace(".fits",".weight.fits")
+    if os.path.exists(r_weight_file):
+        r_weight = fits.getdata(r_weight_file)
+    else:
+        r_weight = None
+
+    h_weight_file = Hfile.replace(".fits",".weight.fits")
+    if os.path.exists(h_weight_file):
+        h_weight = fits.getdata(h_weight_file)
+    else:
+        h_weight = None
+        
     mean_sky_r, median_sky_r, std_sky_r = calculate_background_photutils(
         data_r_to_Ha,
         grow_radius=10,
         npixels=10,
-        #weightimage=r_weight,
+        weightimage=r_weight,
         nsigma=2.0,
         clip_sigma=3.0,
     )
@@ -817,7 +829,7 @@ if __name__ == '__main__':
         data_NB,
         grow_radius=10,
         npixels=10,
-        #weightimage=h_weight,
+        weightimage=h_weight,
         nsigma=2.0,
         clip_sigma=3.0,
     )
