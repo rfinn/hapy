@@ -402,6 +402,7 @@ class cutout_dir():
         self.efluxsma_png = None
         self.emagsma_png = None
         self.sbfluxsma_png = None
+        self.sbfluxsma_png_linear = None        
         self.sbmagsma_png = None
 
         self.ellipseparams = None
@@ -1133,7 +1134,8 @@ class cutout_dir():
 
  
     def plot_phot_tables(self):
-        """Plot flux, magnitude, and surface-brightness profiles from photutils tables.
+        """
+        Plot flux, magnitude, and surface-brightness profiles from photutils tables.
 
         Overplots CS-gr profiles when self.csgr_phot exists.
         """
@@ -1233,9 +1235,10 @@ class cutout_dir():
             setattr(self, outfile_attr, outfile)
             plt.savefig(outfile)
             plt.close(fig)
+            return outfile
 
         # enclosed flux
-        plot_profile(
+        self.efluxsma_png = plot_profile(
             ycol="flux_cgs",
             yerrcol="flux_cgs_err",
             ylabel="Flux (erg/s/cm$^2$)",
@@ -1246,8 +1249,9 @@ class cutout_dir():
             logy=True,
         )
 
+        
         # enclosed magnitude
-        plot_profile(
+        self.emagsma_png = plot_profile(
             ycol="mag_cum",
             yerrcol="mag_cum_err",
             ylabel="Magnitude (AB)",
@@ -1259,7 +1263,7 @@ class cutout_dir():
         )
 
         # surface brightness in cgs
-        plot_profile(
+        self.sbfluxsma_png = plot_profile(
             ycol="sb_cgs_arcsec2",
             yerrcol="sb_cgs_arcsec2_err",
             ylabel="SB (erg/s/cm$^2$/arcsec$^2$)",
@@ -1270,8 +1274,20 @@ class cutout_dir():
             logy=True,
         )
 
+        # surface brightness in cgs, linear scale
+        self.sbfluxsma_png_linear = plot_profile(
+            ycol="sb_cgs_arcsec2",
+            yerrcol="sb_cgs_arcsec2_err",
+            ylabel="SB (erg/s/cm$^2$/arcsec$^2$)",
+            outf`ile_attr="sbfluxsma_png_linear",
+            outfile_suffix="-sb-sma-linear.png",
+            labels=labels_flux,
+            scale_cs=True,
+            logy=False,
+        )
+        
         # surface brightness in mag / arcsec^2
-        plot_profile(
+        self.sbmagsma_png = plot_profile(
             ycol="sb_mag_arcsec2",
             yerrcol="sb_mag_arcsec2_err",
             ylabel="Surface Brightness (mag/arcsec$^2$)",
@@ -1281,7 +1297,7 @@ class cutout_dir():
             scale_cs=False,
             invert_y=True,
         )
- 
+        self.emagsma_png = os.path.join(self.outdir,self.gname+'-mag-sma.png')
     
     def get_phot_tables(self):
         ''' read in phot tables and make plot of flux and sb vs sma '''
@@ -1301,7 +1317,7 @@ class cutout_dir():
         r_galfit_phot = self.rimage.replace('.fits','_phot.fits')
         r_phot = fits.getdata(r_galfit_phot)
         
-
+    def plot_phot_tables_old(self):
         # define colors - need this for plotting line and fill_between in the same color
         mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -1896,9 +1912,9 @@ class build_html_cutout():
         ''' photometry table with galfit and photutil results '''
         self.html.write('<h2>Elliptical Photometry</h2>\n')
         #self.html.write('<p>using galfit and photutil geometry</p>\n')                        
-        images = [self.cutout.efluxsma_png,self.cutout.emagsma_png,self.cutout.sbfluxsma_png,self.cutout.sbmagsma_png]
+        images = [self.cutout.efluxsma_png,self.cutout.emagsma_png,self.cutout.sbfluxsma_png_linear,self.cutout.sbfluxsma_png,self.cutout.sbmagsma_png]
         images = [os.path.basename(i) for i in images]
-        labels = ['Enclosed Flux','Enclosed Magnitude','Surface Brightness','Surface Brightness']
+        labels = ['Enclosed Flux','Enclosed Magnitude','Surface Brightness Linear','Surface Brightness Log','Surface Brightness Mag']
         write_table(self.html,images=images,labels=labels)
 
     def write_mag_table(self):

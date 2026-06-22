@@ -2256,6 +2256,10 @@ class EllipsePhotometry():
         self.ellipse = Ellipse(self.masked_image, self.guess)
         self.isolist = self.ellipse.fit_image()#sfix_pa = True, step=.5)#, fix_eps=True, fix_center=True)
         self.table = self.isolist.to_table()
+
+        # note - could also use photutils.morphology.data_properties
+        # https://photutils.readthedocs.io/en/stable/api/photutils.morphology.data_properties.html#photutils.morphology.data_properties
+        # will calculate the centroid
         
     def draw_fit_results(self):
         ''' DRAW RESULTING FIT ON R-BAND CUTOUT '''
