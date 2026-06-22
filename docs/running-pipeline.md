@@ -591,6 +591,8 @@ rsync -avz \
   /data-pool/Halpha/hapy-output-20260612/cutouts/
 ```
 
+For 2026-06-20, I also finished making adjustments to any galaxies I
+flagged as needing more editing on mask.
 
 # Run Analysis 
 
