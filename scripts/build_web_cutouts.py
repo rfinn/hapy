@@ -1279,7 +1279,7 @@ class cutout_dir():
             ycol="sb_cgs_arcsec2",
             yerrcol="sb_cgs_arcsec2_err",
             ylabel="SB (erg/s/cm$^2$/arcsec$^2$)",
-            outf`ile_attr="sbfluxsma_png_linear",
+            outfile_attr="sbfluxsma_png_linear",
             outfile_suffix="-sb-sma-linear.png",
             labels=labels_flux,
             scale_cs=True,
