@@ -1178,6 +1178,7 @@ class cutout_dir():
             scale_cs=False,
             logy=False,
             invert_y=False,
+            add_y0_line=False
         ):
             fig = plt.figure(figsize=(6, 6))
             plt.subplots_adjust(left=0.15, bottom=0.1, right=0.95, top=0.95)
@@ -1232,6 +1233,8 @@ class cutout_dir():
                 else:
                     plt.xlim(xmin,xmax)
 
+            if add_y0_line:
+                plt.axhline(y=0,ls='--',color='k')
             plt.xlabel("SMA (arcsec)", fontsize=16)
             plt.ylabel(ylabel, fontsize=16)
 
@@ -1295,6 +1298,7 @@ class cutout_dir():
             scale_cs=True,
             cut_on_snr=False,
             logy=False,
+            add_y0_line=True,
         )
         
         # surface brightness in mag / arcsec^2
