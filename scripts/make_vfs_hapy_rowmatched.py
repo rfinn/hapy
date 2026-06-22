@@ -15,7 +15,7 @@ import argparse
 import numpy as np
 from pathlib import Path
 from astropy.table import Table
-
+from hapy.utils.results_table import prepare_analysis_table
 
 def safe_str(x):
     try:
@@ -132,12 +132,17 @@ def main():
     infile = Path(args.hapy_table)
     tab = Table.read(infile)
 
-    # get best duplicate
-    if getattr(tab,'BEST_DUPLICATE'):
-        tab = tab['BEST_DUPLICATE']
+    # add additional columns
+    tab = prepare_analysis_table(tab)
+
+    # get best duplicate    
+    if 'BEST_DUPLICATE' in tab.colnames:
+        tab = tab[tab['BEST_DUPLICATE']]
     else:
-        print("WARNING: BEST_DUPLICATE column was not found in ",args.hapy_table)
+        print("WARNING: BEST_DUPLICATE column was not found in", args.hapy_table)
         print("PLEASE SELECT BEST DUPLICATE")
+    
+
 
     
     outtab = make_vfs_hapy_rowmatched(tab, n_vfs=args.n_vfs)
