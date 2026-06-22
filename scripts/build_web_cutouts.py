@@ -1174,6 +1174,7 @@ class cutout_dir():
             outfile_attr,
             outfile_suffix,
             labels,
+            cut_on_snr=True,
             scale_cs=False,
             logy=False,
             invert_y=False,
@@ -1184,8 +1185,10 @@ class cutout_dir():
             for i, t in enumerate(tabs):
                 if ycol not in t.colnames or yerrcol not in t.colnames:
                     continue
-
-                plotflag = get_plotflag(t)
+                if cut_on_snr:
+                    plotflag = get_plotflag(t)
+                else:
+                    plotflag = np.ones(len(t),'bool')
 
                 x = np.asarray(t["sma_arcsec"])[plotflag]
                 y0 = np.asarray(t[ycol])[plotflag]
@@ -1283,6 +1286,7 @@ class cutout_dir():
             outfile_suffix="-sb-sma-linear.png",
             labels=labels_flux,
             scale_cs=True,
+            cut_on_snr=False,
             logy=False,
         )
         
@@ -1911,7 +1915,8 @@ class build_html_cutout():
     def write_phot_profiles(self):
         ''' photometry table with galfit and photutil results '''
         self.html.write('<h2>Elliptical Photometry</h2>\n')
-        #self.html.write('<p>using galfit and photutil geometry</p>\n')                        
+        #self.html.write('<p>using galfit and photutil geometry</p>\n')
+        # looks good with additional sb profile in linear scale
         images = [self.cutout.efluxsma_png,self.cutout.emagsma_png,self.cutout.sbfluxsma_png_linear,self.cutout.sbfluxsma_png,self.cutout.sbmagsma_png]
         images = [os.path.basename(i) for i in images]
         labels = ['Enclosed Flux','Enclosed Magnitude','Surface Brightness Linear','Surface Brightness Log','Surface Brightness Mag']
