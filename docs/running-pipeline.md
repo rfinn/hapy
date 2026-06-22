@@ -1446,8 +1446,8 @@ python ~/github/hapy/scripts/build_cutout_index.py --runroot \
 
 ```
 python ~/github/hapy/scripts/build_cutout_index.py --runroot \
-/data-pool/Halpha/hapy-output-20260612/ --results-table \
-/data-pool/Halpha/hapy-output-20260612/merged_results_virgo_20260613.fits
+/data-pool/Halpha/hapy-output-20260620/ --results-table \
+/data-pool/Halpha/hapy-output-20260620/merged_results_virgo_20260622.fits
 ```
 
 ## Rsync files
