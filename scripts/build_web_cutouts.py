@@ -1185,10 +1185,13 @@ class cutout_dir():
             for i, t in enumerate(tabs):
                 if ycol not in t.colnames or yerrcol not in t.colnames:
                     continue
-                if cut_on_snr:
+                if i == 0:
                     plotflag = get_plotflag(t)
                 else:
-                    plotflag = np.ones(len(t),'bool')
+                    if cut_on_snr:
+                        plotflag = get_plotflag(t)
+                    else:
+                        plotflag = np.ones(len(t),'bool')
 
                 x = np.asarray(t["sma_arcsec"])[plotflag]
                 y0 = np.asarray(t[ycol])[plotflag]
@@ -1224,6 +1227,10 @@ class cutout_dir():
                         lw=2,
                         color=color,
                     )
+                if i == 0:
+                    xmin,xmax = plt.xlim()
+                else:
+                    plt.xlim(xmin,xmax)
 
             plt.xlabel("SMA (arcsec)", fontsize=16)
             plt.ylabel(ylabel, fontsize=16)
