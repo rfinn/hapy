@@ -83,3 +83,29 @@ Wrote needs_new_manual_mask.txt
 ```
 
 So.... need to remake a bunch of masks - woo hoo!
+
+```bash
+while read d; do
+    tag=$(basename "$d")
+    if [ ! -f "$d/${tag}-mask-manual.fits" ]; then
+        echo "$d"
+    fi
+done < needs_new_manual_mask.txt > still_need_manual_mask.txt
+```
+
+Then count how many are left:
+```bash
+(hapy) rfinn@draco:/data-pool/Halpha/hapy-output-20260620$ wc -l still_need_manual_mask.txt 
+40 still_need_manual_mask.txt
+```
+
+
+To get the next images to mask:
+```
+head still_need_manual_mask.txt
+```
+
+And run the mask
+```
+
+```
