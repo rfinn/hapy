@@ -375,7 +375,7 @@ run_maskgui_from_metadata --gaia-dir /data-pool/Halpha/coadds-v20260330/gaia_cat
 ```
 
 ```
-run_maskgui_from_metadata --gaia-dir
-/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --no-central-ellipse
---cutout-dir cutouts/VFID0481-NGC6307-BOK-20220424-VFID0483 
+run_maskgui_from_metadata --gaia-dir \
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --no-central-ellipse \
+--cutout-dir cutouts/VFID0481-NGC6307-BOK-20220424-VFID0483 \
 ```

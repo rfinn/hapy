@@ -66,7 +66,7 @@ def get_cutout_pixscale(cutout_dir, tag, fallback=512):
 
     
     pixscale = get_pixel_scale_from_filename(rfiles[0])
-   
+    print("DEBUG: pixscale = ")
     return pixscale
 
 # def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
@@ -107,7 +107,10 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
     ra, dec = read_metadata(cutout_dir)
     imsize = get_cutout_imsize(cutout_dir, tag)
     pixscale = get_cutout_pixscale(cutout_dir, tag)
-
+    leg_pixscale = 0.262
+    imsize_arcsec = imsize * pixscale
+    leg_imsize_pixels = imsize_arcsec/leg_pixscale
+    #pixscale=0.262    
     if verbose:
         print(f"\n{tag}")
         print(f"  ra, dec = {ra:.6f}, {dec:.6f}")
@@ -116,14 +119,14 @@ def fetch_one(cutout_dir, pixscale=0.262, layer="ls-dr9", verbose=False):
         print(f"  outdir  = {pixscale:.2f}")
 
     # checking to see if it's faster to download at the native pixel scale
-    pixscale=0.262
+
     
     result = get_legacy_images(
         ra=ra,
         dec=dec,
         galid=tag,
-        pixscale=np.round(pixscale, decimals=4),
-        imsize=imsize,
+        pixscale=np.round(leg_pixscale, decimals=4),
+        imsize=leg_imsize_pixels,
         band="grz",
         makeplots=False,
         subfolder=str(legacy_dir),

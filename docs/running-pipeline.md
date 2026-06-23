@@ -603,7 +603,7 @@ flagged as needing more editing on mask.
 run_analysis --make-mask  --psf-dir \
 /data-pool/Halpha/psf-images-v20260518/ --statmorph \
 --galfit --convflag --log-to-console --gaia-dir \
-/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --cutout-dir \
+/data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --csgr --cutout-dir \
 cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
 
