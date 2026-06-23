@@ -135,7 +135,7 @@ def make_mstar_map(
 
     sigma_mstar = mstar / pixel_area_kpc2
 
-    sigma_hdr = mstar_hdr.copy()
+    sigma_hdr = hdr.copy()
     sigma_hdr["SIGMSTAR"] = (True, "Stellar mass surface density image")
     sigma_hdr["BUNIT"] = ("Msun/pc2", "Image units")
     sigma_hdr["KPCPIX"] = (float(kpc_per_pixel), "kpc per pixel")
