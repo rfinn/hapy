@@ -1161,13 +1161,15 @@ class EllipsePhotometry():
             print("WARNING: only one object in the SourceCatalog!",distance)
         #print(self.objectIndex)
         if self.image2 is not None:
-            # the object index in cat 2 is not necessarily the same
-            # not sure if this is something I changed or if this has always been the case...
+            self.objectIndex2 = self.objectIndex
+        #     # the object index in cat 2 is not necessarily the same
+        #     # not sure if this is something I changed or if this has always been the case...
             
-            distance = np.sqrt((np.ma.array(self.cat2.xcentroid) - xc)**2 + (np.ma.array(self.cat2.ycentroid) - yc)**2)        
-            # save object ID as the row in table with source that is closest to center
-            self.objectIndex2 = np.arange(len(distance))[(distance == min(distance))][0]
-            
+        #     distance = np.sqrt((np.ma.array(self.cat2.xcentroid) - xc)**2 + (np.ma.array(self.cat2.ycentroid) - yc)**2)        
+        #     # save object ID as the row in table with source that is closest to center
+        #     self.objectIndex2 = np.arange(len(distance))[(distance == min(distance))][0]
+
+
         if self.objra is not None:
             # check that distance of this object is not far from the original position
             xcat = self.cat.xcentroid[self.objectIndex]

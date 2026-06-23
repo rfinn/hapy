@@ -89,7 +89,47 @@ def copy_hapy_cs_fields_to_row(e, row, prefix, pixscale):
     row[f"{prefix}_HAPY_MORPH_OK"] = bool(getattr(e, "HAPY_MORPH_OK", False))
     row[f"{prefix}_HAPY_MORPH_FLAG"] = int(getattr(e, "HAPY_MORPH_FLAG", 0))
     
+def ellipse_image_coverage(data, ell0_params):
+    """
+    Measure image coverage within initial ellipse.
 
+    Missing pixels are non-finite values.
+    """
+
+    import numpy as np
+    from photutils.aperture import EllipticalAperture
+
+    x0 = ell0_params["x0"]
+    y0 = ell0_params["y0"]
+    sma = ell0_params["sma"]
+    ba = ell0_params["ba"]
+    pa = ell0_params["pa"]
+
+    ap = EllipticalAperture(
+        (x0, y0),
+        a=sma,
+        b=sma * ba,
+        theta=pa,
+    )
+
+    mask = ap.to_mask(method="center")
+    aper_data = mask.multiply(np.ones_like(data, dtype=float))
+
+    in_ellipse = aper_data > 0
+    n_total = int(np.sum(in_ellipse))
+
+    good = in_ellipse & np.isfinite(data)
+    n_good = int(np.sum(good))
+
+    n_missing = n_total - n_good
+    frac_missing = n_missing / n_total if n_total > 0 else np.nan
+
+    return {
+        "npix_total": n_total,
+        "npix_good": n_good,
+        "npix_missing": n_missing,
+        "missing_frac": frac_missing,
+    }
 def prefix_dict_keys(d, prefix):
     return {f"{prefix}_{k}": v for k, v in d.items()}
             
@@ -866,6 +906,124 @@ def init_csgr_row_defaults(row):
 
     return row
 
+def initialize_sourcecatalog_moments(row, prefix1="R", prefix2="H"):
+    import numpy as np
+
+    cols = [
+        "MOMENTS_OK",
+        "COV_XX", "COV_YY", "COV_XY",
+        "SEMIMAJOR_SIGMA", "SEMIMINOR_SIGMA", "AREA",
+        "ORIENTATION",
+        "ECCENTRICITY", "ELONGATION","GINI",
+        "KRON_RADIUS", "KRON_FLUX"
+    ]
+
+    # initialize for safe stacking
+    for prefix in [prefix1, prefix2]:
+        for col in cols:
+            row[f"{prefix}_SC_{col}"] = False if col == "MOMENTS_OK" else np.nan
+        row[f"{prefix}_SC_UNITS"] = ""
+
+def add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H", pixel_scale=None):
+    import numpy as np
+
+    pixscale = np.nan if pixel_scale is None else float(pixel_scale)
+
+    def safe_float(x):
+        try:
+            return float(np.asarray(x).squeeze())
+        except Exception:
+            return np.nan
+
+    def fill_from_sourcecat(prefix, cat, index):
+        try:
+            src = cat[index]
+            cov = src.covariance
+
+            sma_pix = safe_float(src.semimajor_sigma.value)
+            smb_pix = safe_float(src.semiminor_sigma.value)
+            kron_pix = safe_float(src.kron_radius.value)
+
+            if np.isfinite(pixscale) and pixscale > 0:
+                row[f"{prefix}_SC_COV_XX"] = safe_float(cov[0, 0]) * pixscale**2
+                row[f"{prefix}_SC_COV_YY"] = safe_float(cov[1, 1]) * pixscale**2
+                row[f"{prefix}_SC_COV_XY"] = safe_float(cov[0, 1]) * pixscale**2
+                row[f"{prefix}_SC_SEMIMAJOR_SIGMA"] = sma_pix * pixscale
+                row[f"{prefix}_SC_SEMIMINOR_SIGMA"] = smb_pix * pixscale
+                row[f"{prefix}_SC_AREA"] = np.pi * sma_pix * smb_pix * pixscale**2
+                row[f"{prefix}_SC_KRON_RADIUS"] = kron_pix * pixscale
+                row[f"{prefix}_SC_UNITS"] = "arcsec"
+            else:
+                row[f"{prefix}_SC_COV_XX"] = safe_float(cov[0, 0])
+                row[f"{prefix}_SC_COV_YY"] = safe_float(cov[1, 1])
+                row[f"{prefix}_SC_COV_XY"] = safe_float(cov[0, 1])
+                row[f"{prefix}_SC_SEMIMAJOR_SIGMA"] = sma_pix
+                row[f"{prefix}_SC_SEMIMINOR_SIGMA"] = smb_pix
+                row[f"{prefix}_SC_AREA"] = np.pi * sma_pix * smb_pix
+                row[f"{prefix}_SC_KRON_RADIUS"] = kron_pix
+                row[f"{prefix}_SC_UNITS"] = "pix"
+
+            row[f"{prefix}_SC_KRON_FLUX"] = safe_float(src.kron_flux)
+            row[f"{prefix}_SC_ORIENTATION"] = safe_float(src.orientation.value)
+            row[f"{prefix}_SC_ECCENTRICITY"] = safe_float(src.eccentricity.value)
+            row[f"{prefix}_SC_ELONGATION"] = safe_float(src.elongation.value)
+            row[f"{prefix}_SC_GINI"] = safe_float(src.gini)
+            row[f"{prefix}_SC_MOMENTS_OK"] = True
+
+        except Exception as err:
+            print(f"WARNING: could not extract SourceCatalog moments for {prefix}: {err}")
+
+    if hasattr(e, "cat") and hasattr(e, "objectIndex"):
+        fill_from_sourcecat(prefix1, e.cat, e.objectIndex)
+
+    if hasattr(e, "cat2") and hasattr(e, "objectIndex2"):
+        fill_from_sourcecat(prefix2, e.cat2, e.objectIndex2)
+
+    return row
+
+
+def add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H"):
+    import numpy as np
+
+    cols = [
+        "MOMENTS_OK",
+        "COV_XX", "COV_YY", "COV_XY",
+        "SEMIMAJOR_SIGMA", "SEMIMINOR_SIGMA",
+        "ORIENTATION",
+        "ECCENTRICITY", "ELONGATION",
+    ]
+
+
+    def fill_from_sourcecat(prefix, cat, index):
+        try:
+            src = cat[index]
+            cov = src.covariance
+
+            row[f"{prefix}_SC_COV_XX"] = float(cov[0, 0])
+            row[f"{prefix}_SC_COV_YY"] = float(cov[1, 1])
+            row[f"{prefix}_SC_COV_XY"] = float(cov[0, 1])
+
+            row[f"{prefix}_SC_SEMIMAJOR_SIGMA"] = float(src.semimajor_sigma.value)
+            row[f"{prefix}_SC_SEMIMINOR_SIGMA"] = float(src.semiminor_sigma.value)
+            row[f"{prefix}_SC_ORIENTATION"] = float(src.orientation.value)
+            row[f"{prefix}_SC_ECCENTRICITY"] = float(src.eccentricity.value)
+            row[f"{prefix}_SC_ELONGATION"] = float(src.elongation.value)
+
+            row[f"{prefix}_SC_MOMENTS_OK"] = True
+
+        except Exception as err:
+            print(f"WARNING: could not extract SourceCatalog moments for {prefix}: {err}")
+
+    if hasattr(e, "cat") and hasattr(e, "objectIndex"):
+        fill_from_sourcecat(prefix1, e.cat, e.objectIndex)
+
+    if hasattr(e, "cat2") and hasattr(e, "objectIndex2"):
+        fill_from_sourcecat(prefix2, e.cat2, e.objectIndex2)
+
+    return row
+
+
+
 
 def _print_psf_image(p,logger):
     if logger is not None:
@@ -1281,7 +1439,11 @@ def main():
             
     row = initialize_result_row()
 
+    row = initialize_sourcecatalog_moments(row, prefix1="R", prefix2="H")
+    
     row = init_csgr_row_defaults(row)
+
+    row = initialize_sourcecatalog_moments(row, prefix1="CSGR_R", prefix2="CSGR")    
 
 
     # look for CS-gr image and log it if found
@@ -1583,22 +1745,39 @@ def main():
         )
 
     # --- store coverage information about initial ellipse
-    cutout_map = {
-        "cutout_ell0_missing_frac_r": "CUTOUT_ELL0_MISSING_FRAC_R",
-        "cutout_ell0_missing_frac_h": "CUTOUT_ELL0_MISSING_FRAC_H",
-        "cutout_ell0_missing_frac_max": "CUTOUT_ELL0_MISSING_FRAC_MAX",
-        "cutout_ell0_npix_total_r": "CUTOUT_ELL0_NPIX_TOTAL_R",
-        "cutout_ell0_npix_total_h": "CUTOUT_ELL0_NPIX_TOTAL_H",
-        "cutout_ell0_npix_onimage_r": "CUTOUT_ELL0_NPIX_ONIMAGE_R",
-        "cutout_ell0_npix_onimage_h": "CUTOUT_ELL0_NPIX_ONIMAGE_H",
-        "cutout_ell0_npix_good_r": "CUTOUT_ELL0_NPIX_GOOD_R",
-        "cutout_ell0_npix_good_h": "CUTOUT_ELL0_NPIX_GOOD_H",
-    }
+    r_cov = ellipse_image_coverage(r_data, ell0_params)
+    h_cov = ellipse_image_coverage(h_data, ell0_params)
 
-    for pkey, rkey in cutout_map.items():
-        val = params.get(pkey)
-        if val is not None:
-            row[rkey] = float(val)
+    row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
+    row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
+
+    row["CUTOUT_ELL0_NPIX_GOOD_R"] = r_cov["npix_good"]
+    row["CUTOUT_ELL0_NPIX_GOOD_H"] = h_cov["npix_good"]
+
+    row["CUTOUT_ELL0_MISSING_FRAC_R"] = r_cov["missing_frac"]
+    row["CUTOUT_ELL0_MISSING_FRAC_H"] = h_cov["missing_frac"]
+
+    row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nanmax([
+        r_cov["missing_frac"],
+        h_cov["missing_frac"],
+        ])
+
+    # cutout_map = {
+    #     "cutout_ell0_missing_frac_r": "CUTOUT_ELL0_MISSING_FRAC_R",
+    #     "cutout_ell0_missing_frac_h": "CUTOUT_ELL0_MISSING_FRAC_H",
+    #     "cutout_ell0_missing_frac_max": "CUTOUT_ELL0_MISSING_FRAC_MAX",
+    #     "cutout_ell0_npix_total_r": "CUTOUT_ELL0_NPIX_TOTAL_R",
+    #     "cutout_ell0_npix_total_h": "CUTOUT_ELL0_NPIX_TOTAL_H",
+    #     "cutout_ell0_npix_onimage_r": "CUTOUT_ELL0_NPIX_ONIMAGE_R",
+    #     "cutout_ell0_npix_onimage_h": "CUTOUT_ELL0_NPIX_ONIMAGE_H",
+    #     "cutout_ell0_npix_good_r": "CUTOUT_ELL0_NPIX_GOOD_R",
+    #     "cutout_ell0_npix_good_h": "CUTOUT_ELL0_NPIX_GOOD_H",
+    # }
+
+    # for pkey, rkey in cutout_map.items():
+    #     val = params.get(pkey)
+    #     if val is not None:
+    #         row[rkey] = float(val)
         
 
     ################################################################
@@ -1823,7 +2002,10 @@ def main():
             if sv is not None:
                 row[outk] = sv
 
-        
+
+
+    add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H",pixel_scale = float(pixscale))
+    
     try:
         phot_xc = float(row["ELLIP_XCENTROID"])
         phot_yc = float(row["ELLIP_YCENTROID"])

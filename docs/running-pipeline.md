@@ -542,7 +542,7 @@ parallel --bar  -j 16  --memfree 60G --joblog csgr.joblog --results csgr-logs ~/
 # Make Mstar Images
 
 ```
-python ~/github/hapy/hapy/scripts/make_mstar_map.py cutouts/VFIDxxxx-... --scheme virgo --overwrite
+python ~/github/hapy/hapy/scripts/make_mstar_map.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422 --scheme virgo --overwrite
 ```
 
 To run all:
@@ -553,12 +553,12 @@ find cutouts -mindepth 1 -maxdepth 1 -type d | sort > cutout_list.txt
 
 
 ```
-parallel --bar -j 16 python ~/github/hapy/hapy/scripts/make_mstar_map.py {} --overwrite :::: cutout_list.txt
+parallel --bar -j 16 --joblog make_mstar.joblog --results make_mstar_logs run_analysis  python ~/github/hapy/hapy/scripts/make_mstar_map.py {} --overwrite :::: cutout_list.txt
 ```
 
 # Make SFR Images
 ```
-python ~/github/hapy/hapy/scripts/make_sfr_map.py cutouts/VFIDxxxx-... --scheme virgo --overwrite
+python ~/github/hapy/hapy/scripts/make_sfr_map.py cutouts/VFID0377-IC1210-BOK-20210414-VFID0422 --scheme virgo --overwrite
 ```
 
 ```
@@ -602,7 +602,7 @@ flagged as needing more editing on mask.
 ```bash
 run_analysis --make-mask  --psf-dir \
 /data-pool/Halpha/psf-images-v20260518/ --statmorph \
---galfit --convflag --log-to-console --gaia-dir \
+--galfit --convflag --csgr --log-to-console --gaia-dir \
 /data-pool/Halpha/coadds-v20260330/gaia_catalogs/ --csgr --cutout-dir \
 cutouts/VFID0377-IC1210-BOK-20210414-VFID0422
 ```
