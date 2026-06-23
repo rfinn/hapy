@@ -495,6 +495,7 @@ class EllipsePhotometry():
     * image2_filter - this is used to calculate the flux levels in the second filter.  
                       this should be one of standard halpha filters in our dictionary 
                       ('4','inthalpha','intha6657').
+    * mask2         - if mask2 is provided, mask2 will be applied to image2; else mask will be applied to image2.
     * filter_ratio  - ratio of flux in image2/image1
     * psf           - used by statmorph (not sure if this is the image or the image name)
     * psf_ha        - used by statmorph
@@ -502,7 +503,7 @@ class EllipsePhotometry():
 
 
     '''
-    def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=20,apertures=None, image2_filter=None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False,logger=None,fileid=None):
+    def __init__(self, image, image2 = None, mask = None, image_frame=None, use_mpl=False, napertures=80,apertures=None, image2_filter=None, mask2 = None, filter_ratio=None,psf=None,psf_ha=None,objra=None,objdec=None,fixcenter=False,logger=None,fileid=None):
         '''  inputs described above '''
 
         self.tag = image.replace('.fits','')
@@ -538,7 +539,7 @@ class EllipsePhotometry():
             # convert sma to pixels using pixel scale from mask wcs
             #self.pixel_scale = wcs.pixel_scale_matrix[1][1]
             #self.objsma_pixels = self.objsma/(self.pixel_scale*3600)
-        print(f"DEBUG inside EllipsePhotometry: xc={self.xcenter:.1f},yc={self.ycenter:.1f},\nra={self.objra:.6f},dec={self.objdec:.6f}")
+        #print(f"DEBUG inside EllipsePhotometry: xc={self.xcenter:.1f},yc={self.ycenter:.1f},\nra={self.objra:.6f},dec={self.objdec:.6f}")
         # image 2 is designed to be the Halpha image, but it can be any second
         # image whereby you define the ellipse geometry using image 1, and
         # measure the photometry on image 1 and image 2
@@ -556,6 +557,7 @@ class EllipsePhotometry():
                 warnings.warn(f"No PHOTZP keyword in image {image2} header. \nAssuming ZP=22.5")
                 self.magzp2 = 22.5
             self.gain2 = float(self.header2.get("GAIN",1))
+            self.mask2 = mask2
         else:
             self.image2_flag = False
             self.image2 = None
@@ -563,6 +565,7 @@ class EllipsePhotometry():
             self.header2 = None
             self.magzp2 = np.nan
             self.gain2 = 1
+            self.mask2 = mask2
         self.image2_filter = image2_filter
         self.filter_ratio = filter_ratio
 
@@ -599,7 +602,12 @@ class EllipsePhotometry():
             self.image_for_ellipse[self.boolmask] = np.nan
 
             if self.image2_flag:
-                self.masked_image2 = np.ma.array(self.image2, mask=self.boolmask)
+                if self.mask2 is not None:
+                    mask2 = fits.getdata(mask2)
+                    boolmask2 = np.asarray(self.mask_image, dtype=bool)
+                else:
+                    boolmask2 = self.boolmask
+                self.masked_image2 = np.ma.array(self.image2, mask=boolmask2)
                 self.image2_for_ellipse = np.array(self.image2, dtype=float, copy=True)
                 self.image2_for_ellipse[self.boolmask] = np.nan
         else:
@@ -672,7 +680,7 @@ class EllipsePhotometry():
         #self.get_sky_noise()
 
     
-    def run_for_gui(self,runStatmorphFlag=True):
+    def run_for_gui(self,runStatmorphFlag=True, subtract_sky=True):
         ''' 
         batch all of the functions that we run for the gui, including:
 
@@ -698,9 +706,10 @@ class EllipsePhotometry():
         # now I have an issue where the cutouts have a negative sky value,
         # presumably b/c sky in r-band cutout is not zero.
         # going to put this back in to see if it helps
-        print("subtract sky")
-        
-        self.subtract_sky()
+        if subtract_sky:
+            print("subtract sky")
+            
+            self.subtract_sky()
         
         print("detect objects")
         self.detect_objects()
@@ -2240,13 +2249,30 @@ class EllipsePhotometry():
     def draw_guess_ellipse_mpl(self):
         ''' DRAW INITIAL ELLIPSE ON R-BAND CUTOUT '''
         #
-        norm = ImageNormalize(stretch=SqrtStretch())
-        plt.figure()
-        #plt.imshow(self.masked_image, cmap='Greys', norm=norm , origin='lower')
-        display_image(self.masked_image)#, cmap='Greys', norm=norm , origin='lower')        
-        plt.colorbar()
-        self.aperture.plot(color='k', lw=1.)
-        #plt.show()
+        if self.image2_flag:
+            norm = ImageNormalize(stretch=SqrtStretch())
+            plt.figure()
+            plt.subplot(1,2,1)
+            #plt.imshow(self.masked_image, cmap='Greys', norm=norm , origin='lower')
+            display_image(self.masked_image)#, cmap='Greys', norm=norm , origin='lower')        
+            plt.colorbar(fraction=.08)
+            self.aperture.plot(color='k', lw=1.)
+
+            plt.subplot(1,2,2)
+            #norm = ImageNormalize(stretch=SqrtStretch())
+            display_image(np.log10(self.masked_image2))#, cmap='Greys', norm=norm , origin='lower')
+            plt.colorbar(fraction=.08)
+            self.aperture.plot(color='k', lw=1.)
+            
+            #plt.show()
+        else:
+            norm = ImageNormalize(stretch=SqrtStretch())
+            plt.figure()
+            #plt.imshow(self.masked_image, cmap='Greys', norm=norm , origin='lower')
+            display_image(self.masked_image)#, cmap='Greys', norm=norm , origin='lower')        
+            plt.colorbar(fraction=.08)
+            self.aperture.plot(color='k', lw=1.)
+            #plt.show()
 
     def fit_ellipse(self):
         ''' FIT ELLIPSE '''
@@ -2336,8 +2362,152 @@ class EllipsePhotometry():
             
             plt.close()
 
-
     def _build_aperture_grid(self):
+        """
+        Build elliptical aperture sequence up to image edge.
+
+        Supports two modes:
+
+        1. Default HAPY/Becky spacing:
+           centrally oversampled, increasing aperture spacing with radius.
+
+        2. Fixed arcsec spacing:
+           apertures every fixed radial step, e.g. 10 arcsec.
+
+        Required optional attributes for fixed mode:
+            self.aperture_spacing_mode = "fixed_arcsec"
+            self.aperture_spacing_arcsec = 10.0
+
+        Returns
+        -------
+        apertures_a, apertures_b, area_total, allellipses
+        """
+
+        ct = max(1e-6, abs(np.cos(self.pa_fit)))
+        st = max(1e-6, abs(np.sin(self.pa_fit)))
+
+        rmax = np.min([
+            (self.ximage_max - self.xcenter_fit) / ct,
+            (self.yimage_max - self.ycenter_fit) / st,
+            self.xcenter_fit / ct,
+            self.ycenter_fit / st,
+        ])
+
+        # FWHM must be in pixels for the default aperture spacing.
+        fwhm_pix = float(self.fwhm)
+
+        if not np.isfinite(fwhm_pix) or fwhm_pix <= 0:
+            pixscale = getattr(self, "pixel_scale", np.nan)
+
+            if np.isfinite(pixscale) and pixscale > 0:
+                fwhm_pix = 1.0 / pixscale
+            else:
+                fwhm_pix = 5.0
+
+            print(f"WARNING: self.fwhm is invalid; using fallback fwhm_pix={fwhm_pix:.2f}")
+
+        # --------------------------------------------------
+        # Aperture spacing mode
+        # --------------------------------------------------
+        aperture_spacing_mode = getattr(self, "aperture_spacing_mode", "hapy")
+        aperture_spacing_mode = str(aperture_spacing_mode).lower()
+
+        if aperture_spacing_mode in ["fixed", "fixed_arcsec", "arcsec"]:
+            pixscale = getattr(self, "pixel_scale", np.nan)
+
+            if not np.isfinite(pixscale) or pixscale <= 0:
+                raise ValueError(
+                    "Fixed-arcsec aperture spacing requires self.pixel_scale "
+                    "in arcsec/pixel."
+                )
+
+            spacing_arcsec = getattr(self, "aperture_spacing_arcsec", 10.0)
+            spacing_pix = float(spacing_arcsec) / float(pixscale)
+
+            if not np.isfinite(spacing_pix) or spacing_pix <= 0:
+                raise ValueError(
+                    f"Invalid aperture spacing: {spacing_arcsec} arcsec "
+                    f"with pixel_scale={pixscale}"
+                )
+
+            apertures_a = np.arange(
+                spacing_pix,
+                rmax,
+                spacing_pix,
+                dtype=float,
+            )
+
+            print(
+                f"Using fixed aperture spacing: {spacing_arcsec:.2f} arcsec "
+                f"= {spacing_pix:.2f} pix"
+            )
+
+        else:
+            # Becky/HAPY default aperture spacing.
+            index = np.arange(80)
+            apertures = (index + 1) * 0.5 * fwhm_pix * (1 + (index + 1) * 0.1)
+            apertures_a = apertures[apertures < rmax]
+
+        # --------------------------------------------------
+        # Fallback if grid is empty
+        # --------------------------------------------------
+        if len(apertures_a) == 0:
+            print("WARNING: aperture grid is empty")
+            print(f"  rmax = {rmax}")
+            print(f"  xcenter_fit = {self.xcenter_fit}")
+            print(f"  ycenter_fit = {self.ycenter_fit}")
+            print(f"  ximage_max = {self.ximage_max}")
+            print(f"  yimage_max = {self.yimage_max}")
+            print(f"  pa_fit = {self.pa_fit}")
+            print(f"  fwhm = {self.fwhm}")
+
+            edge_dist = np.min([
+                self.xcenter_fit,
+                self.ycenter_fit,
+                self.ximage_max - self.xcenter_fit,
+                self.yimage_max - self.ycenter_fit,
+            ])
+
+            rmax_fallback = 0.9 * edge_dist
+
+            print(f"  fallback edge_dist = {edge_dist}")
+            print(f"  fallback rmax = {rmax_fallback}")
+
+            if aperture_spacing_mode in ["fixed", "fixed_arcsec", "arcsec"]:
+                pixscale = getattr(self, "pixel_scale", np.nan)
+                spacing_arcsec = getattr(self, "aperture_spacing_arcsec", 10.0)
+                spacing_pix = float(spacing_arcsec) / float(pixscale)
+                apertures_a = np.arange(
+                    spacing_pix,
+                    rmax_fallback,
+                    spacing_pix,
+                    dtype=float,
+                )
+            else:
+                index = np.arange(80)
+                apertures = (index + 1) * 0.5 * fwhm_pix * (1 + (index + 1) * 0.1)
+                apertures_a = apertures[apertures < rmax_fallback]
+
+        if len(apertures_a) == 0:
+            print("WARNING: fallback aperture grid is still empty; forcing one aperture")
+            apertures_a = np.array([max(2.0, 0.5 * fwhm_pix)])
+
+        apertures_b = (1.0 - self.eps_fit) * apertures_a
+        area_total = np.pi * apertures_a * apertures_b
+
+        allellipses = [
+            EllipticalAperture(
+                (self.xcenter_fit, self.ycenter_fit),
+                apertures_a[i],
+                apertures_b[i],
+                self.theta,
+            )
+            for i in range(len(apertures_a))
+        ]
+
+        return apertures_a, apertures_b, area_total, allellipses
+
+    def _build_aperture_grid_old(self):
         """
         Build elliptical aperture sequence up to image edge.
         Returns:
@@ -2353,7 +2523,7 @@ class EllipsePhotometry():
             self.ycenter_fit / st,
         ])
 
-        index = np.arange(80)
+        index = np.arange(self.napertures)
 
 
         # FWHM must be in pixels for aperture spacing
@@ -2421,7 +2591,7 @@ class EllipsePhotometry():
 
         return apertures_a, apertures_b, area_total, allellipses
 
-    def _build_aperture_grid_old(self):
+    def _build_aperture_grid_old2(self):
         """
         Build elliptical aperture sequence up to image edge.
         Returns:
@@ -2558,6 +2728,7 @@ class EllipsePhotometry():
         prev_flux1 = None
         prev_flux2 = None
         prev_area = None
+        prev_area2 = None
 
         self.apertures_a, self.apertures_b, self.area, self.allellipses = self._build_aperture_grid()
 
@@ -2574,6 +2745,9 @@ class EllipsePhotometry():
         if self.image2_flag:
             self.flux2 = np.zeros(naper, dtype=float)
             self.flux2_err = np.zeros(naper, dtype=float)
+            self.area_unmasked2 = np.zeros(naper, dtype=float)
+            self.masked_fraction2 = np.zeros(naper, dtype=float)
+            
 
         self.snr_total = []
         self.snr_per_pixel = []
@@ -2582,12 +2756,23 @@ class EllipsePhotometry():
         self.snr_total2 = []
         self.snr_per_pixel2 = []
         self.snr_image_units2 = []
+    
+        combined_mask = ~np.isfinite(self.image)
 
-        combined_mask = None
         if self.mask_flag:
-            nan_mask = ~np.isfinite(self.image)
-            combined_mask = self.boolmask | nan_mask
+            combined_mask |= self.boolmask
+        self.combined_mask1 = combined_mask
 
+        
+        if self.image2_flag:
+            combined_mask2 = ~np.isfinite(self.image2)
+
+            if self.mask_flag:
+                combined_mask2 |= self.boolmask
+                
+            self.combined_mask2 = combined_mask2
+
+        
         for i, ap in enumerate(self.allellipses):
             # --- image1 ---
             flux1, area_total, area_unmasked = self._measure_single_aperture(
@@ -2627,20 +2812,26 @@ class EllipsePhotometry():
 
             # --- image2 ---
             if self.image2_flag:
-                flux2, _, _ = self._measure_single_aperture(
+
+                flux2,area_total2,area_unmasked2 = self._measure_single_aperture(
                     self.image2,
                     ap,
-                    combined_mask=combined_mask,
+                    combined_mask=combined_mask2
                 )
                 self.flux2[i] = flux2
-                self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area_unmasked[i])
-                self.flux2_err[i] = get_noise_in_aper(self.flux2[i], self.area_unmasked[i],self.gain2,self.sky_noise2)
+
+                self.area_unmasked2[i] = area_unmasked2
+                self.masked_fraction2[i] = 1.0 - (area_unmasked2 / area_total2 if area_total2 > 0 else np.nan)
+
+                
+                #self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area_unmasked[i])
+                self.flux2_err[i] = get_noise_in_aper(self.flux2[i], self.area_unmasked2[i],self.gain2,self.sky_noise2)
 
                 dF2, dA2, snr_total2, snr_per_pixel2, snr_image_units2 = compute_annulus_snr(
                     self.flux2[i],
                     prev_flux2,
-                    self.area_unmasked[i],
-                    prev_area,
+                    self.area_unmasked2[i],
+                    prev_area2,
                     self.sky_noise2 if np.isfinite(self.sky_noise2) else self.sky_noise,
                     gain=self.gain2
                 )
@@ -2649,7 +2840,9 @@ class EllipsePhotometry():
                 self.snr_per_pixel2.append(snr_per_pixel2)
                 self.snr_image_units2.append(snr_image_units2)
 
+                #prev_flux2 = self.flux2[i]
                 prev_flux2 = self.flux2[i]
+                prev_area2 = self.area_unmasked2[i]
 
             prev_flux1 = self.flux1[i]
             prev_area = self.area_unmasked[i]
@@ -2667,196 +2860,383 @@ class EllipsePhotometry():
         else:
             print(f"DEBUG: len(flux1)={len(self.flux1)}")
 
+    def calc_sb(self):
+        # calculate surface brightness in each aperture
 
+        # first aperture is calculated differently
+        self.sb1 = np.zeros(len(self.apertures_a),'f')
+        self.sb1_err = np.zeros(len(self.apertures_a),'f')
+        print(f"DEBUG: len(apertures_a)={len(self.apertures_a)}, len(flux1)={len(self.flux1)}") 
+        self.sb1[0] = self.flux1[0]/self.area_unmasked[0]
+        self.sb1_err[0] = self.get_noise_in_aper(self.flux1[0], self.area[0])/self.area[0]
+        # outer apertures need flux from inner aperture subtracted
+        for i in range(1,len(self.area)):
+            annulus_area = (self.area_unmasked[i]- self.area_unmasked[i-1])
 
-    def measure_phot_old(self):
-        '''
-        # alternative is to use ellipse from detect
-        # then create apertures and measure flux
+            self.sb1[i] = (self.flux1[i]- self.flux1[i-1]) / annulus_area
+            #self.sb1[i] = (self.flux1[i] - self.flux1[i-1])/(self.area[i]-self.area[i-1])
+            self.sb1_err[i] = self.get_noise_in_aper((self.flux1[i] - self.flux1[i-1]),(self.area[i]-self.area[i-1]))/(self.area[i]-self.area[i-1])
 
-        # rmax is max radius to measure ellipse
-        # could cut this off based on SNR
-        # or could cut this off based on enclosed flux?
-        # or could cut off based on image dimension, and do the cutting afterward
-        
-        #rmax = 2.5*self.sma
-        '''
-        
-        '''
-        this is how becky set the apertures
-        a = [0]
-        for i in range(1,500)
-        a.append(a[i-1] + hwhm + (hwhm*i*.1))
-        
-        '''
-
-        # initialize conditions to implement a stopping radius
-        snr_stop = 5
-        snr_consecutive = 2
-        low_snr_count = 0
-
-        prev_flux1 = None
-        prev_area = None
-        prev_flux2 = None
-        
-        # rmax is set according to the image dimensions
-        # look for where the semi-major axis hits the edge of the image
-        # could be on side (limited by x range) or on top/bottom (limited by y range)
-        # 
-        #print('xcenter, ycenter, theta = ',self.xcenter, self.ycenter,self.theta)
-        rmax = np.min([(self.ximage_max - self.xcenter)/abs(np.cos(self.theta)),\
-                       (self.yimage_max - self.ycenter)/abs(np.sin(self.theta))])
-        ct = max(1e-6, abs(np.cos(self.theta)))
-        st = max(1e-6, abs(np.sin(self.theta)))
-        rmax = np.min([(self.ximage_max - self.xcenter) / ct,
-                           (self.yimage_max - self.ycenter) / st,
-                           self.xcenter / ct,
-                           self.ycenter / st,
-                           ])
-        #print('print rmax, ximage_max, image.shape = ',rmax,self.ximage_max,self.image.shape)
-        '''
-        this is how becky set the apertures
-        a = [0]
-        for i in range(1,500):
-        a.append(a[i-1] + hwhm + (hwhm*i*.1))
-        
-        '''
-
-        # TODO - update apertures to make use of input apertures
-        index = np.arange(80) # why do we need 80 apertures???
-        apertures = (index+1)*.5*self.fwhm*(1+(index+1)*.1)
-        #apertures = (index+1)*self.fwhm*(1+(index+1)*.1)
-        # cut off apertures at edge of image
-        self.apertures_a = apertures[apertures < rmax]
-        print(f"\nNumber of apertures = {len(index)}\n")
-        #print('number of apertures = ',len(self.apertures_a))
-        #self.apertures_a = np.linspace(3,rmax,40)
-        self.apertures_b = (1.-self.eps)*self.apertures_a
-        self.area = np.pi*self.apertures_a*self.apertures_b # area of each ellipse
-
-
-        self.flux1 = np.zeros(len(self.apertures_a),'f')
-        self.flux1_err = np.zeros(len(self.apertures_a),'f')
+        # calculate SNR to follow Becky's method of cutting off analysis where SNR = 2
+        self.sb1_snr = np.abs(self.sb1/self.sb1_err)
+        # repeat for image 2 if it is provided
         if self.image2_flag:
-            self.flux2 = np.zeros(len(self.apertures_a),'f')
-            self.flux2_err = np.zeros(len(self.apertures_a),'f')
-        self.allellipses = []
+            self.sb2 = np.zeros(len(self.apertures_a),'f')
+            self.sb2_err = np.zeros(len(self.apertures_a),'f')
+            self.sb2[0] = self.flux2[0]/self.area_unmasked2[0]
+            # (flux, area, gain, sky_noise=None):
+            self.sb2_err[0] = get_noise_in_aper(self.flux2[0], self.area[0],self.gain2,sky_noise=self.sky_noise2)/self.area[0]
+            for i in range(1,len(self.area)):
+                annulus_area = (self.area_unmasked2[i] - self.area_unmasked2[i-1])
+                self.sb2[i] = (self.flux2[i] - self.flux2[i-1])/annulus_area
+                
+                self.sb2_err[i] = get_noise_in_aper((self.flux2[i] - self.flux2[i-1]),(self.area[i]-self.area[i-1]),self.gain2,sky_noise=self.sky_noise2)/(self.area[i]-self.area[i-1])
+            self.sb2_snr = np.abs(self.sb2/self.sb2_err)
 
-        self.snr_total = [] # total snr in aperture
-        self.snr_per_pixel = [] # includes poisson noise from galaxy
-        self.snr_image_units = [] # ave/sb to sky noise
-        self.snr_total2 = [] # total snr in aperture
-        self.snr_per_pixel2 = [] # includes poisson noise from galaxy
-        self.snr_image_units2 = [] # ave/sb to sky noise
-        
-        for i in range(len(self.apertures_a)):
- 
-            # EllipticalAperture takes rotation angle in radians, CCW from +x axis
-            ap = EllipticalAperture((self.xcenter, self.ycenter),self.apertures_a[i],self.apertures_b[i],self.theta)#,ai,bi,theta) for ai,bi in zip(a,b)]
-            self.allellipses.append(ap)
+        # check if the profile peaks at the center
+        self.check_profile_peak()
 
+
+
+    def calc_annular_stats(
+        self,
+        which=2,
+        log10=False,
+        min_npix=5,
+        nboot=300,
+        seed=12345,
+        assign_to_sb=False,
+    ):
+        """
+        Measure direct annular pixel statistics for image1 or image2.
+
+        This is intended for maps where cumulative flux differencing is not the
+        desired statistic, e.g. depletion time maps.
+
+        Parameters
+        ----------
+        which : int
+            1 for self.image, 2 for self.image2.
+
+        log10 : bool
+            If True, compute statistics of log10(values). Non-positive values
+            are excluded.
+
+        min_npix : int
+            Minimum number of valid pixels required in an annulus.
+
+        nboot : int
+            Number of bootstrap resamples for uncertainty on the median.
+            Set to 0 to skip bootstrap errors.
+
+        seed : int
+            Random seed for bootstrap reproducibility.
+
+        assign_to_sb : bool
+            If True, copy the median profile into self.sb1 or self.sb2 and the
+            bootstrap error into self.sb1_err or self.sb2_err. This is useful
+            if you want existing plotting code to keep working.
+        """
+
+        if which == 1:
+            image = self.image
+            combined_mask = getattr(self, "combined_mask1", None)
+        elif which == 2:
+            if not self.image2_flag:
+                raise ValueError("which=2 requested, but image2_flag is False.")
+            image = self.image2
+            combined_mask = getattr(self, "combined_mask2", None)
+        else:
+            raise ValueError("which must be 1 or 2.")
+
+        if combined_mask is None:
+            combined_mask = ~np.isfinite(image)
             if self.mask_flag:
-                # check for nans, and add them to the mask
-                nan_mask = ~np.isfinite(self.image)
-                combined_mask =  self.boolmask | nan_mask
-                self.phot_table1 = aperture_photometry(self.image, ap, mask=combined_mask)
-                if self.image2_flag:
-                    self.phot_table2 = aperture_photometry(self.image2, ap, mask=combined_mask)
+                combined_mask |= self.boolmask
+
+        if not hasattr(self, "apertures_a"):
+            self.apertures_a, self.apertures_b, self.area, self.allellipses = (
+                self._build_aperture_grid()
+            )
+
+        naper = len(self.apertures_a)
+
+        # Use a single ellipse shape for the annular coordinate system.
+        # This assumes apertures_b/apertures_a is approximately constant.
+        qarr = np.asarray(self.apertures_b) / np.asarray(self.apertures_a)
+        q = np.nanmedian(qarr)
+
+        yy, xx = np.indices(image.shape)
+        dx = xx - self.xcenter_fit
+        dy = yy - self.ycenter_fit
+
+        c = np.cos(self.pa_fit)
+        s = np.sin(self.pa_fit)
+
+        # Semi-major-axis coordinate in pixels.
+        xrot = dx * c + dy * s
+        yrot = -dx * s + dy * c
+        rell = np.sqrt(xrot**2 + (yrot / q)**2)
+
+        med = np.full(naper, np.nan, dtype=float)
+        mean = np.full(naper, np.nan, dtype=float)
+        p16 = np.full(naper, np.nan, dtype=float)
+        p84 = np.full(naper, np.nan, dtype=float)
+        booterr = np.full(naper, np.nan, dtype=float)
+
+        n_pix_total = np.zeros(naper, dtype=int)
+        n_pix_valid = np.zeros(naper, dtype=int)
+        frac_valid = np.full(naper, np.nan, dtype=float)
+
+        rng = np.random.default_rng(seed)
+
+        for i in range(naper):
+            a_in = 0.0 if i == 0 else self.apertures_a[i - 1]
+            a_out = self.apertures_a[i]
+
+            annulus = (rell > a_in) & (rell <= a_out)
+
+            n_pix_total[i] = np.sum(annulus)
+
+            good = annulus & ~combined_mask & np.isfinite(image)
+            vals = image[good]
+
+            if log10:
+                vals = vals[vals > 0]
+                vals = np.log10(vals)
+
+            n_pix_valid[i] = len(vals)
+
+            if n_pix_total[i] > 0:
+                frac_valid[i] = n_pix_valid[i] / n_pix_total[i]
+
+            if n_pix_valid[i] < min_npix:
+                continue
+
+            med[i] = np.nanmedian(vals)
+            mean[i] = np.nanmean(vals)
+            p16[i], p84[i] = np.nanpercentile(vals, [16, 84])
+
+            if nboot and n_pix_valid[i] > 1:
+                boot = np.zeros(nboot, dtype=float)
+                for j in range(nboot):
+                    sample = rng.choice(vals, size=n_pix_valid[i], replace=True)
+                    boot[j] = np.nanmedian(sample)
+
+                booterr[i] = 0.5 * (
+                    np.nanpercentile(boot, 84) - np.nanpercentile(boot, 16)
+                )
+
+        prefix = f"ann{which}"
+
+        setattr(self, f"{prefix}_median", med)
+        setattr(self, f"{prefix}_mean", mean)
+        setattr(self, f"{prefix}_p16", p16)
+        setattr(self, f"{prefix}_p84", p84)
+        setattr(self, f"{prefix}_booterr", booterr)
+        setattr(self, f"{prefix}_n_pix_total", n_pix_total)
+        setattr(self, f"{prefix}_n_pix_valid", n_pix_valid)
+        setattr(self, f"{prefix}_frac_valid", frac_valid)
+
+        if assign_to_sb:
+            if which == 1:
+                self.sb1 = med
+                self.sb1_err = booterr
+                self.sb1_snr = np.abs(self.sb1 / self.sb1_err)
             else:
-                # subpixel is the method used by Source Extractor
-                self.phot_table1 = aperture_photometry(self.image, ap, method = 'subpixel', subpixels=5)
-                if self.image2_flag:
-                    self.phot_table2 = aperture_photometry(self.image2, ap, method = 'subpixel', subpixels=5)
+                self.sb2 = med
+                self.sb2_err = booterr
+                self.sb2_snr = np.abs(self.sb2 / self.sb2_err)
 
             
-            self.flux1[i] = self.phot_table1['aperture_sum'][0]
-            # calculate noise
-            self.flux1_err[i] = self.get_noise_in_aper(self.flux1[i], self.area[i])
+    # def measure_phot_old(self):
+    #     '''
+    #     # alternative is to use ellipse from detect
+    #     # then create apertures and measure flux
 
-            # --- SNR-based truncation using annulus SNR (R band) ---
-            if i == 0:
-                dF = self.flux1[i]
-                dA = self.area[i] 
-            else:
-                dF = self.flux1[i] - prev_flux1
-                dA = self.area[i] - prev_area
+    #     # rmax is max radius to measure ellipse
+    #     # could cut this off based on SNR
+    #     # or could cut this off based on enclosed flux?
+    #     # or could cut off based on image dimension, and do the cutting afterward
+        
+    #     #rmax = 2.5*self.sma
+    #     '''
+        
+    #     '''
+    #     this is how becky set the apertures
+    #     a = [0]
+    #     for i in range(1,500)
+    #     a.append(a[i-1] + hwhm + (hwhm*i*.1))
+        
+    #     '''
+
+    #     # initialize conditions to implement a stopping radius
+    #     snr_stop = 5
+    #     snr_consecutive = 2
+    #     low_snr_count = 0
+
+    #     prev_flux1 = None
+    #     prev_area = None
+    #     prev_flux2 = None
+        
+    #     # rmax is set according to the image dimensions
+    #     # look for where the semi-major axis hits the edge of the image
+    #     # could be on side (limited by x range) or on top/bottom (limited by y range)
+    #     # 
+    #     #print('xcenter, ycenter, theta = ',self.xcenter, self.ycenter,self.theta)
+    #     rmax = np.min([(self.ximage_max - self.xcenter)/abs(np.cos(self.theta)),\
+    #                    (self.yimage_max - self.ycenter)/abs(np.sin(self.theta))])
+    #     ct = max(1e-6, abs(np.cos(self.theta)))
+    #     st = max(1e-6, abs(np.sin(self.theta)))
+    #     rmax = np.min([(self.ximage_max - self.xcenter) / ct,
+    #                        (self.yimage_max - self.ycenter) / st,
+    #                        self.xcenter / ct,
+    #                        self.ycenter / st,
+    #                        ])
+    #     #print('print rmax, ximage_max, image.shape = ',rmax,self.ximage_max,self.image.shape)
+    #     '''
+    #     this is how becky set the apertures
+    #     a = [0]
+    #     for i in range(1,500):
+    #     a.append(a[i-1] + hwhm + (hwhm*i*.1))
+        
+    #     '''
+
+    #     # TODO - update apertures to make use of input apertures
+    #     index = np.arange(80) # why do we need 80 apertures???
+    #     apertures = (index+1)*.5*self.fwhm*(1+(index+1)*.1)
+    #     #apertures = (index+1)*self.fwhm*(1+(index+1)*.1)
+    #     # cut off apertures at edge of image
+    #     self.apertures_a = apertures[apertures < rmax]
+    #     print(f"\nNumber of apertures = {len(index)}\n")
+    #     #print('number of apertures = ',len(self.apertures_a))
+    #     #self.apertures_a = np.linspace(3,rmax,40)
+    #     self.apertures_b = (1.-self.eps)*self.apertures_a
+    #     self.area = np.pi*self.apertures_a*self.apertures_b # area of each ellipse
+
+
+    #     self.flux1 = np.zeros(len(self.apertures_a),'f')
+    #     self.flux1_err = np.zeros(len(self.apertures_a),'f')
+    #     if self.image2_flag:
+    #         self.flux2 = np.zeros(len(self.apertures_a),'f')
+    #         self.flux2_err = np.zeros(len(self.apertures_a),'f')
+    #     self.allellipses = []
+
+    #     self.snr_total = [] # total snr in aperture
+    #     self.snr_per_pixel = [] # includes poisson noise from galaxy
+    #     self.snr_image_units = [] # ave/sb to sky noise
+    #     self.snr_total2 = [] # total snr in aperture
+    #     self.snr_per_pixel2 = [] # includes poisson noise from galaxy
+    #     self.snr_image_units2 = [] # ave/sb to sky noise
+        
+    #     for i in range(len(self.apertures_a)):
+ 
+    #         # EllipticalAperture takes rotation angle in radians, CCW from +x axis
+    #         ap = EllipticalAperture((self.xcenter, self.ycenter),self.apertures_a[i],self.apertures_b[i],self.theta)#,ai,bi,theta) for ai,bi in zip(a,b)]
+    #         self.allellipses.append(ap)
+
+    #         if self.mask_flag:
+    #             # check for nans, and add them to the mask
+    #             nan_mask = ~np.isfinite(self.image)
+    #             combined_mask =  self.boolmask | nan_mask
+    #             self.phot_table1 = aperture_photometry(self.image, ap, mask=combined_mask)
+    #             if self.image2_flag:
+    #                 self.phot_table2 = aperture_photometry(self.image2, ap, mask=combined_mask)
+    #         else:
+    #             # subpixel is the method used by Source Extractor
+    #             self.phot_table1 = aperture_photometry(self.image, ap, method = 'subpixel', subpixels=5)
+    #             if self.image2_flag:
+    #                 self.phot_table2 = aperture_photometry(self.image2, ap, method = 'subpixel', subpixels=5)
+
+            
+    #         self.flux1[i] = self.phot_table1['aperture_sum'][0]
+    #         # calculate noise
+    #         self.flux1_err[i] = self.get_noise_in_aper(self.flux1[i], self.area[i])
+
+    #         # --- SNR-based truncation using annulus SNR (R band) ---
+    #         if i == 0:
+    #             dF = self.flux1[i]
+    #             dA = self.area[i] 
+    #         else:
+    #             dF = self.flux1[i] - prev_flux1
+    #             dA = self.area[i] - prev_area
             
 
-            # what Becky did
-            # median sb in annulus as signal
-            # compared with noise_per_pixel = sqrt(sky_uncertainty**2 + median_sb)
-            # snr_per_pixel = median_sb/noise
+    #         # what Becky did
+    #         # median sb in annulus as signal
+    #         # compared with noise_per_pixel = sqrt(sky_uncertainty**2 + median_sb)
+    #         # snr_per_pixel = median_sb/noise
 
-            ave_sb_adu = dF/dA
-            noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*np.abs(ave_sb_adu))/self.gain # does not account properly for gain...
-            snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
+    #         ave_sb_adu = dF/dA
+    #         noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*np.abs(ave_sb_adu))/self.gain # does not account properly for gain...
+    #         snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
 
-            sigma_ann = self.get_noise_in_aper(dF, dA)
-            snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
+    #         sigma_ann = self.get_noise_in_aper(dF, dA)
+    #         snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
 
-            # testing measurements in observed units only
-            # compare ave sb in image units to sky_noise (measured from image, also in image units)
+    #         # testing measurements in observed units only
+    #         # compare ave sb in image units to sky_noise (measured from image, also in image units)
 
-            snr_image_units = ave_sb_adu/self.sky_noise
-            #print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_image_units={snr_image_units:.1f},snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
-            self.snr_total.append(snr_ann)
-            self.snr_per_pixel.append(snr_per_pixel)
-            self.snr_image_units.append(snr_image_units)
-            # if snr_ann < snr_stop:
-            # #if snr_per_pixel < snr_stop:                
-            #     low_snr_count += 1
-            #     if low_snr_count >= snr_consecutive:
-            #         # truncate arrays to i (inclusive) and stop
-            #         n = i + 1
-            #         self.apertures_a = self.apertures_a[:n]
-            #         self.apertures_b = self.apertures_b[:n]
-            #         self.area = self.area[:n]
-            #         self.flux1 = self.flux1[:n]
-            #         self.flux1_err = self.flux1_err[:n]
-            #         if self.image2_flag:
-            #             self.flux2 = self.flux2[:n]
-            #             self.flux2_err = self.flux2_err[:n]
-            #         self.allellipses = self.allellipses[:n]
-            #         break
-            # else:
-            #     low_snr_count = 0
+    #         snr_image_units = ave_sb_adu/self.sky_noise
+    #         #print(f"DEBUG: a(pix)={self.apertures_a[i]:5.1f},sma(arc)={(self.pixel_scale * self.apertures_a[i]):5.1f}, snr_image_units={snr_image_units:.1f},snr_per_pixel={snr_per_pixel:.1f},snr_ann={snr_ann:.1f}, dF={dF:.1f},sigma_ann={sigma_ann:.1e}, sky_noise={self.sky_noise:.1e}, dA={dA:.1f}")
+    #         self.snr_total.append(snr_ann)
+    #         self.snr_per_pixel.append(snr_per_pixel)
+    #         self.snr_image_units.append(snr_image_units)
+    #         # if snr_ann < snr_stop:
+    #         # #if snr_per_pixel < snr_stop:                
+    #         #     low_snr_count += 1
+    #         #     if low_snr_count >= snr_consecutive:
+    #         #         # truncate arrays to i (inclusive) and stop
+    #         #         n = i + 1
+    #         #         self.apertures_a = self.apertures_a[:n]
+    #         #         self.apertures_b = self.apertures_b[:n]
+    #         #         self.area = self.area[:n]
+    #         #         self.flux1 = self.flux1[:n]
+    #         #         self.flux1_err = self.flux1_err[:n]
+    #         #         if self.image2_flag:
+    #         #             self.flux2 = self.flux2[:n]
+    #         #             self.flux2_err = self.flux2_err[:n]
+    #         #         self.allellipses = self.allellipses[:n]
+    #         #         break
+    #         # else:
+    #         #     low_snr_count = 0
 
 
             
-            if self.image2_flag:
-                self.flux2[i] = self.phot_table2['aperture_sum'][0]
-                self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area[i])
-                if i == 0:
-                    dF = self.flux2[i] 
-                    dA = self.area[i] 
-                else:
-                    dF = self.flux2[i] - prev_flux1
-                    dA = self.area[i] - prev_area
+    #         if self.image2_flag:
+    #             self.flux2[i] = self.phot_table2['aperture_sum'][0]
+    #             self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area[i])
+    #             if i == 0:
+    #                 dF = self.flux2[i] 
+    #                 dA = self.area[i] 
+    #             else:
+    #                 dF = self.flux2[i] - prev_flux1
+    #                 dA = self.area[i] - prev_area
 
-                ave_sb_adu = dF/dA
-                noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*np.abs(ave_sb_adu))/self.gain # does not account properly for gain...
-                snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
+    #             ave_sb_adu = dF/dA
+    #             noise_per_pixel_adu = np.sqrt((self.sky_noise*self.gain)**2 + self.gain*np.abs(ave_sb_adu))/self.gain # does not account properly for gain...
+    #             snr_per_pixel = ave_sb_adu/noise_per_pixel_adu
 
-                sigma_ann = self.get_noise_in_aper(dF, dA)
-                snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
+    #             sigma_ann = self.get_noise_in_aper(dF, dA)
+    #             snr_ann =  dF / sigma_ann if (sigma_ann is not None and np.isfinite(sigma_ann) and sigma_ann > 0) else -np.inf
 
-                snr_image_units = ave_sb_adu/self.sky_noise
-                self.snr_total2.append(snr_ann)
-                self.snr_per_pixel2.append(snr_per_pixel)
-                self.snr_image_units2.append(snr_image_units)
-                prev_flux2 = self.flux2[i]
+    #             snr_image_units = ave_sb_adu/self.sky_noise
+    #             self.snr_total2.append(snr_ann)
+    #             self.snr_per_pixel2.append(snr_per_pixel)
+    #             self.snr_image_units2.append(snr_image_units)
+    #             prev_flux2 = self.flux2[i]
 
-            prev_flux1 = self.flux1[i]
-            prev_area = self.area[i]
+    #         prev_flux1 = self.flux1[i]
+    #         prev_area = self.area[i]
 
-        self.snr_total = np.array(self.snr_total)
-        self.snr_per_pixel = np.array(self.snr_per_pixel)
-        self.snr_image_units = np.array(self.snr_image_units)
-        self.snr_total2 = np.array(self.snr_total2)
-        self.snr_per_pixel2 = np.array(self.snr_per_pixel2)
-        self.snr_image_units2 = np.array(self.snr_image_units2)
+    #     self.snr_total = np.array(self.snr_total)
+    #     self.snr_per_pixel = np.array(self.snr_per_pixel)
+    #     self.snr_image_units = np.array(self.snr_image_units)
+    #     self.snr_total2 = np.array(self.snr_total2)
+    #     self.snr_per_pixel2 = np.array(self.snr_per_pixel2)
+    #     self.snr_image_units2 = np.array(self.snr_image_units2)
             
-        print(f"DEBUG: len(flux1)={len(self.flux1)}, len(flux2)={len(self.flux2)}")
+    #     print(f"DEBUG: len(flux1)={len(self.flux1)}, len(flux2)={len(self.flux2)}")
     def draw_phot_apertures(self,plotname=None):
         ''' matplotlib plotting to show apertures; provide a plot name to save the output figure   '''
         tbl1 = self.cat.to_table()
@@ -2890,36 +3270,7 @@ class EllipsePhotometry():
         if plotname is not None:
             plt.savefig(plotname)
             plt.close()
-    def calc_sb(self):
-        # calculate surface brightness in each aperture
 
-        # first aperture is calculated differently
-        self.sb1 = np.zeros(len(self.apertures_a),'f')
-        self.sb1_err = np.zeros(len(self.apertures_a),'f')
-        print(f"DEBUG: len(apertures_a)={len(self.apertures_a)}, len(flux1)={len(self.flux1)}") 
-        self.sb1[0] = self.flux1[0]/self.area[0]
-        self.sb1_err[0] = self.get_noise_in_aper(self.flux1[0], self.area[0])/self.area[0]
-        # outer apertures need flux from inner aperture subtracted
-        for i in range(1,len(self.area)):
-            self.sb1[i] = (self.flux1[i] - self.flux1[i-1])/(self.area[i]-self.area[i-1])
-            self.sb1_err[i] = self.get_noise_in_aper((self.flux1[i] - self.flux1[i-1]),(self.area[i]-self.area[i-1]))/(self.area[i]-self.area[i-1])
-
-        # calculate SNR to follow Becky's method of cutting off analysis where SNR = 2
-        self.sb1_snr = np.abs(self.sb1/self.sb1_err)
-        # repeat for image 2 if it is provided
-        if self.image2_flag:
-            self.sb2 = np.zeros(len(self.apertures_a),'f')
-            self.sb2_err = np.zeros(len(self.apertures_a),'f')
-            self.sb2[0] = self.flux2[0]/self.area[0]
-            # (flux, area, gain, sky_noise=None):
-            self.sb2_err[0] = get_noise_in_aper(self.flux2[0], self.area[0],self.gain2,sky_noise=self.sky_noise2)/self.area[0]
-            for i in range(1,len(self.area)):
-                self.sb2[i] = (self.flux2[i] - self.flux2[i-1])/(self.area[i]-self.area[i-1])
-                self.sb2_err[i] = get_noise_in_aper((self.flux2[i] - self.flux2[i-1]),(self.area[i]-self.area[i-1]),self.gain2,sky_noise=self.sky_noise2)/(self.area[i]-self.area[i-1])
-            self.sb2_snr = np.abs(self.sb2/self.sb2_err)
-
-        # check if the profile peaks at the center
-        self.check_profile_peak()
 
 
     def check_profile_peak(self, peak_tol_pix=2.0, frac_tol=0.02):
@@ -3387,28 +3738,58 @@ class EllipsePhotometry():
         markcolor='cyan'
         objlist=[]
         markwidth=1.5
+
+        if hasattr(self, "xcenter") and hasattr(self, "ycenter"):
+            xc = self.xcenter
+            yc = self.ycenter
+
+        elif hasattr(self, "xcenter_best") and hasattr(self, "ycenter_best"):
+            xc = self.xcenter_best
+            yc = self.ycenter_best
+
+        else:
+            print("WARNING: Could not find a center to use for the ellipse")
+            return
+
+
         for sma in self.apertures_a:
-            obj = self.image_frame.dc.Ellipse(self.xcenter,self.ycenter,sma, sma*(1-self.eps), rot_deg = np.degrees(self.theta), color=markcolor,linewidth=markwidth)
+            obj = self.image_frame.dc.Ellipse(xc,yc,sma, sma*(1-self.eps), rot_deg = np.degrees(self.theta), color=markcolor,linewidth=markwidth)
             objlist.append(obj)
             #print(self.xcenter,self.ycenter,sma, sma*(1-self.eps), self.theta, np.degrees(self.theta))
         self.markhltag = self.image_frame.canvas.add(self.image_frame.dc.CompoundObject(*objlist))
         self.image_frame.fitsimage.redraw()
         
-    def draw_phot_results_mpl(self):
+    def draw_phot_results_mpl(self,show=False,ellipse_color='white'):
         ''' draw results in matplotlib figure '''
         norm = ImageNormalize(stretch=SqrtStretch())
         plt.figure()
         plt.imshow(self.masked_image, cmap='Greys_r', norm=norm, origin='lower')
 
+        if hasattr(self, "xcenter") and hasattr(self, "ycenter"):
+            xc = self.xcenter
+            yc = self.ycenter
+
+        elif hasattr(self, "xcenter_best") and hasattr(self, "ycenter_best"):
+            xc = self.xcenter_best
+            yc = self.ycenter_best
+
+        else:
+            print("WARNING: Could not find a center to use for the ellipse")
+            return
+        
         apertures = []
         for sma in self.apertures_a:
-            apertures.append(EllipticalAperture((self.xcenter,self.ycenter),sma, sma*(1-self.eps), theta = self.theta))
+            apertures.append(EllipticalAperture((xc,yc),sma, sma*(1-self.eps), theta = self.theta))
             
         for aperture in apertures:
-            aperture.plot(color='white',lw=1.5)
+            aperture.plot(color=ellipse_color,lw=1.5)
         plt.title(os.path.basename(self.image_name).split('.fits')[0])
+        print("Saving figure ",self.image_name.split('.fits')[0]+'_phot_apertures.png')
         plt.savefig(self.image_name.split('.fits')[0]+'_phot_apertures.png')
-        plt.close()
+        if show:
+            plt.show()
+        else:
+            plt.close()
     def plot_profiles(self):
         ''' enclosed flux and surface brightness profiles, save figure '''
         #plt.close("all")        
