@@ -88,32 +88,21 @@ def copy_hapy_cs_fields_to_row(e, row, prefix, pixscale):
 
     row[f"{prefix}_HAPY_MORPH_OK"] = bool(getattr(e, "HAPY_MORPH_OK", False))
     row[f"{prefix}_HAPY_MORPH_FLAG"] = int(getattr(e, "HAPY_MORPH_FLAG", 0))
-    
+
+
 def ellipse_image_coverage(data, ell0_params):
-    """
-    Measure image coverage within initial ellipse.
-
-    Missing pixels are non-finite values.
-    """
-
     import numpy as np
     from photutils.aperture import EllipticalAperture
 
-    x0 = ell0_params["x0"]
-    y0 = ell0_params["y0"]
-    sma = ell0_params["sma"]
-    ba = ell0_params["ba"]
-    pa = ell0_params["pa"]
-
     ap = EllipticalAperture(
-        (x0, y0),
-        a=sma,
-        b=sma * ba,
-        theta=pa,
+        (ell0_params.xc, ell0_params.yc),
+        a=ell0_params.sma_pix,
+        b=ell0_params.sma_pix * ell0_params.ba,
+        theta=np.deg2rad(ell0_params.theta_deg),
     )
 
-    mask = ap.to_mask(method="center")
-    aper_data = mask.multiply(np.ones_like(data, dtype=float))
+    aper_mask = ap.to_mask(method="center")
+    aper_data = aper_mask.multiply(np.ones_like(data, dtype=float))
 
     in_ellipse = aper_data > 0
     n_total = int(np.sum(in_ellipse))
@@ -130,6 +119,8 @@ def ellipse_image_coverage(data, ell0_params):
         "npix_missing": n_missing,
         "missing_frac": frac_missing,
     }
+
+
 def prefix_dict_keys(d, prefix):
     return {f"{prefix}_{k}": v for k, v in d.items()}
             
@@ -552,18 +543,18 @@ def initialize_result_row():
     row["ELL0_SOURCE"] = ""
 
     # # ----- ELL0 good/back pixels
-    # row["CUTOUT_ELL0_MISSING_FRAC_R"] = np.nan
-    # row["CUTOUT_ELL0_MISSING_FRAC_H"] = np.nan
-    # row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nan
+    row["CUTOUT_ELL0_MISSING_FRAC_R"] = np.nan
+    row["CUTOUT_ELL0_MISSING_FRAC_H"] = np.nan
+    row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nan
 
-    # row["CUTOUT_ELL0_NPIX_TOTAL_R"] = np.nan
-    # row["CUTOUT_ELL0_NPIX_TOTAL_H"] = np.nan
+    row["CUTOUT_ELL0_NPIX_TOTAL_R"] = np.nan
+    row["CUTOUT_ELL0_NPIX_TOTAL_H"] = np.nan
 
-    # row["CUTOUT_ELL0_NPIX_ONIMAGE_R"] = np.nan
-    # row["CUTOUT_ELL0_NPIX_ONIMAGE_H"] = np.nan
+    row["CUTOUT_ELL0_NPIX_ONIMAGE_R"] = np.nan
+    row["CUTOUT_ELL0_NPIX_ONIMAGE_H"] = np.nan
 
-    # row["CUTOUT_ELL0_NPIX_GOOD_R"] = np.nan
-    # row["CUTOUT_ELL0_NPIX_GOOD_H"] = np.nan
+    row["CUTOUT_ELL0_NPIX_GOOD_R"] = np.nan
+    row["CUTOUT_ELL0_NPIX_GOOD_H"] = np.nan
 
 
 
@@ -1746,24 +1737,24 @@ def main():
         )
 
     # --- store coverage information about initial ellipse
-    # r_cov = ellipse_image_coverage(data, ell0_params)
+    r_cov = ellipse_image_coverage(data, ell0_params)
 
-    # hdata, hhdr = fits.getdata(cs_fits, header=True)    
-    # h_cov = ellipse_image_coverage(hdata, ell0_params)
+    hdata, hhdr = fits.getdata(cs_fits, header=True)    
+    h_cov = ellipse_image_coverage(hdata, ell0_params)
 
-    # row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
-    # row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
+    row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
+    row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
 
-    # row["CUTOUT_ELL0_NPIX_GOOD_R"] = r_cov["npix_good"]
-    # row["CUTOUT_ELL0_NPIX_GOOD_H"] = h_cov["npix_good"]
+    row["CUTOUT_ELL0_NPIX_GOOD_R"] = r_cov["npix_good"]
+    row["CUTOUT_ELL0_NPIX_GOOD_H"] = h_cov["npix_good"]
 
-    # row["CUTOUT_ELL0_MISSING_FRAC_R"] = r_cov["missing_frac"]
-    # row["CUTOUT_ELL0_MISSING_FRAC_H"] = h_cov["missing_frac"]
+    row["CUTOUT_ELL0_MISSING_FRAC_R"] = r_cov["missing_frac"]
+    row["CUTOUT_ELL0_MISSING_FRAC_H"] = h_cov["missing_frac"]
 
-    # row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nanmax([
-    #     r_cov["missing_frac"],
-    #     h_cov["missing_frac"],
-    #     ])
+    row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nanmax([
+        r_cov["missing_frac"],
+        h_cov["missing_frac"],
+        ])
 
     # cutout_map = {
     #     "cutout_ell0_missing_frac_r": "CUTOUT_ELL0_MISSING_FRAC_R",
