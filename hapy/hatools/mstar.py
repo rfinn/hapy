@@ -5,7 +5,7 @@ import numpy as np
 from astropy.io import fits
 from astropy import convolution
 from astropy.cosmology import WMAP9 as cosmo
-from astroyp.wcs import WCS
+from astropy.wcs import WCS
 
 from hapy.hatools.utils import get_kpc_per_pixel
 
