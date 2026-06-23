@@ -923,6 +923,7 @@ def initialize_sourcecatalog_moments(row, prefix1="R", prefix2="H"):
         for col in cols:
             row[f"{prefix}_SC_{col}"] = False if col == "MOMENTS_OK" else np.nan
         row[f"{prefix}_SC_UNITS"] = ""
+    return row
 
 def add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H", pixel_scale=None):
     import numpy as np
