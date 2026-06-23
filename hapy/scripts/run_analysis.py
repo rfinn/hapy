@@ -1394,7 +1394,7 @@ def main():
     
     row = init_csgr_row_defaults(row)
 
-    row = initialize_sourcecatalog_moments(row, prefix1="CSGR_R", prefix2="CSGR")    
+    row = initialize_sourcecatalog_moments(row, prefix1="CSGR_R", prefix2="CSGR_H")    
 
 
     # look for CS-gr image and log it if found
@@ -2151,7 +2151,8 @@ def main():
             )
 
             row.update(prefix_dict_keys(profile_results_gr, "CSGR"))
-
+            
+        add_sourcecatalog_moments(row, e_gr, prefix1="CSGR_R", prefix2="CSGR_H",pixel_scale = float(pixscale))
         row["CSGR_SEC"] = _scalar(time.perf_counter() - t0)
     
 
