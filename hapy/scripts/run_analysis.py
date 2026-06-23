@@ -1746,8 +1746,10 @@ def main():
         )
 
     # --- store coverage information about initial ellipse
-    r_cov = ellipse_image_coverage(r_data, ell0_params)
-    h_cov = ellipse_image_coverage(h_data, ell0_params)
+    r_cov = ellipse_image_coverage(data, ell0_params)
+
+    hdata, hhdr = fits.getdata(cs_fits, header=True)    
+    h_cov = ellipse_image_coverage(hdata, ell0_params)
 
     row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
     row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
