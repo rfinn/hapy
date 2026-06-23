@@ -551,19 +551,19 @@ def initialize_result_row():
         row[k] = np.nan
     row["ELL0_SOURCE"] = ""
 
-    # ----- ELL0 good/back pixels
-    row["CUTOUT_ELL0_MISSING_FRAC_R"] = np.nan
-    row["CUTOUT_ELL0_MISSING_FRAC_H"] = np.nan
-    row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nan
+    # # ----- ELL0 good/back pixels
+    # row["CUTOUT_ELL0_MISSING_FRAC_R"] = np.nan
+    # row["CUTOUT_ELL0_MISSING_FRAC_H"] = np.nan
+    # row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nan
 
-    row["CUTOUT_ELL0_NPIX_TOTAL_R"] = np.nan
-    row["CUTOUT_ELL0_NPIX_TOTAL_H"] = np.nan
+    # row["CUTOUT_ELL0_NPIX_TOTAL_R"] = np.nan
+    # row["CUTOUT_ELL0_NPIX_TOTAL_H"] = np.nan
 
-    row["CUTOUT_ELL0_NPIX_ONIMAGE_R"] = np.nan
-    row["CUTOUT_ELL0_NPIX_ONIMAGE_H"] = np.nan
+    # row["CUTOUT_ELL0_NPIX_ONIMAGE_R"] = np.nan
+    # row["CUTOUT_ELL0_NPIX_ONIMAGE_H"] = np.nan
 
-    row["CUTOUT_ELL0_NPIX_GOOD_R"] = np.nan
-    row["CUTOUT_ELL0_NPIX_GOOD_H"] = np.nan
+    # row["CUTOUT_ELL0_NPIX_GOOD_R"] = np.nan
+    # row["CUTOUT_ELL0_NPIX_GOOD_H"] = np.nan
 
 
 
@@ -1746,24 +1746,24 @@ def main():
         )
 
     # --- store coverage information about initial ellipse
-    r_cov = ellipse_image_coverage(data, ell0_params)
+    # r_cov = ellipse_image_coverage(data, ell0_params)
 
-    hdata, hhdr = fits.getdata(cs_fits, header=True)    
-    h_cov = ellipse_image_coverage(hdata, ell0_params)
+    # hdata, hhdr = fits.getdata(cs_fits, header=True)    
+    # h_cov = ellipse_image_coverage(hdata, ell0_params)
 
-    row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
-    row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
+    # row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
+    # row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
 
-    row["CUTOUT_ELL0_NPIX_GOOD_R"] = r_cov["npix_good"]
-    row["CUTOUT_ELL0_NPIX_GOOD_H"] = h_cov["npix_good"]
+    # row["CUTOUT_ELL0_NPIX_GOOD_R"] = r_cov["npix_good"]
+    # row["CUTOUT_ELL0_NPIX_GOOD_H"] = h_cov["npix_good"]
 
-    row["CUTOUT_ELL0_MISSING_FRAC_R"] = r_cov["missing_frac"]
-    row["CUTOUT_ELL0_MISSING_FRAC_H"] = h_cov["missing_frac"]
+    # row["CUTOUT_ELL0_MISSING_FRAC_R"] = r_cov["missing_frac"]
+    # row["CUTOUT_ELL0_MISSING_FRAC_H"] = h_cov["missing_frac"]
 
-    row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nanmax([
-        r_cov["missing_frac"],
-        h_cov["missing_frac"],
-        ])
+    # row["CUTOUT_ELL0_MISSING_FRAC_MAX"] = np.nanmax([
+    #     r_cov["missing_frac"],
+    #     h_cov["missing_frac"],
+    #     ])
 
     # cutout_map = {
     #     "cutout_ell0_missing_frac_r": "CUTOUT_ELL0_MISSING_FRAC_R",
