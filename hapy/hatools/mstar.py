@@ -81,7 +81,7 @@ def make_mstar_map(
     #mag_r = 22.5 - 2.5*np.log10(rdata)
     #mag_gr = mag_g - mag_r
 
-    legacy_gr = find_one("*gr-ha-smooth.fits", legacy_dir)
+    legacy_gr = find_one("*gr-smooth.fits", legacy_dir)
     grhdu = fits.open(legacy_gr)
     mag_gr = grhdu[0].data.astype(float)
 
