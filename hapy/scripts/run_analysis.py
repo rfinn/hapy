@@ -972,45 +972,6 @@ def add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H", pixel_scale=None
     return row
 
 
-def add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H"):
-    import numpy as np
-
-    cols = [
-        "MOMENTS_OK",
-        "COV_XX", "COV_YY", "COV_XY",
-        "SEMIMAJOR_SIGMA", "SEMIMINOR_SIGMA",
-        "ORIENTATION",
-        "ECCENTRICITY", "ELONGATION",
-    ]
-
-
-    def fill_from_sourcecat(prefix, cat, index):
-        try:
-            src = cat[index]
-            cov = src.covariance
-
-            row[f"{prefix}_SC_COV_XX"] = float(cov[0, 0])
-            row[f"{prefix}_SC_COV_YY"] = float(cov[1, 1])
-            row[f"{prefix}_SC_COV_XY"] = float(cov[0, 1])
-
-            row[f"{prefix}_SC_SEMIMAJOR_SIGMA"] = float(src.semimajor_sigma.value)
-            row[f"{prefix}_SC_SEMIMINOR_SIGMA"] = float(src.semiminor_sigma.value)
-            row[f"{prefix}_SC_ORIENTATION"] = float(src.orientation.value)
-            row[f"{prefix}_SC_ECCENTRICITY"] = float(src.eccentricity.value)
-            row[f"{prefix}_SC_ELONGATION"] = float(src.elongation.value)
-
-            row[f"{prefix}_SC_MOMENTS_OK"] = True
-
-        except Exception as err:
-            print(f"WARNING: could not extract SourceCatalog moments for {prefix}: {err}")
-
-    if hasattr(e, "cat") and hasattr(e, "objectIndex"):
-        fill_from_sourcecat(prefix1, e.cat, e.objectIndex)
-
-    if hasattr(e, "cat2") and hasattr(e, "objectIndex2"):
-        fill_from_sourcecat(prefix2, e.cat2, e.objectIndex2)
-
-    return row
 
 
 
@@ -1483,8 +1444,8 @@ def main():
     print(f"DEBUG: pixscale = {pixscale:.4e}")
     row["PIXSCALE"] = round(float(pixscale),4)
     # --- Load cutout image for WCS + shape ---
-    data, hdr = fits.getdata(r_fits, header=True)
-    ny, nx = data.shape
+    r_data, hdr = fits.getdata(r_fits, header=True)
+    ny, nx = r_data.shape
     wcs = WCS(hdr)
     
     magzp = args.magzp if args.magzp is not None else float(hdr.get("PHOTZP", 25.0))
@@ -1522,7 +1483,7 @@ def main():
 
             star_xpix, star_ypix = wcs.world_to_pixel(starcoord)
 
-        mask_array = np.zeros_like(data,  dtype=np.int32)
+        mask_array = np.zeros_like(r_data,  dtype=np.int32)
         # could add a radius_scale_factor that depends on image FWHM
         # (FWHM-1.5)
         mask_array, gaia_mask = make_gaia_mask(mask_array,star_xpix,star_ypix,pixscale/3600.,gaia_table=gaia_table,radius_scale_factor=1)
@@ -1531,7 +1492,7 @@ def main():
         gaia_mask = gaia_mask > 0
 
         # get ellipse from photutils
-        ell = infer_ellipse_from_r_cutout(r_data=data, user_mask=gaia_mask)
+        ell = infer_ellipse_from_r_cutout(r_data=r_data, user_mask=gaia_mask)
         if ell is not None:
             # if agc has a valid radius and BA, then keep?
             #print("DEBUG: original radius = ",params["sma_arcsec"])
@@ -1735,10 +1696,10 @@ def main():
         )
 
     # --- store coverage information about initial ellipse
-    r_cov = ellipse_image_coverage(data, ell0_params)
+    r_cov = ellipse_image_coverage(r_data, ell0_params)
 
-    hdata, hhdr = fits.getdata(cs_fits, header=True)    
-    h_cov = ellipse_image_coverage(hdata, ell0_params)
+    cs_data, hhdr = fits.getdata(cs_fits, header=True)    
+    h_cov = ellipse_image_coverage(cs_data, ell0_params)
 
     row["CUTOUT_ELL0_NPIX_TOTAL_R"] = r_cov["npix_total"]
     row["CUTOUT_ELL0_NPIX_TOTAL_H"] = h_cov["npix_total"]
@@ -2238,8 +2199,8 @@ def main():
         galname = tag  # no .fits; matches your test
         pscale = get_pixel_scale_from_filename(r_fits)
 
-        data, hdr = fits.getdata(r_fits, header=True)
-        ny, nx = data.shape
+        r_data, hdr = fits.getdata(r_fits, header=True)
+        ny, nx = r_data.shape
         xminfit, xmaxfit = 1, nx
         yminfit, ymaxfit = 1, ny
 
