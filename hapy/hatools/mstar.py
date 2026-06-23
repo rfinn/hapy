@@ -118,7 +118,7 @@ def make_mstar_map(
 
 
     dist_mpc = dist.to("Mpc").value if hasattr(dist, "to") else float(dist)
-    mstar_hdr["DISTMPC"] = (float(dist_mpc), "Distance used, Mpc")
+    hdr["DISTMPC"] = (float(dist_mpc), "Distance used, Mpc")
 
 
     if velocity_kms is not None:
