@@ -89,7 +89,6 @@ def copy_hapy_cs_fields_to_row(e, row, prefix, pixscale):
     row[f"{prefix}_HAPY_MORPH_OK"] = bool(getattr(e, "HAPY_MORPH_OK", False))
     row[f"{prefix}_HAPY_MORPH_FLAG"] = int(getattr(e, "HAPY_MORPH_FLAG", 0))
 
-
 def ellipse_image_coverage(data, ell0_params):
     import numpy as np
     from photutils.aperture import EllipticalAperture
@@ -102,14 +101,12 @@ def ellipse_image_coverage(data, ell0_params):
     )
 
     aper_mask = ap.to_mask(method="center")
-    aper_data = aper_mask.multiply(np.ones_like(data, dtype=float))
+    in_ellipse = aper_mask.to_image(data.shape) > 0
 
-    in_ellipse = aper_data > 0
     n_total = int(np.sum(in_ellipse))
-
     good = in_ellipse & np.isfinite(data)
-    n_good = int(np.sum(good))
 
+    n_good = int(np.sum(good))
     n_missing = n_total - n_good
     frac_missing = n_missing / n_total if n_total > 0 else np.nan
 
@@ -119,6 +116,7 @@ def ellipse_image_coverage(data, ell0_params):
         "npix_missing": n_missing,
         "missing_frac": frac_missing,
     }
+
 
 
 def prefix_dict_keys(d, prefix):
