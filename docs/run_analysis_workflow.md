@@ -1,4 +1,4 @@
-> [!NOTE] This supercedes running-pipeline.md
+> This supercedes running-pipeline.md
 
 # HAPY running-analysis rerun workflow
 
