@@ -683,7 +683,7 @@ def main():
     review_priority = tab["REVIEW_PRIORITY"]
 
     rmag24 = tab["R24_MAG"]
-    hmag
+    #hmag
     if r_fwhm_col is not None:
         print(f"Using {r_fwhm_col} for R-band FWHM coloring")
     if h_fwhm_col is not None:
