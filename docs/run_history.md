@@ -169,3 +169,20 @@ Reason for rerun:
   Problems are due to cutout images that are too small, e.g. can't get
   a good sky determination so mask is not good, phot is not good,
   etc. 
+
+
+Date:
+2026-06-24
+
+Did not redo cutouts - kept them in the same 20260620 directory
+
+Major changes:
+- fixed bug with legacy image sizes
+- included photuls moments in the results tables
+
+Reason for rerun:
+- Legacy image sizes were wrong b/c I was using the native image size
+  of the Halpha / R cutouts with the native legacy pixel scale of
+  0.262 pixels.  
+- fixed this, remade cs-gr cutouts, and then reran run_analysis
+- updated webpages
