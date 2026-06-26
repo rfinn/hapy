@@ -260,3 +260,25 @@ Larger galaxies retain the historical cutout_scale × diameter sizing.
 - Fixed R-band weight cutout creation when using Hα-defined slices.
 - Added CS-ZP weight cutouts from min(Ha weight, R weight).
 
+
+## HAPY v0.4.0 (2026-06-27)
+
+### Added
+- Added `hapy/ellipse/clumps.py` for H-alpha clump detection and measurement.
+- Added segmentation-based H-alpha clump catalogs within the central R-band segmentation footprint.
+- Added optional local peak finding for H-alpha clump structure diagnostics.
+- Added H-alpha clump summary quantities for inclusion in HAPY result catalogs.
+- Added saved clump products:
+  - `*-halpha-clumps.ecsv`
+  - `*-halpha-clumps-segm.fits`
+  - `*-halpha-clump-peaks.ecsv`
+  - `*-halpha-clumps-diagnostic.png`
+- Added `EllipsePhotometry.measure_halpha_clumps()`.
+- Added `run_analysis.py --clumps` and related clump-analysis configuration options.
+
+### Changed
+- HAPY pipeline can now optionally quantify internal H-alpha star-forming structure.
+
+### Notes
+- Clump analysis is optional and off by default.
+- Default clump detection parameters should be treated as provisional pending validation on test galaxies.

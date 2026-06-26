@@ -65,8 +65,8 @@ def copy_hapy_cs_fields_to_row(e, row, prefix, pixscale):
         ("HAPY_FILLFRAC", "H_HAPY_FILLFRAC"),
         ("HAPY_SNP_ALL", "H_HAPY_SNP_ALL"),
         ("HAPY_SNP_DET", "H_HAPY_SNP_DET"),
-        ("HAPY_H_GINI_THRESHOLD", "ha_gini_threshold"),
-        ("HAPY_R_GINI_THRESHOLD", "r_gini_threshold"),        
+        ("H_HAPY_GINI_THRESHOLD", "ha_gini_threshold"),
+        ("R_HAPY_GINI_THRESHOLD", "r_gini_threshold"),        
         ("HAPY_GINI", "H_HAPY_GINI"),
         ("HAPY_M20", "H_HAPY_M20"),
         ("HAPY_ASYM", "H_HAPY_ASYM"),
@@ -971,8 +971,436 @@ def add_sourcecatalog_moments(row, e, prefix1="R", prefix2="H", pixel_scale=None
 
     return row
 
+def _hcl_col(prefix, name):
+    """
+    Build a clump-analysis column name.
+
+    Examples
+    --------
+    _hcl_col("HCL_", "NCLUMP")    -> "HCL_NCLUMP"
+    _hcl_col("HCL_GR_", "NCLUMP") -> "HCL_GR_NCLUMP"
+    """
+
+    if prefix is None:
+        prefix = ""
+
+    if len(prefix) > 0 and not prefix.endswith("_"):
+        prefix = prefix + "_"
+
+    return prefix + name
+
+def _pix_to_arcsec(value, pixel_scale):
+    """
+    Convert pixels to arcsec.
+
+    Parameters
+    ----------
+    value : float
+        Value in pixels.
+
+    pixel_scale : float
+        Pixel scale in arcsec/pixel.
+    """
+
+    if pixel_scale is None or not np.isfinite(pixel_scale):
+        return np.nan
+
+    if value is None:
+        return np.nan
+
+    try:
+        value = float(value)
+    except Exception:
+        return np.nan
+
+    if not np.isfinite(value):
+        return np.nan
+
+    return value * pixel_scale
 
 
+def _pixarea_to_arcsec2(value, pixel_scale):
+    """
+    Convert pixel area to arcsec^2.
+    """
+
+    if pixel_scale is None or not np.isfinite(pixel_scale):
+        return np.nan
+
+    if value is None:
+        return np.nan
+
+    try:
+        value = float(value)
+    except Exception:
+        return np.nan
+
+    if not np.isfinite(value):
+        return np.nan
+
+    return value * pixel_scale**2
+
+def initialize_hapy_clumps(row, prefix="HCL_"):
+    """
+    Initialize H-alpha clump-analysis columns in the run_analysis output row.
+
+    Parameters
+    ----------
+    row : dict-like
+        Output row used by run_analysis.py.
+
+    prefix : str
+        Prefix for column names. Use, e.g., "HCL_" for CS-ZP and
+        "HCL_GR_" for CS-gr.
+    """
+
+    # ------------------------------------------------------------
+    # Status / provenance
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "OK")] = False
+    row[_hcl_col(prefix, "STATUS")] = "not_run"
+    row[_hcl_col(prefix, "INPUT_IMAGE")] = ""
+
+    # ------------------------------------------------------------
+    # Detection counts
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "NCLUMP")] = -1
+    row[_hcl_col(prefix, "NCLUMP_GOOD")] = -1
+    row[_hcl_col(prefix, "NPEAK")] = -1
+    row[_hcl_col(prefix, "NPEAK_IN_CLUMPS")] = -1
+    row[_hcl_col(prefix, "NPOINTSRC")] = -1
+
+    # ------------------------------------------------------------
+    # Threshold / background
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "THRESHOLD")] = np.nan
+    row[_hcl_col(prefix, "BKG_MEAN")] = np.nan
+    row[_hcl_col(prefix, "BKG_MEDIAN")] = np.nan
+    row[_hcl_col(prefix, "BKG_RMS")] = np.nan
+
+    # ------------------------------------------------------------
+    # Clump flux and area summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "FLUX_FOOTPRINT")] = np.nan
+    row[_hcl_col(prefix, "FLUX_SUM")] = np.nan
+    row[_hcl_col(prefix, "FLUX_FRAC")] = np.nan
+
+    row[_hcl_col(prefix, "BRIGHT_FLUX")] = np.nan
+    row[_hcl_col(prefix, "BRIGHT_FRAC")] = np.nan
+    row[_hcl_col(prefix, "TOP2_FRAC")] = np.nan
+    row[_hcl_col(prefix, "TOP3_FRAC")] = np.nan
+    row[_hcl_col(prefix, "PARAM_NUCLEAR_RADIUS_FWHM")] = np.nan
+    # ------------------------------------------------------------
+    # Nuclear clump summaries
+    # Nuclear = clump centroid within one measured H-alpha FWHM
+    # of the adopted galaxy center.
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "HAS_NUCLEAR")] = False
+    row[_hcl_col(prefix, "NNUCLEAR")] = -1
+    row[_hcl_col(prefix, "NUCLEAR_FLUX_FRAC")] = np.nan
+
+    # ------------------------------------------------------------
+    # Clump flux dominance
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "BRIGHT_TO_SECOND_FLUX")] = np.nan
+
+    # ------------------------------------------------------------
+    # Pixel scale / angular units
+    # ------------------------------------------------------------
+    #row[_hcl_col(prefix, "PIXSCALE")] = np.nan  # arcsec / pixel
+
+    # ------------------------------------------------------------
+    # Clump area summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "AREA_ARCSEC2")] = np.nan
+    row[_hcl_col(prefix, "FOOTPRINT_AREA_ARCSEC2")] = np.nan
+    row[_hcl_col(prefix, "AREA_FRAC")] = np.nan
+
+
+
+    # ------------------------------------------------------------
+    # Peak summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "PEAK_MAX")] = np.nan
+    row[_hcl_col(prefix, "PEAK_SUM")] = np.nan
+    row[_hcl_col(prefix, "POINTSRC_FLUX_SUM")] = np.nan
+
+    # ------------------------------------------------------------
+    # Clump centroid summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "XCEN_FLUXWT")] = np.nan
+    row[_hcl_col(prefix, "YCEN_FLUXWT")] = np.nan
+    row[_hcl_col(prefix, "XCEN_BRIGHT")] = np.nan
+    row[_hcl_col(prefix, "YCEN_BRIGHT")] = np.nan
+
+
+
+    # ------------------------------------------------------------
+    # Clump centroid offsets relative to galaxy center
+    # Stored in arcsec, not pixels.
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "RMIN_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "RMAX_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "RMED_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "RMEAN_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "RFLUXWT_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "RBRIGHT_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "DX_BRIGHT_ARCSEC")] = np.nan
+    row[_hcl_col(prefix, "DY_BRIGHT_ARCSEC")] = np.nan
+    
+    # ------------------------------------------------------------
+    # Saved product paths
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "CATALOG")] = ""
+    row[_hcl_col(prefix, "SEGMAP")] = ""
+    row[_hcl_col(prefix, "PEAKS")] = ""
+    row[_hcl_col(prefix, "POINTSRC")] = ""
+    row[_hcl_col(prefix, "DIAG")] = ""
+
+    # ------------------------------------------------------------
+    # Important configuration parameters
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "PARAM_NSIGMA")] = np.nan
+    row[_hcl_col(prefix, "PARAM_NPIXELS")] = -1
+    row[_hcl_col(prefix, "PARAM_DEBLEND")] = False
+    row[_hcl_col(prefix, "PARAM_NLEVELS")] = -1
+    row[_hcl_col(prefix, "PARAM_CONTRAST")] = np.nan
+    row[_hcl_col(prefix, "PARAM_MODE")] = ""
+
+    row[_hcl_col(prefix, "PARAM_FIND_PEAKS")] = False
+    row[_hcl_col(prefix, "PARAM_PEAK_BOX_SIZE")] = -1
+    row[_hcl_col(prefix, "PARAM_PEAK_MIN_SEP")] = -1
+
+    return row
+
+
+
+
+def write_hapy_clumps(
+    row,
+    clump_result,
+    prefix="HCL_",
+    input_image="CS-ZP",
+    config=None,
+    pixel_scale=None,
+    failed=False,
+):
+    """
+    Write H-alpha clump-analysis outputs into the run_analysis output row.
+
+    Parameters
+    ----------
+    row : dict-like
+        Output row used by run_analysis.py.
+
+    clump_result : ClumpAnalysisResult or None
+        Result returned by analyze_halpha_clumps / measure_halpha_clumps.
+
+    prefix : str
+        Prefix for column names. Use, e.g., "HCL_" for CS-ZP and
+        "HCL_GR_" for CS-gr.
+
+    input_image : str
+        Label for the H-alpha image used, e.g. "CS-ZP" or "CS-gr".
+
+    config : ClumpDetectionConfig or None
+        Configuration used for the clump analysis. If provided, key
+        parameters are stored in the row.
+
+    failed : bool
+        Set True if clump analysis failed.
+    """
+
+    # Make sure columns exist even if this is called directly.
+    #initialize_hapy_clumps(row, prefix=prefix)
+
+    row[_hcl_col(prefix, "INPUT_IMAGE")] = input_image
+    #row[_hcl_col(prefix, "FAILED")] = bool(failed)
+
+    if failed or clump_result is None:
+        row[_hcl_col(prefix, "OK")] = False
+        row[_hcl_col(prefix, "STATUS")] = "failed"
+        return row
+
+    s = clump_result.summary
+
+    row[_hcl_col(prefix, "OK")] = True
+    row[_hcl_col(prefix, "STATUS")] = "ok"
+
+    # ------------------------------------------------------------
+    # Detection counts
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "NCLUMP")] = int(getattr(s, "n_clumps", -1))
+    row[_hcl_col(prefix, "NCLUMP_GOOD")] = int(getattr(s, "n_clumps_good", -1))
+    row[_hcl_col(prefix, "NPEAK")] = int(getattr(s, "n_peaks", -1))
+    row[_hcl_col(prefix, "NPEAK_IN_CLUMPS")] = int(getattr(s, "n_peaks_in_clumps", -1))
+    row[_hcl_col(prefix, "NPOINTSRC")] = int(getattr(s, "n_point_sources", -1))
+
+    # ------------------------------------------------------------
+    # Threshold / background
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "THRESHOLD")] = getattr(s, "threshold", np.nan)
+    row[_hcl_col(prefix, "BKG_MEAN")] = getattr(s, "background_mean", np.nan)
+    row[_hcl_col(prefix, "BKG_MEDIAN")] = getattr(s, "background_median", np.nan)
+    row[_hcl_col(prefix, "BKG_RMS")] = getattr(s, "background_rms", np.nan)
+
+    # ------------------------------------------------------------
+    # Flux and area summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "FLUX_FOOTPRINT")] = getattr(
+        s, "total_halpha_flux_footprint", np.nan
+    )
+    row[_hcl_col(prefix, "FLUX_SUM")] = getattr(s, "total_clump_flux", np.nan)
+    row[_hcl_col(prefix, "FLUX_FRAC")] = getattr(s, "clump_flux_fraction", np.nan)
+
+    row[_hcl_col(prefix, "BRIGHT_FLUX")] = getattr(s, "brightest_clump_flux", np.nan)
+    row[_hcl_col(prefix, "BRIGHT_FRAC")] = getattr(
+        s, "brightest_clump_fraction", np.nan
+    )
+    row[_hcl_col(prefix, "TOP2_FRAC")] = getattr(s, "top2_clump_fraction", np.nan)
+    row[_hcl_col(prefix, "TOP3_FRAC")] = getattr(s, "top3_clump_fraction", np.nan)
+
+    # ------------------------------------------------------------
+    # Nuclear clump summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "HAS_NUCLEAR")] = bool(
+        getattr(s, "has_nuclear", False)
+        )
+
+    row[_hcl_col(prefix, "NNUCLEAR")] = int(
+        getattr(s, "n_nuclear", -1)
+        )
+
+    row[_hcl_col(prefix, "NUCLEAR_FLUX_FRAC")] = getattr(
+        s, "nuclear_flux_frac", np.nan
+        )
+    row[_hcl_col(prefix, "PARAM_NUCLEAR_RADIUS_FWHM")] = getattr(
+        config, "nuclear_radius_fwhm", np.nan
+        )
+    # ------------------------------------------------------------
+    # Clump flux dominance
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "BRIGHT_TO_SECOND_FLUX")] = getattr(
+        s, "bright_to_second_flux", np.nan
+        )
+
+    # ------------------------------------------------------------
+    # Area summaries
+    # Store angular areas in arcsec^2.
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "AREA_ARCSEC2")] = _pixarea_to_arcsec2(
+        getattr(s, "clump_area_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "FOOTPRINT_AREA_ARCSEC2")] = _pixarea_to_arcsec2(
+        getattr(s, "footprint_area_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "AREA_FRAC")] = getattr(s, "clump_area_fraction", np.nan)
+
+    # ------------------------------------------------------------
+    # Peak summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "PEAK_MAX")] = getattr(s, "peak_max", np.nan)
+    row[_hcl_col(prefix, "PEAK_SUM")] = getattr(s, "peak_sum", np.nan)
+    row[_hcl_col(prefix, "POINTSRC_FLUX_SUM")] = getattr(
+        s, "point_source_flux_sum", np.nan
+    )
+
+    # ------------------------------------------------------------
+    # Clump centroid summaries
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "XCEN_FLUXWT")] = getattr(
+        s, "flux_weighted_xcentroid", np.nan
+    )
+    row[_hcl_col(prefix, "YCEN_FLUXWT")] = getattr(
+        s, "flux_weighted_ycentroid", np.nan
+    )
+    row[_hcl_col(prefix, "XCEN_BRIGHT")] = getattr(s, "brightest_xcentroid", np.nan)
+    row[_hcl_col(prefix, "YCEN_BRIGHT")] = getattr(s, "brightest_ycentroid", np.nan)
+
+
+
+    # ------------------------------------------------------------
+    # Clump centroid offset summaries
+    # Stored in arcsec, not pixels.
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "RMIN_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "rmin_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "RMAX_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "rmax_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "RMED_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "rmed_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "RMEAN_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "rmean_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "RFLUXWT_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "rfluxwt_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "RBRIGHT_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "rbright_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "DX_BRIGHT_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "dx_bright_pix", np.nan),
+        pixel_scale,
+        )
+
+    row[_hcl_col(prefix, "DY_BRIGHT_ARCSEC")] = _pix_to_arcsec(
+        getattr(s, "dy_bright_pix", np.nan),
+        pixel_scale,
+        )
+
+
+    # ------------------------------------------------------------
+    # Saved product paths
+    # ------------------------------------------------------------
+    row[_hcl_col(prefix, "CATALOG")] = getattr(s, "catalog_path", "")
+    row[_hcl_col(prefix, "SEGMAP")] = getattr(s, "segmentation_path", "")
+    row[_hcl_col(prefix, "PEAKS")] = getattr(s, "peaks_path", "")
+    row[_hcl_col(prefix, "POINTSRC")] = getattr(s, "point_sources_path", "")
+    row[_hcl_col(prefix, "DIAG")] = getattr(s, "diagnostic_path", "")
+
+    # ------------------------------------------------------------
+    # Important configuration parameters
+    # ------------------------------------------------------------
+    if config is not None:
+        row[_hcl_col(prefix, "PARAM_NSIGMA")] = getattr(config, "nsigma", np.nan)
+        row[_hcl_col(prefix, "PARAM_NPIXELS")] = int(getattr(config, "npixels", -1))
+        row[_hcl_col(prefix, "PARAM_DEBLEND")] = bool(getattr(config, "deblend", False))
+        row[_hcl_col(prefix, "PARAM_NLEVELS")] = int(getattr(config, "nlevels", -1))
+        row[_hcl_col(prefix, "PARAM_CONTRAST")] = getattr(config, "contrast", np.nan)
+        row[_hcl_col(prefix, "PARAM_MODE")] = getattr(config, "mode", "")
+
+        row[_hcl_col(prefix, "PARAM_FIND_PEAKS")] = bool(
+            getattr(config, "find_peaks", False)
+        )
+        row[_hcl_col(prefix, "PARAM_PEAK_BOX_SIZE")] = int(
+            getattr(config, "peak_box_size", -1)
+        )
+
+        peak_min_sep = getattr(config, "peak_min_separation", None)
+        if peak_min_sep is None:
+            peak_min_sep = -1
+        row[_hcl_col(prefix, "PARAM_PEAK_MIN_SEP")] = int(peak_min_sep)
+
+    return row
 
 
 
@@ -1199,6 +1627,215 @@ def main():
 
 
     # ============================================================
+    # H-alpha clump analysis
+    # ============================================================
+    g_clumps = p.add_argument_group("H-alpha Clump Analysis")
+
+    g_clumps.add_argument(
+        "--clumps",
+        action="store_true",
+        help=(
+            "Run H-alpha clump analysis inside the central R-band "
+            "segmentation footprint."
+        ),
+    )
+
+    g_clumps.add_argument(
+        "--clump-nsigma",
+        type=float,
+        default=3.0,
+        help=(
+            "Detection threshold for H-alpha clumps in units of the local "
+            "background RMS. Default is 3.0."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-npixels",
+        type=int,
+        default=5,
+        help=(
+            "Minimum number of connected pixels required for an H-alpha "
+            "clump detection. Default is 5."
+        ),
+    )
+
+    g_clumps.add_argument(
+        "--no-clump-deblend",
+        action="store_true",
+        help="Disable photutils deblending for H-alpha clump detections.",
+    )
+    g_clumps.add_argument(
+        "--clump-nlevels",
+        type=int,
+        default=64,
+        help="Number of deblending levels. Default is 32.",
+    )
+    g_clumps.add_argument(
+        "--clump-deblend-mode",
+        default="linear",
+        choices=["exponential", "linear", "sinh"],
+        help=(
+            "Multi-threshold spacing mode for photutils.deblend_sources. "
+            "Default is linear."
+        ),
+    )    
+    g_clumps.add_argument(
+        "--clump-contrast",
+        type=float,
+        default=0.001,
+        help=(
+            "Deblending contrast for H-alpha clumps. Smaller values split "
+            "more aggressively. Default is 0.001."
+        ),
+    )
+
+    g_clumps.add_argument(
+        "--no-clump-peaks",
+        action="store_true",
+        help="Disable local peak finding within the H-alpha clump image.",
+    )
+    g_clumps.add_argument(
+        "--clump-peak-box-size",
+        type=int,
+        default=5,
+        help="Box size used by photutils.find_peaks. Default is 5.",
+    )
+    g_clumps.add_argument(
+        "--clump-peak-min-separation",
+        type=int,
+        default=None,
+        help=(
+            "Minimum separation in pixels between local H-alpha peaks. "
+            "Default is None."
+        ),
+    )
+
+    g_clumps.add_argument(
+        "--clump-background-grow-radius",
+        type=float,
+        default=10,
+        help=(
+            "Grow radius passed to calculate_background_photutils when "
+            "estimating the clump detection threshold. Default is 10."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-background-npixels",
+        type=int,
+        default=10,
+        help=(
+            "Minimum object size passed to calculate_background_photutils "
+            "for background masking. Default is 10."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-background-mask-nsigma",
+        type=float,
+        default=2.0,
+        help=(
+            "Object-mask threshold passed to calculate_background_photutils. "
+            "Default is 2.0."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-background-clip-sigma",
+        type=float,
+        default=3.0,
+        help=(
+            "Sigma-clipping threshold used by calculate_background_photutils. "
+            "Default is 3.0."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-background-clip-maxiters",
+        type=int,
+        default=5,
+        help=(
+            "Maximum sigma-clipping iterations used by "
+            "calculate_background_photutils. Default is 5."
+        ),
+    )
+
+    g_clumps.add_argument(
+        "--clump-min-flux",
+        type=float,
+        default=None,
+        help=(
+            "Optional minimum clump flux used for summary statistics. "
+            "The full clump catalog is still saved. Default is None."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-min-area",
+        type=int,
+        default=None,
+        help=(
+            "Optional minimum clump area in pixels used for summary statistics. "
+            "The full clump catalog is still saved. Default is None."
+        ),
+    )
+
+    g_clumps.add_argument(
+        "--no-clump-diagnostic",
+        action="store_true",
+        help="Do not save the H-alpha clump diagnostic image.",
+    )
+    g_clumps.add_argument(
+        "--clump-diagnostic-format",
+        default="png",
+        choices=["png", "pdf"],
+        help="File format for the H-alpha clump diagnostic image. Default is png.",
+    )
+    g_clumps.add_argument(
+        "--clump-diagnostic-percent",
+        type=float,
+        default=99.5,
+        help=(
+            "Percentile stretch for the H-alpha clump diagnostic image. "
+            "Default is 99.5."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-plot-kron-apertures",
+        action="store_true",
+        help="Overlay SourceCatalog Kron apertures on the clump diagnostic image.",
+    )
+
+    g_clumps.add_argument(
+        "--clump-point-sources",
+        action="store_true",
+        help=(
+            "Also run optional point-source-like H-alpha knot detection. "
+            "This is not used as the primary clump definition."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-point-source-method",
+        default="dao",
+        choices=["dao", "iraf"],
+        help="Point-source finder to use if --clump-point-sources is set.",
+    )
+    g_clumps.add_argument(
+        "--clump-point-source-fwhm",
+        type=float,
+        default=None,
+        help=(
+            "FWHM in pixels for optional point-source detection. Required "
+            "if --clump-point-sources is set."
+        ),
+    )
+    g_clumps.add_argument(
+        "--clump-point-source-threshold-nsigma",
+        type=float,
+        default=5.0,
+        help=(
+            "Point-source detection threshold in units of background RMS. "
+            "Default is 5.0."
+        ),
+    )
+
+
+    # ============================================================
     # Masking (SExtractor + Gaia)
     # ============================================================
     g_mask = p.add_argument_group("Masking Options")
@@ -1225,32 +1862,6 @@ def main():
                         help="Rebuild mask even if an existing mask file is present")
 
 
-    # # ============================================================
-    # # Masking (SExtractor + Gaia)
-    # # ============================================================
-    # g_mask = p.add_argument_group("Masking Options")
-
-    # g_mask.add_argument("--sepath", default="sex",
-    #                     help="Path to SExtractor executable")
-    # g_mask.add_argument("--seconfig", default=_default_sex_config(),
-    #                     help="SExtractor config file path")
-    # g_mask.add_argument("--sethreshold", type=float, default=0.005,
-    #                     help="SExtractor detection/deblend threshold. Default is 0.005.")
-    # g_mask.add_argument("--sesnr", type=float, default=5.0,
-    #                     help="SExtractor SNR threshold.  Default is 5.")
-    # g_mask.add_argument("--seminarea", type=int, default=5,
-    #                     help="SExtractor minimum object area. Default is 5.")
-    # g_mask.add_argument("--grow-size", type=int, default=7,
-    #                         help="Grow size in mask expansion. Default is 7.")
-    # g_mask.add_argument("--grow-iterations", type=int, default=4,
-    #                         help="Number of mask-growth iterations. Default is 4.")
-    # #g_mask.add_argument("--gaiapath", default=None,
-    # #                    help="Path to Gaia catalog file")
-    # g_mask.add_argument("--gaia-dir", default="gaia_catalogs",
-    #                     help="Directory containing precomputed Gaia catalogs (default: gaia_catalogs)")
-    # g_mask.add_argument("--no-gaia", action="store_true",
-    #                     help="Disable Gaia star masking")
-    # g_mask.add_argument("--force-mask",action="store_true", help="Rebuild mask even if an existing mask file is present")
     # ============================================================
     # GALFIT
     # ============================================================
@@ -1396,7 +2007,8 @@ def main():
 
     row = initialize_sourcecatalog_moments(row, prefix1="CSGR_R", prefix2="CSGR_H")    
 
-
+    row = initialize_hapy_clumps(row, prefix="HCL_")
+    row = initialize_hapy_clumps(row, prefix="CSGR_HCL_")    
     # look for CS-gr image and log it if found
     csgr_fits = (
         str(cutdir / params.get("csgr_fits")) if params.get("csgr_fits") else None
@@ -2084,7 +2696,100 @@ def main():
 
     row["HAPY_MORPH_SEC"] = _scalar(time.perf_counter() - t0)        
     
-    # ---- FIT PROFILES!  ----------- #
+
+    # ---- RUN HAPY CLUMP ANALYSIS  ----------- #
+
+    if args.clumps:
+        print("DEBUG: trying to run clump analysis")
+        from hapy.ellipse.clumps import ClumpDetectionConfig
+
+        clump_config = ClumpDetectionConfig(
+            nsigma=args.clump_nsigma,
+            npixels=args.clump_npixels,
+
+            deblend=not args.no_clump_deblend,
+            nlevels=args.clump_nlevels,
+            contrast=args.clump_contrast,
+            mode=args.clump_deblend_mode,
+            
+            find_peaks=not args.no_clump_peaks,
+            peak_box_size=args.clump_peak_box_size,
+            peak_min_separation=args.clump_peak_min_separation,
+
+            background_grow_radius=args.clump_background_grow_radius,
+            background_npixels=args.clump_background_npixels,
+            background_mask_nsigma=args.clump_background_mask_nsigma,
+            background_clip_sigma=args.clump_background_clip_sigma,
+            background_clip_maxiters=args.clump_background_clip_maxiters,
+
+            min_flux=args.clump_min_flux,
+            min_area=args.clump_min_area,
+
+            save_diagnostic=not args.no_clump_diagnostic,
+            diagnostic_format=args.clump_diagnostic_format,
+            diagnostic_percent=args.clump_diagnostic_percent,
+            plot_kron_apertures=args.clump_plot_kron_apertures,
+
+            find_point_sources=args.clump_point_sources,
+            point_source_method=args.clump_point_source_method,
+            point_source_fwhm=args.clump_point_source_fwhm,
+            point_source_threshold_nsigma=args.clump_point_source_threshold_nsigma,
+        )
+
+        # temporarily moving this out of try/except for debugging
+        clump_result = e.measure_halpha_clumps(
+            config=clump_config,
+            output_dir=cutdir,
+            basename=tag,
+            overwrite=True,
+            update_results=False,   # keep this False while testing
+        )
+        
+
+        try:
+            clump_result = e.measure_halpha_clumps(
+                config=clump_config,
+                output_dir=cutdir,
+                basename=tag,
+                overwrite=True,
+                update_results=False,   # keep this False while testing
+            )
+
+            write_hapy_clumps(
+                row,
+                clump_result,
+                prefix="HCL_",
+                input_image="CS-ZP",
+                config=clump_config,
+                pixel_scale=pixscale,
+                failed=False,
+                )
+            
+            logger.info(
+                "H-alpha clump analysis complete: NCLUMP=%d, NPEAK=%d",
+                clump_result.summary.n_clumps,
+                getattr(clump_result.summary, "n_peaks", 0),
+            )
+
+        except Exception as err:
+            logger.warning("H-alpha clump analysis failed: %s", err)
+            print("H-alpha clump analysis failed: %s", err)
+
+            if hasattr(e, "results") and isinstance(e.results, dict):
+                e.results["HCL_OK"] = False
+                e.results["HCL_STATUS"] = "ok"
+            write_hapy_clumps(
+                row,
+                None,
+                prefix="HCL_",
+                input_image="CS-ZP",
+                config=clump_config,
+                failed=True,
+                )
+                
+
+
+    # ---- FIT PROFILES!  ----------- #    
 
     if valid_file(e.photfile) and valid_file(e.photfile2):
         row["PHOT_OK"] = True
@@ -2156,6 +2861,97 @@ def main():
         row["CSGR_SEC"] = _scalar(time.perf_counter() - t0)
     
 
+    # ---- RUN HAPY CLUMP ANALYSIS  ----------- #
+
+    if args.clumps and csgr_fits and args.csgr:
+
+        print("DEBUG: trying to run clump analysis")
+        from hapy.ellipse.clumps import ClumpDetectionConfig
+
+        clump_config = ClumpDetectionConfig(
+            nsigma=args.clump_nsigma,
+            npixels=args.clump_npixels,
+
+            deblend=not args.no_clump_deblend,
+            nlevels=args.clump_nlevels,
+            contrast=args.clump_contrast,
+            mode=args.clump_deblend_mode,
+            
+            find_peaks=not args.no_clump_peaks,
+            peak_box_size=args.clump_peak_box_size,
+            peak_min_separation=args.clump_peak_min_separation,
+
+            background_grow_radius=args.clump_background_grow_radius,
+            background_npixels=args.clump_background_npixels,
+            background_mask_nsigma=args.clump_background_mask_nsigma,
+            background_clip_sigma=args.clump_background_clip_sigma,
+            background_clip_maxiters=args.clump_background_clip_maxiters,
+
+            min_flux=args.clump_min_flux,
+            min_area=args.clump_min_area,
+
+            save_diagnostic=not args.no_clump_diagnostic,
+            diagnostic_format=args.clump_diagnostic_format,
+            diagnostic_percent=args.clump_diagnostic_percent,
+            plot_kron_apertures=args.clump_plot_kron_apertures,
+
+            find_point_sources=args.clump_point_sources,
+            point_source_method=args.clump_point_source_method,
+            point_source_fwhm=args.clump_point_source_fwhm,
+            point_source_threshold_nsigma=args.clump_point_source_threshold_nsigma,
+        )
+
+        # temporarily moving this out of try/except for debugging
+        clump_result = e.measure_halpha_clumps(
+            config=clump_config,
+            output_dir=cutdir,
+            basename=tag,
+            overwrite=True,
+            update_results=False,   # keep this False while testing
+        )
+        
+
+        try:
+            clump_result = e.measure_halpha_clumps(
+                config=clump_config,
+                output_dir=cutdir,
+                basename=tag,
+                overwrite=True,
+                update_results=False,   # keep this False while testing
+            )
+
+            write_hapy_clumps(
+                row,
+                clump_result,
+                prefix="CSGR_HCL_",
+                input_image="CS-GR",
+                config=clump_config,
+                pixel_scale=pixscale,
+                failed=False,
+                )
+            
+            logger.info(
+                "H-alpha clump analysis complete: NCLUMP=%d, NPEAK=%d",
+                clump_result.summary.n_clumps,
+                getattr(clump_result.summary, "n_peaks", 0),
+            )
+
+        except Exception as err:
+            logger.warning("H-alpha clump analysis failed: %s", err)
+            print("H-alpha clump analysis failed: %s", err)
+
+            if hasattr(e, "results") and isinstance(e.results, dict):
+                e.results["CSGR_HCL_OK"] = False
+                e.results["CSGR_HCL_STATUS"] = "failed"
+            write_hapy_clumps(
+                row,
+                None,
+                prefix="CSGR_HCL_",
+                input_image="CS-GR",
+                config=clump_config,
+                failed=True,
+                )
+                
         
     ################################################################
     # statmorph block
@@ -2374,12 +3170,14 @@ def main():
     write_result_row_ecsv(results_path, row)
     print(f"Wrote results: {results_path}")
     #return results_path
-    return 0
+    #return 0
+    return e
 
         
 if __name__ == "__main__":
-    #results_table = main()
-    raise SystemExit(main())
+    e = main()
+
+    #raise SystemExit(main())
     
     # checking table - comment after check
     #check_table(results_table)

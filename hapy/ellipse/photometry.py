@@ -54,7 +54,12 @@ from hapy.imagetools import imutils
 from hapy.hatools import morphology as morph
 from hapy.imagetools.plotting import display_image
 from hapy.geometry.adapters import pa_ccw_north_deg_to_photutils_theta_rad
-from hapy.io.schemas import PHOT_TABLE_SCHEMA 
+from hapy.io.schemas import PHOT_TABLE_SCHEMA
+
+
+from hapy.ellipse.clumps import analyze_halpha_clumps, ClumpDetectionConfig
+
+
 # This overwrites the photutils task
 #from hapy.masktools.types import EllipseParams 
 #import .adapters
@@ -475,6 +480,44 @@ def compute_annulus_snr(flux, prev_flux, area_unmasked, prev_area_unmasked, sky_
     snr_image_units = ave_sb_adu / sky_noise if np.isfinite(sky_noise) and sky_noise > 0 else -np.inf
 
     return dF, dA, snr_total, snr_per_pixel, snr_image_units
+def _get_fwhm_arcsec(header, pixel_scale=np.nan):
+    """
+    Return PSF FWHM in arcsec from FITS header.
+
+    Priority:
+    1. SEFWHM is assumed to already be in arcsec.
+    2. FWHM is assumed to be in pixels and converted using pixel_scale.
+    3. Return np.nan if unavailable or invalid.
+    """
+
+    # Try SEFWHM first: assumed arcsec
+    val = header.get("SEFWHM", np.nan)
+
+    try:
+        val = float(val)
+    except (TypeError, ValueError):
+        val = np.nan
+
+    if np.isfinite(val) and val > 0:
+        return val
+
+    # Fall back to FWHM: assumed pixels
+    val = header.get("FWHM", np.nan)
+
+    try:
+        val = float(val)
+    except (TypeError, ValueError):
+        val = np.nan
+
+    try:
+        pixel_scale = float(pixel_scale)
+    except (TypeError, ValueError):
+        pixel_scale = np.nan
+
+    if np.isfinite(val) and val > 0 and np.isfinite(pixel_scale) and pixel_scale > 0:
+        return val * pixel_scale
+
+    return np.nan
 
 class EllipsePhotometry():
     '''
@@ -589,6 +632,9 @@ class EllipsePhotometry():
         #
         # self.mask_flag is True if a mask is provided
 
+        ###########################################
+        #-------       MASK BLOCK         -------#
+        ###########################################        
         if mask is not None:
             self.mask_image, self.mask_header = fits.getdata(mask, header=True)
             self.mask_flag = True
@@ -603,13 +649,13 @@ class EllipsePhotometry():
 
             if self.image2_flag:
                 if self.mask2 is not None:
-                    mask2 = fits.getdata(mask2)
-                    boolmask2 = np.asarray(self.mask_image, dtype=bool)
+                    mask2_image = fits.getdata(mask2)
+                    self.boolmask2 = np.asarray(mask2_image, dtype=bool)
                 else:
-                    boolmask2 = self.boolmask
-                self.masked_image2 = np.ma.array(self.image2, mask=boolmask2)
+                    self.boolmask2 = self.boolmask
+                self.masked_image2 = np.ma.array(self.image2, mask=self.boolmask2)
                 self.image2_for_ellipse = np.array(self.image2, dtype=float, copy=True)
-                self.image2_for_ellipse[self.boolmask] = np.nan
+                self.image2_for_ellipse[self.boolmask2] = np.nan
         else:
             print('not using a mask')
             self.mask_flag = False
@@ -633,14 +679,29 @@ class EllipsePhotometry():
         self.use_mpl = use_mpl
         self.napertures = napertures
         # assuming a typical fwhm
-        try:
-            self.fwhm = self.header['SEFWHM']
-        except KeyError:
-            try:
-                self.fwhm = self.header['FWHM'] * self.pixel_scale
-            except KeyError:
-                self.fwhm = np.nan
-        
+
+        # Get PSF FWHM estimates in arcsec.
+        # SEFWHM is assumed to be in arcsec.
+        # FWHM is assumed to be in pixels and converted using pixel_scale.
+
+        self.fwhm = _get_fwhm_arcsec(self.header, self.pixel_scale)
+
+        # Always define fwhm2, even if there is no second image
+        self.fwhm2 = np.nan
+
+        if self.image2_flag:
+            self.fwhm2 = _get_fwhm_arcsec(self.header2, self.pixel_scale)
+
+        # Get maximum valid FWHM in arcsec
+        _fwhm_values = np.array([self.fwhm, self.fwhm2], dtype=float)
+        _good = np.isfinite(_fwhm_values) & (_fwhm_values > 0)
+
+        if np.any(_good):
+            self.fwhm_max_arcsec = np.max(_fwhm_values[_good])
+        else:
+            self.fwhm_max_arcsec = np.nan
+
+            
 
     def run_two_image_phot(self,write1=False):
         ''' 
@@ -1706,6 +1767,325 @@ class EllipsePhotometry():
             morph.flag = self.HAPY_MORPH_FLAG
             morph.ok = self.HAPY_MORPH_OK
             raise
+
+    def measure_halpha_clumps(
+        self,
+        hdata=None,
+        error=None,
+        mask=None,
+        wcs=None,
+        output_dir=None,
+        basename=None,
+        config=None,
+        prefix="HCL_",
+        overwrite=True,
+        update_results=True,
+    ):
+        """
+        Detect and measure individual H-alpha clumps within the central
+        galaxy's R-band segmentation footprint.
+
+        This is a thin wrapper around hapy.ellipse.clumps.analyze_halpha_clumps.
+        It keeps the clump-analysis logic out of photometry.py while allowing
+        run_analysis.py to trigger the measurement through EllipsePhotometry.
+
+        Parameters
+        ----------
+        hdata : ndarray or None
+            H-alpha image to analyze. If None, this method tries to use common
+            HAPY H-alpha image attributes.
+
+        error : ndarray or None
+            Optional H-alpha uncertainty image.
+
+        mask : ndarray or None
+            Optional bad-pixel/object mask. True means masked.
+
+        wcs : astropy.wcs.WCS or None
+            Optional WCS.
+
+        output_dir : str, Path, or None
+            Directory for saved clump products.
+
+        basename : str or None
+            Base filename for saved clump products.
+
+        config : ClumpDetectionConfig or None
+            Clump detection configuration.
+
+        prefix : str
+            Prefix for summary columns stored in the HAPY results.
+
+        overwrite : bool
+            Whether to overwrite existing clump products.
+
+        update_results : bool
+            If True, add clump summary quantities to self.results if available.
+
+        Returns
+        -------
+        result : ClumpAnalysisResult
+            Dataclass containing the clump SourceCatalog, table, segmentation map,
+            masks, and summary quantities.
+        """
+
+        if config is None:
+            config = ClumpDetectionConfig()
+
+        # ------------------------------------------------------------
+        # Required existing HAPY state
+        # ------------------------------------------------------------
+        if not hasattr(self, "segmentation") or self.segmentation is None:
+            raise RuntimeError(
+                "R-band segmentation image self.segm is not available. "
+                "Run detect_objects() before measure_halpha_clumps()."
+            )
+
+        if not hasattr(self, "objectIndex") or self.objectIndex is None:
+            raise RuntimeError(
+                "Central galaxy object index self.objectIndex is not available. "
+                "Run detect_objects() before measure_halpha_clumps()."
+            )
+
+        # ------------------------------------------------------------
+        # Get H-alpha image data array if not explicitly provided.
+        # For the initial clump analysis, use the CS-ZP H-alpha image.
+        # In EllipsePhotometry this is self.image2.
+        # ------------------------------------------------------------
+        if hdata is None:
+            hdata = getattr(self, "image2", None)
+
+        if hdata is None:
+            raise RuntimeError(
+                "No H-alpha image data array was provided. "
+                "Expected self.image2 to contain the CS-ZP H-alpha image."
+            )
+
+
+        # ------------------------------------------------------------
+        # Optional defaults from the EllipsePhotometry object
+        # ------------------------------------------------------------
+        if error is None:
+            for attr in [
+                "herror",
+                "haerror",
+                "halpha_error",
+                "error2",
+            ]:
+                if hasattr(self, attr):
+                    candidate = getattr(self, attr)
+                    if candidate is not None:
+                        error = candidate
+                        break
+
+        # if mask is None:
+        #     for attr in [
+        #         "mask",
+        #         "object_mask",
+        #         "badmask",
+        #         "bad_mask",
+        #     ]:
+        #         if hasattr(self, attr):
+        #             candidate = getattr(self, attr)
+        #             if candidate is not None:
+        #                 mask = candidate
+        #                 break
+        mask = None
+
+        # ------------------------------------------------------------
+        # Bad-pixel mask for H-alpha clump analysis.
+        # Convention:
+        #   True  = bad/masked pixel
+        #   False = usable pixel
+        # ------------------------------------------------------------
+        bad_pixel_mask = None
+
+        if hasattr(self, "boolmask2") and self.boolmask2 is not None:
+            bad_pixel_mask = self.boolmask2
+        elif hasattr(self, "boolmask") and self.boolmask is not None:
+            bad_pixel_mask = self.boolmask
+    
+        
+        if wcs is None:
+            for attr in [
+                "wcs",
+                "hwcs",
+                "halpha_wcs",
+                "wcs2",
+            ]:
+                if hasattr(self, attr):
+                    candidate = getattr(self, attr)
+                    if candidate is not None:
+                        wcs = candidate
+                        break
+
+        if output_dir is None:
+            for attr in [
+                "outdir",
+                "output_dir",
+                "plotdir",
+                "dirname",
+            ]:
+                if hasattr(self, attr):
+                    candidate = getattr(self, attr)
+                    if candidate is not None:
+                        output_dir = candidate
+                        break
+
+        if basename is None:
+            for attr in [
+                "galname",
+                "prefix",
+                "basename",
+                "objname",
+                "name",
+            ]:
+                if hasattr(self, attr):
+                    candidate = getattr(self, attr)
+                    if candidate is not None:
+                        basename = str(candidate)
+                        break
+
+        # If we cannot infer a basename, use a generic one.
+        # This avoids crashing during notebook testing.
+        if basename is None:
+            basename = "hapy"
+
+
+        print("DEBUG EllipsePhotometry segmentation")
+        print("  self.objectIndex =", self.objectIndex)
+        print("  self.segmentation shape =", self.segmentation.shape)
+        print("  self.segmentation unique =", np.unique(self.segmentation)[:20])
+        print("  self.segmentation sum =", np.sum(self.segmentation))
+
+        if hasattr(self, "cat"):
+            print("DEBUG cat")
+            print("  cat labels first 20 =", self.cat.labels[:20])
+
+            for attr in ["segment_img", "segment_image", "segm", "_segment_img"]:
+                if hasattr(self.cat, attr):
+                    x = getattr(self.cat, attr)
+                    print(attr, type(x), getattr(x, "shape", None))
+                    if hasattr(x, "data"):
+                        print("  unique =", np.unique(x.data)[:20])
+        # ------------------------------------------------------------
+        # Run the clump analysis
+        # ------------------------------------------------------------
+
+        # ------------------------------------------------------------
+        # Get adopted galaxy center for clump offset measurements.
+        # Prefer the standard center, but fall back to the best-fit center
+        # if available. If neither is available, clump analysis still runs,
+        # but offset/radius summary quantities remain NaN.
+        # ------------------------------------------------------------
+        xc = None
+        yc = None
+
+        if (
+            hasattr(self, "xcenter")
+            and hasattr(self, "ycenter")
+            and self.xcenter is not None
+            and self.ycenter is not None
+        ):
+            xc = self.xcenter
+            yc = self.ycenter
+
+        elif (
+            hasattr(self, "xcenter_best")
+            and hasattr(self, "ycenter_best")
+            and self.xcenter_best is not None
+            and self.ycenter_best is not None
+        ):
+            xc = self.xcenter_best
+            yc = self.ycenter_best
+
+        self.clump_xcenter = xc
+        self.clump_ycenter = yc
+
+
+        # ------------------------------------------------------------
+        # Nuclear radius for clump analysis.
+        #
+        # Nuclear clumps are defined as clumps whose centroids lie within
+        # one H-alpha seeing FWHM of the adopted galaxy center.
+        # ------------------------------------------------------------
+
+
+        # nuclear_radius_pix = None
+
+        # if (
+        #     hasattr(self, "fwhm")
+        #     and self.fwhm is not None
+        #     and np.isfinite(self.fwhm)
+        #     and hasattr(self, "pixel_scale")
+        #     and self.pixel_scale is not None
+        #     and np.isfinite(self.pixel_scale)
+        #     and self.pixel_scale > 0
+        # ):
+        #     nuclear_radius_pix = (
+        #         float(config.nuclear_radius_fwhm)
+        #         * float(self.fwhm)
+        #         / float(self.pixel_scale)
+        #     )
+        
+        # nuclear_radius_fwhm = 1.5
+        # nuclear_radius_pix = nuclear_radius_fwhm * self.fwhm_max_arcsec / self.pixel_scale
+
+
+        
+        if np.isfinite(self.fwhm_max_arcsec) and self.fwhm_max_arcsec > 0:
+            nuclear_radius_pix = float(config.nuclear_radius_fwhm) * self.fwhm_max_arcsec / self.pixel_scale
+        else:
+            nuclear_radius_pix = np.nan
+
+        pixel_scale = self.pixel_scale
+
+    
+        
+        result = analyze_halpha_clumps(
+            hdata=hdata,
+            rsegm=self.segmentation,
+            object_index=self.cat.labels[self.objectIndex],
+            error=error,
+            mask=bad_pixel_mask,
+            wcs=wcs,
+            xcenter=xc,
+            ycenter=yc,
+            nuclear_radius_pix=nuclear_radius_pix,
+            config=config,
+            output_dir=output_dir,
+            basename=basename,
+            overwrite=overwrite,
+        )
+
+        # Keep full result attached to the object for interactive inspection.
+        self.clumps = result
+        self.clump_catalog = result.catalog
+        self.clump_table = result.table
+        self.clump_summary = result.summary
+        self.clump_segm = result.segm
+        self.clump_peak_table = getattr(result, "peak_table", None)
+        self.clump_point_source_table = getattr(result, "point_source_table", None)
+
+        # ------------------------------------------------------------
+        # Add summary quantities to the HAPY result dictionary/table if present.
+        # This is intentionally conservative because I do not know the exact
+        # result container name in your current photometry.py.
+        # ------------------------------------------------------------
+        clump_columns = result.to_hapy_columns(prefix=prefix)
+        self.clump_columns = clump_columns
+
+        if update_results:
+            if hasattr(self, "results") and isinstance(self.results, dict):
+                self.results.update(clump_columns)
+
+            elif hasattr(self, "photdict") and isinstance(self.photdict, dict):
+                self.photdict.update(clump_columns)
+
+            elif hasattr(self, "output") and isinstance(self.output, dict):
+                self.output.update(clump_columns)
+
+        return result
 
         
     def get_asymmetry(self):

@@ -9,7 +9,7 @@ This file is the streamlined recipe for rerunning the Virgo HAPY analysis. Keep 
 Edit these at the top of each new run.
 
 ```bash
-RUNDATE=20260620
+RUNDATE=20260626
 ROOTDIR=/data-pool/Halpha/hapy-output-${RUNDATE}
 COADDDIR=/data-pool/Halpha/coadds-v20260330
 PSFDIR=/data-pool/Halpha/psf-images-v20260330
@@ -103,7 +103,7 @@ Run this from `/data-pool/Halpha`, not from inside the run directory.
 
 ```bash
 cd /data-pool/Halpha
-rsync -av hapy-output-20260612/cutouts/ hapy-output-${RUNDATE}/cutouts/ --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*' --ignore-existing --prune-empty-dirs --dry-run
+rsync -av hapy-output-20260620/cutouts/ hapy-output-${RUNDATE}/cutouts/ --include '*/' --include 'legacy/***' --exclude '*' --exclude '*logs*' --ignore-existing --prune-empty-dirs --dry-run
 ```
 
 If the dry run looks good, repeat without `--dry-run`.
@@ -129,7 +129,7 @@ parallel --bar -j 2 --joblog fetch_legacy_retry.joblog python ~/github/hapy/scri
 ```bash
 find cutouts -mindepth 1 -maxdepth 1 -type d -name 'VFID*' | sort > reproject_cutout_list.txt
 python ~/github/hapy/scripts/make_legacy_reprojections.py $(head -1 reproject_cutout_list.txt)
-parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" :::: reproject_cutout_list.txt
+parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" --overwrite :::: reproject_cutout_list.txt
 ```
 
 ### 5.4 Build CS-gr images
@@ -171,7 +171,7 @@ parallel --bar -j ${NCPU} --joblog make_sfr_map.joblog python ~/github/hapy/hapy
 Dry run first:
 
 ```bash
-rsync -avzn --include='*/' --include='*-mask-manual.fits' --exclude='*' /data-pool/Halpha/hapy-output-20260417/cutouts/ ${ROOTDIR}/cutouts/
+rsync -avzn --include='*/' --include='*-mask-manual.fits' --exclude='*' /data-pool/Halpha/hapy-output-20260/cutouts/ ${ROOTDIR}/cutouts/
 ```
 
 Then copy:
