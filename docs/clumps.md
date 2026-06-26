@@ -158,6 +158,7 @@ All clump offset and area summary quantities in the main HAPY results table are 
 ### Nuclear Clumps
 A nuclear clump is defined as a good Hα clump whose centroid lies within 1.5 times the measured Hα FWHM of the adopted galaxy center. The factor is recorded in `HCL_PARAM_NUCLEAR_RADIUS_FWHM`.
 
+`HCL_NUCLEAR_FLUX_FRAC` is set to 0.0 when good clumps are detected but none lie within the adopted nuclear radius. It is set to NaN only when the fraction is undefined, for example when there are no good positive-flux clumps or the nuclear radius cannot be computed.
 
 | Column | Meaning |
 |---|---|
@@ -165,6 +166,7 @@ A nuclear clump is defined as a good Hα clump whose centroid lies within 1.5 ti
 | `HCL_NNUCLEAR` | Number of good clumps whose centroids lie within one Hα seeing FWHM |
 | `HCL_NUCLEAR_FLUX_FRAC` | Fraction of total good-clump flux contained in nuclear clumps |
 | `HCL_NUCLEAR_RADIUS_ARCSEC` | Nuclear radius used for the classification, equal to the measured Hα seeing FWHM |
+| `HCL_PARAM_NUCLEAR_RADIUS_FWHM` | multiple of FWHM to use when defining the nuclear region. |
 
 This definition is intentionally tied to the image resolution rather than a fixed fraction of galaxy size, so the nuclear flag identifies clumps that are unresolved or marginally resolved from the adopted center.
 ### Clump centroid offsets from the galaxy center
