@@ -13,6 +13,9 @@ The intended workflow is:
 5. Measure the resulting H-alpha clumps with SourceCatalog.
 6. Save the clump catalog table and clump segmentation map for later analysis.
 7. Return summary quantities for storage in the main HAPY catalog.
+
+
+2026-06-27
 """
 
 from __future__ import annotations
