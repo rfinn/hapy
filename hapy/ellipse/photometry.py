@@ -1757,8 +1757,9 @@ class EllipsePhotometry():
                         show=False,
                         dpi=150,
                     )
-                except Exception:
-                    # Plotting failure should not invalidate the measurements
+                    
+                except Exception as e:
+                    print("WARNING: Plotting failure should not invalidate the measurements ",e)
                     pass
 
         except Exception:
