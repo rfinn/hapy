@@ -914,6 +914,7 @@ class cutout_dir():
 
         # initialize attributes (important for downstream HTML logic)
         self.clump_diagnostic = None
+        self.clump_diagnostic_csgr = None        
         #self.seg_diagnostic = None        
 
 
@@ -922,10 +923,14 @@ class cutout_dir():
 
         if len(r_matches) > 0:
             for rmatch in r_matches:
-                self.clump_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
-                destination = self.clump_diagnostic
+                if 'csgr' in rmatch:
+                    self.clump_diagnostic_csgr = os.path.join(self.outdir, os.path.basename(rmatch))
+                    destination = self.clump_diagnostic_csgr
+                else:
+                    self.clump_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
+                    destination = self.clump_diagnostic
                 try:
-                    shutil.copy2(rmatch, destination)
+                        shutil.copy2(rmatch, destination)
                 except Exception as e:
                     print(f"Error copying clump diagnostic: {self.clump_diagnostic}")
                     print(e)
@@ -1585,9 +1590,10 @@ class build_html_cutout():
             self.html.write('<p>Photometry profile files not available.</p>\n')
     
         self.write_mag_table()
+        self.write_clump_table()                
         self.write_morph_table()
         self.write_hapy_gini_table()
-        self.write_clump_table()        
+
         
         self.write_statmorph_table()
         self.write_galfit_images()
@@ -2175,6 +2181,13 @@ class build_html_cutout():
 
             write_table(self.html,images=images,labels=labels,width="100%")
 
+        if self.cutout.clump_diagnostic_csgr is not None:
+            images = [self.cutout.clump_diagnostic_csgr] # using five panel plot on webpage; 2 panel plot on index page
+            images = [os.path.basename(i) for i in images]
+            labels = ['HAPY Clump Diagnostic']
+
+            write_table(self.html,images=images,labels=labels,width="100%")
+            
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')
 
