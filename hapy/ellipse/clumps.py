@@ -1270,7 +1270,6 @@ def save_clump_outputs(
     basename: str,
     overwrite: bool = True,
     table_format: str = "ascii.ecsv",
-    imversion:None,
 ) -> ClumpAnalysisResult:
     """
     Save the clump SourceCatalog table and segmentation image.
