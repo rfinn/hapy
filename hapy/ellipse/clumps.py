@@ -40,7 +40,7 @@ from photutils.segmentation import (
 
 from photutils.detection import find_peaks
 
-from hapy.imagetools.imutils import calculate_background_photutils
+from hapy.imagetools.imutils import calculate_background_photutils, get_bbox_from_mask, make_limits_square
 
 __all__ = [
     "ClumpDetectionConfig",
@@ -1437,6 +1437,21 @@ def save_clump_diagnostic(
     # except Exception:
     #     norm = None
 
+
+    # get zoomed in limits
+    xlim, ylim = get_bbox_from_mask(
+        result.footprint_mask,
+        pad=75,
+        min_size=75,
+        image_shape=hdata.shape,
+    )
+
+    xlim, ylim = make_limits_square(
+        xlim,
+        ylim,
+        image_shape=hdata.shape,
+    )
+
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), constrained_layout=True)
 
     ax0, ax1, ax2 = axes
@@ -1555,6 +1570,8 @@ def save_clump_diagnostic(
     for ax in axes:
         ax.set_xlabel("x [pix]")
         ax.set_ylabel("y [pix]")
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
 
     title = (
         f"{basename}\n"

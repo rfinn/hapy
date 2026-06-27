@@ -22,7 +22,7 @@ from astropy.utils.exceptions import AstropyUserWarning
 #         segmap = np.array(self._segmap.data == 1, "i")
 #         return segmap[self._slice_stamp]
 
-
+from hapy.imagetools.imutils import get_bbox_from_mask, make_limits_square
 
 @dataclass
 class MorphologyResult:
@@ -1283,74 +1283,7 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
     return asym, asym_err, best_center, asym_grid
 
 
-def _get_bbox_from_mask(mask, pad=25, min_size=75):
-    """
-    Return xlim, ylim for a padded bounding box around True pixels in mask.
-    Falls back to full image if mask is empty.
-    """
-    yy, xx = np.where(mask)
 
-    ny, nx = mask.shape
-    if xx.size == 0 or yy.size == 0:
-        return (0, nx - 1), (0, ny - 1)
-
-    xmin, xmax = xx.min(), xx.max()
-    ymin, ymax = yy.min(), yy.max()
-
-    # enforce minimum size
-    xcen = 0.5 * (xmin + xmax)
-    ycen = 0.5 * (ymin + ymax)
-
-    half_x = max(0.5 * (xmax - xmin + 1) + pad, 0.5 * min_size)
-    half_y = max(0.5 * (ymax - ymin + 1) + pad, 0.5 * min_size)
-
-    xmin = max(0, int(np.floor(xcen - half_x)))
-    xmax = min(nx - 1, int(np.ceil(xcen + half_x)))
-    ymin = max(0, int(np.floor(ycen - half_y)))
-    ymax = min(ny - 1, int(np.ceil(ycen + half_y)))
-
-    return (xmin, xmax), (ymin, ymax)
-
-def _make_limits_square(xlim, ylim, image_shape):
-    """
-    Expand x/y limits to make a square cutout, clipped to image bounds.
-    """
-    ny, nx = image_shape
-
-    xmin, xmax = xlim
-    ymin, ymax = ylim
-
-    xcen = 0.5 * (xmin + xmax)
-    ycen = 0.5 * (ymin + ymax)
-
-    size = max(xmax - xmin, ymax - ymin)
-
-    xmin = xcen - 0.5 * size
-    xmax = xcen + 0.5 * size
-    ymin = ycen - 0.5 * size
-    ymax = ycen + 0.5 * size
-
-    # Shift box back inside image if needed
-    if xmin < 0:
-        xmax -= xmin
-        xmin = 0
-    if xmax > nx:
-        xmin -= xmax - nx
-        xmax = nx
-    if ymin < 0:
-        ymax -= ymin
-        ymin = 0
-    if ymax > ny:
-        ymin -= ymax - ny
-        ymax = ny
-
-    # Final clipping
-    xmin = max(0, xmin)
-    xmax = min(nx, xmax)
-    ymin = max(0, ymin)
-    ymax = min(ny, ymax)
-
-    return (xmin, xmax), (ymin, ymax)
 
 def plot_hapy_morphology_diagnostic(
     r_image,
@@ -1418,7 +1351,7 @@ def plot_hapy_morphology_diagnostic(
                 vals = arr[np.isfinite(arr)]
 
         if symmetric:
-            vmax = np.nanpercentile(np.abs(vals), 99)
+            vmax = np.nanpercentile(np.abs(vals), 99.5)
             if not np.isfinite(vmax) or vmax <= 0:
                 vmax = np.nanmax(np.abs(vals))
             if not np.isfinite(vmax) or vmax <= 0:
@@ -1426,7 +1359,7 @@ def plot_hapy_morphology_diagnostic(
             return -vmax, vmax
 
         vmin = np.nanpercentile(vals, 5)
-        vmax = np.nanpercentile(vals, 99)
+        vmax = np.nanpercentile(vals, 99.5)
         if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
             vmin = np.nanmin(vals)
             vmax = np.nanmax(vals)
@@ -1449,14 +1382,14 @@ def plot_hapy_morphology_diagnostic(
     else:
         hagi_vmin, hagi_vmax = 0.0, 1.0
 
-    xlim, ylim = _get_bbox_from_mask(r_gini_mask, pad=50, min_size=75)
-    xlim, ylim = _make_limits_square(xlim, ylim, image_shape=r_gini_mask.shape)
+    xlim, ylim = get_bbox_from_mask(r_gini_mask, pad=75, min_size=75)
+    xlim, ylim = make_limits_square(xlim, ylim, image_shape=r_gini_mask.shape)
 
     fig, axes = plt.subplots(2, 4, figsize=(18, 9), constrained_layout=True)
     ax = axes.ravel()
 
     # 1. r-band image
-    im0 = ax[0].imshow(r_image, origin="lower", cmap="gray", vmin=r_vmin, vmax=r_vmax)
+    im0 = ax[0].imshow(r_image, origin="lower", cmap="gray_r", vmin=r_vmin, vmax=r_vmax)
     ax[0].set_title("r-band image")
     plt.colorbar(im0, ax=ax[0], fraction=0.046)
 
@@ -1484,7 +1417,7 @@ def plot_hapy_morphology_diagnostic(
     ax[3].set_ylabel("N")
     ax[3].set_yscale("log")    
     # 5. Halpha image
-    im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
+    im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
     ax[4].set_title("Hα image")
     plt.colorbar(im4, ax=ax[4], fraction=0.046)
 

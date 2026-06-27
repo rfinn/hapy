@@ -504,3 +504,71 @@ def get_image_center_deg(imagename):
 
 
 
+def get_bbox_from_mask(mask, pad=25, min_size=75):
+    """
+    Return xlim, ylim for a padded bounding box around True pixels in mask.
+    Falls back to full image if mask is empty.
+    """
+    yy, xx = np.where(mask)
+
+    ny, nx = mask.shape
+    if xx.size == 0 or yy.size == 0:
+        return (0, nx - 1), (0, ny - 1)
+
+    xmin, xmax = xx.min(), xx.max()
+    ymin, ymax = yy.min(), yy.max()
+
+    # enforce minimum size
+    xcen = 0.5 * (xmin + xmax)
+    ycen = 0.5 * (ymin + ymax)
+
+    half_x = max(0.5 * (xmax - xmin + 1) + pad, 0.5 * min_size)
+    half_y = max(0.5 * (ymax - ymin + 1) + pad, 0.5 * min_size)
+
+    xmin = max(0, int(np.floor(xcen - half_x)))
+    xmax = min(nx - 1, int(np.ceil(xcen + half_x)))
+    ymin = max(0, int(np.floor(ycen - half_y)))
+    ymax = min(ny - 1, int(np.ceil(ycen + half_y)))
+
+    return (xmin, xmax), (ymin, ymax)
+
+def make_limits_square(xlim, ylim, image_shape):
+    """
+    Expand x/y limits to make a square cutout, clipped to image bounds.
+    """
+    ny, nx = image_shape
+
+    xmin, xmax = xlim
+    ymin, ymax = ylim
+
+    xcen = 0.5 * (xmin + xmax)
+    ycen = 0.5 * (ymin + ymax)
+
+    size = max(xmax - xmin, ymax - ymin)
+
+    xmin = xcen - 0.5 * size
+    xmax = xcen + 0.5 * size
+    ymin = ycen - 0.5 * size
+    ymax = ycen + 0.5 * size
+
+    # Shift box back inside image if needed
+    if xmin < 0:
+        xmax -= xmin
+        xmin = 0
+    if xmax > nx:
+        xmin -= xmax - nx
+        xmax = nx
+    if ymin < 0:
+        ymax -= ymin
+        ymin = 0
+    if ymax > ny:
+        ymin -= ymax - ny
+        ymax = ny
+
+    # Final clipping
+    xmin = max(0, xmin)
+    xmax = min(nx, xmax)
+    ymin = max(0, ymin)
+    ymax = min(ny, ymax)
+
+    return (xmin, xmax), (ymin, ymax)
