@@ -1443,13 +1443,13 @@ def save_clump_diagnostic(
         result.footprint_mask,
         pad=75,
         min_size=75,
-        image_shape=hdata.shape,
+        #image_shape=hdata.shape,
     )
 
     xlim, ylim = make_limits_square(
         xlim,
         ylim,
-        image_shape=hdata.shape,
+        #image_shape=hdata.shape,
     )
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), constrained_layout=True)

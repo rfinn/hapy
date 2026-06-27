@@ -1113,7 +1113,7 @@ class cutout_dir():
         print("self.cgalimage = ",self.cgalresidual)
 
     def read_phot_tables(self):
-        """Read photutils photometry tables for R and Halpha images."""
+        """Read photutils photometry tables for R and H&alpha; images."""
         from astropy.table import Table
 
         self.r_phot_file = self.rimage.replace('.fits', '_phot.fits')
@@ -1758,7 +1758,7 @@ class build_html_cutout():
     
     def write_halpha_images(self):
         '''  r, halpha, cs, and mask images '''
-        self.html.write('<h2>Halpha Images</h2>\n')
+        self.html.write('<h2>H&alpha; Images</h2>\n')
         if self.cutout.legacy_jpg is not None:
             images = [self.cutout.legacy_jpg,self.cutout.pngimages['r'],self.cutout.pngimages['ha'],self.cutout.cs_png2]
             #labels = ['Legacy grz','R-band Image','H&alpha;+Cont','CS from ZP','CS-gr']#,'CS, stretch 2']
@@ -1984,7 +1984,7 @@ class build_html_cutout():
         ]
         write_text_table(self.html, labels, data)
 
-        self.html.write('<h2>Halpha Flux / Size Summaries</h2>\n')
+        self.html.write('<h2>H&alpha; Flux / Size Summaries</h2>\n')
 
         labels = [
             'H&alpha; Tot Flux',
@@ -2022,7 +2022,7 @@ class build_html_cutout():
         ]
 
         data2 = [
-            'Halpha',
+            'H&alpha;',
             fmt_result(self.cutout.results,'H_ELLIP_GINI', '{:.2f}'),
             fmt_result(self.cutout.results,'H_M20', '{:.2f}'),
             fmt_result(self.cutout.results,'H_HAPY_GINI', '{:.2f}'),
@@ -2208,7 +2208,7 @@ class build_html_cutout():
         ]
 
         data2 = [
-            'Halpha',
+            'H&alpha;',
             fmt_result(self.cutout.results, 'H_SM_XCENTROID', '{:.2f}'),
             fmt_result(self.cutout.results, 'H_SM_YCENTROID', '{:.2f}'),
             fmt_result(self.cutout.results, 'H_SM_GINI', '{:.2f}'),
@@ -2234,7 +2234,7 @@ class build_html_cutout():
 
         if self.cutout.sm_h_pdf is not None:
             pdf_name = os.path.basename(self.cutout.sm_h_pdf)
-            self.html.write(f'<p><b>Halpha statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
+            self.html.write(f'<p><b>H&alpha; statmorph</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             #self.html.write(f'<iframe src="{pdf_name}" width="90%" height="700px" ></iframe>\n')
             self.html.write(f'<embed src="{pdf_name}" width="90%" height="800px" ></embed>\n')
         

@@ -1399,7 +1399,7 @@ def plot_hapy_morphology_diagnostic(
     plt.colorbar(im1, ax=ax[1], fraction=0.046)
 
     # 3. r-band + mask overlay
-    ax[2].imshow(r_image, origin="lower", cmap="gray", vmin=r_vmin, vmax=r_vmax)
+    ax[2].imshow(r_image, origin="lower", cmap="gray_r", vmin=r_vmin, vmax=r_vmax)
     try:
         ax[2].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0)
     except Exception:
@@ -1441,7 +1441,7 @@ def plot_hapy_morphology_diagnostic(
     plt.colorbar(im5, ax=ax[5], fraction=0.046)
 
     # 7. Halpha + overlays
-    ax[6].imshow(ha_image, origin="lower", cmap="gray", vmin=ha_vmin, vmax=ha_vmax)
+    ax[6].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
     try:
         ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0, alpha=0.6)
     except Exception:
