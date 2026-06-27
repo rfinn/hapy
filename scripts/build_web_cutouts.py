@@ -2170,7 +2170,12 @@ class build_html_cutout():
 
         data2 = None
         if _has_any_clump_columns("CSGR_HCL_"):
+            print("DEBUG: retrieving CSGR_HCL_ columns")
             data2 = _clump_row("CS-gr", prefix="CSGR_HCL_")
+            print("DEBUG: data2=",data2)
+        else:
+            print("DEBUG: did not find CSGR_HCL_ columns")
+                    
 
         write_text_table(self.html, labels, data, data2=data2)
 
