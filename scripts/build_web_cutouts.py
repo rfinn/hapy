@@ -2074,8 +2074,54 @@ class build_html_cutout():
 
         self.html.write('<h2>H&alpha; Clump Analysis</h2>\n')
 
+
+        def _result_has_column(results, key):
+            """
+            Robustly check whether a results object contains a column/key.
+            Handles dicts, Astropy Tables/Rows, and numpy structured arrays.
+            """
+
+            # Plain dict-like objects
+            if hasattr(results, "keys"):
+                try:
+                    if key in results.keys():
+                        return True
+                except Exception:
+                    pass
+
+            # Astropy Table
+            if hasattr(results, "colnames"):
+                try:
+                    if key in results.colnames:
+                        return True
+                except Exception:
+                    pass
+
+            # Astropy Row often has table.colnames
+            if hasattr(results, "table") and hasattr(results.table, "colnames"):
+                try:
+                    if key in results.table.colnames:
+                        return True
+                except Exception:
+                    pass
+
+            # Numpy structured array / record
+            if hasattr(results, "dtype") and results.dtype.names is not None:
+                try:
+                    if key in results.dtype.names:
+                        return True
+                except Exception:
+                    pass
+
+            # Last-resort access test
+            try:
+                results[key]
+                return True
+            except Exception:
+                return False
         def _has_any_clump_columns(prefix):
             """Return True if this clump prefix appears to exist in results."""
+
             keys = [
                 prefix + "STATUS",
                 prefix + "OK",
@@ -2083,7 +2129,9 @@ class build_html_cutout():
                 prefix + "FLUX_FRAC",
                 prefix + "HAS_NUCLEAR",
             ]
-            return any(k in self.cutout.results for k in keys)
+
+        return any(_result_has_column(self.cutout.results, k) for k in keys)
+
 
         def _file_link(prefix, key, label):
             """
@@ -2169,9 +2217,10 @@ class build_html_cutout():
         data = _clump_row("CS-ZP", prefix="HCL_")
 
         data2 = None
+        
         if _has_any_clump_columns("CSGR_HCL_"):
             print("DEBUG: retrieving CSGR_HCL_ columns")
-            data2 = _clump_row("CS-gr", prefix="CSGR_HCL_")
+            data2 = _clump_row("CS-GR", prefix="CSGR_HCL_")
             print("DEBUG: data2=",data2)
         else:
             print("DEBUG: did not find CSGR_HCL_ columns")
