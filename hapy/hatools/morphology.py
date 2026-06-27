@@ -1466,7 +1466,7 @@ def plot_hapy_morphology_diagnostic(
     ax[3].set_yscale("log")    
     # 5. Halpha image
     #im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
-    im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
+    im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray_r", norm=ha_norm)
     ax[4].set_title("Hα image")
     plt.colorbar(im4, ax=ax[4], fraction=0.046)
 
