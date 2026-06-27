@@ -2130,7 +2130,7 @@ class build_html_cutout():
                 prefix + "HAS_NUCLEAR",
             ]
 
-        return any(_result_has_column(self.cutout.results, k) for k in keys)
+            return any(_result_has_column(self.cutout.results, k) for k in keys)
 
 
         def _file_link(prefix, key, label):
