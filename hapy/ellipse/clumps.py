@@ -1449,7 +1449,7 @@ def save_clump_diagnostic(
     xlim, ylim = make_limits_square(
         xlim,
         ylim,
-        #image_shape=hdata.shape,
+        image_shape=hdata.shape,
     )
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), constrained_layout=True)
@@ -1628,13 +1628,13 @@ def analyze_halpha_clumps(
 
     segdata = _as_array(rsegm)
 
-    print("DEBUG segmentation")
-    print("  object_index/object_label passed =", object_index)
-    print("  segdata shape =", segdata.shape)
-    print("  segdata dtype =", segdata.dtype)
-    print("  unique labels first 20 =", np.unique(segdata)[:20])
-    print("  unique labels last 20 =", np.unique(segdata)[-20:])
-    print("  footprint pixels =", np.sum(footprint_mask))
+    # print("DEBUG segmentation")
+    # print("  object_index/object_label passed =", object_index)
+    # print("  segdata shape =", segdata.shape)
+    # print("  segdata dtype =", segdata.dtype)
+    # print("  unique labels first 20 =", np.unique(segdata)[:20])
+    # print("  unique labels last 20 =", np.unique(segdata)[-20:])
+    # print("  footprint pixels =", np.sum(footprint_mask))
 
 
     (
@@ -1654,12 +1654,12 @@ def analyze_halpha_clumps(
         mask=mask,
     )
 
-    print("DEBUG clumps")
-    print("  footprint pixels:", np.sum(footprint_mask))
-    print("  detect good pixels:", np.sum(~detect_mask))
-    print("  hdata max in footprint:", np.nanmax(np.asarray(hdata)[footprint_mask]))
-    print("  data_detect max good:", np.nanmax(data_detect[~detect_mask]))
-    print("  threshold:", threshold if "threshold" in locals() else "not computed yet")
+    # print("DEBUG clumps")
+    # print("  footprint pixels:", np.sum(footprint_mask))
+    # print("  detect good pixels:", np.sum(~detect_mask))
+    # print("  hdata max in footprint:", np.nanmax(np.asarray(hdata)[footprint_mask]))
+    # print("  data_detect max good:", np.nanmax(data_detect[~detect_mask]))
+    # print("  threshold:", threshold if "threshold" in locals() else "not computed yet")
         
 
     # For SourceCatalog measurement, include both the user mask and the
