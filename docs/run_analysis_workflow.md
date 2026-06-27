@@ -195,10 +195,14 @@ python ~/github/hapy/scripts/make_run_analysis_list.py --cutout-dir cutouts --re
 wc -l cutout_run_analysis_list.txt
 ```
 
+Create list with all cutouts:
+```bash
+find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort > cutout_with_dir.txt
+```
 Run the sample:
 
 ```bash
-parallel --bar -j ${NCPU} --memfree 30G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --csgr --psf-dir ${PSFDIR}/ --statmorph --galfit --convflag --gaia-dir ${GAIADIR}/ :::: cutout_run_analysis_list.txt
+parallel --bar -j ${NCPU} --memfree 30G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --csgr --psf-dir ${PSFDIR}/ --statmorph --galfit --convflag --csgr --clumps --gaia-dir ${GAIADIR}/ :::: cutout_with_dir.txt
 ```
 
 Monitor progress and failures:

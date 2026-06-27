@@ -491,6 +491,7 @@ class cutout_dir():
         #self.get_galfit_model()
         self.copy_hapy_gini_pdf()
         self.copy_mask_diagnostic()
+        self.copy_clump_diagnostic()        
         self.copy_statmorph_pdfs()
         self.get_galfit_images()
 
@@ -903,6 +904,33 @@ class cutout_dir():
                     self.sm_r_pdf = None
         else:
             print(f"No mask diagnostic found in {self.cutoutdir}")
+
+    def copy_clump_diagnostic(self):
+        """Copy hapy gini PDF from cutoutdir to outdir."""
+
+        
+        # ensure output directory exists
+        os.makedirs(self.outdir, exist_ok=True)
+
+        # initialize attributes (important for downstream HTML logic)
+        self.clump_diagnostic = None
+        #self.seg_diagnostic = None        
+
+
+        # 
+        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-clumps-diagnostic.png"))
+
+        if len(r_matches) > 0:
+            for rmatch in r_matches:
+                self.clump_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
+                destination = self.clump_diagnostic
+                try:
+                    shutil.copy2(rmatch, destination)
+                except Exception as e:
+                    print(f"Error copying clump diagnostic: {self.clump_diagnostic}")
+                    print(e)
+        else:
+            print(f"No clump diagnostic found in {self.cutoutdir}")            
             
 
     def get_galfit_results_nc(self):
@@ -1542,6 +1570,7 @@ class build_html_cutout():
         self.write_halpha_images()
 
         self.write_mask_diagnostics()
+        
         #self.write_brightstar_table()
         #if self.cutout.legacy_flag:
         #    self.write_legacy_images()
@@ -1558,6 +1587,8 @@ class build_html_cutout():
         self.write_mag_table()
         self.write_morph_table()
         self.write_hapy_gini_table()
+        self.write_clump_table()        
+        
         self.write_statmorph_table()
         self.write_galfit_images()
         self.write_galfit_table()
@@ -2025,7 +2056,125 @@ class build_html_cutout():
             self.html.write(f'<p><b>HAPY Morphology</b>: <a href="{pdf_name}">{pdf_name}</a></p>\n')
             #self.html.write(f'<iframe src="{pdf_name}" width="100%" "></iframe>\n')
             self.html.write(f'<embed src="{pdf_name}" width="90%" height="600px"></embed>\n')
-            
+
+    def write_clump_table(self):
+        """
+        Write H-alpha clump-analysis summary table to the cutout webpage.
+
+        Uses the HCL_ columns written by run_analysis.py.
+        If CS-gr clump columns are present later, they can be displayed using
+        the HCL_GR_ prefix.
+        """
+
+        self.html.write('<h2>H&alpha; Clump Analysis</h2>\n')
+
+        def _has_any_clump_columns(prefix):
+            """Return True if this clump prefix appears to exist in results."""
+            keys = [
+                prefix + "STATUS",
+                prefix + "OK",
+                prefix + "NCLUMP",
+                prefix + "FLUX_FRAC",
+                prefix + "HAS_NUCLEAR",
+            ]
+            return any(k in self.cutout.results for k in keys)
+
+        def _file_link(prefix, key, label):
+            """
+            Return a relative HTML link to a clump product if the path exists
+            in the results table. Assumes products live in the same directory
+            as the webpage.
+            """
+            import os
+
+            path = get_result(self.cutout.results, prefix + key, "")
+            if path is None:
+                return ""
+
+            path = str(path).strip()
+            if path == "" or path.lower() in ["none", "nan"]:
+                return ""
+
+            href = os.path.basename(path)
+            return f'<a href="{href}">{label}</a>'
+
+        def _clump_row(label, prefix="HCL_"):
+            """
+            Make one row of clump-analysis summary values.
+            """
+
+            ok = bool(get_result(self.cutout.results, prefix + "OK", False))
+
+            status = get_result(self.cutout.results, prefix + "STATUS", "")
+            if status is None or str(status).strip() == "":
+                status = status_cell(ok)
+            else:
+                status = str(status)
+
+            return [
+                label,
+                status,
+                fmt_result(self.cutout.results, prefix + "NCLUMP", "{:.0f}"),
+                fmt_result(self.cutout.results, prefix + "NCLUMP_GOOD", "{:.0f}"),
+                fmt_result(self.cutout.results, prefix + "NPEAK", "{:.0f}"),
+                fmt_result(self.cutout.results, prefix + "NPEAK_IN_CLUMPS", "{:.0f}"),
+                status_cell(bool(get_result(self.cutout.results, prefix + "HAS_NUCLEAR", False))),
+                fmt_result(self.cutout.results, prefix + "NNUCLEAR", "{:.0f}"),
+                fmt_result(self.cutout.results, prefix + "NUCLEAR_FLUX_FRAC", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "FLUX_FRAC", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "BRIGHT_FRAC", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "TOP2_FRAC", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "TOP3_FRAC", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "BRIGHT_TO_SECOND_FLUX", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "AREA_FRAC", "{:.2f}"),
+                fmt_result(self.cutout.results, prefix + "RBRIGHT_ARCSEC", "{:.1f}"),
+                fmt_result(self.cutout.results, prefix + "RFLUXWT_ARCSEC", "{:.1f}"),
+                fmt_result(self.cutout.results, prefix + "RMAX_ARCSEC", "{:.1f}"),
+                fmt_result(self.cutout.results, prefix + "PARAM_NUCLEAR_RADIUS_FWHM", "{:.1f}"),
+                _file_link(prefix, "DIAG", "diag"),
+                _file_link(prefix, "CATALOG", "cat"),
+                _file_link(prefix, "PEAKS", "peaks"),
+            ]
+
+        labels = [
+            "Image",
+            "Status",
+            "N clump",
+            "N good",
+            "N peak",
+            "N peak in clumps",
+            "Nuclear?",
+            "N nuclear",
+            "Nuc flux frac",
+            "Clump flux frac",
+            "Bright frac",
+            "Top2 frac",
+            "Top3 frac",
+            "Bright/2nd",
+            "Area frac",
+            "R bright<br>(arcsec)",
+            "R flux-wt<br>(arcsec)",
+            "R max<br>(arcsec)",
+            "Nuc radius<br>(FWHM)",
+            "Diag",
+            "Catalog",
+            "Peaks",
+        ]
+
+        data = _clump_row("CS-ZP", prefix="HCL_")
+
+        data2 = None
+        if _has_any_clump_columns("CSGR_HCL_"):
+            data2 = _clump_row("CS-gr", prefix="HCL_GR_")
+
+        write_text_table(self.html, labels, data, data2=data2)
+
+        if self.cutout.clump_diagnostic is not None:
+            images = [self.cutout.clump_diagnostic] # using five panel plot on webpage; 2 panel plot on index page
+            images = [os.path.basename(i) for i in images]
+            labels = ['HAPY Clump Diagnostic']
+
+            write_table(self.html,images=images,labels=labels,width="100%")
 
     def write_statmorph_table(self):
         self.html.write('<h2>Statmorph Parameters</h2>\n')

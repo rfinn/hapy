@@ -162,8 +162,8 @@ A nuclear clump is defined as a good Hα clump whose centroid lies within 1.5 ti
 
 | Column | Meaning |
 |---|---|
-| `HCL_HAS_NUCLEAR` | `True` if at least one good clump lies within one Hα seeing FWHM of the adopted galaxy center |
-| `HCL_NNUCLEAR` | Number of good clumps whose centroids lie within one Hα seeing FWHM |
+| `HCL_HAS_NUCLEAR` | True if at least one good clump lies within the adopted nuclear radius.|
+| `HCL_NNUCLEAR` | Number of good clumps within the adopted nuclear radius. |
 | `HCL_NUCLEAR_FLUX_FRAC` | Fraction of total good-clump flux contained in nuclear clumps |
 | `HCL_NUCLEAR_RADIUS_ARCSEC` | Nuclear radius used for the classification, equal to the measured Hα seeing FWHM |
 | `HCL_PARAM_NUCLEAR_RADIUS_FWHM` | multiple of FWHM to use when defining the nuclear region. |

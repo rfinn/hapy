@@ -2902,17 +2902,17 @@ def main():
         )
 
         # temporarily moving this out of try/except for debugging
-        clump_result = e.measure_halpha_clumps(
-            config=clump_config,
-            output_dir=cutdir,
-            basename=tag,
-            overwrite=True,
-            update_results=False,   # keep this False while testing
-        )
+        # csgr_clump_result = e_gr.measure_halpha_clumps(
+        #     config=clump_config,
+        #     output_dir=cutdir,
+        #     basename=tag,
+        #     overwrite=True,
+        #     update_results=False,   # keep this False while testing
+        # )
         
 
         try:
-            clump_result = e.measure_halpha_clumps(
+            csgr_clump_result = e_gr.measure_halpha_clumps(
                 config=clump_config,
                 output_dir=cutdir,
                 basename=tag,
@@ -2922,7 +2922,7 @@ def main():
 
             write_hapy_clumps(
                 row,
-                clump_result,
+                csgr_clump_result,
                 prefix="CSGR_HCL_",
                 input_image="CS-GR",
                 config=clump_config,
@@ -2932,8 +2932,8 @@ def main():
             
             logger.info(
                 "H-alpha clump analysis complete: NCLUMP=%d, NPEAK=%d",
-                clump_result.summary.n_clumps,
-                getattr(clump_result.summary, "n_peaks", 0),
+                csgr_clump_result.summary.n_clumps,
+                getattr(csgr_clump_result.summary, "n_peaks", 0),
             )
 
         except Exception as err:
@@ -2941,8 +2941,8 @@ def main():
             print("H-alpha clump analysis failed: %s", err)
 
             if hasattr(e, "results") and isinstance(e.results, dict):
-                e.results["CSGR_HCL_OK"] = False
-                e.results["CSGR_HCL_STATUS"] = "failed"
+                e_gr.results["CSGR_HCL_OK"] = False
+                e_gr.results["CSGR_HCL_STATUS"] = "failed"
             write_hapy_clumps(
                 row,
                 None,
