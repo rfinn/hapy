@@ -572,3 +572,85 @@ def make_limits_square(xlim, ylim, image_shape):
     ymax = min(ny, ymax)
 
     return (xmin, xmax), (ymin, ymax)
+
+
+def make_masked_display_image_norm(
+    data,
+    mask=None,
+    percent=99.5,
+    stretch="sqrt",
+    mask_value=np.nan,
+):
+    """
+    Make a display image and astropy visualization norm.
+
+    This is useful for diagnostic plots where we want to normalize the
+    image using only pixels inside a galaxy footprint or analysis mask.
+
+    Parameters
+    ----------
+    data : array-like
+        Input 2D image.
+
+    mask : array-like or None
+        Boolean mask defining pixels to include in the display normalization.
+        Convention:
+            True  = include pixel
+            False = hide pixel / ignore for normalization
+
+        If None, all finite pixels are used.
+
+    percent : float
+        Percentile range passed to astropy.visualization.simple_norm.
+
+    stretch : str
+        Stretch passed to simple_norm, e.g. "sqrt", "linear", "log", "asinh".
+
+    mask_value : float
+        Value assigned to pixels outside the mask. Default is np.nan.
+
+    Returns
+    -------
+    display_image : ndarray
+        Copy of input image with pixels outside mask set to mask_value.
+
+    norm : astropy.visualization.ImageNormalize or None
+        Normalization object from simple_norm. Returns None if normalization
+        cannot be computed.
+    """
+
+    import numpy as np
+    from astropy.visualization import simple_norm
+
+    display_image = np.array(data, dtype=float, copy=True)
+
+    if mask is None:
+        usemask = np.isfinite(display_image)
+    else:
+        usemask = np.asarray(mask, dtype=bool)
+
+        if usemask.shape != display_image.shape:
+            raise ValueError(
+                f"mask shape {usemask.shape} does not match image shape "
+                f"{display_image.shape}"
+            )
+
+        usemask = usemask & np.isfinite(display_image)
+
+    display_image[~usemask] = mask_value
+
+    vals = display_image[np.isfinite(display_image)]
+
+    if vals.size == 0:
+        return display_image, None
+
+    try:
+        norm = simple_norm(
+            display_image,
+            stretch=stretch,
+            percent=percent,
+        )
+    except Exception:
+        norm = None
+
+    return display_image, norm

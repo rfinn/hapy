@@ -1419,14 +1419,23 @@ def save_clump_diagnostic(
     hshow = np.array(hdata, dtype=float, copy=True)
     hshow[~footprint] = np.nan
 
-    try:
-        norm = simple_norm(
-            hshow,
-            stretch="sqrt",
-            percent=config.diagnostic_percent,
+    from hapy.imagetools.imutils import make_masked_display_image_norm
+
+    hshow, norm = make_masked_display_image_norm(
+        hdata,
+        mask=footprint,
+        percent=config.diagnostic_percent,
+        stretch="sqrt",
         )
-    except Exception:
-        norm = None
+
+    # try:
+    #     norm = simple_norm(
+    #         hshow,
+    #         stretch="sqrt",
+    #         percent=config.diagnostic_percent,
+    #     )
+    # except Exception:
+    #     norm = None
 
     # try:
     #     norm = ImageNormalize(
