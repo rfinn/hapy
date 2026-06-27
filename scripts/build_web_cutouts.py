@@ -2185,7 +2185,7 @@ class build_html_cutout():
                 fmt_result(self.cutout.results, prefix + "RFLUXWT_ARCSEC", "{:.1f}"),
                 fmt_result(self.cutout.results, prefix + "RMAX_ARCSEC", "{:.1f}"),
                 fmt_result(self.cutout.results, prefix + "PARAM_NUCLEAR_RADIUS_FWHM", "{:.1f}"),
-                _file_link(prefix, "DIAG", "diag"),
+                #_file_link(prefix, "DIAG", "diag"),
                 #_file_link(prefix, "CATALOG", "cat"),
                 #_file_link(prefix, "PEAKS", "peaks"),
             ]
@@ -2210,7 +2210,7 @@ class build_html_cutout():
             "R flux-wt<br>(arcsec)",
             "R max<br>(arcsec)",
             "Nuc radius<br>(FWHM)",
-            "Diag",
+            #"Diag",
 
         ]
 
