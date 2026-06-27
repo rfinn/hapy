@@ -1348,55 +1348,38 @@ def plot_hapy_morphology_diagnostic(
     # Display images using the same normalization strategy as the
     # clump diagnostic: hide non-footprint pixels and use simple_norm.
     # ------------------------------------------------------------
+    from hapy.imagetools.imutils import make_masked_display_image_norm
     diagnostic_percent = 99.5
+
 
     display_mask = r_gini_mask.copy()
 
-    # Fallback in case the morphology mask is empty.
     if not np.any(display_mask):
         display_mask = np.isfinite(r_image) | np.isfinite(ha_image)
 
-    r_show = np.array(r_image, dtype=float, copy=True)
-    r_show[~display_mask] = np.nan
+    r_show, r_norm = make_masked_display_image_norm(
+        r_image,
+        mask=display_mask,
+        percent=diagnostic_percent,
+        stretch="sqrt",
+    )
 
-    ha_show = np.array(ha_image, dtype=float, copy=True)
-    ha_show[~display_mask] = np.nan
+    ha_show, ha_norm = make_masked_display_image_norm(
+        ha_image,
+        mask=display_mask,
+        percent=diagnostic_percent,
+        stretch="sqrt",
+    )
 
-    try:
-        r_norm = simple_norm(
-            r_show,
-            stretch="sqrt",
-            percent=diagnostic_percent,
-        )
-    except Exception:
-        r_norm = None
+    hagi_plot, hagi_norm = make_masked_display_image_norm(
+        ha_gini_image,
+        mask=r_gini_mask,
+        percent=diagnostic_percent,
+        stretch="sqrt",
+    )
 
-    try:
-        ha_norm = simple_norm(
-            ha_show,
-            stretch="sqrt",
-            percent=diagnostic_percent,
-        )
-    except Exception:
-        ha_norm = None
-
-    # ------------------------------------------------------------
-    # Normalization for thresholded H-alpha morphology image
-    # Keep this positive-only because h_gini_image is already the
-    # thresholded image used for morphology.
-    # ------------------------------------------------------------
-    hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
-    hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
-
-    try:
-        hagi_norm = simple_norm(
-            hagi_plot,
-            stretch="sqrt",
-            percent=diagnostic_percent,
-        )
-    except Exception:
-        hagi_norm = None
     
+ 
     # r_vals = r_image[r_gini_mask]
     # r_vals = r_vals[np.isfinite(r_vals)]
 
