@@ -16,7 +16,7 @@ from scipy.ndimage import shift
 import warnings
 import matplotlib.pyplot as plt
 from astropy.utils.exceptions import AstropyUserWarning
-
+from astropy.visualization import simple_norm
 #     @lazyproperty
 #     def _segmap_gini(self):
 #         segmap = np.array(self._segmap.data == 1, "i")
@@ -1334,53 +1334,116 @@ def plot_hapy_morphology_diagnostic(
     if ha_gini_image.shape != r_image.shape:
         raise ValueError("morph.h_gini_image must have same shape as images")
 
+
+    # ------------------------------------------------------------
+    # Pixel values used in histograms
+    # ------------------------------------------------------------
     r_vals = r_image[r_gini_mask]
     r_vals = r_vals[np.isfinite(r_vals)]
 
     ha_vals = ha_gini_image[r_gini_mask]
     ha_vals = ha_vals[np.isfinite(ha_vals)]
 
-    def _get_vrange(arr, positive_only=False, symmetric=False):
-        vals = arr[np.isfinite(arr)]
-        if vals.size == 0:
-            return 0.0, 1.0
+    # ------------------------------------------------------------
+    # Display images using the same normalization strategy as the
+    # clump diagnostic: hide non-footprint pixels and use simple_norm.
+    # ------------------------------------------------------------
+    diagnostic_percent = 99.5
 
-        if positive_only:
-            vals = vals[vals > 0]
-            if vals.size == 0:
-                vals = arr[np.isfinite(arr)]
+    display_mask = r_gini_mask.copy()
 
-        if symmetric:
-            vmax = np.nanpercentile(np.abs(vals), 99.5)
-            if not np.isfinite(vmax) or vmax <= 0:
-                vmax = np.nanmax(np.abs(vals))
-            if not np.isfinite(vmax) or vmax <= 0:
-                vmax = 1.0
-            return -vmax, vmax
+    # Fallback in case the morphology mask is empty.
+    if not np.any(display_mask):
+        display_mask = np.isfinite(r_image) | np.isfinite(ha_image)
 
-        vmin = np.nanpercentile(vals, 5)
-        vmax = np.nanpercentile(vals, 99.5)
-        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
-            vmin = np.nanmin(vals)
-            vmax = np.nanmax(vals)
-        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
-            vmin, vmax = 0.0, 1.0
-        return vmin, vmax
+    r_show = np.array(r_image, dtype=float, copy=True)
+    r_show[~display_mask] = np.nan
 
-    r_vmin, r_vmax = _get_vrange(r_image)
-    ha_vmin, ha_vmax = _get_vrange(ha_image, symmetric=True)
+    ha_show = np.array(ha_image, dtype=float, copy=True)
+    ha_show[~display_mask] = np.nan
 
-    hagi_vals = ha_gini_image[np.isfinite(ha_gini_image)]
-    hagi_pos = hagi_vals[hagi_vals > 0]
-    if hagi_pos.size > 0:
-        hagi_vmin = 0.0
-        hagi_vmax = np.nanpercentile(hagi_pos, 99)
-        if not np.isfinite(hagi_vmax) or hagi_vmax <= 0:
-            hagi_vmax = np.nanmax(hagi_pos)
-        if not np.isfinite(hagi_vmax) or hagi_vmax <= 0:
-            hagi_vmax = 1.0
-    else:
-        hagi_vmin, hagi_vmax = 0.0, 1.0
+    try:
+        r_norm = simple_norm(
+            r_show,
+            stretch="sqrt",
+            percent=diagnostic_percent,
+        )
+    except Exception:
+        r_norm = None
+
+    try:
+        ha_norm = simple_norm(
+            ha_show,
+            stretch="sqrt",
+            percent=diagnostic_percent,
+        )
+    except Exception:
+        ha_norm = None
+
+    # ------------------------------------------------------------
+    # Normalization for thresholded H-alpha morphology image
+    # Keep this positive-only because h_gini_image is already the
+    # thresholded image used for morphology.
+    # ------------------------------------------------------------
+    hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
+    hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
+
+    try:
+        hagi_norm = simple_norm(
+            hagi_plot,
+            stretch="sqrt",
+            percent=diagnostic_percent,
+        )
+    except Exception:
+        hagi_norm = None
+    
+    # r_vals = r_image[r_gini_mask]
+    # r_vals = r_vals[np.isfinite(r_vals)]
+
+    # ha_vals = ha_gini_image[r_gini_mask]
+    # ha_vals = ha_vals[np.isfinite(ha_vals)]
+
+    # def _get_vrange(arr, positive_only=False, symmetric=False):
+    #     vals = arr[np.isfinite(arr)]
+    #     if vals.size == 0:
+    #         return 0.0, 1.0
+
+    #     if positive_only:
+    #         vals = vals[vals > 0]
+    #         if vals.size == 0:
+    #             vals = arr[np.isfinite(arr)]
+
+    #     if symmetric:
+    #         vmax = np.nanpercentile(np.abs(vals), 99.5)
+    #         if not np.isfinite(vmax) or vmax <= 0:
+    #             vmax = np.nanmax(np.abs(vals))
+    #         if not np.isfinite(vmax) or vmax <= 0:
+    #             vmax = 1.0
+    #         return -vmax, vmax
+
+    #     vmin = np.nanpercentile(vals, 5)
+    #     vmax = np.nanpercentile(vals, 99.5)
+    #     if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+    #         vmin = np.nanmin(vals)
+    #         vmax = np.nanmax(vals)
+    #     if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+    #         vmin, vmax = 0.0, 1.0
+    #     return vmin, vmax
+
+    # r_vmin, r_vmax = _get_vrange(r_image)
+    # ha_vmin, ha_vmax = _get_vrange(ha_image, symmetric=True)
+
+    # hagi_vals = ha_gini_image[np.isfinite(ha_gini_image)]
+    # hagi_pos = hagi_vals[hagi_vals > 0]
+    # if hagi_pos.size > 0:
+    #     hagi_vmin = 0.0
+    #     hagi_vmax = np.nanpercentile(hagi_pos, 99)
+    #     if not np.isfinite(hagi_vmax) or hagi_vmax <= 0:
+    #         hagi_vmax = np.nanmax(hagi_pos)
+    #     if not np.isfinite(hagi_vmax) or hagi_vmax <= 0:
+    #         hagi_vmax = 1.0
+    # else:
+    #     hagi_vmin, hagi_vmax = 0.0, 1.0
 
     xlim, ylim = get_bbox_from_mask(r_gini_mask, pad=75, min_size=75)
     xlim, ylim = make_limits_square(xlim, ylim, image_shape=r_gini_mask.shape)
@@ -1389,7 +1452,8 @@ def plot_hapy_morphology_diagnostic(
     ax = axes.ravel()
 
     # 1. r-band image
-    im0 = ax[0].imshow(r_image, origin="lower", cmap="gray_r", vmin=r_vmin, vmax=r_vmax)
+    #im0 = ax[0].imshow(r_image, origin="lower", cmap="gray_r", vmin=r_vmin, vmax=r_vmax)
+    im0 = ax[0].imshow(r_show, origin="lower", cmap="gray_r", norm=r_norm)
     ax[0].set_title("r-band image")
     plt.colorbar(im0, ax=ax[0], fraction=0.046)
 
@@ -1399,7 +1463,8 @@ def plot_hapy_morphology_diagnostic(
     plt.colorbar(im1, ax=ax[1], fraction=0.046)
 
     # 3. r-band + mask overlay
-    ax[2].imshow(r_image, origin="lower", cmap="gray_r", vmin=r_vmin, vmax=r_vmax)
+    #ax[2].imshow(r_image, origin="lower", cmap="gray_r", vmin=r_vmin, vmax=r_vmax)
+    ax[2].imshow(r_show, origin="lower", cmap="gray_r", norm=r_norm)
     try:
         ax[2].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0)
     except Exception:
@@ -1417,14 +1482,16 @@ def plot_hapy_morphology_diagnostic(
     ax[3].set_ylabel("N")
     ax[3].set_yscale("log")    
     # 5. Halpha image
+    #im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
     im4 = ax[4].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
     ax[4].set_title("Hα image")
     plt.colorbar(im4, ax=ax[4], fraction=0.046)
 
     # 6. thresholded Halpha image used for morphology
-    hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
-    hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
-    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", vmin=hagi_vmin, vmax=hagi_vmax)
+    #hagi_plot = np.full_like(ha_gini_image, np.nan, dtype=float)
+    #hagi_plot[r_gini_mask] = ha_gini_image[r_gini_mask]
+    #im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", vmin=hagi_vmin, vmax=hagi_vmax)
+    im5 = ax[5].imshow(hagi_plot, origin="lower", cmap="viridis", norm=hagi_norm)
     if np.isfinite(morph.h_threshold) and np.isfinite(morph.h_sigma_sky):
         ax[5].set_title(
             f"Hα used for morphology\n"
@@ -1441,7 +1508,8 @@ def plot_hapy_morphology_diagnostic(
     plt.colorbar(im5, ax=ax[5], fraction=0.046)
 
     # 7. Halpha + overlays
-    ax[6].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
+    #ax[6].imshow(ha_image, origin="lower", cmap="gray_r", vmin=ha_vmin, vmax=ha_vmax)
+    ax[6].imshow(ha_show, origin="lower", cmap="gray_r", norm=ha_norm)
     try:
         ax[6].contour(r_gini_mask.astype(float), levels=[0.5], colors="cyan", linewidths=1.0, alpha=0.6)
     except Exception:
