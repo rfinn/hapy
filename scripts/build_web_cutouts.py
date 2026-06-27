@@ -2170,21 +2170,21 @@ class build_html_cutout():
 
         data2 = None
         if _has_any_clump_columns("CSGR_HCL_"):
-            data2 = _clump_row("CS-gr", prefix="HCL_GR_")
+            data2 = _clump_row("CS-gr", prefix="CSGR_HCL_")
 
         write_text_table(self.html, labels, data, data2=data2)
 
         if self.cutout.clump_diagnostic is not None:
             images = [self.cutout.clump_diagnostic] # using five panel plot on webpage; 2 panel plot on index page
             images = [os.path.basename(i) for i in images]
-            labels = ['HAPY Clump Diagnostic']
+            labels = ['HAPY H&alpha; Clump Diagnostic']
 
             write_table(self.html,images=images,labels=labels,width="100%")
 
         if self.cutout.clump_diagnostic_csgr is not None:
             images = [self.cutout.clump_diagnostic_csgr] # using five panel plot on webpage; 2 panel plot on index page
             images = [os.path.basename(i) for i in images]
-            labels = ['HAPY Clump Diagnostic']
+            labels = ['HAPY H&alpha; Clump Diagnostic']
 
             write_table(self.html,images=images,labels=labels,width="100%")
             

@@ -1952,22 +1952,22 @@ class EllipsePhotometry():
             basename = "hapy"
 
 
-        print("DEBUG EllipsePhotometry segmentation")
-        print("  self.objectIndex =", self.objectIndex)
-        print("  self.segmentation shape =", self.segmentation.shape)
-        print("  self.segmentation unique =", np.unique(self.segmentation)[:20])
-        print("  self.segmentation sum =", np.sum(self.segmentation))
+        # print("DEBUG EllipsePhotometry segmentation")
+        # print("  self.objectIndex =", self.objectIndex)
+        # print("  self.segmentation shape =", self.segmentation.shape)
+        # print("  self.segmentation unique =", np.unique(self.segmentation)[:20])
+        # print("  self.segmentation sum =", np.sum(self.segmentation))
 
-        if hasattr(self, "cat"):
-            print("DEBUG cat")
-            print("  cat labels first 20 =", self.cat.labels[:20])
+        # if hasattr(self, "cat"):
+        #     print("DEBUG cat")
+        #     print("  cat labels first 20 =", self.cat.labels[:20])
 
-            for attr in ["segment_img", "segment_image", "segm", "_segment_img"]:
-                if hasattr(self.cat, attr):
-                    x = getattr(self.cat, attr)
-                    print(attr, type(x), getattr(x, "shape", None))
-                    if hasattr(x, "data"):
-                        print("  unique =", np.unique(x.data)[:20])
+        #     for attr in ["segment_img", "segment_image", "segm", "_segment_img"]:
+        #         if hasattr(self.cat, attr):
+        #             x = getattr(self.cat, attr)
+        #             print(attr, type(x), getattr(x, "shape", None))
+        #             if hasattr(x, "data"):
+        #                 print("  unique =", np.unique(x.data)[:20])
         # ------------------------------------------------------------
         # Run the clump analysis
         # ------------------------------------------------------------

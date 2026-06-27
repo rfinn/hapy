@@ -1220,7 +1220,7 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
             yc = np.sum(pos[mask] * y[mask]) / total
             xc = np.sum(pos[mask] * x[mask]) / total
 
-    print("DEBUG: quick_asym = ",quick_asym_test(image, mask, xc, yc))
+    #print("DEBUG: quick_asym = ",quick_asym_test(image, mask, xc, yc))
     
     offsets = np.arange(-search_radius, search_radius + step, step, dtype=float)
     asym_grid = np.full((len(offsets), len(offsets)), np.nan, dtype=float)
@@ -1279,7 +1279,7 @@ def compute_asymmetry(image, segmap, xc=None, yc=None, search_radius=1, step=1.0
     asym = float(asym_grid[iy_min, ix_min])
     asym_err = float(np.nanstd(asym_grid))
     best_center = np.array([best_yc, best_xc], dtype=float)
-    print(f"DEBUG in compute_asymmetry, asym={asym}")
+    #print(f"DEBUG in compute_asymmetry, asym={asym}")
     return asym, asym_err, best_center, asym_grid
 
 
