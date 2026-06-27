@@ -3170,14 +3170,14 @@ def main():
     write_result_row_ecsv(results_path, row)
     print(f"Wrote results: {results_path}")
     #return results_path
-    #return 0
-    return e
+    return 0
+    #return e
 
         
 if __name__ == "__main__":
-    e = main()
+    #e = main()
 
-    #raise SystemExit(main())
+    raise SystemExit(main())
     
     # checking table - comment after check
     #check_table(results_table)
