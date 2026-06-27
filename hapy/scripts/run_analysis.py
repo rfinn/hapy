@@ -2737,13 +2737,13 @@ def main():
         )
 
         # temporarily moving this out of try/except for debugging
-        clump_result = e.measure_halpha_clumps(
-            config=clump_config,
-            output_dir=cutdir,
-            basename=tag,
-            overwrite=True,
-            update_results=False,   # keep this False while testing
-        )
+        # clump_result = e.measure_halpha_clumps(
+        #     config=clump_config,
+        #     output_dir=cutdir,
+        #     basename=tag,
+        #     overwrite=True,
+        #     update_results=False,   # keep this False while testing
+        # )
         
 
         try:
@@ -2915,7 +2915,7 @@ def main():
             csgr_clump_result = e_gr.measure_halpha_clumps(
                 config=clump_config,
                 output_dir=cutdir,
-                basename=tag,
+                basename=tag+'-csgr',
                 overwrite=True,
                 update_results=False,   # keep this False while testing
             )

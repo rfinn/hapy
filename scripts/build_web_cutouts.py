@@ -2132,8 +2132,8 @@ class build_html_cutout():
                 fmt_result(self.cutout.results, prefix + "RMAX_ARCSEC", "{:.1f}"),
                 fmt_result(self.cutout.results, prefix + "PARAM_NUCLEAR_RADIUS_FWHM", "{:.1f}"),
                 _file_link(prefix, "DIAG", "diag"),
-                _file_link(prefix, "CATALOG", "cat"),
-                _file_link(prefix, "PEAKS", "peaks"),
+                #_file_link(prefix, "CATALOG", "cat"),
+                #_file_link(prefix, "PEAKS", "peaks"),
             ]
 
         labels = [
@@ -2157,8 +2157,7 @@ class build_html_cutout():
             "R max<br>(arcsec)",
             "Nuc radius<br>(FWHM)",
             "Diag",
-            "Catalog",
-            "Peaks",
+
         ]
 
         data = _clump_row("CS-ZP", prefix="HCL_")
