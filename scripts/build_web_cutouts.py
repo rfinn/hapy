@@ -872,38 +872,87 @@ class cutout_dir():
             self.hapy_csgr_gini_pdf = None
             
      
-            
     def copy_mask_diagnostic(self):
-        """Copy hapy gini PDF from cutoutdir to outdir."""
+        """
+        Copy HAPY mask/segmentation diagnostic PNGs from the cutout directory
+        to the webpage output directory.
 
-        
-        # ensure output directory exists
+        Expected input filenames:
+            <tag>-diagnostic.png
+            <tag>-seg-diagnostic.png
+        """
+
+        import os
+        import shutil
+
         os.makedirs(self.outdir, exist_ok=True)
 
-        # initialize attributes (important for downstream HTML logic)
+        # Initialize attributes for downstream HTML logic
         self.mask_diagnostic = None
-        self.seg_diagnostic = None        
+        self.seg_diagnostic = None
+
+        # Be flexible about the cutout-directory attribute name
+        cutdir = getattr(self, "cutdir", None)
+        if cutdir is None:
+            cutdir = getattr(self, "cutoutdir", None)
+
+        if cutdir is None:
+            raise AttributeError("Could not find cutout directory: expected self.cutdir or self.cutoutdir")
+
+        # Get the cutout tag
+        tag = getattr(self, "tag", None)
+        if tag is None and hasattr(self, "cutout"):
+            tag = getattr(self.cutout, "tag", None)
+
+        if tag is None:
+            # Fallback: assume the cutout directory name is the tag
+            tag = os.path.basename(os.path.normpath(cutdir))
+
+        # ------------------------------------------------------------
+        # Mask diagnostic
+        # ------------------------------------------------------------
+        mask_diag = os.path.join(cutdir, f"{tag}-diagnostic.png")
+
+        if os.path.exists(mask_diag):
+            self.mask_diagnostic = os.path.join(self.outdir, os.path.basename(mask_diag))
+            shutil.copy2(mask_diag, self.mask_diagnostic)
+
+        # ------------------------------------------------------------
+        # Segmentation diagnostic
+        # ------------------------------------------------------------
+        seg_diag = os.path.join(cutdir, f"{tag}-seg-diagnostic.png")
+
+        if os.path.exists(seg_diag):
+            self.seg_diagnostic = os.path.join(self.outdir, os.path.basename(seg_diag))
+            shutil.copy2(seg_diag, self.seg_diagnostic)
+
+        
+    # def copy_mask_diagnostic(self):
+    #     """Copy hapy gini PDF from cutoutdir to outdir."""
+
+        
+    #     # ensure output directory exists
+    #     os.makedirs(self.outdir, exist_ok=True)
+
+    #     # initialize attributes (important for downstream HTML logic)
+    #     self.mask_diagnostic = None
+    #     self.seg_diagnostic = None        
 
 
-        # 
-        r_matches = glob.glob(os.path.join(self.cutoutdir, "*-diagnostic.png"))
+    #     # look for mask diagnostic and copy to html/tag/ directory if found
+    #     mask_diag = os.path.join(self.cutoutdir, "-diagnostic.png")
+    #     if os.path.exists(mask_diag):
+    #         self.mask_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
+    #         destination = self.mask_diagnostic
+    #         shutil.copy2(mask_diag, destination)
 
-        if len(r_matches) > 0:
-            for rmatch in r_matches:
-                if "seg-diagnostic" in rmatch:
-                    self.seg_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
-                    destination = self.seg_diagnostic                    
-                else:
-                    self.mask_diagnostic = os.path.join(self.outdir, os.path.basename(rmatch))
-                    destination = self.mask_diagnostic
-                try:
-                    shutil.copy2(rmatch, destination)
-                except Exception as e:
-                    print(f"Error copying mask diagnostic: {mask_diag}")
-                    print(e)
-                    self.sm_r_pdf = None
-        else:
-            print(f"No mask diagnostic found in {self.cutoutdir}")
+
+    #     # also copy segmentation diagnostic
+    #     seg_diag = os.path.join(self.cutoutdir, "-seg-diagnostic.png")
+    #     if os.path.exists(seg_diag):
+    #         self.seg_diagnostic = os.path.join(self.outdir, seg_diag)
+    #         destination = self.seg_diagnostic                    
+    #         shutil.copy2(mask_diag, destination)
 
     def copy_clump_diagnostic(self):
         """Copy hapy gini PDF from cutoutdir to outdir."""

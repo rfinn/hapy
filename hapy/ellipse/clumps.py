@@ -1355,6 +1355,7 @@ def save_clump_outputs(
             
     return result
 
+
 def save_clump_diagnostic(
     result: ClumpAnalysisResult,
     hdata,
@@ -1365,7 +1366,8 @@ def save_clump_diagnostic(
 ):
     """
     Save a diagnostic image showing the H-alpha image, R-band footprint,
-    H-alpha clump segmentation, clump centroids, and optional peak locations.
+    H-alpha clump segmentation, clump centroids, nuclear clumps, and
+    optional peak locations.
 
     Parameters
     ----------
@@ -1393,13 +1395,20 @@ def save_clump_diagnostic(
         Path to saved diagnostic image.
     """
 
+    import warnings
+    import numpy as np
     import matplotlib.pyplot as plt
-    from astropy.visualization import simple_norm
+    from pathlib import Path
+
+    from hapy.imagetools.imutils import make_masked_display_image_norm
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    diagnostic_path = output_dir / f"{basename}-halpha-clumps-diagnostic.{config.diagnostic_format}"
+    diagnostic_path = (
+        output_dir
+        / f"{basename}-halpha-clumps-diagnostic.{config.diagnostic_format}"
+    )
 
     if diagnostic_path.exists() and not overwrite:
         result.summary.diagnostic_path = str(diagnostic_path)
@@ -1415,44 +1424,28 @@ def save_clump_diagnostic(
     else:
         segm_data = np.zeros(hdata.shape, dtype=int)
 
-    # Image shown with non-footprint pixels hidden.
-    hshow = np.array(hdata, dtype=float, copy=True)
-    hshow[~footprint] = np.nan
-
-    from hapy.imagetools.imutils import make_masked_display_image_norm
-
+    # ------------------------------------------------------------
+    # Display image and normalization
+    # ------------------------------------------------------------
     hshow, norm = make_masked_display_image_norm(
         hdata,
         mask=footprint,
         percent=config.diagnostic_percent,
         stretch="sqrt",
-        )
+    )
 
-    # try:
-    #     norm = simple_norm(
-    #         hshow,
-    #         stretch="sqrt",
-    #         percent=config.diagnostic_percent,
-    #     )
-    # except Exception:
-    #     norm = None
+    # Image shown in panel 2: hide pixels excluded from detection.
+    detect_show = np.array(hdata, dtype=float, copy=True)
+    detect_show[detect_mask] = np.nan
+    detect_show[~footprint] = np.nan
 
-    # try:
-    #     norm = ImageNormalize(
-    #         hshow,
-    #         interval=ZScaleInterval(contrast=0.25),
-    #         stretch=SqrtStretch(),
-    #     )
-    # except Exception:
-    #     norm = None
-
-
-    # get zoomed in limits
+    # ------------------------------------------------------------
+    # Zoom limits
+    # ------------------------------------------------------------
     xlim, ylim = get_bbox_from_mask(
         result.footprint_mask,
         pad=75,
         min_size=75,
-        #image_shape=hdata.shape,
     )
 
     xlim, ylim = make_limits_square(
@@ -1462,33 +1455,48 @@ def save_clump_diagnostic(
     )
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), constrained_layout=True)
-
     ax0, ax1, ax2 = axes
 
     # ------------------------------------------------------------
     # Panel 1: H-alpha image with R-band footprint
     # ------------------------------------------------------------
     ax0.imshow(hshow, origin="lower", norm=norm, cmap="gray_r")
-    ax0.contour(footprint.astype(int), levels=[0.5], colors="cyan", linewidths=1.0)
+
+    try:
+        ax0.contour(
+            footprint.astype(int),
+            levels=[0.5],
+            colors="cyan",
+            linewidths=1.0,
+        )
+    except Exception:
+        pass
+
     ax0.set_title("Hα within R-band footprint")
 
     # ------------------------------------------------------------
     # Panel 2: H-alpha image with clump segmentation boundaries
     # ------------------------------------------------------------
-
-    detect_show = np.array(hdata, dtype=float, copy=True)
-    detect_show[result.detect_mask] = np.nan
     ax1.imshow(detect_show, origin="lower", norm=norm, cmap="gray")
-    
-    #ax1.imshow(hshow, origin="lower", norm=norm, cmap="gray")
 
     if np.nanmax(segm_data) > 0:
-        ax1.contour(segm_data > 0, levels=[0.5], colors="yellow", linewidths=1.0)
+        try:
+            ax1.contour(
+                segm_data > 0,
+                levels=[0.5],
+                colors="yellow",
+                linewidths=1.0,
+            )
+        except Exception:
+            pass
 
     ax1.set_title("Hα clump segmentation")
 
     # ------------------------------------------------------------
-    # Add clump centroids
+    # Add clump centroids.
+    #
+    # Red circles  = good clumps
+    # Lime circles = nuclear good clumps
     # ------------------------------------------------------------
     table = result.table
 
@@ -1515,10 +1523,36 @@ def save_clump_diagnostic(
             else:
                 good = np.ones(len(table), dtype=bool)
 
-            ax1.plot(x[good], y[good], "o", ms=5, mfc="none", mec="red", mew=1.2)
+            ax1.plot(
+                x[good],
+                y[good],
+                "o",
+                ms=5,
+                mfc="none",
+                mec="red",
+                mew=1.2,
+                label="good clump",
+            )
+
+            if "is_nuclear" in table.colnames:
+                is_nuclear = np.asarray(table["is_nuclear"], dtype=bool)
+                nuclear_good = good & is_nuclear
+
+                if np.any(nuclear_good):
+                    ax1.plot(
+                        x[nuclear_good],
+                        y[nuclear_good],
+                        "o",
+                        ms=9,
+                        mfc="none",
+                        mec="lime",
+                        mew=1.8,
+                        label="nuclear clump",
+                    )
 
             if "label" in table.colnames:
                 labels = np.asarray(table["label"], dtype=int)
+
                 for xi, yi, lab, use in zip(x, y, labels, good):
                     if use and np.isfinite(xi) and np.isfinite(yi):
                         ax1.text(
@@ -1570,7 +1604,7 @@ def save_clump_diagnostic(
                 ms=8,
                 mew=1.5,
                 color="white",
-                alpha=.4
+                alpha=0.4,
             )
 
     # ------------------------------------------------------------
@@ -1582,13 +1616,45 @@ def save_clump_diagnostic(
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
 
+    # ------------------------------------------------------------
+    # Figure title
+    # ------------------------------------------------------------
+    summary = result.summary
+
+    threshold = getattr(summary, "threshold", np.nan)
+    if np.isfinite(threshold):
+        threshold_text = f"{threshold:.3g}"
+    else:
+        threshold_text = "NaN"
+
+    has_nuclear = bool(getattr(summary, "has_nuclear", False))
+    n_nuclear = int(getattr(summary, "n_nuclear", 0))
+    nuclear_flux_frac = getattr(summary, "nuclear_flux_frac", np.nan)
+
+    if np.isfinite(nuclear_flux_frac):
+        nuclear_flux_frac_text = f"{nuclear_flux_frac:.2f}"
+    else:
+        nuclear_flux_frac_text = "NaN"
+
+    nuclear_radius_fwhm = getattr(config, "nuclear_radius_fwhm", np.nan)
+
+    if np.isfinite(nuclear_radius_fwhm):
+        nuclear_radius_text = f"{nuclear_radius_fwhm:.1f} FWHM"
+    else:
+        nuclear_radius_text = "NaN"
+
     title = (
         f"{basename}\n"
-        f"Nclump={result.summary.n_clumps}, "
-        f"Ngood={result.summary.n_clumps_good}, "
-        f"Npeak={getattr(result.summary, 'n_peaks', 0)}, "
-        f"threshold={result.summary.threshold:.3g}"
+        f"Nclump={summary.n_clumps}, "
+        f"Ngood={summary.n_clumps_good}, "
+        f"Npeak={getattr(summary, 'n_peaks', 0)}, "
+        f"threshold={threshold_text}\n"
+        f"nuclear={has_nuclear}, "
+        f"Nnuc={n_nuclear}, "
+        f"fnuc={nuclear_flux_frac_text}, "
+        f"Rnuc={nuclear_radius_text}"
     )
+
     fig.suptitle(title, fontsize=11)
 
     fig.savefig(diagnostic_path, dpi=150, bbox_inches="tight")
@@ -1597,6 +1663,9 @@ def save_clump_diagnostic(
     result.summary.diagnostic_path = str(diagnostic_path)
 
     return diagnostic_path
+
+
+
 
 
 # ---------------------------------------------------------------------

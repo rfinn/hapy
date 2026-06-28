@@ -202,7 +202,7 @@ find cutouts/ -mindepth 1 -maxdepth 1 -type d ! -name "cutouts_summary" | sort >
 Run the sample:
 
 ```bash
-parallel --bar -j ${NCPU} --memfree 30G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --csgr --psf-dir ${PSFDIR}/ --statmorph --galfit --convflag --csgr --clumps --gaia-dir ${GAIADIR}/ :::: cutout_with_dir.txt
+parallel --bar -j ${NCPU} --memfree 30G --joblog run_analysis.joblog --results parallel-logs run_analysis --cutout-dir "{}" --make-mask --psf-dir ${PSFDIR}/ --csgr --clumps --statmorph --galfit --convflag --gaia-dir ${GAIADIR}/ :::: cutout_with_dir.txt
 ```
 
 Monitor progress and failures:
@@ -233,7 +233,7 @@ python ~/github/hapy/scripts/validate_dashboards.py merged_results_virgo_${RUNDA
 find ${ROOTDIR}/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir ${ROOTDIR}/cutouts --outdir ${ROOTDIR}/html/cutouts --oneimage $(head -1 cutout_list_buildwebpages.txt)
 parallel --bar -j 20 --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir ${ROOTDIR}/cutouts --oneimage {} --outdir ${ROOTDIR}/html/cutouts :::: cutout_list_buildwebpages.txt
-python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260626/ --results-table merged_results_virgo_20260627.fits
+python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260626/ --results-table merged_results_virgo_20260628.fits
 ```
 
 Sync webpages to the server:
