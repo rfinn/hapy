@@ -1254,12 +1254,17 @@ def make_cs_gr_image(
     legacy_g = sorted(glob.glob(os.path.join("legacy", vfid + "*g-ha.fits")))
 
     if len(legacy_r) < 1:
+        print(f"WARNING: No legacy r-ha image found for {vfid}")
         os.chdir(topdir)
-        raise FileNotFoundError(f"No legacy r-ha image found for {vfid}")
+        return False
+        #raise FileNotFoundError(f"No legacy r-ha image found for {vfid}")
+    
 
     if len(legacy_g) < 1:
+        print(f"WARNING: No legacy g-ha image found for {vfid}")
         os.chdir(topdir)
-        raise FileNotFoundError(f"No legacy g-ha image found for {vfid}")
+        return False
+        #raise FileNotFoundError(f"No legacy g-ha image found for {vfid}")
 
     leg_rfile = legacy_r[0]
     leg_gfile = legacy_g[0]
@@ -1509,7 +1514,8 @@ def make_cs_gr_image(
         print(f"Wrote {outname}")
 
     os.chdir(topdir)
-    return str(cutdir / outname)
+    #return str(cutdir / outname)
+    return True
 
 def main():
     parser = argparse.ArgumentParser(

@@ -2820,50 +2820,70 @@ def main():
 
     if csgr_fits and args.csgr:
         t0 = time.perf_counter()
-        logger.info("Running optional CS-gr ellipse photometry")
 
-        row["CSGR_EXISTS"] = True
-        row["CSGR_FITS"] = Path(csgr_fits).name
+        logger.info("Making CS-gr image")
+        from hapy.scripts.make_cs_gr import make_cs_gr_image
 
-        e_gr = run_ellipse_photometry(
-            r_fits=r_fits,
-            cs_fits=csgr_fits,
-            mask_fits=mask_fits,
-            image2_filter=hafilter,
-            filter_ratio=filter_ratio,
-            objra=ra,
-            objdec=dec,
-            fixcenter=args.fixcenter,
-            logger=logger,
-            fileid="csgr"
+        csgr_ok = make_cs_gr_image(
+            cutdir=cutdir,
+            maskfile=mask_fits,
+            overwrite=True,
+            auto_contscale=True,
+            auto_contscale_method="ratio",
+            auto_contscale_percentile=30.0,
         )
 
-        copy_image2_fields_to_row(e_gr, row, "CSGR")
+        if not csgr_ok:
+            logger.warning("Skipping CS-gr analysis b/c make_cs_gr_image returned False - make sure legacy g and r images exist.")
+            print("WARNING: Skipping CS-gr analysis.")
+            row["PHOT_GR_OK"] = False
 
-        e_gr.run_hapy_morphology()
-        copy_hapy_cs_fields_to_row(e_gr, row, "CSGR", pixscale=pixscale)
+        else:
+        
+            logger.info("Running optional CS-gr ellipse photometry")
 
-        if valid_file(e_gr.photfile) and valid_file(e_gr.photfile2):
-            row["CSGR_PHOT_OK"] = True
+            row["CSGR_EXISTS"] = True
+            row["CSGR_FITS"] = Path(csgr_fits).name
 
-            rtab = Table.read(e_gr.photfile)
-            hatab = Table.read(e_gr.photfile2)
-
-            profile_results_gr = summarize_dual_profiles(
-                rtab=rtab,
-                hatab=hatab,
-                r_magzp=magzp,
+            e_gr = run_ellipse_photometry(
+                r_fits=r_fits,
+                cs_fits=csgr_fits,
+                mask_fits=mask_fits,
+                image2_filter=hafilter,
+                filter_ratio=filter_ratio,
+                objra=ra,
+                objdec=dec,
+                fixcenter=args.fixcenter,
+                logger=logger,
+                fileid="csgr"
             )
 
-            row.update(prefix_dict_keys(profile_results_gr, "CSGR"))
-            
-        add_sourcecatalog_moments(row, e_gr, prefix1="CSGR_R", prefix2="CSGR_H",pixel_scale = float(pixscale))
-        row["CSGR_SEC"] = _scalar(time.perf_counter() - t0)
+            copy_image2_fields_to_row(e_gr, row, "CSGR")
+
+            e_gr.run_hapy_morphology()
+            copy_hapy_cs_fields_to_row(e_gr, row, "CSGR", pixscale=pixscale)
+
+            if valid_file(e_gr.photfile) and valid_file(e_gr.photfile2):
+                row["CSGR_PHOT_OK"] = True
+
+                rtab = Table.read(e_gr.photfile)
+                hatab = Table.read(e_gr.photfile2)
+
+                profile_results_gr = summarize_dual_profiles(
+                    rtab=rtab,
+                    hatab=hatab,
+                    r_magzp=magzp,
+                )
+
+                row.update(prefix_dict_keys(profile_results_gr, "CSGR"))
+
+            add_sourcecatalog_moments(row, e_gr, prefix1="CSGR_R", prefix2="CSGR_H",pixel_scale = float(pixscale))
+            row["CSGR_SEC"] = _scalar(time.perf_counter() - t0)
     
 
     # ---- RUN HAPY CLUMP ANALYSIS  ----------- #
 
-    if args.clumps and csgr_fits and args.csgr:
+    if args.clumps and csgr_fits and csgr_ok:
 
         print("DEBUG: trying to run clump analysis")
         from hapy.ellipse.clumps import ClumpDetectionConfig

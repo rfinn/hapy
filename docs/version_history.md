@@ -282,3 +282,13 @@ Larger galaxies retain the historical cutout_scale × diameter sizing.
 ### Notes
 - Clump analysis is optional and off by default.
 - Default clump detection parameters should be treated as provisional pending validation on test galaxies.
+
+
+## HAPY v0.4.1 (2026-06-28)
+
+### Changed
+- Integrate CS-gr image creation into run_analysis after mask generation.
+- Refactor make_cs_gr.py into callable make_cs_gr_image().
+- Use HAPY masks during CS-gr continuum scaling while preserving continuous output images.
+- Add graceful handling for missing Legacy g/r reprojections.
+- Improve robustness of CS-gr continuum-scale estimation.

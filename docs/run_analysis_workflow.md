@@ -185,7 +185,7 @@ rsync -avz --include='*/' --include='*-mask-manual.fits' --exclude='*' /data-poo
 Test one cutout:
 
 ```bash
-run_analysis --make-mask --csgr --psf-dir ${PSFDIR}/ --statmorph --galfit --convflag --log-to-console --gaia-dir ${GAIADIR}/ --cutout-dir $(find cutouts -mindepth 1 -maxdepth 1 -type d | sort | head -1)
+run_analysis --make-mask --psf-dir ${PSFDIR}/ --csgr --clumps --statmorph --galfit --convflag --log-to-console --gaia-dir ${GAIADIR}/ --cutout-dir $(find cutouts -mindepth 1 -maxdepth 1 -type d | sort | head -1)
 ```
 
 Create a run list, using the review file to skip excluded targets:
