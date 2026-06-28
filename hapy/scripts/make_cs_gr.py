@@ -42,6 +42,7 @@ import numpy as np
 from astropy.io import fits
 from astropy import stats, convolution
 from astropy import wcs
+from astropy.wcs import WCS
 from astropy.table import Table
 
 import glob
@@ -325,25 +326,108 @@ def estimate_scale_from_negative_tail_bisect(
 
 #     return float(0.5 * (lo + hi))
 
-def get_galaxy_region_from_segmap(segfile, mask=None, label=None):
-    seg = fits.getdata(segfile)
+
+
+def get_galaxy_region_from_segmap(segfile, mask=None, label=None, meta=None, search_radius=10):
+    """
+    Return boolean region for the target galaxy from a segmentation map.
+
+    Preferred behavior:
+      - If label is provided, use that label.
+      - Else use metadata RA/Dec and segmentation WCS to identify the label
+        at the galaxy center.
+      - If center pixel has label 0, search nearby pixels for a nonzero label.
+      - If all else fails, return None.
+
+    Parameters
+    ----------
+    segfile : str
+        Segmentation FITS image.
+    mask : 2D bool, optional
+        Bad-pixel/object mask. True pixels are removed from galaxy_region.
+    label : int, optional
+        Explicit segmentation label to use.
+    meta : dict, optional
+        metadata.json dictionary with 'ra' and 'dec'.
+    search_radius : int
+        Radius in pixels to search around RA/Dec center if center pixel is label 0.
+    """
+
+    with fits.open(segfile) as hdul:
+        seg = hdul[0].data
+        header = hdul[0].header
+
+    if seg is None:
+        return None
 
     if label is None:
-        labels = np.unique(seg)
-        labels = labels[labels > 0]
-
-        if len(labels) == 0:
+        if meta is None:
+            print("WARNING: no label or metadata provided; cannot identify target segment")
             return None
 
-        # fallback: use largest segment
-        label = labels[np.argmax([(seg == lab).sum() for lab in labels])]
+        if "ra" not in meta or "dec" not in meta:
+            print("WARNING: metadata missing ra/dec; cannot identify target segment")
+            return None
+
+        w = WCS(header)
+
+        # astropy returns x, y in pixel coordinates
+        xcen, ycen = w.world_to_pixel_values(float(meta["ra"]), float(meta["dec"]))
+
+        xcen_i = int(np.round(xcen))
+        ycen_i = int(np.round(ycen))
+
+        ny, nx = seg.shape
+
+        if not (0 <= xcen_i < nx and 0 <= ycen_i < ny):
+            print(
+                "WARNING: metadata RA/Dec center is outside segmentation image: "
+                f"x={xcen:.2f}, y={ycen:.2f}, shape={seg.shape}"
+            )
+            return None
+
+        label = int(seg[ycen_i, xcen_i])
+
+        if label <= 0:
+            x0 = max(0, xcen_i - search_radius)
+            x1 = min(nx, xcen_i + search_radius + 1)
+            y0 = max(0, ycen_i - search_radius)
+            y1 = min(ny, ycen_i + search_radius + 1)
+
+            cut = seg[y0:y1, x0:x1]
+            labels = cut[np.isfinite(cut)]
+            labels = labels[labels > 0]
+
+            if len(labels) == 0:
+                print(
+                    "WARNING: no segmentation label found near metadata center: "
+                    f"x={xcen:.2f}, y={ycen:.2f}"
+                )
+                return None
+
+            # Use most common nonzero label near the target center
+            unique, counts = np.unique(labels.astype(int), return_counts=True)
+            label = int(unique[np.argmax(counts)])
+
+            print(
+                "WARNING: center pixel has no segment; "
+                f"using nearby label {label} within {search_radius} pix"
+            )
+
+        print(f"Using segmentation label {label} for target galaxy")
 
     galaxy_region = seg == label
 
     if mask is not None:
         galaxy_region &= ~mask
 
+    if np.count_nonzero(galaxy_region) == 0:
+        print(f"WARNING: selected segmentation label {label} has no valid pixels after masking")
+        return None
+
     return galaxy_region
+
+
 
 def getEllipseFocii(xcent, ycent, a, ba, pa):
     pa_rad = pa * np.pi/180.
@@ -545,46 +629,585 @@ def plot_image(data):
 #     return float(10 ** (-0.4 * (zp_r - zp_ha)))
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
+#     import json
+#     from pathlib import Path
+#     import argparse
+
+
+#     parser = argparse.ArgumentParser(description="Make CS-gr continuum-subtracted image for one HAPY cutout directory.")
+
+#     parser.add_argument("cutdir", help="HAPY cutout directory, e.g. cutouts/VFID2550-UGC05020-INT-20190208-p031")
+#     parser.add_argument("--contscale", type=float, default=1.0, help="Manual extra continuum scale factor applied to the r-continuum image.")
+#     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing CS-gr products.")
+
+
+#     parser.add_argument("--auto-contscale", action="store_true", help="Estimate an extra continuum scale factor using the galaxy segmentation region.")
+#     parser.add_argument("--auto-contscale-method", choices=["ratio", "negtail"], default="ratio", help="Method for estimating the extra continuum scale.")
+#     parser.add_argument("--auto-contscale-min", type=int, default=100, help="Minimum number of valid segmentation pixels required for auto continuum scale.")
+#     parser.add_argument("--auto-contscale-min-scale", type=float, default=0.75, help="Minimum allowed auto continuum scale.")
+#     parser.add_argument("--auto-contscale-max-scale", type=float, default=1.15, help="Maximum allowed auto continuum scale.")
+
+#     parser.add_argument("--auto-contscale-percentile", type=float, default=30.0, help="For method='ratio': percentile of clipped Ha/Rcont ratio used for auto continuum scale.")
+#     parser.add_argument("--auto-contscale-ratio-min", type=float, default=0.7, help="For method='ratio': minimum Ha/Rcont ratio included.")
+#     parser.add_argument("--auto-contscale-ratio-max", type=float, default=1.3, help="For method='ratio': maximum Ha/Rcont ratio included.")
+
+#     parser.add_argument("--auto-contscale-negtail-percentile", type=float, default=5.0, help="For method='negtail': lower percentile of CS pixels to compare against sky noise.")
+#     parser.add_argument("--auto-contscale-negtail-target", type=float, default=-1.5, help="For method='negtail': target lower-tail value in units of sky sigma.")
+#     parser.add_argument("--auto-contscale-negtail-ngrid", type=int, default=81, help="For method='negtail': number of trial continuum scales.")
+
+
+#     args = parser.parse_args()
+
+#     dirname = args.cutdir
+#     contscale = args.contscale
+#     overwrite = args.overwrite
+
+#     # get current directory
+#     topdir = os.getcwd()
+
+#     # define cutout directory and load metadata.json
+#     cutdir = Path(dirname)
+#     metafile = cutdir / "metadata.json"
+
+#     if not metafile.exists():
+#         raise FileNotFoundError(f"Missing metadata.json: {metafile}")
+
+#     with open(metafile, "r") as f:
+#         meta = json.load(f)
+
+#     # Use metadata.json as the source of truth
+#     tag = meta.get("tag", cutdir.name)
+#     objid = meta.get("objid", tag)
+#     vfid = objid.split("-")[0]
+
+#     telescope = meta["telescope"]
+#     dateobs = meta.get("dateobs", "")
+#     pointing = meta.get("pointing", "")
+#     hafilter = meta.get("hafilter", "")
+
+
+    
+#     # Metadata-driven filter correction and filter properties
+#     halpha_filter_cor = float(meta.get("filter_correction", 1.0))
+#     if halpha_filter_cor == 0:
+#         print("resetting filter correction to 1")
+#         halpha_filter_cor = 1.0
+
+#     # This replaces header FLTRATIO / old lookup logic
+#     rscale = float(meta["filter_ratio"])
+
+#     # This replaces filter_lambda_c_AA[telescope] and filter_width_AA[telescope]
+#     hfilter_center_A = float(meta["hafilter_center_A"])
+#     hfilter_width_A = float(meta["hafilter_width_A"])
+
+#     # Not currently in metadata.json. Keep as neutral correction.
+#     halpha_extinction_correction = 1.0
+
+#     print(f"{tag}: telescope = {telescope}")
+#     print(f"{tag}: dateobs = {dateobs}")
+#     print(f"{tag}: pointing = {pointing}")
+#     print(f"{tag}: hafilter = {hafilter}")
+#     print(f"{tag}: halpha filter correction = {halpha_filter_cor:.4f}")
+#     print(f"{tag}: filter ratio = {rscale:.6f}")
+#     print(f"{tag}: halpha filter center = {hfilter_center_A:.2f} A")
+#     print(f"{tag}: halpha filter width = {hfilter_width_A:.2f} A")
+#     print(f"{tag}: continuum scale factor = {contscale:.3f}")
+#     print(f"{tag}: MW extinction correction = {halpha_extinction_correction:.3f}")
+
+
+#     cont_oversub = get_continuum_oversubtraction_from_metadata(meta)
+#     print(f"{tag}: continuum oversubtraction correction = {cont_oversub:.4f}")
+    
+#     # move to subdirectory specified in the command line
+#     os.chdir(cutdir)
+
+
+#     ############################################################
+#     ## Define image names
+#     ############################################################    
+
+#     # define the file names
+#     Rfile = f"{tag}-R.fits"       # r-band image taken with same telescope as halpha
+#     Hfile = f"{tag}-Ha.fits"      # halpha image
+#     outname = f"{tag}-CS-gr.fits"
+
+
+#     segfile = f"{tag}-R-phot-segmentation.fits"
+
+    
+#     # get legacy images that are reprojected to the halpha image
+#     # these are in the legacy subdirectory
+#     legacy_path = os.path.join("legacy", vfid + "*r-ha.fits")
+#     rfiles = glob.glob(legacy_path)
+
+#     if len(rfiles) < 1:
+#         print("problem getting r-ha.fits legacy image", len(rfiles))
+#         os.chdir(topdir)
+#         sys.exit(1)
+#     else:
+#         leg_rfile = rfiles[0]  # legacy r-band image
+
+#     # legacy g-band image, shifted to match halpha footprint and pixel scale
+#     gfiles = glob.glob(os.path.join("legacy", vfid + "*g-ha.fits"))
+
+#     if len(gfiles) < 1:
+#         print("problem getting g-ha.fits legacy image")
+#         os.chdir(topdir)
+#         sys.exit(2)
+#     else:
+#         leg_gfile = gfiles[0]  # legacy g-band image
+
+
+#     ############################################################
+#     # Load HAPY mask if available
+#     ############################################################
+
+#     manual_mask = f"{tag}-mask-manual.fits"
+#     auto_mask = f"{tag}-mask.fits"
+
+#     if os.path.exists(manual_mask):
+#         maskfile = manual_mask
+#         print(f"Using manual mask: {maskfile}")
+
+#     elif os.path.exists(auto_mask):
+#         maskfile = auto_mask
+#         print(f"Using auto mask: {maskfile}")
+
+#     else:
+#         maskfile = None
+#         print("WARNING: no HAPY mask found; proceeding with mask=None")
+#         print("CS-gr image may contain bad pixels near stars/companions, but run_analysis will apply the HAPY mask later.")
+
+#     if maskfile is not None:
+#         mask = fits.getdata(maskfile)
+#         mask = mask > 0
+
+#         if np.sum(mask) == 0:
+#             print(f"WARNING: mask file exists but has no masked pixels: {maskfile}")
+#             mask = None
+#     else:
+#         mask = None
+
+
+        
+
+
+#     #overwrite = True
+
+#     """
+#     reproject infile to reffile image
+
+#     PARAMS:
+#     Rfile : r-band image taken with halpha, to be used for continuum
+#     Hfile : halpha image filename
+#     gfile : g-band filename to be used for calculating g-r color (legacy image)
+#     rfile : r-band filename to be used for calculating g-r color (legacy image)
+#     outname: output name
+
+#     RETURN:
+#     nothing, but save the CS subtracted image that uses the g-r color in the current directory
+#     """
+
+#     if os.path.exists(outname) & (not overwrite):
+#         print("continuum-subtracted image exists - not redoing it")
+#         os.chdir(topdir)
+#         sys.exit()
+
+
+
+
+#     ############################################################
+#     ## Get g-r image
+#     ############################################################
+#     outimage = leg_rfile.replace("r-ha.fits", "gr-smooth.fits")
+    
+#     if os.path.exists(outimage) & (not overwrite):
+#         print("found g-r image. not remaking this")
+#         hdu = fits.open(outimage)
+#         gr_col = hdu[0].data
+#         hdu.close()
+#     else:
+#         gr_col = get_gr(leg_gfile, leg_rfile, mask=None, smooth_kernel=5)
+
+#     # usemask should be all the values in the color image that are not equal to np.nan
+#     usemask = ~np.isnan(gr_col)  # these are the good values in the g-r color
+
+#     # this should be the text describing the galaxy
+#     # like : VFID0569-NGC5989-INT-20190530-p002
+#     fileroot = Rfile.replace("-R.fits", "")
+
+#     # read in *our* r-band and halpha images
+#     hhdu = fits.open(Hfile)
+#     rhdu = fits.open(Rfile)
+
+#     # get photometric ZP for each image
+#     rZP = rhdu[0].header["PHOTZP"]
+#     hZP = hhdu[0].header["PHOTZP"]
+
+#     # get filter names
+#     rfilter = rhdu[0].header["FILTER"]
+#     hfilter = hhdu[0].header["FILTER"]
+
+#     # get the pixel scale in the halpha image
+#     wcs_NB = wcs.WCS(Hfile)
+#     pscale_NB = wcs.utils.proj_plane_pixel_scales(wcs_NB) * 3600.0
+
+#     rscale_zp = zp_scale_r_to_ha(hZP, rZP)
+#     #print(f"scaling r-band continuum by {rscale:.6f}, ratio of ZP={zp_fratio}")
+
+#     rscale_meta = float(meta.get("filter_ratio", np.nan))
+#     rscale_zp = zp_scale_r_to_ha(hZP, rZP)
+
+#     print(f"{tag}: metadata filter_ratio = {rscale_meta:.6f}")
+#     print(f"{tag}: ZP r-to-Halpha scale = {rscale_zp:.6f}")
+#     print(f"{tag}: metadata / ZP scale = {rscale_meta / rscale_zp:.3f}")
+
+#     rscale = rscale_zp
+
+    
+#     ##
+#     # The following is from Matteo Fossati
+#     ##
+
+#     print("\nGenerate NET image\n")
+
+#     # ############################################################
+#     # ## Subtract local sky from cutouts
+#     # ############################################################
+
+#     # HAPY cutouts should already be sky-subtracted when
+#     # metadata["cutout_sky_subtracted"] == True.
+#     data_r = rhdu[0].data.astype(float)
+#     data_NB = hhdu[0].data.astype(float)
+
+#     data_r_to_Ha = data_r * rscale
+    
+#     # subtract local sky
+#     r_weight_file = Rfile.replace(".fits",".weight.fits")
+#     if os.path.exists(r_weight_file):
+#         r_weight = fits.getdata(r_weight_file)
+#     else:
+#         r_weight = None
+
+#     h_weight_file = Hfile.replace(".fits",".weight.fits")
+#     if os.path.exists(h_weight_file):
+#         h_weight = fits.getdata(h_weight_file)
+#     else:
+#         h_weight = None
+        
+#     mean_sky_r, median_sky_r, std_sky_r = calculate_background_photutils(
+#         data_r_to_Ha,
+#         grow_radius=10,
+#         npixels=10,
+#         weightimage=r_weight,
+#         nsigma=2.0,
+#         clip_sigma=3.0,
+#     )
+#     print(f"r sky: mean={mean_sky_r:.2e}, med={median_sky_r:.2e}, std={std_sky_r:.2e}")
+#     data_r = data_r - median_sky_r
+#     #data_r = data_r - mean_sky_r
+
+#     mean_sky_h, median_sky_h, std_sky_h = calculate_background_photutils(
+#         data_NB,
+#         grow_radius=10,
+#         npixels=5,
+#         weightimage=h_weight,
+#         nsigma=2,
+#         clip_sigma=3.0,
+#     )
+#     data_NB = data_NB - median_sky_h
+#     #data_NB = data_NB - mean_sky_h    
+#     print(f"h sky: mean={mean_sky_h:.2e}, med={median_sky_h:.2e}, std={std_sky_h:.2e}")    
+
+#     print("Using HAPY cutout images with additional local sky subtraction")
+#     print(f"\tr-band sky subtracted = {median_sky_r:.2e}")
+#     print(f"\thalpha sky subtracted = {median_sky_h:.2e}")    
+
+#     # # TODONE - revisit this and examine the masking. - skipping sky subtraction here b/c already done when making cutouts
+#     # # the mask we are currently using does not mask the central galaxy
+#     # # also, we already subtract the sky from each continuum image when making cutouts...
+
+
+    
+#     # # subtract sky from r-band image
+#     # print("Computing median values for r and halpha images")
+    
+#     # print("subtracting these values from the image...")
+
+#     # stat_r = stats.sigma_clipped_stats(rhdu[0].data, mask=mask)
+#     # print("Subtracting {0:3.2e} from r-band image".format(stat_r[1]))
+
+#     #data_r = rhdu[0].data - stat_r[1]
+#     # data_r_to_Ha = data_r * rscale
+
+#     # # sky subtracted r-band image
+#     # skysub_r_name = Rfile.replace("-R.fits", "-R-sky.fits")
+#     # hdu = fits.PrimaryHDU(data_r, header=rhdu[0].header)
+#     # hdu.writeto(skysub_r_name, overwrite=True)
+
+#     # # subtract sky from Halpha image
+#     # stat_h = stats.sigma_clipped_stats(hhdu[0].data, mask=mask)
+#     # print("Subtracting {0:3.2e} from halpha image".format(stat_h[1]))
+#     # data_NB = hhdu[0].data - stat_h[1]
+
+
+#     ############################################################
+#     ## Transform images
+#     ############################################################
+    
+#     ##
+#     # These comments are from Matteo's program
+#     ##
+#     # Generate the r band mag image and the r band calibrated to Halpha wave
+#     # This works only for positive flux pixels. Take this into account
+
+#     mag_r_to_Ha = -2.5 * np.log10(data_r_to_Ha) + rZP
+#     mag_NB = -2.5 * np.log10(data_NB) + hZP
+
+#     # now calc fluxes using the same ZP
+#     #data_r_ZP30 = 10.0 ** (-0.4 * (mag_r - 30))
+#     #data_NB_ZP30 = 10.0 ** (-0.4 * (mag_NB - 30))
+
+#     # Transform the mag_r image to the observed Halpha filter
+#     #
+#     # mag_r in AB mags
+#     # g-r color is in AB mags
+
+#     # going to stay in counts to avoid nans
+#     # create an image with delta needed to correct for color term
+#     # this is the fit to
+#     # delta_mag = (halpha - r) = f(g-r)
+#     delta_mag = halpha_minus_r_color_from_metadata(meta, gr_col)
+#     #delta_mag = np.zeros_like(gr_col, dtype=float)
+
+#     delta_mag_name = f"{tag}-CS-gr-delta-mag.fits"
+#     hdu = fits.PrimaryHDU(delta_mag, header=hhdu[0].header)
+#     hdu.header.set("IMTYPE", "DELTMAG", "Halpha - R color correction")
+#     hdu.header.set("CSTYPE", "CS-gr", "Used for CS-gr continuum subtraction")
+#     hdu.writeto(delta_mag_name, overwrite=True)
+#     print(f"Wrote {delta_mag_name}")
+    
+#     # mag_r_to_Ha and mag_r should 
+#     mag_r_to_Ha = mag_r_to_Ha + delta_mag
+    
+#     # convert to flux units
+#     delta_flux = 10.0 ** (-0.4 * delta_mag)
+
+#     # use the color correction for pixels with sufficient SNR
+#     data_r_to_Ha[usemask] = data_r_to_Ha[usemask] * delta_flux[usemask]
+
+
+#     # check for existing segmentation map
+#     if not os.path.exists(segfile):
+#         print(f"WARNING: missing photutils segmentation; creating {segfile}")
+#         segfile = make_simple_photutils_segmentation(
+#             Rfile,
+#             segfile,
+#             maskfile=maskfile,
+#         )
+
+#     # get additional scale factor to make
+#     galaxy_region = get_galaxy_region_from_segmap(
+#             segfile,
+#             mask=mask,
+#             meta=meta,
+#             search_radius=10,
+#             )
+#     #galaxy_region = get_galaxy_region_from_segmap(segfile, mask=mask)
+
+#     if args.auto_contscale_method == "ratio":
+#         extra_scale = estimate_extra_continuum_scale(
+#             ha_data=data_NB,
+#             rcont_data=data_r_to_Ha,
+#             galaxy_mask=galaxy_region,
+#             bad_mask=mask,
+#             min_pixels=args.auto_contscale_min,
+#             clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
+#             ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
+#             scale_percentile=args.auto_contscale_percentile,
+#         )
+
+#     elif args.auto_contscale_method == "negtail":
+
+#         cs0 = data_NB - data_r_to_Ha
+
+#         stat_cs = stats.sigma_clipped_stats(cs0, mask=mask)
+#         sky_sigma = stat_cs[2]
+
+#         header_cskystd = hhdu[0].header.get("CSKYSTD", np.nan)
+#         print(f"Header CSKYSTD = {header_cskystd}")
+#         print(f"Measured CS sigma = {sky_sigma:.3f}")
+
+
+#         extra_scale = estimate_scale_from_negative_tail_bisect(
+#             ha_data=data_NB,
+#             rcont_data=data_r_to_Ha,
+#             galaxy_mask=galaxy_region,
+#             sky_sigma=sky_sigma,
+#             bad_mask=mask,
+#             target=args.auto_contscale_negtail_target,
+#             percentile=args.auto_contscale_negtail_percentile,
+#             scale_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
+#             min_pixels=args.auto_contscale_min,
+#         )
+    
+#     # if args.auto_contscale:
+#     #     extra_scale = estimate_extra_continuum_scale(
+#     #         ha_data=data_NB,
+#     #         rcont_data=data_r_to_Ha,
+#     #         galaxy_mask=galaxy_region,
+#     #         bad_mask=mask,
+#     #         min_pixels=args.auto_contscale_min,
+#     #         clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
+#     #         ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
+#     #         scale_percentile=args.auto_contscale_percentile,
+#     #         )
+
+#     # else:
+#     #     extra_scale = 1.0
+#     print(f"\nauto CS extra_scale = {extra_scale:.4f}\n")
+#     csgr_data = data_NB - extra_scale * data_r_to_Ha
+    
+#     ##
+#     # Matteo Comment: Go to cgs units
+#     ##
+
+#     # TODONE - make sure filter quantities are correct
+#     # need:
+#     #   - center wavelength in A
+    
+#     fnu_NB = 3.631E3 * data_NB * 1E-12
+#     flam_NB = 2.99792458E-5 * fnu_NB / (hfilter_center_A**2) * 1E18
+
+#     cnu_NB = 3.631E3 * data_r_to_Ha * 1E-12
+#     clam_NB = 2.99792458E-5 * cnu_NB / (hfilter_center_A**2) * 1E18
+
+#     # need to multiply by width of filter to convert from flux/A to flux
+#     flam_net = hfilter_width_A * (flam_NB - contscale * clam_NB)
+
+#     # correct CS flux for variations in filter transmission and oversubtraction due to halpha in r-band filter
+
+#     # TODONE - need to update continuum oversubtraction terms for full filters
+#     # skipping for now
+#     # flam_net = flam_net * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
+
+#     cont_oversub = get_continuum_oversubtraction_from_metadata(meta)
+#     flam_net = flam_net * cont_oversub * halpha_filter_cor
+    
+#     # MW extinction correction is currently neutral because it is not in metadata.json
+#     flam_net = flam_net * halpha_extinction_correction
+
+#     # Save a version in AB/count-like units for compatibility with HAPY photometry programs
+
+#     # why are we using contscale again here when data_r_to_Ha is already scaled already
+#     # here, contscale is an extra factor the user can input to tweak the continuum subtraction
+
+
+#     # correct for filter transmission variations and for halpha emission in the continuum filter
+
+#     # TODONE - need to update oversubtraction terms using the correct filter traces
+#     # skipping for now
+#     # NB_ABmag = NB_ABmag * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
+#     csgr_data = csgr_data * cont_oversub * halpha_filter_cor
+
+
+#     # MW extinction correction is currently neutral because it is not in metadata.json
+#     csgr_data = csgr_data * halpha_extinction_correction
+
+#     ############################################################
+#     # Write CS-gr image
+#     ############################################################
+
+#     hhdu[0].header.set("CSTYPE", "CS-gr", "Continuum subtraction type")
+#     hhdu[0].header.set("CONSCALE", float(f"{contscale:.4f}"), "Continuum scale factor")
+#     hhdu[0].header.set("FILT_COR", float(f"{halpha_filter_cor:.4f}"), "Filter transmission correction")
+#     hhdu[0].header.set("FLTRATIO", float(f"{rscale:.8f}"), "r-to-Halpha continuum scale")
+#     hhdu[0].header.set("CONTOSUB", float(f"{cont_oversub:.4f}"), "CONT OVERSUB COR")
+#     hhdu[0].header.set("MWEXTCOR", float(f"{halpha_extinction_correction:.4f}"), "MW extinction correction")
+#     hhdu[0].header.set("HACEN_A", float(f"{hfilter_center_A:.2f}"), "Halpha filter center Angstrom")
+#     hhdu[0].header.set("HAWID_A", float(f"{hfilter_width_A:.2f}"), "Halpha filter width Angstrom")
+#     hhdu[0].header.set("SRCMETA", "metadata.json", "Source of correction metadata")
+
+#     hhdu[0].header.set("AUTOCONT", bool(args.auto_contscale), "Auto continuum scale used")
+#     hhdu[0].header.set("CONTSCL", float(extra_scale), "Extra continuum scale")
+#     #hhdu[0].header.set("CONTQ", float(args.auto_contscale_q), "Percentile used for auto continuum scale")
+#     hdu = fits.PrimaryHDU(csgr_data, header=hhdu[0].header)
+#     hdu.writeto(outname, overwrite=True)
+
+#     print(f"Wrote {outname}")
+
+#     # The rest are different versions of the CS image that Matteo saves.
+#     # Keeping calculations for diagnostics, but not writing by default.
+
+#     hdu = fits.PrimaryHDU(flam_NB, header=hhdu[0].header)
+
+#     hdu = fits.PrimaryHDU(clam_NB, header=hhdu[0].header)
+
+#     # Calculate clipped statistic
+#     # stat is a tuple of mean, median, sigma
+#     stat = stats.sigma_clipped_stats(flam_net, mask=mask)
+
+#     print("Unbinned SB limit 1sigma {0:3.2e} e-18".format(stat[2] / (pscale_NB[0] ** 2)))
+
+#     # This is the continuum-subtracted image in physical flux units
+#     hdu = fits.PrimaryHDU(flam_net, header=hhdu[0].header)
+
+#     # convert image to surface brightness units
+#     sblam_net = flam_net / (pscale_NB[0] ** 2)
+
+#     hdu = fits.PrimaryHDU(sblam_net, header=hhdu[0].header)
+
+#     print("Smoothing net image")
+#     flam_net_smooth = convolution.convolve_fft(
+#         flam_net,
+#         convolution.Box2DKernel(10),
+#         allow_huge=True,
+#         nan_treatment="interpolate",
+#     )
+
+#     hdu = fits.PrimaryHDU(flam_net_smooth, header=hhdu[0].header)
+
+#     stat_sm = stats.sigma_clipped_stats(flam_net_smooth, mask=mask)
+
+#     print(
+#         "Smoothed {1}x{1} SB limit 1sigma {0:3.2e} e-18".format(
+#             stat_sm[2] / (pscale_NB[0] ** 2), 15
+#         )
+#     )
+
+#     # close hdu files
+#     hhdu.close()
+#     rhdu.close()
+
+#     # move back to the top directory
+#     os.chdir(topdir)
+
+
+
+def make_cs_gr_image(
+    cutdir,
+    maskfile=None,
+    contscale=1.0,
+    overwrite=False,
+    auto_contscale=True,
+    auto_contscale_method="ratio",
+    auto_contscale_percentile=30.0,
+    auto_contscale_min=100,
+    auto_contscale_min_scale=0.75,
+    auto_contscale_max_scale=1.15,
+    auto_contscale_ratio_min=0.7,
+    auto_contscale_ratio_max=1.3,
+    auto_contscale_negtail_percentile=5.0,
+    auto_contscale_negtail_target=-1.5,
+    smooth_kernel=5,
+):
     import json
     from pathlib import Path
-    import argparse
 
-
-    parser = argparse.ArgumentParser(description="Make CS-gr continuum-subtracted image for one HAPY cutout directory.")
-
-    parser.add_argument("cutdir", help="HAPY cutout directory, e.g. cutouts/VFID2550-UGC05020-INT-20190208-p031")
-    parser.add_argument("--contscale", type=float, default=1.0, help="Manual extra continuum scale factor applied to the r-continuum image.")
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing CS-gr products.")
-
-
-    parser.add_argument("--auto-contscale", action="store_true", help="Estimate an extra continuum scale factor using the galaxy segmentation region.")
-    parser.add_argument("--auto-contscale-method", choices=["ratio", "negtail"], default="ratio", help="Method for estimating the extra continuum scale.")
-    parser.add_argument("--auto-contscale-min", type=int, default=100, help="Minimum number of valid segmentation pixels required for auto continuum scale.")
-    parser.add_argument("--auto-contscale-min-scale", type=float, default=0.75, help="Minimum allowed auto continuum scale.")
-    parser.add_argument("--auto-contscale-max-scale", type=float, default=1.15, help="Maximum allowed auto continuum scale.")
-
-    parser.add_argument("--auto-contscale-percentile", type=float, default=30.0, help="For method='ratio': percentile of clipped Ha/Rcont ratio used for auto continuum scale.")
-    parser.add_argument("--auto-contscale-ratio-min", type=float, default=0.7, help="For method='ratio': minimum Ha/Rcont ratio included.")
-    parser.add_argument("--auto-contscale-ratio-max", type=float, default=1.3, help="For method='ratio': maximum Ha/Rcont ratio included.")
-
-    parser.add_argument("--auto-contscale-negtail-percentile", type=float, default=5.0, help="For method='negtail': lower percentile of CS pixels to compare against sky noise.")
-    parser.add_argument("--auto-contscale-negtail-target", type=float, default=-1.5, help="For method='negtail': target lower-tail value in units of sky sigma.")
-    parser.add_argument("--auto-contscale-negtail-ngrid", type=int, default=81, help="For method='negtail': number of trial continuum scales.")
-
-
-    args = parser.parse_args()
-
-    dirname = args.cutdir
-    contscale = args.contscale
-    overwrite = args.overwrite
-
-    # get current directory
     topdir = os.getcwd()
-
-    # define cutout directory and load metadata.json
-    cutdir = Path(dirname)
+    cutdir = Path(cutdir)
     metafile = cutdir / "metadata.json"
 
     if not metafile.exists():
@@ -593,505 +1216,346 @@ if __name__ == '__main__':
     with open(metafile, "r") as f:
         meta = json.load(f)
 
-    # Use metadata.json as the source of truth
     tag = meta.get("tag", cutdir.name)
     objid = meta.get("objid", tag)
     vfid = objid.split("-")[0]
 
     telescope = meta["telescope"]
-    dateobs = meta.get("dateobs", "")
-    pointing = meta.get("pointing", "")
     hafilter = meta.get("hafilter", "")
 
-
-    
-    # Metadata-driven filter correction and filter properties
     halpha_filter_cor = float(meta.get("filter_correction", 1.0))
     if halpha_filter_cor == 0:
-        print("resetting filter correction to 1")
         halpha_filter_cor = 1.0
 
-    # This replaces header FLTRATIO / old lookup logic
-    rscale = float(meta["filter_ratio"])
-
-    # This replaces filter_lambda_c_AA[telescope] and filter_width_AA[telescope]
     hfilter_center_A = float(meta["hafilter_center_A"])
     hfilter_width_A = float(meta["hafilter_width_A"])
-
-    # Not currently in metadata.json. Keep as neutral correction.
     halpha_extinction_correction = 1.0
 
-    print(f"{tag}: telescope = {telescope}")
-    print(f"{tag}: dateobs = {dateobs}")
-    print(f"{tag}: pointing = {pointing}")
-    print(f"{tag}: hafilter = {hafilter}")
-    print(f"{tag}: halpha filter correction = {halpha_filter_cor:.4f}")
-    print(f"{tag}: filter ratio = {rscale:.6f}")
-    print(f"{tag}: halpha filter center = {hfilter_center_A:.2f} A")
-    print(f"{tag}: halpha filter width = {hfilter_width_A:.2f} A")
-    print(f"{tag}: continuum scale factor = {contscale:.3f}")
-    print(f"{tag}: MW extinction correction = {halpha_extinction_correction:.3f}")
-
-
     cont_oversub = get_continuum_oversubtraction_from_metadata(meta)
+
+    print(f"{tag}: telescope = {telescope}")
+    print(f"{tag}: hafilter = {hafilter}")
+    print(f"{tag}: filter correction = {halpha_filter_cor:.4f}")
     print(f"{tag}: continuum oversubtraction correction = {cont_oversub:.4f}")
-    
-    # move to subdirectory specified in the command line
+
     os.chdir(cutdir)
 
-
-    ############################################################
-    ## Define image names
-    ############################################################    
-
-    # define the file names
-    Rfile = f"{tag}-R.fits"       # r-band image taken with same telescope as halpha
-    Hfile = f"{tag}-Ha.fits"      # halpha image
+    Rfile = f"{tag}-R.fits"
+    Hfile = f"{tag}-Ha.fits"
     outname = f"{tag}-CS-gr.fits"
-
-
     segfile = f"{tag}-R-phot-segmentation.fits"
 
-    
-    # get legacy images that are reprojected to the halpha image
-    # these are in the legacy subdirectory
-    legacy_path = os.path.join("legacy", vfid + "*r-ha.fits")
-    rfiles = glob.glob(legacy_path)
-
-    if len(rfiles) < 1:
-        print("problem getting r-ha.fits legacy image", len(rfiles))
+    if os.path.exists(outname) and not overwrite:
+        print(f"CS-gr image exists; not remaking: {outname}")
         os.chdir(topdir)
-        sys.exit(1)
-    else:
-        leg_rfile = rfiles[0]  # legacy r-band image
+        return outname
 
-    # legacy g-band image, shifted to match halpha footprint and pixel scale
-    gfiles = glob.glob(os.path.join("legacy", vfid + "*g-ha.fits"))
+    legacy_r = sorted(glob.glob(os.path.join("legacy", vfid + "*r-ha.fits")))
+    legacy_g = sorted(glob.glob(os.path.join("legacy", vfid + "*g-ha.fits")))
 
-    if len(gfiles) < 1:
-        print("problem getting g-ha.fits legacy image")
+    if len(legacy_r) < 1:
         os.chdir(topdir)
-        sys.exit(2)
+        raise FileNotFoundError(f"No legacy r-ha image found for {vfid}")
+
+    if len(legacy_g) < 1:
+        os.chdir(topdir)
+        raise FileNotFoundError(f"No legacy g-ha image found for {vfid}")
+
+    leg_rfile = legacy_r[0]
+    leg_gfile = legacy_g[0]
+
+    # ------------------------------------------------------------
+    # Load HAPY mask for scaling/segmentation only.
+    # Do not apply it to the final CS-gr image.
+    # ------------------------------------------------------------
+    if maskfile is not None:
+        maskfile = Path(maskfile)
+
+        if not maskfile.is_absolute():
+            maskfile = Path(maskfile.name)
+
+        if maskfile.exists():
+            scale_mask = fits.getdata(maskfile) > 0
+            if np.sum(scale_mask) == 0:
+                print(f"WARNING: mask file has no masked pixels: {maskfile}")
+                scale_mask = None
+            else:
+                print(f"Using mask for continuum scale: {maskfile}")
+        else:
+            print(f"WARNING: requested maskfile not found: {maskfile}")
+            scale_mask = None
     else:
-        leg_gfile = gfiles[0]  # legacy g-band image
+        scale_mask = None
+        print("No mask supplied to make_cs_gr_image; scaling will use unmasked segmentation region.")
 
-    # define the mask file
-    # HAPY convention:
-    #   manual mask: <tag>-mask-manual.fits
-    #   auto mask:   <tag>-mask.fits
-    #   csgr sky mask fallback: <tag>-R-phot-segmentation.fits
-    manual_mask = f"{tag}-mask-manual.fits"
-    auto_mask = f"{tag}-mask.fits"
-    segfile = f"{tag}-R-phot-segmentation.fits"
+    # ------------------------------------------------------------
+    # Build/read g-r image. Do not apply HAPY mask here, to avoid
+    # artificial discontinuities in the displayed CS-gr image.
+    # ------------------------------------------------------------
+    gr_outimage = leg_rfile.replace("r-ha.fits", "gr-smooth.fits")
 
-    if os.path.exists(manual_mask):
-        maskfile = manual_mask
-        print(f"Using manual mask: {maskfile}")
-
-    elif os.path.exists(auto_mask):
-        maskfile = auto_mask
-        print(f"Using auto mask: {maskfile}")
-
+    if os.path.exists(gr_outimage) and not overwrite:
+        print(f"Found g-r image: {gr_outimage}")
+        gr_col = fits.getdata(gr_outimage)
     else:
-        print("WARNING: no HAPY mask found; creating photutils segmentation mask")
-        maskfile = make_simple_photutils_segmentation(
-            Rfile,
-            segfile,
-            maskfile=None,
+        gr_col = get_gr(
+            leg_gfile,
+            leg_rfile,
+            mask=None,
+            smooth_kernel=smooth_kernel,
+        )
+
+    usemask = np.isfinite(gr_col)
+
+    with fits.open(Hfile) as hhdu, fits.open(Rfile) as rhdu:
+        h_header = hhdu[0].header.copy()
+        r_header = rhdu[0].header.copy()
+
+        data_NB = hhdu[0].data.astype(float)
+        data_r = rhdu[0].data.astype(float)
+
+        rZP = r_header["PHOTZP"]
+        hZP = h_header["PHOTZP"]
+
+        wcs_NB = wcs.WCS(h_header)
+        pscale_NB = wcs.utils.proj_plane_pixel_scales(wcs_NB) * 3600.0
+
+        rscale_meta = float(meta.get("filter_ratio", np.nan))
+        rscale_zp = zp_scale_r_to_ha(hZP, rZP)
+
+        print(f"{tag}: metadata filter_ratio = {rscale_meta:.6f}")
+        print(f"{tag}: ZP r-to-Halpha scale = {rscale_zp:.6f}")
+        if np.isfinite(rscale_meta) and np.isfinite(rscale_zp) and rscale_zp != 0:
+            print(f"{tag}: metadata / ZP scale = {rscale_meta / rscale_zp:.3f}")
+
+        rscale = rscale_zp
+
+        # ------------------------------------------------------------
+        # Local sky subtraction
+        # ------------------------------------------------------------
+
+
+        r_weight_file = Rfile.replace(".fits", ".weight.fits")
+        r_weight = fits.getdata(r_weight_file) if os.path.exists(r_weight_file) else None
+
+        h_weight_file = Hfile.replace(".fits", ".weight.fits")
+        h_weight = fits.getdata(h_weight_file) if os.path.exists(h_weight_file) else None
+
+        mean_sky_r, median_sky_r, std_sky_r = calculate_background_photutils(
+            data_r,
+            grow_radius=10,
+            npixels=10,
+            weightimage=r_weight,
             nsigma=2.0,
-            npixels=20,
+            clip_sigma=3.0,
         )
-        print(f"Using photutils segmentation mask: {maskfile}")
 
-    mask = fits.getdata(maskfile)
-    mask = mask > 0
+        mean_sky_h, median_sky_h, std_sky_h = calculate_background_photutils(
+            data_NB,
+            grow_radius=10,
+            npixels=5,
+            weightimage=h_weight,
+            nsigma=2.0,
+            clip_sigma=3.0,
+        )
 
-    if np.sum(mask) == 0:
-        print(f"WARNING: mask file exists but has no masked pixels: {maskfile}")
-        mask = None
-        
+        print(f"r sky: mean={mean_sky_r:.2e}, med={median_sky_r:.2e}, std={std_sky_r:.2e}")
+        print(f"h sky: mean={mean_sky_h:.2e}, med={median_sky_h:.2e}, std={std_sky_h:.2e}")
 
+        # Important: subtract sky in same units being used.
+        data_r = data_r - median_sky_r
+        data_NB = data_NB - median_sky_h
 
-    #overwrite = True
+        data_r_to_Ha = data_r * rscale
 
-    """
-    reproject infile to reffile image
+        h_header.set("SKYR", float(median_sky_r), "Local sky subtracted from r")
+        h_header.set("SKYHA", float(median_sky_h), "Local sky subtracted from Halpha")
+        # ------------------------------------------------------------
+        # Color correction
+        # ------------------------------------------------------------
+        delta_mag = halpha_minus_r_color_from_metadata(meta, gr_col)
 
-    PARAMS:
-    Rfile : r-band image taken with halpha, to be used for continuum
-    Hfile : halpha image filename
-    gfile : g-band filename to be used for calculating g-r color (legacy image)
-    rfile : r-band filename to be used for calculating g-r color (legacy image)
-    outname: output name
+        delta_mag_name = f"{tag}-CS-gr-delta-mag.fits"
+        dhdr = h_header.copy()
+        dhdr.set("IMTYPE", "DELTMAG", "Halpha - R color correction")
+        dhdr.set("CSTYPE", "CS-gr", "Used for CS-gr continuum subtraction")
+        fits.writeto(delta_mag_name, delta_mag, dhdr, overwrite=True)
+        print(f"Wrote {delta_mag_name}")
 
-    RETURN:
-    nothing, but save the CS subtracted image that uses the g-r color in the current directory
-    """
+        delta_flux = np.ones_like(data_r_to_Ha, dtype=float)
+        delta_flux[usemask] = 10.0 ** (-0.4 * delta_mag[usemask])
 
-    if os.path.exists(outname) & (not overwrite):
-        print("continuum-subtracted image exists - not redoing it")
-        os.chdir(topdir)
-        sys.exit()
+        data_r_to_Ha = data_r_to_Ha * delta_flux
 
+        # ------------------------------------------------------------
+        # Segmentation region for auto continuum scaling
+        # ------------------------------------------------------------
+        if not os.path.exists(segfile):
+            print(f"WARNING: missing photutils segmentation; creating {segfile}")
+            segfile = make_simple_photutils_segmentation(
+                Rfile,
+                segfile,
+                maskfile=maskfile,
+            )
 
-
-
-    ############################################################
-    ## Get g-r image
-    ############################################################
-    outimage = leg_rfile.replace("r-ha.fits", "gr-smooth.fits")
-    
-    if os.path.exists(outimage) & (not overwrite):
-        print("found g-r image. not remaking this")
-        hdu = fits.open(outimage)
-        gr_col = hdu[0].data
-        hdu.close()
-    else:
-        gr_col = get_gr(leg_gfile, leg_rfile, mask=mask, smooth_kernel=5)
-
-    # usemask should be all the values in the color image that are not equal to np.nan
-    usemask = ~np.isnan(gr_col)  # these are the good values in the g-r color
-
-    # this should be the text describing the galaxy
-    # like : VFID0569-NGC5989-INT-20190530-p002
-    fileroot = Rfile.replace("-R.fits", "")
-
-    # read in *our* r-band and halpha images
-    hhdu = fits.open(Hfile)
-    rhdu = fits.open(Rfile)
-
-    # get photometric ZP for each image
-    rZP = rhdu[0].header["PHOTZP"]
-    hZP = hhdu[0].header["PHOTZP"]
-
-    # get filter names
-    rfilter = rhdu[0].header["FILTER"]
-    hfilter = hhdu[0].header["FILTER"]
-
-    # get the pixel scale in the halpha image
-    wcs_NB = wcs.WCS(Hfile)
-    pscale_NB = wcs.utils.proj_plane_pixel_scales(wcs_NB) * 3600.0
-
-    rscale_zp = zp_scale_r_to_ha(hZP, rZP)
-    #print(f"scaling r-band continuum by {rscale:.6f}, ratio of ZP={zp_fratio}")
-
-    rscale_meta = float(meta.get("filter_ratio", np.nan))
-    rscale_zp = zp_scale_r_to_ha(hZP, rZP)
-
-    print(f"{tag}: metadata filter_ratio = {rscale_meta:.6f}")
-    print(f"{tag}: ZP r-to-Halpha scale = {rscale_zp:.6f}")
-    print(f"{tag}: metadata / ZP scale = {rscale_meta / rscale_zp:.3f}")
-
-    rscale = rscale_zp
-
-    
-    ##
-    # The following is from Matteo Fossati
-    ##
-
-    print("\nGenerate NET image\n")
-
-    # ############################################################
-    # ## Subtract local sky from cutouts
-    # ############################################################
-
-    # HAPY cutouts should already be sky-subtracted when
-    # metadata["cutout_sky_subtracted"] == True.
-    data_r = rhdu[0].data.astype(float)
-    data_NB = hhdu[0].data.astype(float)
-
-    data_r_to_Ha = data_r * rscale
-    
-    # subtract local sky
-    r_weight_file = Rfile.replace(".fits",".weight.fits")
-    if os.path.exists(r_weight_file):
-        r_weight = fits.getdata(r_weight_file)
-    else:
-        r_weight = None
-
-    h_weight_file = Hfile.replace(".fits",".weight.fits")
-    if os.path.exists(h_weight_file):
-        h_weight = fits.getdata(h_weight_file)
-    else:
-        h_weight = None
-        
-    mean_sky_r, median_sky_r, std_sky_r = calculate_background_photutils(
-        data_r_to_Ha,
-        grow_radius=10,
-        npixels=10,
-        weightimage=r_weight,
-        nsigma=2.0,
-        clip_sigma=3.0,
-    )
-    print(f"r sky: mean={mean_sky_r:.2e}, med={median_sky_r:.2e}, std={std_sky_r:.2e}")
-    data_r = data_r - median_sky_r
-    #data_r = data_r - mean_sky_r
-
-    mean_sky_h, median_sky_h, std_sky_h = calculate_background_photutils(
-        data_NB,
-        grow_radius=10,
-        npixels=5,
-        weightimage=h_weight,
-        nsigma=2,
-        clip_sigma=3.0,
-    )
-    data_NB = data_NB - median_sky_h
-    #data_NB = data_NB - mean_sky_h    
-    print(f"h sky: mean={mean_sky_h:.2e}, med={median_sky_h:.2e}, std={std_sky_h:.2e}")    
-
-    print("Using HAPY cutout images with additional local sky subtraction")
-    print(f"\tr-band sky subtracted = {median_sky_r:.2e}")
-    print(f"\thalpha sky subtracted = {median_sky_h:.2e}")    
-
-    # # TODONE - revisit this and examine the masking. - skipping sky subtraction here b/c already done when making cutouts
-    # # the mask we are currently using does not mask the central galaxy
-    # # also, we already subtract the sky from each continuum image when making cutouts...
-
-
-    
-    # # subtract sky from r-band image
-    # print("Computing median values for r and halpha images")
-    
-    # print("subtracting these values from the image...")
-
-    # stat_r = stats.sigma_clipped_stats(rhdu[0].data, mask=mask)
-    # print("Subtracting {0:3.2e} from r-band image".format(stat_r[1]))
-
-    #data_r = rhdu[0].data - stat_r[1]
-    # data_r_to_Ha = data_r * rscale
-
-    # # sky subtracted r-band image
-    # skysub_r_name = Rfile.replace("-R.fits", "-R-sky.fits")
-    # hdu = fits.PrimaryHDU(data_r, header=rhdu[0].header)
-    # hdu.writeto(skysub_r_name, overwrite=True)
-
-    # # subtract sky from Halpha image
-    # stat_h = stats.sigma_clipped_stats(hhdu[0].data, mask=mask)
-    # print("Subtracting {0:3.2e} from halpha image".format(stat_h[1]))
-    # data_NB = hhdu[0].data - stat_h[1]
-
-
-    ############################################################
-    ## Transform images
-    ############################################################
-    
-    ##
-    # These comments are from Matteo's program
-    ##
-    # Generate the r band mag image and the r band calibrated to Halpha wave
-    # This works only for positive flux pixels. Take this into account
-
-    mag_r_to_Ha = -2.5 * np.log10(data_r_to_Ha) + rZP
-    mag_NB = -2.5 * np.log10(data_NB) + hZP
-
-    # now calc fluxes using the same ZP
-    #data_r_ZP30 = 10.0 ** (-0.4 * (mag_r - 30))
-    #data_NB_ZP30 = 10.0 ** (-0.4 * (mag_NB - 30))
-
-    # Transform the mag_r image to the observed Halpha filter
-    #
-    # mag_r in AB mags
-    # g-r color is in AB mags
-
-    # going to stay in counts to avoid nans
-    # create an image with delta needed to correct for color term
-    # this is the fit to
-    # delta_mag = (halpha - r) = f(g-r)
-    delta_mag = halpha_minus_r_color_from_metadata(meta, gr_col)
-    #delta_mag = np.zeros_like(gr_col, dtype=float)
-
-    delta_mag_name = f"{tag}-CS-gr-delta-mag.fits"
-    hdu = fits.PrimaryHDU(delta_mag, header=hhdu[0].header)
-    hdu.header.set("IMTYPE", "DELTMAG", "Halpha - R color correction")
-    hdu.header.set("CSTYPE", "CS-gr", "Used for CS-gr continuum subtraction")
-    hdu.writeto(delta_mag_name, overwrite=True)
-    print(f"Wrote {delta_mag_name}")
-    
-    # mag_r_to_Ha and mag_r should 
-    mag_r_to_Ha = mag_r_to_Ha + delta_mag
-    
-    # convert to flux units
-    delta_flux = 10.0 ** (-0.4 * delta_mag)
-
-    # use the color correction for pixels with sufficient SNR
-    data_r_to_Ha[usemask] = data_r_to_Ha[usemask] * delta_flux[usemask]
-
-
-    # check for existing segmentation map
-    if not os.path.exists(segfile):
-        print(f"WARNING: missing photutils segmentation; creating {segfile}")
-        segfile = make_simple_photutils_segmentation(
-            Rfile,
+        galaxy_region = get_galaxy_region_from_segmap(
             segfile,
-            maskfile=maskfile,
+            mask=scale_mask,
+            meta=meta,
+            search_radius=10,
         )
 
-    # get additional scale factor to make 
-    galaxy_region = get_galaxy_region_from_segmap(segfile, mask=mask)
+        if galaxy_region is None:
+            print("WARNING: no galaxy region found; using extra_scale=1.0")
+            extra_scale = 1.0
 
-    if args.auto_contscale_method == "ratio":
-        extra_scale = estimate_extra_continuum_scale(
-            ha_data=data_NB,
-            rcont_data=data_r_to_Ha,
-            galaxy_mask=galaxy_region,
-            bad_mask=mask,
-            min_pixels=args.auto_contscale_min,
-            clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
-            ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
-            scale_percentile=args.auto_contscale_percentile,
+        elif auto_contscale:
+            if auto_contscale_method == "ratio":
+                extra_scale = estimate_extra_continuum_scale(
+                    ha_data=data_NB,
+                    rcont_data=data_r_to_Ha,
+                    galaxy_mask=galaxy_region,
+                    bad_mask=scale_mask,
+                    min_pixels=auto_contscale_min,
+                    clip_range=(auto_contscale_min_scale, auto_contscale_max_scale),
+                    ratio_range=(auto_contscale_ratio_min, auto_contscale_ratio_max),
+                    scale_percentile=auto_contscale_percentile,
+                )
+
+            elif auto_contscale_method == "negtail":
+                cs0 = data_NB - data_r_to_Ha
+                stat_cs = stats.sigma_clipped_stats(cs0, mask=scale_mask)
+                sky_sigma = stat_cs[2]
+
+                print(f"Measured CS sigma = {sky_sigma:.3e}")
+
+                extra_scale = estimate_scale_from_negative_tail_bisect(
+                    ha_data=data_NB,
+                    rcont_data=data_r_to_Ha,
+                    galaxy_mask=galaxy_region,
+                    sky_sigma=sky_sigma,
+                    bad_mask=scale_mask,
+                    target=auto_contscale_negtail_target,
+                    percentile=auto_contscale_negtail_percentile,
+                    scale_range=(auto_contscale_min_scale, auto_contscale_max_scale),
+                    min_pixels=auto_contscale_min,
+                )
+
+            else:
+                raise ValueError(f"Unknown auto_contscale_method: {auto_contscale_method}")
+
+        else:
+            extra_scale = contscale
+
+        print(f"\nCS-gr extra_scale = {extra_scale:.4f}\n")
+
+        csgr_data = data_NB - extra_scale * data_r_to_Ha
+
+        # Apply flux corrections to linear CS-gr image.
+        csgr_data = csgr_data * cont_oversub * halpha_filter_cor
+        csgr_data = csgr_data * halpha_extinction_correction
+
+        # ------------------------------------------------------------
+        # Physical flux diagnostics
+        # ------------------------------------------------------------
+        fnu_NB = 3.631E3 * data_NB * 1E-12
+        flam_NB = 2.99792458E-5 * fnu_NB / (hfilter_center_A**2) * 1E18
+
+        cnu_NB = 3.631E3 * data_r_to_Ha * 1E-12
+        clam_NB = 2.99792458E-5 * cnu_NB / (hfilter_center_A**2) * 1E18
+
+        flam_net = hfilter_width_A * (flam_NB - extra_scale * clam_NB)
+        flam_net = flam_net * cont_oversub * halpha_filter_cor
+        flam_net = flam_net * halpha_extinction_correction
+
+        stat = stats.sigma_clipped_stats(flam_net, mask=scale_mask)
+        print("Unbinned SB limit 1sigma {0:3.2e} e-18".format(stat[2] / (pscale_NB[0] ** 2)))
+
+        flam_net_smooth = convolution.convolve_fft(
+            flam_net,
+            convolution.Box2DKernel(10),
+            allow_huge=True,
+            nan_treatment="interpolate",
         )
 
-    elif args.auto_contscale_method == "negtail":
-
-        cs0 = data_NB - data_r_to_Ha
-
-        stat_cs = stats.sigma_clipped_stats(cs0, mask=mask)
-        sky_sigma = stat_cs[2]
-
-        header_cskystd = hhdu[0].header.get("CSKYSTD", np.nan)
-        print(f"Header CSKYSTD = {header_cskystd}")
-        print(f"Measured CS sigma = {sky_sigma:.3f}")
-
-
-        extra_scale = estimate_scale_from_negative_tail_bisect(
-            ha_data=data_NB,
-            rcont_data=data_r_to_Ha,
-            galaxy_mask=galaxy_region,
-            sky_sigma=sky_sigma,
-            bad_mask=mask,
-            target=args.auto_contscale_negtail_target,
-            percentile=args.auto_contscale_negtail_percentile,
-            scale_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
-            min_pixels=args.auto_contscale_min,
+        stat_sm = stats.sigma_clipped_stats(flam_net_smooth, mask=scale_mask)
+        print(
+            "Smoothed {1}x{1} SB limit 1sigma {0:3.2e} e-18".format(
+                stat_sm[2] / (pscale_NB[0] ** 2), 10
+            )
         )
-    
-    # if args.auto_contscale:
-    #     extra_scale = estimate_extra_continuum_scale(
-    #         ha_data=data_NB,
-    #         rcont_data=data_r_to_Ha,
-    #         galaxy_mask=galaxy_region,
-    #         bad_mask=mask,
-    #         min_pixels=args.auto_contscale_min,
-    #         clip_range=(args.auto_contscale_min_scale, args.auto_contscale_max_scale),
-    #         ratio_range=(args.auto_contscale_ratio_min, args.auto_contscale_ratio_max),
-    #         scale_percentile=args.auto_contscale_percentile,
-    #         )
 
-    # else:
-    #     extra_scale = 1.0
-    print(f"\nauto CS extra_scale = {extra_scale:.4f}\n")
-    csgr_data = data_NB - extra_scale * data_r_to_Ha
-    
-    ##
-    # Matteo Comment: Go to cgs units
-    ##
+        # ------------------------------------------------------------
+        # Write CS-gr image
+        # ------------------------------------------------------------
+        h_header.set("CSTYPE", "CS-gr", "Continuum subtraction type")
+        h_header.set("CONSCALE", float(f"{contscale:.4f}"), "Input manual continuum scale")
+        h_header.set("CONTSCL", float(f"{extra_scale:.5f}"), "Extra continuum scale used")
+        h_header.set("FILT_COR", float(f"{halpha_filter_cor:.4f}"), "Filter transmission correction")
+        h_header.set("FLTRATIO", float(f"{rscale:.8f}"), "r-to-Halpha scale from PHOTZP")
+        h_header.set("FLTRMET", float(f"{rscale_meta:.8f}"), "metadata filter_ratio")
+        h_header.set("CONTOSUB", float(f"{cont_oversub:.4f}"), "Continuum oversubtraction correction")
+        h_header.set("MWEXTCOR", float(f"{halpha_extinction_correction:.4f}"), "MW extinction correction")
+        h_header.set("HACEN_A", float(f"{hfilter_center_A:.2f}"), "Halpha filter center Angstrom")
+        h_header.set("HAWID_A", float(f"{hfilter_width_A:.2f}"), "Halpha filter width Angstrom")
+        h_header.set("SRCMETA", "metadata.json", "Source of correction metadata")
+        h_header.set("AUTOCONT", bool(auto_contscale), "Auto continuum scale used")
+        h_header.set("AUTOMETH", str(auto_contscale_method), "Auto continuum scale method")
+        h_header.set("AUTOPCTL", float(auto_contscale_percentile), "Ratio method percentile")
+        h_header.set("SKYR", float(median_sky_r), "Local sky subtracted from scaled r")
+        h_header.set("SKYHA", float(median_sky_h), "Local sky subtracted from Halpha")
 
-    # TODONE - make sure filter quantities are correct
-    # need:
-    #   - center wavelength in A
-    
-    fnu_NB = 3.631E3 * data_NB * 1E-12
-    flam_NB = 2.99792458E-5 * fnu_NB / (hfilter_center_A**2) * 1E18
+        fits.writeto(outname, csgr_data, h_header, overwrite=True)
+        print(f"Wrote {outname}")
 
-    cnu_NB = 3.631E3 * data_r_to_Ha * 1E-12
-    clam_NB = 2.99792458E-5 * cnu_NB / (hfilter_center_A**2) * 1E18
-
-    # need to multiply by width of filter to convert from flux/A to flux
-    flam_net = hfilter_width_A * (flam_NB - contscale * clam_NB)
-
-    # correct CS flux for variations in filter transmission and oversubtraction due to halpha in r-band filter
-
-    # TODONE - need to update continuum oversubtraction terms for full filters
-    # skipping for now
-    # flam_net = flam_net * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
-
-    cont_oversub = get_continuum_oversubtraction_from_metadata(meta)
-    flam_net = flam_net * cont_oversub * halpha_filter_cor
-    
-    # MW extinction correction is currently neutral because it is not in metadata.json
-    flam_net = flam_net * halpha_extinction_correction
-
-    # Save a version in AB/count-like units for compatibility with HAPY photometry programs
-
-    # why are we using contscale again here when data_r_to_Ha is already scaled already
-    # here, contscale is an extra factor the user can input to tweak the continuum subtraction
-
-
-    # correct for filter transmission variations and for halpha emission in the continuum filter
-
-    # TODONE - need to update oversubtraction terms using the correct filter traces
-    # skipping for now
-    # NB_ABmag = NB_ABmag * halpha_continuum_oversubtraction[telescope] * halpha_filter_cor
-    csgr_data = csgr_data * cont_oversub * halpha_filter_cor
-
-
-    # MW extinction correction is currently neutral because it is not in metadata.json
-    csgr_data = csgr_data * halpha_extinction_correction
-
-    ############################################################
-    # Write CS-gr image
-    ############################################################
-
-    hhdu[0].header.set("CSTYPE", "CS-gr", "Continuum subtraction type")
-    hhdu[0].header.set("CONSCALE", float(f"{contscale:.4f}"), "Continuum scale factor")
-    hhdu[0].header.set("FILT_COR", float(f"{halpha_filter_cor:.4f}"), "Filter transmission correction")
-    hhdu[0].header.set("FLTRATIO", float(f"{rscale:.8f}"), "r-to-Halpha continuum scale")
-    hhdu[0].header.set("CONTOSUB", float(f"{cont_oversub:.4f}"), "CONT OVERSUB COR")
-    hhdu[0].header.set("MWEXTCOR", float(f"{halpha_extinction_correction:.4f}"), "MW extinction correction")
-    hhdu[0].header.set("HACEN_A", float(f"{hfilter_center_A:.2f}"), "Halpha filter center Angstrom")
-    hhdu[0].header.set("HAWID_A", float(f"{hfilter_width_A:.2f}"), "Halpha filter width Angstrom")
-    hhdu[0].header.set("SRCMETA", "metadata.json", "Source of correction metadata")
-
-    hhdu[0].header.set("AUTOCONT", bool(args.auto_contscale), "Auto continuum scale used")
-    hhdu[0].header.set("CONTSCL", float(extra_scale), "Extra continuum scale")
-    #hhdu[0].header.set("CONTQ", float(args.auto_contscale_q), "Percentile used for auto continuum scale")
-    hdu = fits.PrimaryHDU(csgr_data, header=hhdu[0].header)
-    hdu.writeto(outname, overwrite=True)
-
-    print(f"Wrote {outname}")
-
-    # The rest are different versions of the CS image that Matteo saves.
-    # Keeping calculations for diagnostics, but not writing by default.
-
-    hdu = fits.PrimaryHDU(flam_NB, header=hhdu[0].header)
-
-    hdu = fits.PrimaryHDU(clam_NB, header=hhdu[0].header)
-
-    # Calculate clipped statistic
-    # stat is a tuple of mean, median, sigma
-    stat = stats.sigma_clipped_stats(flam_net, mask=mask)
-
-    print("Unbinned SB limit 1sigma {0:3.2e} e-18".format(stat[2] / (pscale_NB[0] ** 2)))
-
-    # This is the continuum-subtracted image in physical flux units
-    hdu = fits.PrimaryHDU(flam_net, header=hhdu[0].header)
-
-    # convert image to surface brightness units
-    sblam_net = flam_net / (pscale_NB[0] ** 2)
-
-    hdu = fits.PrimaryHDU(sblam_net, header=hhdu[0].header)
-
-    print("Smoothing net image")
-    flam_net_smooth = convolution.convolve_fft(
-        flam_net,
-        convolution.Box2DKernel(10),
-        allow_huge=True,
-        nan_treatment="interpolate",
-    )
-
-    hdu = fits.PrimaryHDU(flam_net_smooth, header=hhdu[0].header)
-
-    stat_sm = stats.sigma_clipped_stats(flam_net_smooth, mask=mask)
-
-    print(
-        "Smoothed {1}x{1} SB limit 1sigma {0:3.2e} e-18".format(
-            stat_sm[2] / (pscale_NB[0] ** 2), 15
-        )
-    )
-
-    # close hdu files
-    hhdu.close()
-    rhdu.close()
-
-    # move back to the top directory
     os.chdir(topdir)
+    return str(cutdir / outname)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Make CS-gr continuum-subtracted image for one HAPY cutout directory."
+    )
+
+    parser.add_argument("cutdir")
+    parser.add_argument("--maskfile", default=None)
+    parser.add_argument("--contscale", type=float, default=1.0)
+    parser.add_argument("--overwrite", action="store_true")
+
+    parser.add_argument("--auto-contscale", action="store_true")
+    parser.add_argument("--auto-contscale-method", choices=["ratio", "negtail"], default="ratio")
+    parser.add_argument("--auto-contscale-min", type=int, default=100)
+    parser.add_argument("--auto-contscale-min-scale", type=float, default=0.75)
+    parser.add_argument("--auto-contscale-max-scale", type=float, default=1.15)
+
+    parser.add_argument("--auto-contscale-percentile", type=float, default=30.0)
+    parser.add_argument("--auto-contscale-ratio-min", type=float, default=0.7)
+    parser.add_argument("--auto-contscale-ratio-max", type=float, default=1.3)
+
+    parser.add_argument("--auto-contscale-negtail-percentile", type=float, default=5.0)
+    parser.add_argument("--auto-contscale-negtail-target", type=float, default=-1.5)
+
+    parser.add_argument("--smooth-kernel", type=float, default=5)
+
+    args = parser.parse_args()
+
+    make_cs_gr_image(
+        cutdir=args.cutdir,
+        maskfile=args.maskfile,
+        contscale=args.contscale,
+        overwrite=args.overwrite,
+        auto_contscale=args.auto_contscale,
+        auto_contscale_method=args.auto_contscale_method,
+        auto_contscale_percentile=args.auto_contscale_percentile,
+        auto_contscale_min=args.auto_contscale_min,
+        auto_contscale_min_scale=args.auto_contscale_min_scale,
+        auto_contscale_max_scale=args.auto_contscale_max_scale,
+        auto_contscale_ratio_min=args.auto_contscale_ratio_min,
+        auto_contscale_ratio_max=args.auto_contscale_ratio_max,
+        auto_contscale_negtail_percentile=args.auto_contscale_negtail_percentile,
+        auto_contscale_negtail_target=args.auto_contscale_negtail_target,
+        smooth_kernel=args.smooth_kernel,
+    )
+
+
+if __name__ == "__main__":
+    main()

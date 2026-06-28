@@ -233,7 +233,7 @@ python ~/github/hapy/scripts/validate_dashboards.py merged_results_virgo_${RUNDA
 find ${ROOTDIR}/cutouts -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort > cutout_list_buildwebpages.txt
 python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir ${ROOTDIR}/cutouts --outdir ${ROOTDIR}/html/cutouts --oneimage $(head -1 cutout_list_buildwebpages.txt)
 parallel --bar -j 20 --joblog build_web_cutouts.joblog --results build_web_logs python ~/github/hapy/scripts/build_web_cutouts.py --cutoutdir ${ROOTDIR}/cutouts --oneimage {} --outdir ${ROOTDIR}/html/cutouts :::: cutout_list_buildwebpages.txt
-python ~/github/hapy/scripts/build_cutout_index.py --runroot ${ROOTDIR}/ --results-table ${ROOTDIR}/merged_results_virgo_${RUNDATE}.fits
+python ~/github/hapy/scripts/build_cutout_index.py --runroot /data-pool/Halpha/hapy-output-20260626/ --results-table merged_results_virgo_20260627.fits
 ```
 
 Sync webpages to the server:
