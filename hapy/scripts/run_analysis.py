@@ -2820,7 +2820,7 @@ def main():
 
     if csgr_fits and args.csgr:
         t0 = time.perf_counter()
-
+        print("DEBUG: making cs-gr image")
         logger.info("Making CS-gr image")
         from hapy.scripts.make_cs_gr import make_cs_gr_image
 
