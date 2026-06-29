@@ -95,7 +95,7 @@ Merge the get_cutouts summary tables:
 merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
 ```
 
-## 5. Get Legacy Images to use when making CS-gr images
+## 5. Get Legacy images to use when making CS-gr images
 
 ### 5.1 Copy Legacy cutouts from a previous run, when possible
 
