@@ -2818,9 +2818,9 @@ def main():
     # block for cs-gr if the image exists
     ################################################################
 
-    if csgr_fits and args.csgr:
+    if args.csgr:
         t0 = time.perf_counter()
-        print("DEBUG: making cs-gr image")
+        print("\nDEBUG: making cs-gr image\n")
         logger.info("Making CS-gr image")
         from hapy.scripts.make_cs_gr import make_cs_gr_image
 
