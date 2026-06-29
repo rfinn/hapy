@@ -2009,19 +2009,6 @@ def main():
 
     row = initialize_hapy_clumps(row, prefix="HCL_")
     row = initialize_hapy_clumps(row, prefix="CSGR_HCL_")    
-    # look for CS-gr image and log it if found
-    csgr_fits = (
-        str(cutdir / params.get("csgr_fits")) if params.get("csgr_fits") else None
-    ) or _pick_one(str(cutdir / f"{tag}*-CS-gr.fits"))
-
-
-    if csgr_fits:
-        logger.info(f"Found CS-gr image: {csgr_fits}")
-        row["CSGR_EXISTS"] = True
-        row["CSGR_FITS"] = Path(csgr_fits).name
-        row["CSGR_CONTSCL"] = fits.getheader(csgr_fits).get("CONTSCL", np.nan)
-    else:
-        logger.info("No CS-gr image found")
     
     
     from datetime import datetime
@@ -2833,12 +2820,28 @@ def main():
             auto_contscale_percentile=30.0,
         )
 
+        # look for CS-gr image and log it if found
+        csgr_fits = (
+            str(cutdir / params.get("csgr_fits")) if params.get("csgr_fits") else None
+        ) or _pick_one(str(cutdir / f"{tag}*-CS-gr.fits"))
+        
+        if csgr_fits:
+            logger.info(f"Found CS-gr image: {csgr_fits}")
+            row["CSGR_EXISTS"] = True
+            row["CSGR_FITS"] = Path(csgr_fits).name
+            row["CSGR_CONTSCL"] = fits.getheader(csgr_fits).get("CONTSCL", np.nan)
+        else:
+            logger.info("No CS-gr image found")
+        
         if not csgr_ok:
             logger.warning("Skipping CS-gr analysis b/c make_cs_gr_image returned False - make sure legacy g and r images exist.")
             print("WARNING: Skipping CS-gr analysis.")
             row["PHOT_GR_OK"] = False
 
         else:
+
+
+
         
             logger.info("Running optional CS-gr ellipse photometry")
 
