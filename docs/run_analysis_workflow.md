@@ -95,7 +95,7 @@ Merge the get_cutouts summary tables:
 merge_results --mode get_cutouts --indir cutouts_summary --out merged_cutouts_results.fits
 ```
 
-## 5. Create CS-gr images
+## 5. Get Legacy Images to use when making CS-gr images
 
 ### 5.1 Copy Legacy cutouts from a previous run, when possible
 
@@ -132,7 +132,9 @@ python ~/github/hapy/scripts/make_legacy_reprojections.py $(head -1 reproject_cu
 parallel --bar -j 20 --results legacy_reproject_logs python ~/github/hapy/scripts/make_legacy_reprojections.py "{}" --overwrite :::: reproject_cutout_list.txt
 ```
 
-### 5.4 Build CS-gr images
+### 5.4 OUTDATED - skip to step 6
+> We now build the cs-gr images within `run_analysis`, so continue to Step 6.
+#### Build CS-gr images
 
 Test one:
 
