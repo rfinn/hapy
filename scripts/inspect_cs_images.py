@@ -164,7 +164,7 @@ def infer_galid(row):
     for col in ["VFID", "OBJID", "objid", "GALID", "galid"]:
         if col in row.colnames:
             val = str(row[col])
-            if val and val != "nan":
+            if val and val != "nan" and val != "":
                 return val.split("-")[0]
     tag = str(row["TAG"])
     return tag.split("-")[0]
