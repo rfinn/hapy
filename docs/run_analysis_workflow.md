@@ -252,6 +252,10 @@ python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results_virg
 python ~/github/hapy/scripts/inspect_cs_images.py list-groups
 cs_image_inspection/cs_image_inspection_groups.ecsv >
 cs_group_list.txt
+```
+
+To run on one image/group:
+```
 python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv VFID0377 --cutout-dir cutouts --outdir cs_image_inspection
 ```
 
