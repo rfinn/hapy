@@ -1444,8 +1444,8 @@ def save_clump_diagnostic(
     # ------------------------------------------------------------
     xlim, ylim = get_bbox_from_mask(
         result.footprint_mask,
-        pad=75,
-        min_size=75,
+        pad=25,
+        min_size=50,
     )
 
     xlim, ylim = make_limits_square(
