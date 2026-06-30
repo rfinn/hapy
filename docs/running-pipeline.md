@@ -1509,7 +1509,7 @@ Running this on the following directories:
 - /data-pool/Halpha/hapy-output-20260517-pre2025coadds
 - /data-pool/Halpha/hapy-output-20260517
 - /data-pool/Halpha/hapy-output-20260609-hybrid
-
+- /data-pool/Halpha/hapy-output-20260620 - latest version of "new" reduction
 
 ### To transfer data tables to my laptop:
 ```

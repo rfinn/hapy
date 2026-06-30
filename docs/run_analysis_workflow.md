@@ -248,8 +248,14 @@ rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
 ## 12. CS image inspection and best duplicate selection
 
 ```bash
-python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results_virgo_${RUNDATE}.fits --outdir cs_image_inspection --min-dups 1
-python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
-python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv $(head -1 cs_group_list.txt) --cutout-dir cutouts --outdir cs_image_inspection
+python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results_virgo_20260628.fits --outdir cs_image_inspection --min-dups 1
+python ~/github/hapy/scripts/inspect_cs_images.py list-groups
+cs_image_inspection/cs_image_inspection_groups.ecsv >
+cs_group_list.txt
+python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv VFID0377 --cutout-dir cutouts --outdir cs_image_inspection
+```
+
+```
+python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv $(head -1 cs_group_list.txt) --cutout-dir cutouts --outdir cs_image_inspection 
 parallel --bar -j ${NCPU} --joblog cs_image_plot.joblog --results cs_image_plot_logs python ~/github/hapy/scripts/inspect_cs_images.py plot-one cs_image_inspection/cs_image_inspection_groups.ecsv {} --cutout-dir cutouts --outdir cs_image_inspection :::: cs_group_list.txt
 ```
