@@ -160,12 +160,7 @@ def get_group_display_halfsize_arcsec(rows, min_buffer_arcsec=60, scale=1.2):
 
     return np.nanmax(sizes)
 
-def infer_galid(row):
-    for col in ["VFID", "OBJID", "objid", "GALID", "galid"]:
-        if col in row.colnames:
-            val = str(row[col])
-            if val and val != "nan" and val != "":
-                return val.split("-")[0]
+def infer_galid(row):#scheme="virgo"):
     tag = str(row["TAG"])
     return tag.split("-")[0]
 
@@ -1168,6 +1163,12 @@ def main():
     p_table.add_argument("--outdir", default="cs_image_inspection")
     p_table.add_argument("--min-dups", type=int, default=1)
     p_table.add_argument("--testing", action="store_true")
+    # p_table.add_argument(
+    #     "--scheme",
+    #     choices=["virgo", "agc"],
+    #     required=True,
+    #     help="Dataset to run on - virgo vs agc."
+    # )
 
     # ------------------------------------------------------------
     # plot-all mode
