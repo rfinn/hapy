@@ -1225,6 +1225,7 @@ def main():
         }
 
         galids = np.array([infer_galid(row) for row in tab])
+        print("DEBUG: galids[0:10]=",galids[0:10])
         tab["DUP_GALID"] = galids
 
         # ------------------------------------------------------------
