@@ -367,7 +367,13 @@ def merge_tables(files, output, mode, review_csv=None):
         # adding a temp fix for a wrong column name added to some tables
         # temp fix for old column name
         if "PHOT_GR_OK" in t.columns:
-            t.rename_column("PHOT_GR_OK", "CSGR_PHOT_OK")
+            if "CSGR_PHOT_OK" in t.columns:
+                t.remove_column("PHOT_GR_OK")
+            else:
+                t.rename_column("PHOT_GR_OK", "CSGR_PHOT_OK")
+        
+        #if "PHOT_GR_OK" in t.columns:
+        #    t.rename_column("PHOT_GR_OK", "CSGR_PHOT_OK")
             
         ok_cols = [c for c in t.colnames if c.endswith("_OK")]
         t = coerce_bool_columns(t, columns=ok_cols)
