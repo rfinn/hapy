@@ -363,6 +363,12 @@ def merge_tables(files, output, mode, review_csv=None):
     tables = []
     for f in files:
         t = Table.read(f, format="ascii.ecsv")
+
+        # adding a temp fix for a wrong column name added to some tables
+        # temp fix for old column name
+        if "PHOT_GR_OK" in t.columns:
+            t.rename_column("PHOT_GR_OK", "CSGR_PHOT_OK")
+            
         ok_cols = [c for c in t.colnames if c.endswith("_OK")]
         t = coerce_bool_columns(t, columns=ok_cols)
         tables.append(t)
@@ -374,7 +380,7 @@ def merge_tables(files, output, mode, review_csv=None):
     #    ok_cols = [c for c in t.colnames if c.endswith("_OK")]
     #    t = coerce_bool_columns(t, columns=ok_cols)
 
-
+    print("checking SM_FLAG columns...")
     if mode == "run_analysis":
         for t in tables:
            _coerce_bool_col(t, "R_SM_FLAG", default=False)

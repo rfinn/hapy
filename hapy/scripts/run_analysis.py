@@ -488,7 +488,7 @@ def initialize_result_row():
         row[k] = np.nan    
    
     # ---------- pipeline status ----------
-    for k in ["PSF_OK", "MASK_OK", "PHOT_OK", \
+    for k in ["PSF_OK", "MASK_OK", "PHOT_OK","PHOT_CSGR_OK", \
                   "HAPY_MORPH_OK",\
                   "R_PROFILE_OK","H_PROFILE_OK",\
                   "R_SM_OK","H_SM_OK",\
@@ -2837,7 +2837,7 @@ def main():
         if not csgr_ok:
             logger.warning("Skipping CS-gr analysis b/c make_cs_gr_image returned False - make sure legacy g and r images exist.")
             print("WARNING: Skipping CS-gr analysis.")
-            row["PHOT_GR_OK"] = False
+            row["CSGR_PHOT_OK"] = False
 
         else:
 
