@@ -367,13 +367,14 @@ def merge_tables(files, output, mode, review_csv=None):
         t = coerce_bool_columns(t, columns=ok_cols)
         tables.append(t)
     
-    tables = [Table.read(f, format="ascii.ecsv") for f in files]
+    #tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
     # adding protection for HAPY_MORPH_OK and other _OK columns
-    for t in tables:
-        ok_cols = [c for c in t.colnames if c.endswith("_OK")]
-        t = coerce_bool_columns(t, columns=ok_cols)
-    
+    #for t in tables:
+    #    ok_cols = [c for c in t.colnames if c.endswith("_OK")]
+    #    t = coerce_bool_columns(t, columns=ok_cols)
+
+
     if mode == "run_analysis":
         for t in tables:
            _coerce_bool_col(t, "R_SM_FLAG", default=False)
