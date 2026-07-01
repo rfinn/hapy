@@ -378,28 +378,31 @@ def merge_tables(files, output, mode, review_csv=None):
         #for t in tables:
         #    _coerce_bool_col(t, "R_SM_FLAG", default=False)
         #    _coerce_bool_col(t, "H_SM_FLAG", default=False)
-        
-    print("Validating schema...")
-    keepflag = validate_schema(tables,files)
 
-    print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
-    #tables = tables[keepflag]
+    # #################################################################################
+    # going to try skipping the validation step b/c vstack can handle different columns
+    # print("Validating schema...")
+    # keepflag = validate_schema(tables,files)
 
-    goodtables = []
-    for i in range(len(tables)):
-        if keepflag[i]:
-            goodtables.append(tables[i])
+    # print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
+    # #tables = tables[keepflag]
 
-    tables = goodtables
+    # goodtables = []
+    # for i in range(len(tables)):
+    #     if keepflag[i]:
+    #         goodtables.append(tables[i])
 
-    if not tables:
-        raise RuntimeError("No valid tables remain after schema validation.")
+    # tables = goodtables
+    # #################################################################################    
 
-    print("Normalizing string columns...")
-    tables = normalize_string_columns(tables)
+    # if not tables:
+    #     raise RuntimeError("No valid tables remain after schema validation.")
+
+    # print("Normalizing string columns...")
+    # tables = normalize_string_columns(tables)
 
     print("Stacking tables...")
-    merged = vstack(tables, metadata_conflicts="silent")
+    merged = vstack(tables, metadata_conflicts="warn",join_type="outer")
 
     #if mode == "run_analysis":
     #    if "OBJID" in merged.colnames:
@@ -415,8 +418,6 @@ def merge_tables(files, output, mode, review_csv=None):
 
     # FITS cannot write object dtype columns.
     # Convert known numeric metadata columns that may contain None/string/NaN.
-
-
     merged = coerce_object_columns_for_fits(merged)
 
     print(f"Writing merged table → {output}")

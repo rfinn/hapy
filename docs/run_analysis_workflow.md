@@ -249,9 +249,7 @@ rsync -avz html/cutouts fitsxfr.siena.edu:/var/www/html/fits/virgo/.
 
 ```bash
 python ~/github/hapy/scripts/inspect_cs_images.py make-table merged_results_virgo_20260628.fits --outdir cs_image_inspection --min-dups 1
-python ~/github/hapy/scripts/inspect_cs_images.py list-groups
-cs_image_inspection/cs_image_inspection_groups.ecsv >
-cs_group_list.txt
+python ~/github/hapy/scripts/inspect_cs_images.py list-groups cs_image_inspection/cs_image_inspection_groups.ecsv > cs_group_list.txt
 ```
 
 To run on one image/group:
