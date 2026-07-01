@@ -367,39 +367,39 @@ def merge_tables(files, output, mode, review_csv=None):
         t = coerce_bool_columns(t, columns=ok_cols)
         tables.append(t)
     
-    # tables = [Table.read(f, format="ascii.ecsv") for f in files]
+    tables = [Table.read(f, format="ascii.ecsv") for f in files]
 
-    # # adding protection for HAPY_MORPH_OK and other _OK columns
-    # for t in tables:
-    #     ok_cols = [c for c in t.colnames if c.endswith("_OK")]
-    #     t = coerce_bool_columns(t, columns=ok_cols)
+    # adding protection for HAPY_MORPH_OK and other _OK columns
+    for t in tables:
+        ok_cols = [c for c in t.colnames if c.endswith("_OK")]
+        t = coerce_bool_columns(t, columns=ok_cols)
     
-    #if mode == "run_analysis":
-        #for t in tables:
-        #    _coerce_bool_col(t, "R_SM_FLAG", default=False)
-        #    _coerce_bool_col(t, "H_SM_FLAG", default=False)
+    if mode == "run_analysis":
+        for t in tables:
+           _coerce_bool_col(t, "R_SM_FLAG", default=False)
+           _coerce_bool_col(t, "H_SM_FLAG", default=False)
 
-    # #################################################################################
-    # going to try skipping the validation step b/c vstack can handle different columns
-    # print("Validating schema...")
-    # keepflag = validate_schema(tables,files)
+    #################################################################################
+    #going to try skipping the validation step b/c vstack can handle different columns
+    print("Validating schema...")
+    keepflag = validate_schema(tables,files)
 
-    # print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
-    # #tables = tables[keepflag]
+    print(f"\tvalidated {np.sum(keepflag)}/{len(keepflag)} tables")
+    #tables = tables[keepflag]
 
-    # goodtables = []
-    # for i in range(len(tables)):
-    #     if keepflag[i]:
-    #         goodtables.append(tables[i])
+    goodtables = []
+    for i in range(len(tables)):
+        if keepflag[i]:
+            goodtables.append(tables[i])
 
-    # tables = goodtables
-    # #################################################################################    
+    tables = goodtables
+    #################################################################################    
 
-    # if not tables:
-    #     raise RuntimeError("No valid tables remain after schema validation.")
+    if not tables:
+        raise RuntimeError("No valid tables remain after schema validation.")
 
-    # print("Normalizing string columns...")
-    # tables = normalize_string_columns(tables)
+    print("Normalizing string columns...")
+    tables = normalize_string_columns(tables)
 
     print("Stacking tables...")
     merged = vstack(tables, metadata_conflicts="warn",join_type="outer")

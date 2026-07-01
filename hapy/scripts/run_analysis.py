@@ -2001,12 +2001,13 @@ def main():
             
     row = initialize_result_row()
 
-    row = initialize_sourcecatalog_moments(row, prefix1="R", prefix2="H")
+
     
     row = init_csgr_row_defaults(row)
 
     row = initialize_sourcecatalog_moments(row, prefix1="CSGR_R", prefix2="CSGR_H")    
-
+    row = initialize_sourcecatalog_moments(row, prefix1="R", prefix2="H")
+    
     row = initialize_hapy_clumps(row, prefix="HCL_")
     row = initialize_hapy_clumps(row, prefix="CSGR_HCL_")    
     

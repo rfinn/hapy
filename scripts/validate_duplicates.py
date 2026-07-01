@@ -963,7 +963,8 @@ def main():
                   format="ascii.ecsv", overwrite=True)
 
     print(f"Wrote duplicate QC products to {outdir}")
+    return tab
 
 
 if __name__ == "__main__":
-    main()
+    tab = main()
