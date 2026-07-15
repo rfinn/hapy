@@ -57,50 +57,44 @@ def urlretrieve_with_retries(url, filename, retries=5, sleep0=10, verbose=False)
         time.sleep(wait)
 
     raise last_err
-#def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
-def get_legacy_images(
-    ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='grz',
-    makeplots=False, subfolder=None, verbose=False, layer='ls-dr9'):
+
+
+def _legacy_rootname(galid='VFID0', imsize='60', subfolder=None):
     """
-    Download legacy image for a particular ra, dec
-    
-    Inputs:
-    * ra
-    * dec
-    * galid = galaxy id (e.g. VFID0001); used for naming the image files
-    * imsize = size of cutout in pixels
-    * band = filter(s) for the fits images that will be returned.
-+             e.g. 'g' or 'r' or 'z' or 'grz'
-    * pixscale = pixel scale of cutout in arcsec; native is 0.262 for legacy
-    * makeplots = boolean, generate plot of image
-    * subfolder = default is None; you can specify a name of a subfolder to 
-                  save the data in, e.g., subfolder='legacy-images'
-    Returns:
-    * fits_name = fits image name (single band) or dict of band:file names (multi-band)
-    * jpeg_name = jpeg image name
+    Build the common rootname for Legacy image products.
     """
     imsize = int(imsize)
 
-    # make output image names
     if subfolder is not None:
-        # check if subfolder exists. if not, make it.
-        if not os.path.exists(subfolder):
-            os.mkdir(subfolder)
-        rootname = subfolder+'/'+str(galid)+'-legacy-'+str(imsize)
+        os.makedirs(subfolder, exist_ok=True)
+        rootname = os.path.join(subfolder, f"{galid}-legacy-{imsize}")
     else:
-        rootname = str(galid)+'-legacy-'+str(imsize)        
-    jpeg_name = rootname+'.jpg'
-    fits_name = rootname+'-'+band+'.fits'
-    band_fits_names = {b: rootname+'-'+b+'.fits' for b in band}
+        rootname = f"{galid}-legacy-{imsize}"
+
+    return rootname
 
 
-    #print('legacy imsize = ',imsize)
-    
-    # check if images already exist
-    # if not download images
-    if not(os.path.exists(jpeg_name)):
+def get_legacy_jpeg(
+    ra, dec, galid='VFID0', pixscale=0.262, imsize='60',
+    subfolder=None, verbose=False, layer='ls-dr9',
+    makeplots=False, overwrite=False,
+):
+    """
+    Download only the Legacy Survey JPEG cutout.
+
+    Returns
+    -------
+    jpeg_name : str
+        Name of the downloaded JPEG image.
+    """
+    imsize = int(imsize)
+    rootname = _legacy_rootname(galid=galid, imsize=imsize, subfolder=subfolder)
+    jpeg_name = rootname + '.jpg'
+
+    if overwrite or not os.path.exists(jpeg_name):
         if verbose:
-            print('retrieving ',jpeg_name)
+            print('retrieving ', jpeg_name)
+
         url = (
             'https://www.legacysurvey.org/viewer/jpeg-cutout?'
             + urlencode({
@@ -109,33 +103,106 @@ def get_legacy_images(
                 'layer': layer,
                 'size': imsize,
                 'pixscale': pixscale,
-                })
-            )
-        print("legacy download: \n\t",url)
-        #url='http://legacysurvey.org/viewer/jpeg-cutout?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr9&size='+str(imsize)+'&pixscale='+str(pixscale)
+            })
+        )
+
+        if verbose:
+            print("legacy jpeg download:\n\t", url)
+
         urlretrieve(url, jpeg_name)
+
     else:
         if verbose:
-            print('previously downloaded ',jpeg_name)
+            print('previously downloaded ', jpeg_name)
 
+    if makeplots:
+        t = Image.open(jpeg_name)
+        plt.imshow(t, origin='upper')
+
+    return jpeg_name
+
+
+def _get_first_image_data_and_header(hdul):
+    """
+    Return image data/header from either extension 1 or primary HDU.
+    This handles both Legacy single-band downloads and files written locally.
+    """
+    if len(hdul) > 1 and hdul[1].data is not None:
+        return hdul[1].data, hdul[1].header
+    else:
+        return hdul[0].data, hdul[0].header
+
+
+def get_legacy_images(
+    ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='grz',
+    makeplots=False, subfolder=None, verbose=False, layer='ls-dr9',
+    jpg_only=False,
+):
+    """
+    Download legacy image for a particular ra, dec.
+
+    Inputs:
+    * ra
+    * dec
+    * galid = galaxy id, e.g. VFID0001; used for naming the image files
+    * imsize = size of cutout in pixels
+    * band = filter(s) for the fits images that will be returned,
+             e.g. 'g' or 'r' or 'z' or 'grz'
+    * pixscale = pixel scale of cutout in arcsec; native is 0.262 for legacy
+    * makeplots = boolean, generate plot of image
+    * subfolder = default is None; specify a subfolder to save the data in
+    * layer = Legacy Survey layer, default 'ls-dr9'
+    * jpg_only = if True, download only the JPEG and skip all FITS downloads
+
+    Returns:
+    * if jpg_only:
+        None, jpeg_name
+    * if len(band) == 1:
+        fits_name, jpeg_name
+    * else:
+        band_fits_names, jpeg_name
+    """
+    imsize = int(imsize)
+    band = str(band)
+
+    rootname = _legacy_rootname(galid=galid, imsize=imsize, subfolder=subfolder)
+
+    jpeg_name = get_legacy_jpeg(
+        ra=ra,
+        dec=dec,
+        galid=galid,
+        pixscale=pixscale,
+        imsize=imsize,
+        subfolder=subfolder,
+        verbose=verbose,
+        layer=layer,
+        makeplots=False,
+    )
+
+    if jpg_only:
+        if makeplots:
+            t = Image.open(jpeg_name)
+            plt.imshow(t, origin='upper')
+
+        return None, jpeg_name
+
+    fits_name = rootname + '-' + band + '.fits'
+    band_fits_names = {b: rootname + '-' + b + '.fits' for b in band}
 
     # --------------------------------------------------
-    # Decide whether download is needed
+    # Decide whether FITS download is needed
     # --------------------------------------------------
     if len(band) == 1:
         expected_files = [fits_name]
     else:
         # For combined downloads like band="grz", the final useful products are
-        # the split single-band files. Do not trust the combined MEF alone,
-        # because a failed/interrupted run can leave a stale grz.fits behind.
-        print("DEBUG: checking for individual fits files")
-        expected_files = [
-            fits_name.replace(f"{band}.fits", f"{b}.fits")
-            for b in band
-        ]
+        # the split single-band files.
+        expected_files = [band_fits_names[b] for b in band]
 
     need_fits_download = not all(os.path.exists(f) for f in expected_files)
-    print("DEBUD: need_fits_download = ",need_fits_download)
+
+    fits_url = None
+
     if need_fits_download:
         # Remove stale combined MEF before retrying.
         if len(band) > 1 and os.path.exists(fits_name):
@@ -146,7 +213,7 @@ def get_legacy_images(
         if verbose:
             print("retrieving ", fits_name)
 
-        url = (
+        fits_url = (
             "https://www.legacysurvey.org/viewer/cutout.fits?"
             + urlencode({
                 "ra": ra,
@@ -159,171 +226,416 @@ def get_legacy_images(
         )
 
         if verbose:
-            print(url)
+            print(fits_url)
 
         urlretrieve_with_retries(
-            url,
+            fits_url,
             fits_name,
             retries=8,
             sleep0=15,
             verbose=verbose,
-            )
-        #urlretrieve(url, fits_name)
+        )
 
     else:
         if verbose:
             print("previously downloaded expected files: ", expected_files)
 
-        
-    # need_fits_download = False
-    # if len(band) == 1:
-    #     need_fits_download = not os.path.exists(fits_name)
-    # else:
-    #     # download the combined MEF if it does not exist
-    #     need_fits_download = not os.path.exists(fits_name)
-
-    # if need_fits_download:
-    # #if not(os.path.exists(fits_name)):
-    #     if verbose:
-    #         print('retrieving ',fits_name)
-    #     url = (
-    #         'https://www.legacysurvey.org/viewer/cutout.fits?'
-    #         + urlencode({
-    #             'ra': ra,
-    #             'dec': dec,
-    #             'layer': layer,
-    #             'size': imsize,
-    #             'pixscale': pixscale,
-    #             'bands': band,
-    #             })
-    #         )
-    #     #url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr8&size='+str(imsize)+'&pixscale='+str(pixscale)+'&bands='+band
-    #     if verbose:
-    #         print(url)
-    #     urlretrieve(url, fits_name)
-    # else:
-    #     if verbose:
-    #         print('previously downloaded ',fits_name)
-
-    # try to read the data in
-    try:
-        if verbose:
-            print(f"reading {fits_name}, band={band}")
-        hdul = fits.open(fits_name)
-
-    except Exception:
-        print('problem accessing image')
-        print(fits_name)
-        print(url)
-        return None
-
-    # single-band case
+    # --------------------------------------------------
+    # Single-band case
+    # --------------------------------------------------
     if len(band) == 1:
         try:
-            if len(hdul) > 1 and hdul[1].data is not None:
-                t = hdul[1].data
-                h = hdul[1].header
-            else:
-                t = hdul[0].data
-                h = hdul[0].header
+            if verbose:
+                print(f"reading {fits_name}, band={band}")
+
+            hdul = fits.open(fits_name)
+            t, h = _get_first_image_data_and_header(hdul)
+
+        except Exception:
+            print('problem accessing image')
+            print(fits_name)
+            if fits_url is not None:
+                print(fits_url)
+            return None
+
+        try:
+            # trigger if image is outside footprint
+            if t is None or np.all(np.asarray(t) == 0):
+                hdul.close()
+                return None
+
         except Exception:
             print('problem accessing image data')
             print(fits_name)
             hdul.close()
             return None
 
-        # trigger if image is outside footprint
-        if t is None or np.all(np.asarray(t) == 0):
-            hdul.close()
-            return None
+        hdul.close()
 
-    # multi-band case: split cube in primary HDU into separate files
+    # --------------------------------------------------
+    # Multi-band case
+    # --------------------------------------------------
     else:
-        try:
-            cube = hdul[0].data
-            hdr0 = hdul[0].header
-        except Exception:
-            print('problem accessing multi-band image cube')
-            print(fits_name)
-            hdul.close()
-            return None
-
-        if cube is None:
-            print('no data found in primary HDU')
-            print(fits_name)
-            hdul.close()
-            return None
-
-        if cube.ndim != 3:
-            print('expected 3D image cube for multi-band download')
-            print(f'found shape = {cube.shape}')
-            print(fits_name)
-            hdul.close()
-            return None
-
-        if cube.shape[0] < len(band):
-            print('fewer bands in cube than requested')
-            print(f'cube shape = {cube.shape}, requested bands = {band}')
-            print(fits_name)
-            hdul.close()
-            return None
-
-        # Optional: confirm header mapping if present
-        for i, b in enumerate(band):
-            band_key = f'BAND{i}'
-            if band_key in hdr0 and hdr0[band_key].strip().lower() != b.lower():
-                print(f'warning: header {band_key}={hdr0[band_key]} does not match requested band {b}')
-
-        for i, b in enumerate(band):
-            outname = band_fits_names[b]
-
-            if os.path.exists(outname):
+        if need_fits_download:
+            try:
                 if verbose:
-                    print('previously downloaded ', outname)
-                continue
+                    print(f"reading {fits_name}, band={band}")
 
-            data = cube[i, :, :]
+                hdul = fits.open(fits_name)
+                cube = hdul[0].data
+                hdr0 = hdul[0].header
 
-            if data is None or np.all(np.asarray(data) == 0):
+            except Exception:
+                print('problem accessing multi-band image')
+                print(fits_name)
+                if fits_url is not None:
+                    print(fits_url)
+                return None
+
+            if cube is None:
+                print('no data found in primary HDU')
+                print(fits_name)
                 hdul.close()
                 return None
 
-            hdr = hdr0.copy()
-            hdr['BAND'] = b
+            if cube.ndim != 3:
+                print('expected 3D image cube for multi-band download')
+                print(f'found shape = {cube.shape}')
+                print(fits_name)
+                hdul.close()
+                return None
 
-            # remove 3D-axis keywords if present
-            for key in ['NAXIS3', 'CTYPE3', 'CRVAL3', 'CRPIX3', 'CDELT3', 'CD3_3',
-                        'CD1_3', 'CD2_3', 'CD3_1', 'CD3_2', 'CUNIT3']:
-                if key in hdr:
-                    del hdr[key]
-            hdr['NAXIS'] = 2
+            if cube.shape[0] < len(band):
+                print('fewer bands in cube than requested')
+                print(f'cube shape = {cube.shape}, requested bands = {band}')
+                print(fits_name)
+                hdul.close()
+                return None
 
-            fits.writeto(outname, data, header=hdr, overwrite=True)
-            if verbose:
-                print('wrote ', outname)
+            # Optional: confirm header mapping if present
+            for i, b in enumerate(band):
+                band_key = f'BAND{i}'
+                if band_key in hdr0 and hdr0[band_key].strip().lower() != b.lower():
+                    print(
+                        f'warning: header {band_key}={hdr0[band_key]} '
+                        f'does not match requested band {b}'
+                    )
 
-        # use first band for plotting
-        t = cube[0, :, :]
-        h = hdr0
+            for i, b in enumerate(band):
+                outname = band_fits_names[b]
 
+                data = cube[i, :, :]
 
+                if data is None or np.all(np.asarray(data) == 0):
+                    hdul.close()
+                    return None
 
-    hdul.close()
+                hdr = hdr0.copy()
+                hdr['BAND'] = b
 
-    # plot the images
+                # remove 3D-axis keywords if present
+                for key in [
+                    'NAXIS3', 'CTYPE3', 'CRVAL3', 'CRPIX3', 'CDELT3',
+                    'CD3_3', 'CD1_3', 'CD2_3', 'CD3_1', 'CD3_2', 'CUNIT3'
+                ]:
+                    if key in hdr:
+                        del hdr[key]
+
+                hdr['NAXIS'] = 2
+
+                fits.writeto(outname, data, header=hdr, overwrite=True)
+
+                if verbose:
+                    print('wrote ', outname)
+
+            # use first band for plotting fallback
+            t = cube[0, :, :]
+            h = hdr0
+
+            hdul.close()
+
+        else:
+            # The split files already exist. Read the first one only as a sanity check
+            # and for a possible plotting fallback.
+            first_band = band[0]
+            first_name = band_fits_names[first_band]
+
+            try:
+                if verbose:
+                    print(f"reading existing split file {first_name}")
+
+                hdul = fits.open(first_name)
+                t, h = _get_first_image_data_and_header(hdul)
+
+            except Exception:
+                print('problem accessing existing split image')
+                print(first_name)
+                return None
+
+            if t is None or np.all(np.asarray(t) == 0):
+                hdul.close()
+                return None
+
+            hdul.close()
+
+    # --------------------------------------------------
+    # Plot the images
+    # --------------------------------------------------
     if makeplots:
         if os.path.exists(jpeg_name):
-            t = Image.open(jpeg_name)
-            plt.imshow(t,origin='upper')
+            t_jpeg = Image.open(jpeg_name)
+            plt.imshow(t_jpeg, origin='upper')
         else:
-            norm = simple_norm(t,stretch='asinh',percent=99.5)            
-            plt.imshow(t,origin='upper',cmap='gray_r', norm=norm)
+            norm = simple_norm(t, stretch='asinh', percent=99.5)
+            plt.imshow(t, origin='upper', cmap='gray_r', norm=norm)
 
-    # return the name of the fits images and jpeg image
+    # --------------------------------------------------
+    # Return image names
+    # --------------------------------------------------
     if len(band) == 1:
         return fits_name, jpeg_name
     else:
         return band_fits_names, jpeg_name
+
+
+    
+#def get_legacy_images(ra,dec,galid='VFID0',pixscale=1,imsize='60',band='g',makeplots=False,subfolder=None,verbose=False):
+# def get_legacy_images(
+#     ra, dec, galid='VFID0', pixscale=0.262, imsize='60', band='grz',
+#     makeplots=False, subfolder=None, verbose=False, layer='ls-dr9'):
+#     """
+#     Download legacy image for a particular ra, dec
+    
+#     Inputs:
+#     * ra
+#     * dec
+#     * galid = galaxy id (e.g. VFID0001); used for naming the image files
+#     * imsize = size of cutout in pixels
+#     * band = filter(s) for the fits images that will be returned.
+# +             e.g. 'g' or 'r' or 'z' or 'grz'
+#     * pixscale = pixel scale of cutout in arcsec; native is 0.262 for legacy
+#     * makeplots = boolean, generate plot of image
+#     * subfolder = default is None; you can specify a name of a subfolder to 
+#                   save the data in, e.g., subfolder='legacy-images'
+#     Returns:
+#     * fits_name = fits image name (single band) or dict of band:file names (multi-band)
+#     * jpeg_name = jpeg image name
+#     """
+#     imsize = int(imsize)
+
+#     # make output image names
+#     if subfolder is not None:
+#         # check if subfolder exists. if not, make it.
+#         if not os.path.exists(subfolder):
+#             os.mkdir(subfolder)
+#         rootname = subfolder+'/'+str(galid)+'-legacy-'+str(imsize)
+#     else:
+#         rootname = str(galid)+'-legacy-'+str(imsize)        
+#     jpeg_name = rootname+'.jpg'
+#     fits_name = rootname+'-'+band+'.fits'
+#     band_fits_names = {b: rootname+'-'+b+'.fits' for b in band}
+
+
+#     #print('legacy imsize = ',imsize)
+    
+#     # check if images already exist
+#     # if not download images
+#     if not(os.path.exists(jpeg_name)):
+#         if verbose:
+#             print('retrieving ',jpeg_name)
+#         url = (
+#             'https://www.legacysurvey.org/viewer/jpeg-cutout?'
+#             + urlencode({
+#                 'ra': ra,
+#                 'dec': dec,
+#                 'layer': layer,
+#                 'size': imsize,
+#                 'pixscale': pixscale,
+#                 })
+#             )
+#         print("legacy download: \n\t",url)
+#         #url='http://legacysurvey.org/viewer/jpeg-cutout?ra='+str(ra)+'&dec='+str(dec)+'&layer=dr9&size='+str(imsize)+'&pixscale='+str(pixscale)
+#         urlretrieve(url, jpeg_name)
+#     else:
+#         if verbose:
+#             print('previously downloaded ',jpeg_name)
+
+
+#     # --------------------------------------------------
+#     # Decide whether download is needed
+#     # --------------------------------------------------
+#     if len(band) == 1:
+#         expected_files = [fits_name]
+#     else:
+#         # For combined downloads like band="grz", the final useful products are
+#         # the split single-band files. Do not trust the combined MEF alone,
+#         # because a failed/interrupted run can leave a stale grz.fits behind.
+#         print("DEBUG: checking for individual fits files")
+#         expected_files = [
+#             fits_name.replace(f"{band}.fits", f"{b}.fits")
+#             for b in band
+#         ]
+
+#     need_fits_download = not all(os.path.exists(f) for f in expected_files)
+#     print("DEBUD: need_fits_download = ",need_fits_download)
+#     if need_fits_download:
+#         # Remove stale combined MEF before retrying.
+#         if len(band) > 1 and os.path.exists(fits_name):
+#             if verbose:
+#                 print(f"removing stale combined file {fits_name}")
+#             os.remove(fits_name)
+
+#         if verbose:
+#             print("retrieving ", fits_name)
+
+#         url = (
+#             "https://www.legacysurvey.org/viewer/cutout.fits?"
+#             + urlencode({
+#                 "ra": ra,
+#                 "dec": dec,
+#                 "layer": layer,
+#                 "size": imsize,
+#                 "pixscale": pixscale,
+#                 "bands": band,
+#             })
+#         )
+
+#         if verbose:
+#             print(url)
+
+#         urlretrieve_with_retries(
+#             url,
+#             fits_name,
+#             retries=8,
+#             sleep0=15,
+#             verbose=verbose,
+#             )
+#         #urlretrieve(url, fits_name)
+
+#     else:
+#         if verbose:
+#             print("previously downloaded expected files: ", expected_files)
+
+        
+#     # try to read the data in
+#     try:
+#         if verbose:
+#             print(f"reading {fits_name}, band={band}")
+#         hdul = fits.open(fits_name)
+
+#     except Exception:
+#         print('problem accessing image')
+#         print(fits_name)
+#         print(url)
+#         return None
+
+#     # single-band case
+#     if len(band) == 1:
+#         try:
+#             if len(hdul) > 1 and hdul[1].data is not None:
+#                 t = hdul[1].data
+#                 h = hdul[1].header
+#             else:
+#                 t = hdul[0].data
+#                 h = hdul[0].header
+#         except Exception:
+#             print('problem accessing image data')
+#             print(fits_name)
+#             hdul.close()
+#             return None
+
+#         # trigger if image is outside footprint
+#         if t is None or np.all(np.asarray(t) == 0):
+#             hdul.close()
+#             return None
+
+#     # multi-band case: split cube in primary HDU into separate files
+#     else:
+#         try:
+#             cube = hdul[0].data
+#             hdr0 = hdul[0].header
+#         except Exception:
+#             print('problem accessing multi-band image cube')
+#             print(fits_name)
+#             hdul.close()
+#             return None
+
+#         if cube is None:
+#             print('no data found in primary HDU')
+#             print(fits_name)
+#             hdul.close()
+#             return None
+
+#         if cube.ndim != 3:
+#             print('expected 3D image cube for multi-band download')
+#             print(f'found shape = {cube.shape}')
+#             print(fits_name)
+#             hdul.close()
+#             return None
+
+#         if cube.shape[0] < len(band):
+#             print('fewer bands in cube than requested')
+#             print(f'cube shape = {cube.shape}, requested bands = {band}')
+#             print(fits_name)
+#             hdul.close()
+#             return None
+
+#         # Optional: confirm header mapping if present
+#         for i, b in enumerate(band):
+#             band_key = f'BAND{i}'
+#             if band_key in hdr0 and hdr0[band_key].strip().lower() != b.lower():
+#                 print(f'warning: header {band_key}={hdr0[band_key]} does not match requested band {b}')
+
+#         for i, b in enumerate(band):
+#             outname = band_fits_names[b]
+
+#             if os.path.exists(outname):
+#                 if verbose:
+#                     print('previously downloaded ', outname)
+#                 continue
+
+#             data = cube[i, :, :]
+
+#             if data is None or np.all(np.asarray(data) == 0):
+#                 hdul.close()
+#                 return None
+
+#             hdr = hdr0.copy()
+#             hdr['BAND'] = b
+
+#             # remove 3D-axis keywords if present
+#             for key in ['NAXIS3', 'CTYPE3', 'CRVAL3', 'CRPIX3', 'CDELT3', 'CD3_3',
+#                         'CD1_3', 'CD2_3', 'CD3_1', 'CD3_2', 'CUNIT3']:
+#                 if key in hdr:
+#                     del hdr[key]
+#             hdr['NAXIS'] = 2
+
+#             fits.writeto(outname, data, header=hdr, overwrite=True)
+#             if verbose:
+#                 print('wrote ', outname)
+
+#         # use first band for plotting
+#         t = cube[0, :, :]
+#         h = hdr0
+
+
+
+#     hdul.close()
+
+#     # plot the images
+#     if makeplots:
+#         if os.path.exists(jpeg_name):
+#             t = Image.open(jpeg_name)
+#             plt.imshow(t,origin='upper')
+#         else:
+#             norm = simple_norm(t,stretch='asinh',percent=99.5)            
+#             plt.imshow(t,origin='upper',cmap='gray_r', norm=norm)
+
+#     # return the name of the fits images and jpeg image
+#     if len(band) == 1:
+#         return fits_name, jpeg_name
+#     else:
+#         return band_fits_names, jpeg_name
 
 
 def get_unwise_image(ra,dec,galid='VFID0',pixscale=2.75,imsize='60',bands='1234',makeplots=False,subfolder=None,verbose=False):
