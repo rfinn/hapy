@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# Created with Codex assistance for JWST proposal figure prototyping.
+# Adapted from local hapy/havirgo workflows and Legacy Survey RGB stretch logic.
+
 """
 Make a false-color RGB image from aligned Legacy Survey and Halpha FITS images.
 
@@ -22,6 +25,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
+import matplotlib.patheffects as path_effects
 import numpy as np
 from astropy import units as u
 from astropy.convolution import Gaussian2DKernel, convolve_fft
@@ -88,6 +92,18 @@ def infer_vfid(*values):
     return None
 
 
+def infer_display_name(*values):
+    """
+    Infer a compact galaxy display name from paths or names.
+    """
+    for value in values:
+        text = str(value)
+        match = re.search(r"\b(NGC|IC)[-_ ]?(\d+[A-Za-z]?)\b", text, re.IGNORECASE)
+        if match:
+            return f"{match.group(1).upper()} {match.group(2)}"
+    return None
+
+
 def parse_csv_floats(value):
     """
     Parse a comma-separated list of floats.
@@ -144,6 +160,11 @@ def make_output_name(
     halpha_min_area=20,
     halpha_detection=True,
     hi_contours=True,
+    hide_axes=False,
+    corner_label=None,
+    corner_label_fontsize=18,
+    scale_fontsize=12,
+    scale_linewidth=2.0,
 ):
     """
     Build an output filename that records the main visualization parameters.
@@ -175,6 +196,20 @@ def make_output_name(
 
     if hi_contours:
         parts.append("hi")
+
+    if hide_axes:
+        parts.append("noaxes")
+
+    if corner_label:
+        parts.append("label")
+        if corner_label_fontsize != 18:
+            parts.append(f"lfs{format_param(corner_label_fontsize)}")
+
+    if scale_linewidth != 2.0:
+        parts.append(f"slw{format_param(scale_linewidth)}")
+
+    if scale_fontsize != 12:
+        parts.append(f"sfs{format_param(scale_fontsize)}")
 
     if crop is not None:
         parts.append("crop" + "-".join(str(int(x)) for x in crop))
@@ -568,7 +603,56 @@ def add_scale_bar(
         horizontalalignment="center",
         fontsize=fontsize,
         color=color,
+        path_effects=[
+            path_effects.withStroke(linewidth=max(1.0, linewidth * 0.6), foreground="black")
+        ],
     )
+
+
+def add_corner_label(
+    ax,
+    label,
+    position="upper left",
+    color="white",
+    fontsize=18,
+    pad=0.035,
+):
+    """
+    Add a readable in-image label in axis-fraction coordinates.
+    """
+    positions = {
+        "upper left": (pad, 1.0 - pad, "left", "top"),
+        "upper right": (1.0 - pad, 1.0 - pad, "right", "top"),
+        "lower left": (pad, pad, "left", "bottom"),
+        "lower right": (1.0 - pad, pad, "right", "bottom"),
+    }
+    if position not in positions:
+        raise ValueError(f"Unknown corner-label position: {position}")
+
+    x, y, ha, va = positions[position]
+    ax.text(
+        x,
+        y,
+        label,
+        transform=ax.transAxes,
+        ha=ha,
+        va=va,
+        color=color,
+        fontsize=fontsize,
+        fontweight="semibold",
+        path_effects=[path_effects.withStroke(linewidth=3.0, foreground="black")],
+    )
+
+
+def hide_wcs_axes(ax):
+    """
+    Hide WCS axes, ticks, labels, and frame for clean presentation figures.
+    """
+    ax.set_axis_off()
+    for coord in ax.coords:
+        coord.set_axislabel("")
+        coord.set_ticklabel_visible(False)
+        coord.set_ticks_visible(False)
 
 
 def resolve_hi_file(vfid, hi_file=None, use_hi=True, verbose=False):
@@ -664,7 +748,15 @@ def make_legacy_halpha_rgb(
     scale_x=0.08,
     scale_y=0.08,
     scale_dytext=0.06,
+    scale_linewidth=2.0,
     title=None,
+    show_title=True,
+    hide_axes=False,
+    corner_label=None,
+    corner_label_position="upper left",
+    corner_label_color="white",
+    corner_label_fontsize=18,
+    corner_label_pad=0.035,
     figsize=(8.0, 8.0),
     dpi=200,
     verbose=False,
@@ -712,6 +804,11 @@ def make_legacy_halpha_rgb(
             halpha_min_area=halpha_min_area,
             halpha_detection=halpha_detection,
             hi_contours=hi_contours,
+            hide_axes=hide_axes,
+            corner_label=corner_label,
+            corner_label_fontsize=corner_label_fontsize,
+            scale_fontsize=scale_fontsize,
+            scale_linewidth=scale_linewidth,
         )
     else:
         outfile = expand_path(outfile)
@@ -807,6 +904,7 @@ def make_legacy_halpha_rgb(
                 xscale=scale_x,
                 yscale=scale_y,
                 dytext=scale_dytext,
+                linewidth=scale_linewidth,
             )
         except Exception as err:
             if verbose:
@@ -815,8 +913,21 @@ def make_legacy_halpha_rgb(
     if title is None:
         title = vfid
 
-    if title:
+    if show_title and title:
         ax.set_title(title)
+
+    if corner_label == "auto":
+        corner_label = infer_display_name(galaxy_dir.name, halpha_file.name) or vfid
+
+    if corner_label:
+        add_corner_label(
+            ax,
+            corner_label,
+            position=corner_label_position,
+            color=corner_label_color,
+            fontsize=corner_label_fontsize,
+            pad=corner_label_pad,
+        )
 
     lon = ax.coords[0]
     lat = ax.coords[1]
@@ -824,6 +935,9 @@ def make_legacy_halpha_rgb(
     lat.set_axislabel("Dec")
     lon.set_major_formatter("hh:mm:ss")
     lat.set_major_formatter("dd:mm")
+
+    if hide_axes:
+        hide_wcs_axes(ax)
 
     outfile.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(outfile, dpi=dpi, bbox_inches="tight")
@@ -1042,7 +1156,56 @@ def parse_args():
         default=0.06,
         help="Scale-bar label offset as an axis fraction. Default: 0.06.",
     )
+    parser.add_argument(
+        "--scale-linewidth",
+        type=float,
+        default=2.0,
+        help="Scale-bar line width. Default: 2.",
+    )
     parser.add_argument("--title", default=None, help="Figure title. Default: inferred VFID.")
+    parser.add_argument(
+        "--no-title",
+        action="store_true",
+        help="Do not draw the external figure title.",
+    )
+    parser.add_argument(
+        "--hide-axes",
+        action="store_true",
+        help="Hide WCS axes, ticks, labels, and frame.",
+    )
+    parser.add_argument(
+        "--corner-label",
+        nargs="?",
+        const="auto",
+        default=None,
+        help=(
+            "Draw an in-image corner label. If no value is provided, infer the "
+            "galaxy name from the directory."
+        ),
+    )
+    parser.add_argument(
+        "--corner-label-position",
+        default="upper left",
+        choices=["upper left", "upper right", "lower left", "lower right"],
+        help="Corner label position. Default: upper left.",
+    )
+    parser.add_argument(
+        "--corner-label-color",
+        default="white",
+        help="Corner label text color. Default: white.",
+    )
+    parser.add_argument(
+        "--corner-label-fontsize",
+        type=float,
+        default=18,
+        help="Corner label font size. Default: 18.",
+    )
+    parser.add_argument(
+        "--corner-label-pad",
+        type=float,
+        default=0.035,
+        help="Corner label padding as an axis fraction. Default: 0.035.",
+    )
     parser.add_argument(
         "--figsize",
         default="8,8",
@@ -1110,7 +1273,15 @@ def main():
         scale_x=args.scale_x,
         scale_y=args.scale_y,
         scale_dytext=args.scale_dytext,
+        scale_linewidth=args.scale_linewidth,
         title=args.title,
+        show_title=not args.no_title,
+        hide_axes=args.hide_axes,
+        corner_label=args.corner_label,
+        corner_label_position=args.corner_label_position,
+        corner_label_color=args.corner_label_color,
+        corner_label_fontsize=args.corner_label_fontsize,
+        corner_label_pad=args.corner_label_pad,
         figsize=tuple(figsize),
         dpi=args.dpi,
         verbose=args.verbose,
