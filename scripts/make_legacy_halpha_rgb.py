@@ -12,7 +12,8 @@ Default channel recipe:
     B = Legacy g
 
 The Halpha/SFR image is scaled separately and overlaid in color.  If an HI
-moment-zero map is available, HI contours are drawn using WCSAxes transforms.
+moment-zero map is available, HI contours or a filled HI intensity layer can be
+drawn using WCSAxes transforms.
 """
 
 import argparse
@@ -27,6 +28,30 @@ import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
 import matplotlib.patheffects as path_effects
 import numpy as np
+
+if not hasattr(np, "in1d"):
+    np.in1d = np.isin
+
+try:
+    import numpy.lib._function_base_impl as np_function_base_impl
+
+    if not hasattr(np_function_base_impl, "_check_interpolation_as_method"):
+
+        def _check_interpolation_as_method(method, interpolation, fname):
+            if interpolation is not None:
+                if method != "linear":
+                    raise TypeError(
+                        f"{fname} received both 'method' and 'interpolation'."
+                    )
+                method = interpolation
+            return method
+
+        np_function_base_impl._check_interpolation_as_method = (
+            _check_interpolation_as_method
+        )
+except Exception:
+    pass
+
 from astropy import units as u
 from astropy.convolution import Gaussian2DKernel, convolve_fft
 from astropy.cosmology import WMAP9 as cosmo
@@ -36,6 +61,7 @@ from astropy.visualization import AsinhStretch, LinearStretch
 from astropy.wcs import WCS
 from astropy.wcs import utils as wcs_utils
 from scipy import ndimage
+from scipy.spatial import ConvexHull
 
 
 DEFAULT_HI_FILES = {
@@ -51,6 +77,10 @@ DEFAULT_HI_FILES = {
     "VFID5859": "~/research/Virgo/alma/2023/MeerKAT_ALMA_target_list/J1355_p_0512_lw05_final_15_mom0.fits",
     "VFID5892": "~/research/Virgo/alma/2023/MeerKAT_ALMA_target_list/ngc5363_ngc5364_ngc5360.fits",
 }
+
+DEFAULT_NIRCAM_APERTURES = tuple(
+    f"NRC{module}{detector}_FULL" for module in "AB" for detector in range(1, 6)
+)
 
 
 def expand_path(path):
@@ -113,6 +143,20 @@ def parse_csv_floats(value):
     return [float(x) for x in value.split(",") if x.strip()]
 
 
+def parse_csv_strings(value):
+    """
+    Parse a comma-separated list of strings.
+    """
+    if value is None:
+        return None
+
+    values = [x.strip() for x in value.split(",") if x.strip()]
+    if len(values) == 1 and values[0].lower() in {"nircam", "nircam-full"}:
+        return list(DEFAULT_NIRCAM_APERTURES)
+
+    return values
+
+
 def parse_crop(value):
     """
     Parse crop coordinates as xmin,xmax,ymin,ymax.
@@ -160,6 +204,30 @@ def make_output_name(
     halpha_min_area=20,
     halpha_detection=True,
     hi_contours=True,
+    hi_image=False,
+    hi_image_alpha=0.45,
+    hi_image_percentiles=(50.0, 99.5),
+    hi_image_stretch="asinh",
+    hi_image_asinh_a=0.08,
+    hi_image_alpha_power=0.7,
+    hi_image_cmap="hi-cyan",
+    hi_image_interpolation="bilinear",
+    hi_image_high_fade_start=None,
+    hi_image_high_fade_end=None,
+    jwst_footprint=False,
+    jwst_dither_footprints=False,
+    jwst_pa_v3=None,
+    jwst_color="gold",
+    jwst_alpha=0.95,
+    jwst_linewidth=2.0,
+    jwst_stroke_linewidth=None,
+    jwst_fill_alpha=0.0,
+    jwst_outer_outline=False,
+    jwst_outer_color=None,
+    jwst_outer_alpha=0.95,
+    jwst_outer_linewidth=2.0,
+    jwst_outer_stroke_linewidth=0.0,
+    jwst_outer_outline_mode="per-dither",
     hide_axes=False,
     corner_label=None,
     corner_label_fontsize=18,
@@ -196,6 +264,55 @@ def make_output_name(
 
     if hi_contours:
         parts.append("hi")
+    if hi_image:
+        parts.extend(
+            [
+                "hiimg",
+                f"hia{format_param(hi_image_alpha)}",
+                (
+                    "hip"
+                    f"{format_param(hi_image_percentiles[0])}-"
+                    f"{format_param(hi_image_percentiles[1])}"
+                ),
+                f"hist{format_param(hi_image_stretch)}",
+                f"hiaa{format_param(hi_image_asinh_a)}",
+                f"hiap{format_param(hi_image_alpha_power)}",
+                f"hii{format_param(hi_image_interpolation)}",
+            ]
+        )
+        if hi_image_high_fade_start is not None:
+            parts.append(f"hifs{format_param(hi_image_high_fade_start)}")
+        if hi_image_high_fade_end is not None:
+            parts.append(f"hife{format_param(hi_image_high_fade_end)}")
+        if hi_image_cmap != "hi-cyan":
+            parts.append(f"hicmap{format_param(hi_image_cmap)}")
+
+    if jwst_footprint or jwst_dither_footprints:
+        parts.append("nircamdith" if jwst_dither_footprints else "nircam")
+        if jwst_pa_v3 is not None:
+            parts.append(f"pa{format_param(jwst_pa_v3)}")
+        if jwst_color != "gold":
+            parts.append(f"jwst{format_param(jwst_color)}")
+        if jwst_alpha != 0.95:
+            parts.append(f"ja{format_param(jwst_alpha)}")
+        if jwst_linewidth != 2.0:
+            parts.append(f"jlw{format_param(jwst_linewidth)}")
+        if jwst_stroke_linewidth is not None:
+            parts.append(f"jsl{format_param(jwst_stroke_linewidth)}")
+        if jwst_fill_alpha > 0:
+            parts.append(f"jfa{format_param(jwst_fill_alpha)}")
+        if jwst_outer_outline:
+            parts.append("jouter")
+            if jwst_outer_color is not None:
+                parts.append(f"joc{format_param(jwst_outer_color)}")
+            if jwst_outer_alpha != 0.95:
+                parts.append(f"joa{format_param(jwst_outer_alpha)}")
+            if jwst_outer_linewidth != 2.0:
+                parts.append(f"jolw{format_param(jwst_outer_linewidth)}")
+            if jwst_outer_stroke_linewidth != 0.0:
+                parts.append(f"josl{format_param(jwst_outer_stroke_linewidth)}")
+            if jwst_outer_outline_mode != "per-dither":
+                parts.append(f"jom{format_param(jwst_outer_outline_mode)}")
 
     if hide_axes:
         parts.append("noaxes")
@@ -593,9 +710,9 @@ def add_scale_bar(
     xtext = xline1 + 0.5 * barsize_pixels
     ytext = yline - dytext * dy
 
-    ax.plot([xline1, xline2], [yline, yline], "-", lw=linewidth, color=color)
-    ax.plot([xline1, xline1], [ycap1, ycap2], "-", lw=linewidth, color=color)
-    ax.plot([xline2, xline2], [ycap1, ycap2], "-", lw=linewidth, color=color)
+    ax.plot([xline1, xline2], [yline, yline], "-", lw=linewidth, color=color, zorder=9)
+    ax.plot([xline1, xline1], [ycap1, ycap2], "-", lw=linewidth, color=color, zorder=9)
+    ax.plot([xline2, xline2], [ycap1, ycap2], "-", lw=linewidth, color=color, zorder=9)
     ax.text(
         xtext,
         ytext,
@@ -606,6 +723,7 @@ def add_scale_bar(
         path_effects=[
             path_effects.withStroke(linewidth=max(1.0, linewidth * 0.6), foreground="black")
         ],
+        zorder=10,
     )
 
 
@@ -641,6 +759,7 @@ def add_corner_label(
         fontsize=fontsize,
         fontweight="semibold",
         path_effects=[path_effects.withStroke(linewidth=3.0, foreground="black")],
+        zorder=10,
     )
 
 
@@ -707,6 +826,513 @@ def plot_hi_contours(
     )
 
 
+def positive_hi_scaled_image(
+    hi_data,
+    lower_percent=50.0,
+    upper_percent=99.5,
+    stretch="asinh",
+    asinh_a=0.08,
+):
+    """
+    Return a [0, 1] image scaled from positive HI emission only.
+    """
+    arr = np.asarray(hi_data, dtype=float)
+    positive = np.isfinite(arr) & (arr > 0)
+    scaled_input = np.where(positive, arr, np.nan)
+
+    return scale_channel(
+        scaled_input,
+        lower_percent=lower_percent,
+        upper_percent=upper_percent,
+        stretch=stretch,
+        asinh_a=asinh_a,
+        clip_negative=True,
+    )
+
+
+def hi_cmap_from_name(name):
+    """
+    Resolve a colormap for filled HI overlays.
+    """
+    if name == "hi-cyan":
+        return mcolors.LinearSegmentedColormap.from_list(
+            "hi-cyan",
+            ["#002f73", "#006db5", "#00d5ff", "#d8ffff"],
+        )
+
+    return plt.get_cmap(name)
+
+
+def plot_hi_image(
+    ax,
+    hi_file,
+    alpha=0.45,
+    percentiles=(50.0, 99.5),
+    stretch="asinh",
+    asinh_a=0.08,
+    alpha_power=0.7,
+    cmap="hi-cyan",
+    interpolation="bilinear",
+    high_fade_start=None,
+    high_fade_end=None,
+):
+    """
+    Add a semi-transparent HI moment-zero intensity image to a WCSAxes image.
+    """
+    hi_data, hi_header = read_image(hi_file)
+    hi_wcs = WCS(hi_header).celestial
+    hi_lo, hi_hi = percentiles
+
+    scaled = positive_hi_scaled_image(
+        hi_data,
+        lower_percent=hi_lo,
+        upper_percent=hi_hi,
+        stretch=stretch,
+        asinh_a=asinh_a,
+    )
+    positive = np.isfinite(hi_data) & (hi_data > 0)
+    scaled = np.where(positive, scaled, 0.0)
+    alpha_image = np.clip(scaled, 0, 1) ** float(alpha_power)
+    if high_fade_start is not None or high_fade_end is not None:
+        if high_fade_start is None or high_fade_end is None:
+            raise ValueError(
+                "Set both --hi-image-high-fade-start and "
+                "--hi-image-high-fade-end, or neither."
+            )
+        fade_start = float(high_fade_start)
+        fade_end = float(high_fade_end)
+        if fade_end <= fade_start:
+            raise ValueError("--hi-image-high-fade-end must be larger than start")
+        high_frac = np.clip((scaled - fade_start) / (fade_end - fade_start), 0, 1)
+        high_fade = high_frac * high_frac * (3 - 2 * high_frac)
+        alpha_image *= 1 - high_fade
+    alpha_image = np.where(positive, alpha * alpha_image, 0.0)
+
+    ax.imshow(
+        scaled,
+        origin="lower",
+        cmap=hi_cmap_from_name(cmap),
+        alpha=alpha_image,
+        interpolation=interpolation,
+        transform=ax.get_transform(hi_wcs),
+        zorder=2.5,
+    )
+
+
+def resolve_jwst_center(header, data_shape, crop=None, ra=None, dec=None):
+    """
+    Resolve the JWST footprint center in world coordinates.
+    """
+    if ra is not None or dec is not None:
+        if ra is None or dec is None:
+            raise ValueError("Set both --jwst-ra and --jwst-dec, or neither.")
+        return float(ra), float(dec)
+
+    if crop is not None:
+        xmin, xmax, ymin, ymax = crop
+        xcenter = 0.5 * (xmin + xmax)
+        ycenter = 0.5 * (ymin + ymax)
+    else:
+        ny, nx = data_shape
+        xcenter = 0.5 * (nx - 1)
+        ycenter = 0.5 * (ny - 1)
+
+    return WCS(header).celestial.pixel_to_world_values(xcenter, ycenter)
+
+
+def build_jwst_footprints(
+    ra,
+    dec,
+    pa_v3=0.0,
+    apertures=None,
+    reference_aperture="NRCALL_FULL",
+    reference_v2=None,
+    reference_v3=None,
+):
+    """
+    Build JWST/NIRCam detector footprint polygons using pysiaf.
+    """
+    try:
+        import pysiaf
+        from pysiaf.utils import rotations
+    except Exception as err:
+        raise ImportError(
+            "Could not import pysiaf. Install it in the active Python environment "
+            "or rerun without --jwst-footprint."
+        ) from err
+
+    if apertures is None:
+        apertures = DEFAULT_NIRCAM_APERTURES
+
+    siaf = pysiaf.Siaf("NIRCam")
+    reference = siaf[reference_aperture]
+    if reference_v2 is None:
+        reference_v2 = reference.V2Ref
+    if reference_v3 is None:
+        reference_v3 = reference.V3Ref
+    attitude = rotations.attitude_matrix(
+        float(reference_v2),
+        float(reference_v3),
+        float(ra),
+        float(dec),
+        float(pa_v3),
+    )
+
+    footprints = []
+    for aperture_name in apertures:
+        aperture = siaf[aperture_name]
+        aperture.set_attitude_matrix(attitude)
+        footprint_ra, footprint_dec = aperture.closed_polygon_points("sky")
+        footprints.append((aperture_name, footprint_ra, footprint_dec))
+
+    return footprints
+
+
+def plot_jwst_footprint_polygons(
+    ax,
+    footprints,
+    color="gold",
+    alpha=0.95,
+    linewidth=2.0,
+    stroke_linewidth=None,
+    fill_alpha=0.0,
+    outer_outline=False,
+    outer_color=None,
+    outer_alpha=0.95,
+    outer_linewidth=2.0,
+    outer_stroke_linewidth=0.0,
+):
+    """
+    Draw precomputed JWST footprint polygons on a WCSAxes image.
+    """
+    transform = ax.get_transform("world")
+
+    for _, footprint_ra, footprint_dec in footprints:
+        if fill_alpha > 0:
+            ax.fill(
+                footprint_ra,
+                footprint_dec,
+                color=color,
+                alpha=fill_alpha,
+                transform=transform,
+                zorder=6,
+            )
+        if stroke_linewidth is None:
+            stroke_width = max(1.0, linewidth + 1.5)
+        else:
+            stroke_width = stroke_linewidth
+        stroke_effects = []
+        if stroke_width > 0:
+            stroke_effects.append(
+                path_effects.withStroke(linewidth=stroke_width, foreground="black")
+            )
+
+        if linewidth > 0 and alpha > 0:
+            ax.plot(
+                footprint_ra,
+                footprint_dec,
+                color=color,
+                alpha=alpha,
+                linewidth=linewidth,
+                transform=transform,
+                zorder=7,
+                path_effects=stroke_effects,
+            )
+
+    if outer_outline:
+        outline_ra, outline_dec = jwst_outer_outline(footprints)
+        outline_color = outer_color or color
+        outer_effects = []
+        if outer_stroke_linewidth > 0:
+            outer_effects.append(
+                path_effects.withStroke(
+                    linewidth=outer_stroke_linewidth,
+                    foreground="black",
+                )
+            )
+        ax.plot(
+            outline_ra,
+            outline_dec,
+            color=outline_color,
+            alpha=outer_alpha,
+            linewidth=outer_linewidth,
+            transform=transform,
+            zorder=8,
+            path_effects=outer_effects,
+        )
+
+
+def jwst_outer_outline(footprints):
+    """
+    Return a convex-hull outline around a set of JWST detector polygons.
+    """
+    points = []
+    for _, footprint_ra, footprint_dec in footprints:
+        ra = np.asarray(footprint_ra, dtype=float)
+        dec = np.asarray(footprint_dec, dtype=float)
+        if ra.size > 1 and dec.size > 1:
+            ra = ra[:-1]
+            dec = dec[:-1]
+        finite = np.isfinite(ra) & np.isfinite(dec)
+        points.append(np.column_stack([ra[finite], dec[finite]]))
+
+    if not points:
+        raise ValueError("No finite JWST footprint points available for outer outline")
+
+    points = np.vstack(points)
+    if points.shape[0] < 3:
+        raise ValueError("At least three JWST footprint points are needed for outline")
+
+    dec0 = np.nanmean(points[:, 1])
+    scaled = np.column_stack(
+        [
+            (points[:, 0] - np.nanmean(points[:, 0])) * np.cos(np.deg2rad(dec0)),
+            points[:, 1] - dec0,
+        ]
+    )
+    hull = ConvexHull(scaled)
+    indices = np.append(hull.vertices, hull.vertices[0])
+    return points[indices, 0], points[indices, 1]
+
+
+def plot_jwst_footprints(
+    ax,
+    ra,
+    dec,
+    pa_v3=0.0,
+    apertures=None,
+    reference_aperture="NRCALL_FULL",
+    color="gold",
+    alpha=0.95,
+    linewidth=2.0,
+    stroke_linewidth=None,
+    fill_alpha=0.0,
+    outer_outline=False,
+    outer_color=None,
+    outer_alpha=0.95,
+    outer_linewidth=2.0,
+    outer_stroke_linewidth=0.0,
+):
+    """
+    Overlay JWST/NIRCam footprint polygons on a WCSAxes image.
+    """
+    footprints = build_jwst_footprints(
+        ra,
+        dec,
+        pa_v3=pa_v3,
+        apertures=apertures,
+        reference_aperture=reference_aperture,
+    )
+    plot_jwst_footprint_polygons(
+        ax,
+        footprints,
+        color=color,
+        alpha=alpha,
+        linewidth=linewidth,
+        stroke_linewidth=stroke_linewidth,
+        fill_alpha=fill_alpha,
+        outer_outline=outer_outline,
+        outer_color=outer_color,
+        outer_alpha=outer_alpha,
+        outer_linewidth=outer_linewidth,
+        outer_stroke_linewidth=outer_stroke_linewidth,
+    )
+
+
+def parse_apt_pointing_file(pointing_file, target=None, pointing_types=None):
+    """
+    Parse unique NIRCam pointing/dither rows from an APT pointing report.
+
+    The APT report repeats the same telescope offsets for each exposure/filter.
+    Rows are de-duplicated by target, tile, dither, aperture, and V2/V3 position.
+    """
+    pointing_file = expand_path(pointing_file)
+    if pointing_types is not None:
+        pointing_types = {x.upper() for x in pointing_types}
+
+    rows = []
+    seen = set()
+    current_target = None
+    current_visit = None
+    section_re = re.compile(r"^\*\s+(\S+)\s+\(Obs\s+([^)]+)\)")
+    visit_re = re.compile(r"^\*\*\s+Visit\s+(\S+)")
+
+    with pointing_file.open() as handle:
+        for line in handle:
+            section_match = section_re.match(line)
+            if section_match:
+                current_target = section_match.group(1)
+                current_visit = None
+                continue
+
+            visit_match = visit_re.match(line)
+            if visit_match:
+                current_visit = visit_match.group(1)
+                continue
+
+            tokens = line.split()
+            if len(tokens) < 22 or not tokens[0].isdigit():
+                continue
+
+            aperture_name = tokens[4]
+            if not aperture_name.startswith("NRC"):
+                continue
+
+            row_target = tokens[6]
+            if target is not None:
+                target_text = str(target)
+                matches_target = (
+                    current_target == target_text
+                    or row_target == target_text
+                    or (
+                        row_target.startswith("VFID")
+                        and len(row_target) >= 7
+                        and target_text.startswith(row_target)
+                    )
+                )
+                if not matches_target:
+                    continue
+
+            try:
+                row = {
+                    "section_target": current_target,
+                    "visit": current_visit,
+                    "tar": int(tokens[0]),
+                    "tile": int(tokens[1]),
+                    "exp": int(tokens[2]),
+                    "dither": int(tokens[3]),
+                    "aperture": aperture_name,
+                    "target_order": tokens[5],
+                    "target": row_target,
+                    "ra": float(tokens[7]),
+                    "dec": float(tokens[8]),
+                    "basex": float(tokens[9]),
+                    "basey": float(tokens[10]),
+                    "dithx": float(tokens[11]),
+                    "dithy": float(tokens[12]),
+                    "v2": float(tokens[13]),
+                    "v3": float(tokens[14]),
+                    "idlx": float(tokens[15]),
+                    "idly": float(tokens[16]),
+                    "level": tokens[17].upper(),
+                    "type": tokens[18].upper(),
+                }
+            except (IndexError, ValueError):
+                continue
+
+            if pointing_types is not None and row["level"] not in pointing_types:
+                continue
+
+            key = (
+                row["section_target"],
+                row["target"],
+                row["tile"],
+                row["dither"],
+                row["aperture"],
+                round(row["ra"], 8),
+                round(row["dec"], 8),
+                round(row["v2"], 3),
+                round(row["v3"], 3),
+            )
+            if key in seen:
+                continue
+
+            seen.add(key)
+            rows.append(row)
+
+    if not rows:
+        target_text = f" for {target}" if target is not None else ""
+        raise ValueError(f"No NIRCam pointing rows found{target_text} in {pointing_file}")
+
+    return rows
+
+
+def plot_jwst_dither_footprints(
+    ax,
+    pointing_file,
+    target,
+    pa_v3=0.0,
+    apertures=None,
+    reference_aperture="NRCALL_FULL",
+    pointing_types=None,
+    color="gold",
+    alpha=0.35,
+    linewidth=1.2,
+    stroke_linewidth=0.0,
+    fill_alpha=0.04,
+    outer_outline=False,
+    outer_color=None,
+    outer_alpha=0.95,
+    outer_linewidth=2.0,
+    outer_stroke_linewidth=0.0,
+    outer_outline_mode="per-dither",
+    verbose=False,
+):
+    """
+    Overlay NIRCam detector footprints for each unique APT dither/tile position.
+    """
+    pointings = parse_apt_pointing_file(
+        pointing_file,
+        target=target,
+        pointing_types=pointing_types,
+    )
+    if verbose:
+        print(f"APT NIRCam pointings for {target}: {len(pointings)}")
+        for row in pointings:
+            print(
+                "  "
+                f"tile={row['tile']} dith={row['dither']} "
+                f"ap={row['aperture']} level={row['level']} "
+                f"V2={row['v2']:.3f} V3={row['v3']:.3f}"
+            )
+
+    if outer_outline_mode not in {"per-dither", "combined"}:
+        raise ValueError("--jwst-outer-outline-mode must be per-dither or combined")
+
+    all_footprints = []
+    for row in pointings:
+        footprints = build_jwst_footprints(
+            row["ra"],
+            row["dec"],
+            pa_v3=pa_v3,
+            apertures=apertures,
+            reference_aperture=reference_aperture,
+            reference_v2=row["v2"],
+            reference_v3=row["v3"],
+        )
+        all_footprints.extend(footprints)
+        plot_jwst_footprint_polygons(
+            ax,
+            footprints,
+            color=color,
+            alpha=alpha,
+            linewidth=linewidth,
+            stroke_linewidth=stroke_linewidth,
+            fill_alpha=fill_alpha,
+            outer_outline=outer_outline and outer_outline_mode == "per-dither",
+            outer_color=outer_color,
+            outer_alpha=outer_alpha,
+            outer_linewidth=outer_linewidth,
+            outer_stroke_linewidth=outer_stroke_linewidth,
+        )
+
+    if outer_outline and outer_outline_mode == "combined":
+        plot_jwst_footprint_polygons(
+            ax,
+            all_footprints,
+            color=color,
+            alpha=0.0,
+            linewidth=0.0,
+            stroke_linewidth=0.0,
+            fill_alpha=0.0,
+            outer_outline=True,
+            outer_color=outer_color,
+            outer_alpha=outer_alpha,
+            outer_linewidth=outer_linewidth,
+            outer_stroke_linewidth=outer_stroke_linewidth,
+        )
+
+
 def make_legacy_halpha_rgb(
     galaxy_dir,
     halpha_glob="*-sfr-vr.fits",
@@ -741,6 +1367,37 @@ def make_legacy_halpha_rgb(
     hi_color="lightskyblue",
     hi_alpha=0.75,
     hi_linewidth=1.0,
+    hi_image=False,
+    hi_image_alpha=0.45,
+    hi_image_percentiles=(50.0, 99.5),
+    hi_image_stretch="asinh",
+    hi_image_asinh_a=0.08,
+    hi_image_alpha_power=0.7,
+    hi_image_cmap="hi-cyan",
+    hi_image_interpolation="bilinear",
+    hi_image_high_fade_start=None,
+    hi_image_high_fade_end=None,
+    jwst_footprint=False,
+    jwst_ra=None,
+    jwst_dec=None,
+    jwst_pa_v3=0.0,
+    jwst_apertures=None,
+    jwst_reference_aperture="NRCALL_FULL",
+    jwst_color="gold",
+    jwst_alpha=0.95,
+    jwst_linewidth=2.0,
+    jwst_stroke_linewidth=None,
+    jwst_fill_alpha=0.0,
+    jwst_outer_outline=False,
+    jwst_outer_color=None,
+    jwst_outer_alpha=0.95,
+    jwst_outer_linewidth=2.0,
+    jwst_outer_stroke_linewidth=0.0,
+    jwst_outer_outline_mode="per-dither",
+    jwst_dither_footprints=False,
+    jwst_pointing_file=None,
+    jwst_pointing_target=None,
+    jwst_pointing_types=None,
     add_scale=True,
     scale_kpc=5.0,
     scale_color="white",
@@ -804,6 +1461,30 @@ def make_legacy_halpha_rgb(
             halpha_min_area=halpha_min_area,
             halpha_detection=halpha_detection,
             hi_contours=hi_contours,
+            hi_image=hi_image,
+            hi_image_alpha=hi_image_alpha,
+            hi_image_percentiles=hi_image_percentiles,
+            hi_image_stretch=hi_image_stretch,
+            hi_image_asinh_a=hi_image_asinh_a,
+            hi_image_alpha_power=hi_image_alpha_power,
+            hi_image_cmap=hi_image_cmap,
+            hi_image_interpolation=hi_image_interpolation,
+            hi_image_high_fade_start=hi_image_high_fade_start,
+            hi_image_high_fade_end=hi_image_high_fade_end,
+            jwst_footprint=jwst_footprint,
+            jwst_dither_footprints=jwst_dither_footprints,
+            jwst_pa_v3=jwst_pa_v3,
+            jwst_color=jwst_color,
+            jwst_alpha=jwst_alpha,
+            jwst_linewidth=jwst_linewidth,
+            jwst_stroke_linewidth=jwst_stroke_linewidth,
+            jwst_fill_alpha=jwst_fill_alpha,
+            jwst_outer_outline=jwst_outer_outline,
+            jwst_outer_color=jwst_outer_color,
+            jwst_outer_alpha=jwst_outer_alpha,
+            jwst_outer_linewidth=jwst_outer_linewidth,
+            jwst_outer_stroke_linewidth=jwst_outer_stroke_linewidth,
+            jwst_outer_outline_mode=jwst_outer_outline_mode,
             hide_axes=hide_axes,
             corner_label=corner_label,
             corner_label_fontsize=corner_label_fontsize,
@@ -879,6 +1560,25 @@ def make_legacy_halpha_rgb(
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
 
+    if hi_image:
+        resolved_hi_file = resolve_hi_file(vfid, hi_file=hi_file, use_hi=True, verbose=verbose)
+        if resolved_hi_file is not None:
+            if verbose:
+                print(f"HI image = {resolved_hi_file}")
+            plot_hi_image(
+                ax,
+                resolved_hi_file,
+                alpha=hi_image_alpha,
+                percentiles=hi_image_percentiles,
+                stretch=hi_image_stretch,
+                asinh_a=hi_image_asinh_a,
+                alpha_power=hi_image_alpha_power,
+                cmap=hi_image_cmap,
+                interpolation=hi_image_interpolation,
+                high_fade_start=hi_image_high_fade_start,
+                high_fade_end=hi_image_high_fade_end,
+            )
+
     if hi_contours:
         resolved_hi_file = resolve_hi_file(vfid, hi_file=hi_file, use_hi=True, verbose=verbose)
         if resolved_hi_file is not None:
@@ -892,6 +1592,84 @@ def make_legacy_halpha_rgb(
                 alpha=hi_alpha,
                 linewidth=hi_linewidth,
             )
+
+    if jwst_dither_footprints:
+        if jwst_pointing_file is None:
+            raise ValueError("--jwst-pointing-file is required with --jwst-dither-footprints")
+        if jwst_pointing_target is None:
+            jwst_pointing_target = vfid
+        try:
+            if verbose:
+                print(
+                    "NIRCam dither footprints from "
+                    f"{expand_path(jwst_pointing_file)} for {jwst_pointing_target}; "
+                    f"PA_V3 = {jwst_pa_v3:g}"
+                )
+            plot_jwst_dither_footprints(
+                ax,
+                jwst_pointing_file,
+                jwst_pointing_target,
+                pa_v3=jwst_pa_v3,
+                apertures=jwst_apertures,
+                reference_aperture=jwst_reference_aperture,
+                pointing_types=jwst_pointing_types,
+                color=jwst_color,
+                alpha=jwst_alpha,
+                linewidth=jwst_linewidth,
+                stroke_linewidth=jwst_stroke_linewidth,
+                fill_alpha=jwst_fill_alpha,
+                outer_outline=jwst_outer_outline,
+                outer_color=jwst_outer_color,
+                outer_alpha=jwst_outer_alpha,
+                outer_linewidth=jwst_outer_linewidth,
+                outer_stroke_linewidth=jwst_outer_stroke_linewidth,
+                outer_outline_mode=jwst_outer_outline_mode,
+                verbose=verbose,
+            )
+        except Exception as err:
+            if verbose:
+                print(f"WARNING: could not add JWST dither footprints: {err}")
+            else:
+                raise
+
+    elif jwst_footprint:
+        try:
+            jwst_center_ra, jwst_center_dec = resolve_jwst_center(
+                halpha_header,
+                halpha_data.shape,
+                crop=crop,
+                ra=jwst_ra,
+                dec=jwst_dec,
+            )
+            if verbose:
+                print(
+                    "NIRCam footprint center = "
+                    f"{jwst_center_ra:.7f}, {jwst_center_dec:.7f}; "
+                    f"PA_V3 = {jwst_pa_v3:g}"
+                )
+            plot_jwst_footprints(
+                ax,
+                jwst_center_ra,
+                jwst_center_dec,
+                pa_v3=jwst_pa_v3,
+                apertures=jwst_apertures,
+                reference_aperture=jwst_reference_aperture,
+                color=jwst_color,
+                alpha=jwst_alpha,
+                linewidth=jwst_linewidth,
+                stroke_linewidth=jwst_stroke_linewidth,
+                fill_alpha=jwst_fill_alpha,
+                outer_outline=jwst_outer_outline,
+                outer_color=jwst_outer_color,
+                outer_alpha=jwst_outer_alpha,
+                outer_linewidth=jwst_outer_linewidth,
+                outer_stroke_linewidth=jwst_outer_stroke_linewidth,
+            )
+        except Exception as err:
+            if verbose:
+                print(f"WARNING: could not add JWST footprint: {err}")
+            else:
+                raise
 
     if add_scale:
         try:
@@ -1121,6 +1899,211 @@ def parse_args():
         help="HI contour linewidth. Default: 1.0",
     )
     parser.add_argument(
+        "--hi-image",
+        action="store_true",
+        help="Draw the HI moment-zero map as a filled semi-transparent image layer.",
+    )
+    parser.add_argument(
+        "--hi-image-alpha",
+        type=float,
+        default=0.45,
+        help="Maximum opacity of the filled HI image layer. Default: 0.45.",
+    )
+    parser.add_argument(
+        "--hi-image-percentiles",
+        default="50,99.5",
+        help=(
+            "Lower,upper percentiles for positive HI image scaling. "
+            "Default: 50,99.5."
+        ),
+    )
+    parser.add_argument(
+        "--hi-image-stretch",
+        default="asinh",
+        choices=["asinh", "linear"],
+        help="Stretch for the filled HI image layer. Default: asinh.",
+    )
+    parser.add_argument(
+        "--hi-image-asinh-a",
+        type=float,
+        default=0.08,
+        help=(
+            "Asinh a parameter for the filled HI image layer. Smaller values "
+            "bring out fainter HI. Default: 0.08."
+        ),
+    )
+    parser.add_argument(
+        "--hi-image-alpha-power",
+        type=float,
+        default=0.7,
+        help=(
+            "Power applied to the scaled HI image before alpha mapping. Values "
+            "<1 make faint HI more visible. Default: 0.7."
+        ),
+    )
+    parser.add_argument(
+        "--hi-image-cmap",
+        default="hi-cyan",
+        help=(
+            "Matplotlib colormap for the filled HI image layer, or hi-cyan for "
+            "the built-in blue/cyan map. Default: hi-cyan."
+        ),
+    )
+    parser.add_argument(
+        "--hi-image-interpolation",
+        default="bilinear",
+        help="Matplotlib interpolation for the filled HI image layer. Default: bilinear.",
+    )
+    parser.add_argument(
+        "--hi-image-high-fade-start",
+        type=float,
+        default=None,
+        help=(
+            "Scaled HI value where the filled HI layer begins fading out. "
+            "Use with --hi-image-high-fade-end."
+        ),
+    )
+    parser.add_argument(
+        "--hi-image-high-fade-end",
+        type=float,
+        default=None,
+        help=(
+            "Scaled HI value where the filled HI layer is fully suppressed. "
+            "Use with --hi-image-high-fade-start."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-footprint",
+        action="store_true",
+        help="Overlay a JWST/NIRCam footprint using pysiaf.",
+    )
+    parser.add_argument(
+        "--jwst-dither-footprints",
+        action="store_true",
+        help=(
+            "Overlay all unique NIRCam dither/tile footprints from an APT "
+            "pointing report."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-pointing-file",
+        default=None,
+        help="APT .pointing report used by --jwst-dither-footprints.",
+    )
+    parser.add_argument(
+        "--jwst-pointing-target",
+        default=None,
+        help=(
+            "Target identifier in the APT pointing report. Default: inferred "
+            "VFID from galaxy_dir."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-pointing-types",
+        default=None,
+        help=(
+            "Optional comma-separated APT pointing row types to include, e.g. "
+            "TARGET,DITHER,TILE. Default: include all types, then de-duplicate."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-ra",
+        type=float,
+        default=None,
+        help=(
+            "JWST footprint center RA in degrees. If omitted, use the crop center "
+            "or image center."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-dec",
+        type=float,
+        default=None,
+        help=(
+            "JWST footprint center Dec in degrees. If omitted, use the crop center "
+            "or image center."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-pa-v3",
+        type=float,
+        default=0.0,
+        help="JWST PA_V3 angle in degrees east of north. Default: 0.",
+    )
+    parser.add_argument(
+        "--jwst-apertures",
+        default="nircam-full",
+        help=(
+            "Comma-separated NIRCam SIAF apertures, or nircam-full for all ten "
+            "detectors. Default: nircam-full."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-reference-aperture",
+        default="NRCALL_FULL",
+        help="SIAF aperture used as the pointing reference. Default: NRCALL_FULL.",
+    )
+    parser.add_argument(
+        "--jwst-color",
+        default="gold",
+        help="JWST footprint outline color. Default: gold.",
+    )
+    parser.add_argument(
+        "--jwst-alpha",
+        type=float,
+        default=0.95,
+        help="JWST footprint outline alpha. Default: 0.95.",
+    )
+    parser.add_argument(
+        "--jwst-linewidth",
+        type=float,
+        default=2.0,
+        help="JWST footprint outline linewidth. Default: 2.",
+    )
+    parser.add_argument(
+        "--jwst-stroke-linewidth",
+        type=float,
+        default=None,
+        help=(
+            "Black stroke width behind JWST footprint outlines. Default: automatic; "
+            "use 0 to disable."
+        ),
+    )
+    parser.add_argument(
+        "--jwst-fill-alpha",
+        type=float,
+        default=0.0,
+        help="Optional JWST footprint fill alpha. Default: 0.",
+    )
+    parser.add_argument(
+        "--jwst-outer-outline",
+        action="store_true",
+        help="Draw a convex outer outline around each NIRCam footprint/dither.",
+    )
+    parser.add_argument(
+        "--jwst-outer-color",
+        default=None,
+        help="Color for the JWST outer footprint outline. Default: use --jwst-color.",
+    )
+    parser.add_argument(
+        "--jwst-outer-alpha",
+        type=float,
+        default=0.95,
+        help="Alpha for the JWST outer footprint outline. Default: 0.95.",
+    )
+    parser.add_argument(
+        "--jwst-outer-linewidth",
+        type=float,
+        default=2.0,
+        help="Linewidth for the JWST outer footprint outline. Default: 2.",
+    )
+    parser.add_argument(
+        "--jwst-outer-stroke-linewidth",
+        type=float,
+        default=0.0,
+        help="Black stroke width behind the JWST outer outline. Default: 0.",
+    )
+    parser.add_argument(
         "--no-scale",
         action="store_true",
         help="Do not draw a physical scale bar.",
@@ -1224,6 +2207,9 @@ def main():
     halpha_percentiles = parse_csv_floats(args.halpha_percentiles)
     figsize = parse_csv_floats(args.figsize)
     hi_levels = parse_csv_floats(args.hi_levels)
+    hi_image_percentiles = parse_csv_floats(args.hi_image_percentiles)
+    jwst_apertures = parse_csv_strings(args.jwst_apertures)
+    jwst_pointing_types = parse_csv_strings(args.jwst_pointing_types)
 
     if len(optical_percentiles) != 2:
         raise SystemExit("--optical-percentiles must have two values")
@@ -1231,6 +2217,8 @@ def main():
         raise SystemExit("--halpha-percentiles must have two values")
     if len(figsize) != 2:
         raise SystemExit("--figsize must have two values")
+    if len(hi_image_percentiles) != 2:
+        raise SystemExit("--hi-image-percentiles must have two values")
 
     make_legacy_halpha_rgb(
         galaxy_dir=args.galaxy_dir,
@@ -1266,6 +2254,36 @@ def main():
         hi_color=args.hi_color,
         hi_alpha=args.hi_alpha,
         hi_linewidth=args.hi_linewidth,
+        hi_image=args.hi_image,
+        hi_image_alpha=args.hi_image_alpha,
+        hi_image_percentiles=tuple(hi_image_percentiles),
+        hi_image_stretch=args.hi_image_stretch,
+        hi_image_asinh_a=args.hi_image_asinh_a,
+        hi_image_alpha_power=args.hi_image_alpha_power,
+        hi_image_cmap=args.hi_image_cmap,
+        hi_image_interpolation=args.hi_image_interpolation,
+        hi_image_high_fade_start=args.hi_image_high_fade_start,
+        hi_image_high_fade_end=args.hi_image_high_fade_end,
+        jwst_footprint=args.jwst_footprint,
+        jwst_ra=args.jwst_ra,
+        jwst_dec=args.jwst_dec,
+        jwst_pa_v3=args.jwst_pa_v3,
+        jwst_apertures=jwst_apertures,
+        jwst_reference_aperture=args.jwst_reference_aperture,
+        jwst_color=args.jwst_color,
+        jwst_alpha=args.jwst_alpha,
+        jwst_linewidth=args.jwst_linewidth,
+        jwst_stroke_linewidth=args.jwst_stroke_linewidth,
+        jwst_fill_alpha=args.jwst_fill_alpha,
+        jwst_outer_outline=args.jwst_outer_outline,
+        jwst_outer_color=args.jwst_outer_color,
+        jwst_outer_alpha=args.jwst_outer_alpha,
+        jwst_outer_linewidth=args.jwst_outer_linewidth,
+        jwst_outer_stroke_linewidth=args.jwst_outer_stroke_linewidth,
+        jwst_dither_footprints=args.jwst_dither_footprints,
+        jwst_pointing_file=args.jwst_pointing_file,
+        jwst_pointing_target=args.jwst_pointing_target,
+        jwst_pointing_types=jwst_pointing_types,
         add_scale=not args.no_scale,
         scale_kpc=args.scale_kpc,
         scale_color=args.scale_color,

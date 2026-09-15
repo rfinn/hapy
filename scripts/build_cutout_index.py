@@ -53,6 +53,8 @@ def find_mask_diagnostic_png(html_cutout_dir):
             for m in matches:
                 if "seg-diagnostic" in m.name: # skip the 5-panel plot and use the two panel one for index page
                     continue
+                if "clumps-diagnostic" in m.name: # skip the 5-panel plot and use the two panel one for index page
+                    continue                
                 return m
     return None
 
